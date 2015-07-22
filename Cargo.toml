@@ -6,6 +6,7 @@ license = "Apache-2.0"
 description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]
 repository = "https://github.com/tomaka/rodio"
+documentation = "http://tomaka.github.io/rodio/rodio/index.html"
 
 [dependencies]
 cpal = "0.1.1"

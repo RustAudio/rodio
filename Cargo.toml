@@ -2,6 +2,9 @@
 name = "rodio"
 version = "0.1.0"
 authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
+description = "Audio playback library"
+tags = ["audio", "playback", "gamedev"]
+license = "Apache2"
 
 [dependencies]
 cpal = "0.1.1"

@@ -1,4 +1,4 @@
-use std::thread;
+use std::thread::{self, Builder};
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -21,7 +21,10 @@ impl Engine {
     /// Builds the engine.
     pub fn new() -> Engine {
         let (tx, rx) = mpsc::channel();
-        thread::spawn(move || background(rx));
+        // we ignore errors when creating the background thread
+        // the user won't get any audio, but that's better than a panic
+        let _ = Builder::new().name("rodio audio processing".to_string())
+                              .spawn(move || background(rx));
         Engine { commands: Mutex::new(tx), next_sound_id: AtomicUsize::new(1) }
     }
 

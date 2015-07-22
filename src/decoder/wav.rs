@@ -39,15 +39,13 @@ impl<R> Decoder for WavDecoder<R> where R: Read {
         // TODO: hack because of a bug in cpal
         let samples_left = if samples_left > 512 { 512 } else { samples_left };
 
-        let mut buffer: cpal::Buffer<u16> =
+        let mut buffer: cpal::Buffer<i16> =
             voice.append_data(self.spec.channels,
                               cpal::SamplesRate(self.spec.sample_rate),
                               samples_left);
 
         for (dest, src) in buffer.iter_mut().zip(&mut samples) {
-            // TODO: There is a bug in cpal that handles signed samples in the
-            // wrong manner, so we cast it to `u16` for now.
-            *dest = src.unwrap() as u16;
+            *dest = src.unwrap();
         }
     }
 }

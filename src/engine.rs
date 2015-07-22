@@ -6,22 +6,28 @@ use std::sync::Mutex;
 use cpal::Voice;
 use decoder::Decoder;
 
+/// The internal engine of this library.
+///
+/// Each `Engine` owns a thread that runs in the background and plays the audio.
 pub struct Engine {
     /// Communication with the background thread.
     commands: Mutex<Sender<Command>>,
-    /// Counter that is incremented whenever a sound starts playing.
-    sound_ids: AtomicUsize,
+    /// Counter that is incremented whenever a sound starts playing and that is used to track each
+    /// sound invidiually.
+    next_sound_id: AtomicUsize,
 }
 
 impl Engine {
+    /// Builds the engine.
     pub fn new() -> Engine {
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || background(rx));
-        Engine { commands: Mutex::new(tx), sound_ids: AtomicUsize::new(0) }
+        Engine { commands: Mutex::new(tx), next_sound_id: AtomicUsize::new(1) }
     }
 
+    /// Starts playing a sound and returns a `Handler` to control it.
     pub fn play(&self, decoder: Box<Decoder + Send>) -> Handle {
-        let sound_id = self.sound_ids.fetch_add(1, Ordering::Relaxed);
+        let sound_id = self.next_sound_id.fetch_add(1, Ordering::Relaxed);
 
         let commands = self.commands.lock().unwrap();
         commands.send(Command::Play(sound_id, decoder)).unwrap();
@@ -54,7 +60,7 @@ pub enum Command {
 }
 
 fn background(rx: Receiver<Command>) {
-    let mut sounds = Vec::new();
+    let mut sounds: Vec<(usize, Voice, Box<Decoder + Send>)> = Vec::new();
 
     loop {
         // polling for new sounds
@@ -65,9 +71,13 @@ fn background(rx: Receiver<Command>) {
             }
         }
 
+        // updating the existing sounds
         for &mut (_, ref mut voice, ref mut decoder) in sounds.iter_mut() {
             decoder.write(voice);
             voice.play();
         }
+
+        // sleeping a bit?
+        thread::sleep_ms(1);
     }
 }

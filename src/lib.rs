@@ -18,12 +18,13 @@ lazy_static! {
 pub struct Handle(engine::Handle<'static>);
 
 impl Handle {
+    /// Stops the sound.
     pub fn stop(self) {
         self.0.stop()
     }
 }
 
-/// Plays a sound once. There's no way to stop the sound except by exiting the program.
+/// Plays a sound once. Returns a `Handle` that can be used to control the sound.
 pub fn play_once<R>(input: R) -> Handle where R: Read + Send + 'static {
     let decoder = decoder::decode(input);
     Handle(ENGINE.play(decoder))

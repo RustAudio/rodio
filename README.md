@@ -1,5 +1,7 @@
 # Audio playback library
 
+[![Build Status](https://travis-ci.org/tomaka/rodio.svg?branch=master)](https://travis-ci.org/tomaka/rodio)
+
 Rust playback library.
 
  - Playback is handled by [cpal](https://github.com/tomaka/cpal).

@@ -2,8 +2,9 @@ extern crate cpal;
 extern crate hound;
 #[macro_use]
 extern crate lazy_static;
+extern crate vorbis;
 
-use std::io::Read;
+use std::io::{Read, Seek};
 
 mod decoder;
 mod engine;
@@ -25,7 +26,7 @@ impl Handle {
 }
 
 /// Plays a sound once. Returns a `Handle` that can be used to control the sound.
-pub fn play_once<R>(input: R) -> Handle where R: Read + Send + 'static {
+pub fn play_once<R>(input: R) -> Handle where R: Read + Seek + Send + 'static {
     let decoder = decoder::decode(input);
     Handle(ENGINE.play(decoder))
 }

@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use super::Decoder;
 
 use cpal::{self, Voice};
@@ -10,13 +10,17 @@ pub struct WavDecoder<R> where R: Read {
     spec: WavSpec,
 }
 
-impl<R> WavDecoder<R> where R: Read {
-    pub fn new(data: R) -> Result<WavDecoder<R>, ()> {
-        let reader = match WavReader::new(data) {
-            Err(_) => return Err(()),
-            Ok(r) => r
-        };
+impl<R> WavDecoder<R> where R: Read + Seek {
+    pub fn new(mut data: R) -> Result<WavDecoder<R>, R> {
+        let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
 
+        if WavReader::new(data.by_ref()).is_err() {
+            data.seek(SeekFrom::Start(stream_pos)).unwrap();
+            return Err(data);
+        }
+
+        data.seek(SeekFrom::Start(stream_pos)).unwrap();
+        let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
 
         Ok(WavDecoder {

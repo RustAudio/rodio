@@ -1,6 +1,7 @@
 use std::io::{Read, Seek};
 use std::mem;
 use super::Decoder;
+use super::conversions;
 
 use cpal::{self, Voice};
 use vorbis;
@@ -49,14 +50,21 @@ impl<R> Decoder for VorbisDecoder<R> where R: Read + Seek {
             self.current_packet.as_mut().unwrap()
         };
 
-        let mut buffer = voice.append_data(packet.channels, cpal::SamplesRate(packet.rate as u32), 
-                                           packet.data.len());
+        let to_channels = voice.get_channels();
+        let to_samples_rate = voice.get_samples_rate();
 
+        let mut buffer = voice.append_data(packet.data.len());
         let src = mem::replace(&mut packet.data, Vec::new());
+
+        conversions::convert_and_write(&src, packet.channels, to_channels,
+                                       cpal::SamplesRate(packet.rate as u32), to_samples_rate,
+                                       &mut buffer);
+
+        /*
         let mut src = src.into_iter();
         for (dest, src) in buffer.iter_mut().zip(src.by_ref()) {
             *dest = src;
         }
-        packet.data = src.collect();
+        packet.data = src.collect();*/
     }
 }

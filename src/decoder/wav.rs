@@ -1,51 +1,69 @@
 use std::io::{Read, Seek, SeekFrom};
 use super::Decoder;
+use super::conversions;
 
-use cpal::{self, Voice};
+use cpal::{self, Endpoint, Voice};
+use hound::WavIntoSamples;
 use hound::WavReader;
 use hound::WavSpec;
 
-pub struct WavDecoder<R> where R: Read {
-    reader: WavReader<R>,
-    spec: WavSpec,
+pub struct WavDecoder {
+    reader: Box<Iterator<Item=i16> + Send>,
+    voice: Voice,
 }
 
-impl<R> WavDecoder<R> where R: Read + Seek {
-    pub fn new(mut data: R) -> Result<WavDecoder<R>, R> {
-        let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
-
-        if WavReader::new(data.by_ref()).is_err() {
-            data.seek(SeekFrom::Start(stream_pos)).unwrap();
+impl WavDecoder {
+    pub fn new<R>(endpoint: &Endpoint, mut data: R) -> Result<WavDecoder, R> where R: Read + Seek + Send + 'static {
+        if !is_wave(data.by_ref()) {
             return Err(data);
         }
 
-        data.seek(SeekFrom::Start(stream_pos)).unwrap();
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
 
+        let voice_format = endpoint.get_supported_formats_list().unwrap().next().unwrap();
+        let voice = Voice::new(endpoint, &voice_format).unwrap();
+
+        let reader = reader.into_samples().map(|s| s.unwrap_or(0));
+        let reader = conversions::ChannelsCountConverter::new(reader, spec.channels,
+                                                              voice.get_channels());
+        let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
+                                                            voice.get_samples_rate());
+
         Ok(WavDecoder {
-            reader: reader,
-            spec: spec,
+            reader: Box::new(reader),
+            voice: voice,
         })
     }
 }
 
-impl<R> Decoder for WavDecoder<R> where R: Read {
-    fn write(&mut self, voice: &mut Voice) {
-        let mut samples = self.reader.samples::<i16>();
-        let samples_left = samples.len();
-        if samples_left == 0 { return; }
+/// Returns true if the stream contains WAV data, then resets it to where it was.
+fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
+    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
 
-        // TODO: hack because of a bug in cpal
-        let samples_left = if samples_left > 512 { 512 } else { samples_left };
+    if WavReader::new(data.by_ref()).is_err() {
+        data.seek(SeekFrom::Start(stream_pos)).unwrap();
+        return false;
+    }
 
-        let mut buffer: cpal::Buffer<i16> =
-            voice.append_data(self.spec.channels,
-                              cpal::SamplesRate(self.spec.sample_rate),
-                              samples_left);
+    data.seek(SeekFrom::Start(stream_pos)).unwrap();
+    true
+}
 
-        for (dest, src) in buffer.iter_mut().zip(&mut samples) {
-            *dest = src.unwrap();
+impl Decoder for WavDecoder {
+    fn write(&mut self) {
+        let (min, _) = self.reader.size_hint();
+
+        if min == 0 {
+            // finished
+            return;
         }
+
+        {
+            let mut buffer = self.voice.append_data(min);
+            conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
+        }
+
+        self.voice.play();
     }
 }

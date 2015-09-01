@@ -9,7 +9,8 @@ repository = "https://github.com/tomaka/rodio"
 documentation = "http://tomaka.github.io/rodio/rodio/index.html"
 
 [dependencies]
-cpal = "0.1.1"
-hound = "1.0.0"
+cpal = "0.2.1"
+#hound = "1.0.0"
+hound = { git = "https://github.com/tomaka/hound", branch = "wavreader-ownership" }
 lazy_static = "0.1.12"
 vorbis = "0.0.12"

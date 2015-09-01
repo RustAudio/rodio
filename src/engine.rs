@@ -1,9 +1,12 @@
+use std::io::{Read, Seek};
 use std::thread::{self, Builder};
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
+use cpal::Endpoint;
 use cpal::Voice;
+use decoder;
 use decoder::Decoder;
 
 /// The internal engine of this library.
@@ -29,9 +32,12 @@ impl Engine {
     }
 
     /// Starts playing a sound and returns a `Handler` to control it.
-    pub fn play(&self, decoder: Box<Decoder + Send>) -> Handle {
-        let sound_id = self.next_sound_id.fetch_add(1, Ordering::Relaxed);
+    pub fn play<R>(&self, endpoint: &Endpoint, input: R) -> Handle
+                   where R: Read + Seek + Send + 'static
+    {
+        let decoder = decoder::decode(endpoint, input);
 
+        let sound_id = self.next_sound_id.fetch_add(1, Ordering::Relaxed);
         let commands = self.commands.lock().unwrap();
         commands.send(Command::Play(sound_id, decoder)).unwrap();
 
@@ -63,21 +69,25 @@ pub enum Command {
 }
 
 fn background(rx: Receiver<Command>) {
-    let mut sounds: Vec<(usize, Voice, Box<Decoder + Send>)> = Vec::new();
+    let mut sounds: Vec<(usize, Box<Decoder + Send>)> = Vec::new();
 
     loop {
         // polling for new sounds
         if let Ok(command) = rx.try_recv() {
             match command {
-                Command::Play(id, decoder) => sounds.push((id, Voice::new(), decoder)),
-                Command::Stop(id) => sounds.retain(|&(id2, _, _)| id2 != id),
+                Command::Play(id, decoder) => {
+                    sounds.push((id, decoder));
+                },
+
+                Command::Stop(id) => {
+                    sounds.retain(|&(id2, _)| id2 != id)
+                },
             }
         }
 
         // updating the existing sounds
-        for &mut (_, ref mut voice, ref mut decoder) in sounds.iter_mut() {
-            decoder.write(voice);
-            voice.play();
+        for &mut (_, ref mut decoder) in sounds.iter_mut() {
+            decoder.write();
         }
 
         // sleeping a bit?

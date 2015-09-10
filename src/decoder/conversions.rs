@@ -179,8 +179,8 @@ impl<I> Iterator for ChannelsCountConverter<I> where I: Iterator, I::Item: Clone
             // adding extra output channels
             // TODO: could be done better
             if self.to > self.from {
-                for _ in (0 .. self.to - self.from) {
-                    let val = self.output_buffer[0].clone();
+                for i in (0 .. self.to - self.from) {
+                    let val = self.output_buffer[(i % self.from) as usize].clone();
                     self.output_buffer.push(val);
                 }
             }
@@ -295,30 +295,31 @@ impl<I> ExactSizeIterator for SamplesRateConverter<I>
 #[cfg(test)]
 mod test {
     use super::Sample;
-    /*#[test]
-    fn remove_channels() {
-        let result = convert_channels(&[1u16, 2, 3, 1, 2, 3], 3, 2);
-        assert_eq!(result, [1, 2, 1, 2]);
+    use super::ChannelsCountConverter;
 
-        let result = convert_channels(&[1u16, 2, 3, 4, 1, 2, 3, 4], 4, 1);
-        assert_eq!(result, [1, 1]);
+    #[test]
+    fn remove_channels() {
+        let input = vec![1u16, 2, 3, 1, 2, 3];
+        let output = ChannelsCountConverter::new(input.into_iter(), 3, 2).collect::<Vec<_>>();
+        assert_eq!(output, [1, 2, 1, 2]);
+
+        let input = vec![1u16, 2, 3, 4, 1, 2, 3, 4];
+        let output = ChannelsCountConverter::new(input.into_iter(), 4, 1).collect::<Vec<_>>();
+        assert_eq!(output, [1, 1]);
     }
 
     #[test]
     fn add_channels() {
-        let result = convert_channels(&[1u16, 2, 1, 2], 2, 3);
-        assert_eq!(result, [1, 2, 1, 1, 2, 1]);
+        let input = vec![1u16, 2, 1, 2];
+        let output = ChannelsCountConverter::new(input.into_iter(), 2, 3).collect::<Vec<_>>();
+        assert_eq!(output, [1, 2, 1, 1, 2, 1]);
 
-        let result = convert_channels(&[1u16, 2, 1, 2], 2, 4);
-        assert_eq!(result, [1, 2, 1, 2, 1, 2, 1, 2]);
+        let input = vec![1u16, 2, 1, 2];
+        let output = ChannelsCountConverter::new(input.into_iter(), 2, 4).collect::<Vec<_>>();
+        assert_eq!(output, [1, 2, 1, 2, 1, 2, 1, 2]);
     }
 
-    #[test]
-    #[should_panic]
-    fn convert_channels_wrong_data_len() {
-        convert_channels(&[1u16, 2, 3], 2, 1);
-    }
-
+    /*
     #[test]
     fn half_samples_rate() {
         let result = convert_samples_rate(&[1u16, 16, 2, 17, 3, 18, 4, 19],

@@ -45,15 +45,15 @@ impl VorbisDecoder {
 
 impl Decoder for VorbisDecoder {
     fn write(&mut self) {
-        let (min, _) = self.reader.size_hint();
+        /*let (min, _) = self.reader.size_hint();
 
         if min == 0 {
             // finished
             return;
-        }
+        }*/
 
         {
-            let mut buffer = self.voice.append_data(min);
+            let mut buffer = self.voice.append_data(32768);
             conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
         }
 

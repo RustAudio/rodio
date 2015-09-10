@@ -1,3 +1,4 @@
+use std::cmp;
 use std::io::{Read, Seek};
 use std::thread::{self, Builder};
 use std::sync::mpsc::{self, Sender, Receiver};
@@ -8,6 +9,8 @@ use cpal::Endpoint;
 use cpal::Voice;
 use decoder;
 use decoder::Decoder;
+
+use time;
 
 /// The internal engine of this library.
 ///
@@ -85,12 +88,21 @@ fn background(rx: Receiver<Command>) {
             }
         }
 
+        // stores  
+        let mut next_step_ns = time::precise_time_ns();
+
         // updating the existing sounds
-        for &mut (_, ref mut decoder) in sounds.iter_mut() {
-            decoder.write();
+        for &mut (_, ref mut decoder) in &mut sounds {
+            let val = decoder.write();
+            let val = time::precise_time_ns() + val;
+            next_step_ns = cmp::min(next_step_ns, val);
         }
 
         // sleeping a bit?
-        thread::sleep_ms(1);
+        let sleep = next_step_ns as i64 - time::precise_time_ns() as i64;
+        let sleep = sleep - 500000;
+        if sleep >= 0 {
+            thread::sleep_ms(sleep as u32);
+        }
     }
 }

@@ -2,6 +2,7 @@ extern crate cpal;
 extern crate hound;
 #[macro_use]
 extern crate lazy_static;
+extern crate time;
 extern crate vorbis;
 
 pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};

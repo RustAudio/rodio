@@ -80,19 +80,25 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
 }
 
 impl Decoder for WavDecoder {
-    fn write(&mut self) {
+    fn write(&mut self) -> u64 {
         let (min, _) = self.reader.size_hint();
 
         if min == 0 {
             // finished
-            return;
+            return 1000000000;
         }
 
-        {
+        let len = {
             let mut buffer = self.voice.append_data(min);
+            let len = buffer.len();
             conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
-        }
+            len
+        };
+
+        let duration = len as u64 * 1000000000 / self.voice.get_samples_rate().0 as u64;
 
         self.voice.play();
+
+        duration
     }
 }

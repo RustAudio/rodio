@@ -17,6 +17,8 @@ use cpal::SampleFormat;
 pub fn convert_and_write<I, S>(mut samples: I, output: &mut UnknownTypeBuffer)
                                where I: Iterator<Item=S>, S: Sample
 {
+    let samples = samples.chain(iter::repeat(Sample::zero_value()));
+
     match output {
         &mut UnknownTypeBuffer::U16(ref mut buffer) => {
             for (i, o) in samples.zip(buffer.iter_mut()) {
@@ -43,6 +45,8 @@ pub trait Sample: cpal::Sample {
     /// Returns the average inside a list.
     fn average(data: &[Self]) -> Self;
 
+    fn zero_value() -> Self;
+
     fn to_i16(&self) -> i16;
     fn to_u16(&self) -> u16;
     fn to_f32(&self) -> f32;
@@ -53,6 +57,11 @@ impl Sample for u16 {
     fn average(data: &[u16]) -> u16 {
         let sum: usize = data.iter().fold(0, |acc, &item| acc + item as usize);
         (sum / data.len()) as u16
+    }
+
+    #[inline]
+    fn zero_value() -> u16 {
+        32768
     }
 
     #[inline]
@@ -80,6 +89,11 @@ impl Sample for i16 {
     fn average(data: &[i16]) -> i16 {
         let sum: isize = data.iter().fold(0, |acc, &item| acc + item as isize);
         (sum / data.len() as isize) as i16
+    }
+
+    #[inline]
+    fn zero_value() -> i16 {
+        0
     }
 
     #[inline]
@@ -111,6 +125,11 @@ impl Sample for f32 {
     fn average(data: &[f32]) -> f32 {
         let sum: f64 = data.iter().fold(0.0, |acc, &item| acc + item as f64);
         (sum / data.len() as f64) as f32
+    }
+
+    #[inline]
+    fn zero_value() -> f32 {
+        0.0
     }
 
     #[inline]

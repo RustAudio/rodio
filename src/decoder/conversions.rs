@@ -49,11 +49,13 @@ pub trait Sample: cpal::Sample {
 }
 
 impl Sample for u16 {
+    #[inline]
     fn average(data: &[u16]) -> u16 {
         let sum: usize = data.iter().fold(0, |acc, &item| acc + item as usize);
         (sum / data.len()) as u16
     }
 
+    #[inline]
     fn to_i16(&self) -> i16 {
         if *self >= 32768 {
             (*self - 32768) as i16
@@ -62,64 +64,70 @@ impl Sample for u16 {
         }
     }
 
+    #[inline]
     fn to_u16(&self) -> u16 {
         *self
     }
 
+    #[inline]
     fn to_f32(&self) -> f32 {
         self.to_i16().to_f32()
     }
 }
 
 impl Sample for i16 {
+    #[inline]
     fn average(data: &[i16]) -> i16 {
         let sum: isize = data.iter().fold(0, |acc, &item| acc + item as isize);
         (sum / data.len() as isize) as i16
     }
 
+    #[inline]
     fn to_i16(&self) -> i16 {
         *self
     }
 
+    #[inline]
     fn to_u16(&self) -> u16 {
         if *self < 0 {
-            (*self + 32767 + 1) as u16
+            (*self - ::std::i16::MIN) as u16
         } else {
             (*self as u16) + 32768
         }
     }
 
+    #[inline]
     fn to_f32(&self) -> f32 {
-        if *self > 0 {
-            *self as f32 / 32767.0
+        if *self < 0 {
+            *self as f32 / -(::std::i16::MIN as f32)
         } else {
-            *self as f32 / 32768.0
+            *self as f32 / ::std::i16::MAX as f32
         }
     }
 }
 
 impl Sample for f32 {
+    #[inline]
     fn average(data: &[f32]) -> f32 {
         let sum: f64 = data.iter().fold(0.0, |acc, &item| acc + item as f64);
         (sum / data.len() as f64) as f32
     }
 
+    #[inline]
     fn to_i16(&self) -> i16 {
         if *self >= 0.0 {
-            (*self * 32767.0) as i16
+            (*self * ::std::i16::MAX as f32) as i16
         } else {
-            (*self * 32768.0) as i16
+            (-*self * ::std::i16::MIN as f32) as i16
         }
     }
 
+    #[inline]
     fn to_u16(&self) -> u16 {
-        if *self >= 0.0 {
-            ((*self * 32767.0) + 32768.0) as u16
-        } else {
-            ((*self * 32768.0) + 32768.0) as u16
-        }
+        (((*self + 1.0) * 0.5) * ::std::u16::MAX as f32).round() as u16
     }
 
+    #[inline]
     fn to_f32(&self) -> f32 {
         *self
     }
@@ -284,48 +292,10 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
 impl<I> ExactSizeIterator for SamplesRateConverter<I>
                               where I: ExactSizeIterator, I::Item: Sample + Clone {}
 
-/// Converts between a certain number of channels.
-///
-/// If the target number is inferior to the source number, additional channels are removed.
-///
-/// If the target number is superior to the source number, the value of channel `N` is equal
-/// to the value of channel `N % source_channels`.
-///
-/// ## Panic
-///
-/// Panics if `from` is 0, `to` is 0, or if the data length is not a multiple of `from`.
-pub fn convert_channels<T>(input: &[T], from: cpal::ChannelsCount, to: cpal::ChannelsCount) -> Vec<T>
-                           where T: Sample
-{
-    assert!(from != 0);
-    assert!(to != 0);
-    assert!(input.len() % from as usize == 0);
-
-    let mut result = Vec::new();
-
-    for element in input.chunks(from as usize) {
-        // copying the common channels
-        for i in (0 .. ::std::cmp::min(from, to)) {
-            result.push(element[i as usize]);
-        }
-
-        // adding extra ones
-        if to > from {
-            for i in (0 .. to - from) {
-                result.push(element[i as usize % element.len()]);
-            }
-        }
-    }
-
-    result
-}
-
 #[cfg(test)]
 mod test {
-    use super::convert_channels;
-    use super::convert_samples_rate;
-
-    #[test]
+    use super::Sample;
+    /*#[test]
     fn remove_channels() {
         let result = convert_channels(&[1u16, 2, 3, 1, 2, 3], 3, 2);
         assert_eq!(result, [1, 2, 1, 2]);
@@ -363,59 +333,74 @@ mod test {
                                           ::SamplesRate(22050), ::SamplesRate(44100), 2);
 
         assert_eq!(result, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
-    }
+    }*/
 
     #[test]
     fn i16_to_i16() {
-        let out = Sample::to_vec_i16(&[0i16, -467, 32767, -32768]).into_owned();
-        assert_eq!(out, vec![0, -467, 32767, -32768]);
+        assert_eq!(0i16.to_i16(), 0);
+        assert_eq!((-467i16).to_i16(), -467);
+        assert_eq!(32767i16.to_i16(), 32767);
+        assert_eq!((-32768i16).to_i16(), -32768);
     }
 
     #[test]
     fn i16_to_u16() {
-        let out = Sample::to_vec_u16(&[0i16, -16384, 32767, -32768]).into_owned();
-        assert_eq!(out, vec![32768, 16384, 65535, 0]);
+        assert_eq!(0i16.to_u16(), 32768);
+        assert_eq!((-16384i16).to_u16(), 16384);
+        assert_eq!(32767i16.to_u16(), 65535);
+        assert_eq!((-32768i16).to_u16(), 0);
     }
 
     #[test]
     fn i16_to_f32() {
-        let out = Sample::to_vec_f32(&[0i16, -16384, 32767, -32768]).into_owned();
-        assert_eq!(out, vec![0.0, -0.5, 1.0, -1.0]);
+        assert_eq!(0i16.to_f32(), 0.0);
+        assert_eq!((-16384i16).to_f32(), -0.5);
+        assert_eq!(32767i16.to_f32(), 1.0);
+        assert_eq!((-32768i16).to_f32(), -1.0);
     }
 
     #[test]
     fn u16_to_i16() {
-        let out = Sample::to_vec_i16(&[32768u16, 16384, 65535, 0]).into_owned();
-        assert_eq!(out, vec![0, -16384, 32767, -32768]);
+        assert_eq!(32768u16.to_i16(), 0);
+        assert_eq!(16384u16.to_i16(), -16384);
+        assert_eq!(65535u16.to_i16(), 32767);
+        assert_eq!(0u16.to_i16(), -32768);
     }
 
     #[test]
     fn u16_to_u16() {
-        let out = Sample::to_vec_u16(&[0u16, 467, 32767, 65535]).into_owned();
-        assert_eq!(out, vec![0, 467, 32767, 65535]);
+        assert_eq!(0u16.to_u16(), 0);
+        assert_eq!(467u16.to_u16(), 467);
+        assert_eq!(32767u16.to_u16(), 32767);
+        assert_eq!(65535u16.to_u16(), 65535);
     }
 
     #[test]
     fn u16_to_f32() {
-        let out = Sample::to_vec_f32(&[0u16, 32768, 65535]).into_owned();
-        assert_eq!(out, vec![-1.0, 0.0, 1.0]);
+        assert_eq!(0u16.to_f32(), -1.0);
+        assert_eq!(32768u16.to_f32(), 0.0);
+        assert_eq!(65535u16.to_f32(), 1.0);
     }
 
     #[test]
     fn f32_to_i16() {
-        let out = Sample::to_vec_i16(&[0.0f32, -0.5, 1.0, -1.0]).into_owned();
-        assert_eq!(out, vec![0, -16384, 32767, -32768]);
+        assert_eq!(0.0f32.to_i16(), 0);
+        assert_eq!((-0.5f32).to_i16(), ::std::i16::MIN / 2);
+        assert_eq!(1.0f32.to_i16(), ::std::i16::MAX);
+        assert_eq!((-1.0f32).to_i16(), ::std::i16::MIN);
     }
 
     #[test]
     fn f32_to_u16() {
-        let out = Sample::to_vec_u16(&[-1.0f32, 0.0, 1.0]).into_owned();
-        assert_eq!(out, vec![0, 32768, 65535]);
+        assert_eq!((-1.0f32).to_u16(), 0);
+        assert_eq!(0.0f32.to_u16(), 32768);
+        assert_eq!(1.0f32.to_u16(), 65535);
     }
 
     #[test]
     fn f32_to_f32() {
-        let out = Sample::to_vec_f32(&[0.1f32, -0.7, 1.0]).into_owned();
-        assert_eq!(out, vec![0.1, -0.7, 1.0]);
+        assert_eq!(0.1f32.to_f32(), 0.1);
+        assert_eq!((-0.7f32).to_f32(), -0.7);
+        assert_eq!(1.0f32.to_f32(), 1.0);
     }
 }

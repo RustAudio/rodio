@@ -1,4 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
+use std::cmp::Ordering;
 use super::Decoder;
 use super::conversions;
 
@@ -13,7 +14,9 @@ pub struct WavDecoder {
 }
 
 impl WavDecoder {
-    pub fn new<R>(endpoint: &Endpoint, mut data: R) -> Result<WavDecoder, R> where R: Read + Seek + Send + 'static {
+    pub fn new<R>(endpoint: &Endpoint, mut data: R) -> Result<WavDecoder, R>
+                  where R: Read + Seek + Send + 'static
+    {
         if !is_wave(data.by_ref()) {
             return Err(data);
         }
@@ -21,7 +24,33 @@ impl WavDecoder {
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
 
-        let voice_format = endpoint.get_supported_formats_list().unwrap().next().unwrap();
+        // choosing a format amongst the ones available
+        let voice_format = {
+            let mut formats_list = endpoint.get_supported_formats_list().unwrap().collect::<Vec<_>>();
+            formats_list.sort_by(|f1, f2| {
+                if (f1.samples_rate.0 % spec.sample_rate) == 0 && (f2.samples_rate.0 % spec.sample_rate) != 0 {
+                    return Ordering::Greater;
+                } else if (f2.samples_rate.0 % spec.sample_rate) == 0 && (f1.samples_rate.0 % spec.sample_rate) != 0 {
+                    return Ordering::Less;
+                }
+
+                if f1.channels.len() >= spec.channels as usize && f1.channels.len() < f2.channels.len() {
+                    return Ordering::Greater;
+                } else if f2.channels.len() >= spec.channels as usize && f2.channels.len() < f1.channels.len() {
+                    return Ordering::Less;
+                }
+
+                if f1.data_type == cpal::SampleFormat::I16 && f2.data_type != cpal::SampleFormat::I16 {
+                    return Ordering::Greater;
+                } else if f2.data_type == cpal::SampleFormat::I16 && f1.data_type != cpal::SampleFormat::I16 {
+                    return Ordering::Less;
+                }
+
+                Ordering::Equal
+            });
+            formats_list.into_iter().next().unwrap()
+        };
+
         let voice = Voice::new(endpoint, &voice_format).unwrap();
 
         let reader = reader.into_samples().map(|s| s.unwrap_or(0));

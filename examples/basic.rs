@@ -14,8 +14,8 @@ fn main() {
     rodio::play_once(&endpoint, BufReader::new(file));
 
     std::thread::sleep_ms(1000);
-    /*let file = std::fs::File::open("examples/beep3.ogg").unwrap();
-    rodio::play_once(&endpoint, file);*/
+    let file = std::fs::File::open("examples/beep3.ogg").unwrap();
+    rodio::play_once(&endpoint, file);
 
     std::thread::sleep_ms(1000);
     beep1.stop();

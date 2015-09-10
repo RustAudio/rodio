@@ -4,7 +4,7 @@ use cpal::Endpoint;
 use cpal::Voice;
 
 mod conversions;
-//mod vorbis;
+mod vorbis;
 mod wav;
 
 /// Trait for objects that produce an audio stream.
@@ -24,9 +24,9 @@ pub fn decode<R>(endpoint: &Endpoint, data: R) -> Box<Decoder + Send>
         }
     };
 
-    /*if let Ok(decoder) = vorbis::VorbisDecoder::new(data) {
+    if let Ok(decoder) = vorbis::VorbisDecoder::new(endpoint, data) {
         return Box::new(decoder);
-    }*/
+    }
 
     panic!("Invalid format");
 }

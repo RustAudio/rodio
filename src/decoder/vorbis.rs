@@ -3,68 +3,60 @@ use std::mem;
 use super::Decoder;
 use super::conversions;
 
-use cpal::{self, Voice};
+use cpal::{self, Endpoint, Voice};
 use vorbis;
 
-pub struct VorbisDecoder<R> where R: Read + Seek {
-    decoder: vorbis::Decoder<R>,
-    current_packet: Option<vorbis::Packet>,
+pub struct VorbisDecoder {
+    reader: Box<Iterator<Item=i16> + Send>,
+    voice: Voice,
 }
 
-impl<R> VorbisDecoder<R> where R: Read + Seek {
-    pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
+impl VorbisDecoder {
+    pub fn new<R>(endpoint: &Endpoint, data: R) -> Result<VorbisDecoder, ()>
+                  where R: Read + Seek + Send + 'static
+    {
         let decoder = match vorbis::Decoder::new(data) {
             Err(_) => return Err(()),
             Ok(r) => r
         };
 
-        Ok(VorbisDecoder {
-            decoder: decoder,
-            current_packet: None,
-        })
-    }
-}
-
-impl<R> Decoder for VorbisDecoder<R> where R: Read + Seek {
-    fn write(&mut self, voice: &mut Voice) {
-        // setting the current packet to `None` if there is no data left in it
-        match &mut self.current_packet {
-            packet @ &mut Some(_) => {
-                if packet.as_ref().unwrap().data.len() == 0 {
-                    *packet = None;
-                }
-            },
-            _ => ()
-        };
-
-        // getting the next packet
-        let packet = if let Some(ref mut packet) = self.current_packet {
-            packet
-        } else {
-            let next = match self.decoder.packets().next().and_then(|r| r.ok()) {
-                Some(p) => p,
-                None => return,     // TODO: handle
-            };
-
-            self.current_packet = Some(next);
-            self.current_packet.as_mut().unwrap()
-        };
+        // building the voice
+        let voice_format = endpoint.get_supported_formats_list().unwrap().next().unwrap();
+        let voice = Voice::new(endpoint, &voice_format).unwrap();
 
         let to_channels = voice.get_channels();
         let to_samples_rate = voice.get_samples_rate();
 
-        let mut buffer = voice.append_data(packet.data.len());
-        let src = mem::replace(&mut packet.data, Vec::new());
+        let reader = decoder.into_packets().filter_map(|p| p.ok()).flat_map(move |packet| {
+            let reader = packet.data.into_iter();
+            let reader = conversions::ChannelsCountConverter::new(reader, packet.channels,
+                                                                  to_channels);
+            let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(packet.rate as u32),
+                                                                to_samples_rate);
+            reader
+        });
 
-        conversions::convert_and_write(&src, packet.channels, to_channels,
-                                       cpal::SamplesRate(packet.rate as u32), to_samples_rate,
-                                       &mut buffer);
+        Ok(VorbisDecoder {
+            reader: Box::new(reader),
+            voice: voice,
+        })
+    }
+}
 
-        /*
-        let mut src = src.into_iter();
-        for (dest, src) in buffer.iter_mut().zip(src.by_ref()) {
-            *dest = src;
+impl Decoder for VorbisDecoder {
+    fn write(&mut self) {
+        let (min, _) = self.reader.size_hint();
+
+        if min == 0 {
+            // finished
+            return;
         }
-        packet.data = src.collect();*/
+
+        {
+            let mut buffer = self.voice.append_data(min);
+            conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
+        }
+
+        self.voice.play();
     }
 }

@@ -42,8 +42,7 @@ pub fn convert_and_write<I, S>(mut samples: I, output: &mut UnknownTypeBuffer)
 
 /// Trait for containers that contain PCM data.
 pub trait Sample: cpal::Sample {
-    /// Returns the average inside a list.
-    fn average(data: &[Self]) -> Self;
+    fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
 
     fn zero_value() -> Self;
 
@@ -54,9 +53,8 @@ pub trait Sample: cpal::Sample {
 
 impl Sample for u16 {
     #[inline]
-    fn average(data: &[u16]) -> u16 {
-        let sum: usize = data.iter().fold(0, |acc, &item| acc + item as usize);
-        (sum / data.len()) as u16
+    fn lerp(first: u16, second: u16, numerator: u32, denominator: u32) -> u16 {
+        (first as u32 + (second as u32 - first as u32) * numerator / denominator) as u16
     }
 
     #[inline]
@@ -86,9 +84,8 @@ impl Sample for u16 {
 
 impl Sample for i16 {
     #[inline]
-    fn average(data: &[i16]) -> i16 {
-        let sum: isize = data.iter().fold(0, |acc, &item| acc + item as isize);
-        (sum / data.len() as isize) as i16
+    fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
+        (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32) as i16
     }
 
     #[inline]
@@ -122,9 +119,8 @@ impl Sample for i16 {
 
 impl Sample for f32 {
     #[inline]
-    fn average(data: &[f32]) -> f32 {
-        let sum: f64 = data.iter().fold(0.0, |acc, &item| acc + item as f64);
-        (sum / data.len() as f64) as f32
+    fn lerp(first: f32, second: f32, numerator: u32, denominator: u32) -> f32 {
+        first + (second - first) * numerator as f32 / denominator as f32
     }
 
     #[inline]
@@ -233,7 +229,10 @@ pub struct SamplesRateConverter<I> where I: Iterator {
     input: I,
     from: u32,
     to: u32,
-    output_buffer: Vec<I::Item>,
+    current_sample_pos_in_chunk: u32,
+    next_output_sample_pos_in_chunk: u32,
+    current_sample: Option<I::Item>,
+    next_sample: Option<I::Item>,
 }
 
 impl<I> SamplesRateConverter<I> where I: Iterator {
@@ -243,7 +242,7 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
     ///
     /// Panicks if `from` or `to` are equal to 0.
     ///
-    pub fn new(input: I, from: cpal::SamplesRate, to: cpal::SamplesRate)
+    pub fn new(mut input: I, from: cpal::SamplesRate, to: cpal::SamplesRate)
                -> SamplesRateConverter<I>
     {
         let from = from.0;
@@ -262,11 +261,17 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
             value
         };
 
+        let first_sample = input.next();
+        let second_sample = input.next();
+
         SamplesRateConverter {
             input: input,
             from: from / gcd,
             to: to / gcd,
-            output_buffer: Vec::with_capacity(to as usize),
+            current_sample_pos_in_chunk: 0,
+            next_output_sample_pos_in_chunk: 0,
+            current_sample: first_sample,
+            next_sample: second_sample,
         }
     }
 }
@@ -275,34 +280,40 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
     type Item = I::Item;
 
     fn next(&mut self) -> Option<I::Item> {
-        if self.output_buffer.len() == 0 {
-            if self.input.size_hint().1.unwrap() == 0 {
-                return None;
-            }
+        let req_left_sample = (self.from * self.next_output_sample_pos_in_chunk / self.to) % self.from;
 
-            // reading samples from the input
-            let input = self.input.by_ref().take(self.from as usize);
-
-            // and duplicating each sample `to` times
-            let self_to = self.to as usize;
-            let input = input.flat_map(|val| iter::repeat(val).take(self_to));
-            let input: Vec<_> = input.collect();
-            // the length of `input` is `from * to`
-
-            // now taking chunks of `from` size and building the average of each chunk
-            // therefore the remaining list is of size `to`
-            self.output_buffer = input.chunks(self.from as usize)
-                                      .map(|chunk| Sample::average(chunk)).collect();
+        while self.current_sample_pos_in_chunk != req_left_sample {
+            self.current_sample_pos_in_chunk += 1;
+            self.current_sample_pos_in_chunk %= self.from;
+            self.current_sample = self.next_sample;
+            self.next_sample = self.input.next();
         }
 
-        Some(self.output_buffer.remove(0))
+        let result = match (self.current_sample, self.next_sample) {
+            (Some(ref cur), Some(ref next)) => {
+                let numerator = (self.from * self.next_output_sample_pos_in_chunk) % self.to;
+                Sample::lerp(cur.clone(), next.clone(), numerator, self.to)
+            },
+
+            (Some(ref cur), None) if self.next_output_sample_pos_in_chunk == 0 => {
+                cur.clone()
+            },
+
+            _ => return None,
+        };
+
+        self.next_output_sample_pos_in_chunk += 1;
+        self.next_output_sample_pos_in_chunk %= self.to;
+
+        Some(result)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
 
-        let min = (min / self.from as usize) * self.to as usize + self.output_buffer.len();
-        let max = max.map(|max| (max / self.from as usize) * self.to as usize + self.output_buffer.len());
+        // TODO: inexact?
+        let min = (min / self.from as usize) * self.to as usize;
+        let max = max.map(|max| (max / self.from as usize) * self.to as usize);
 
         (min, max)
     }

@@ -2,11 +2,10 @@ use std::io::{Read, Seek, SeekFrom};
 use std::cmp;
 use std::cmp::Ordering;
 use super::Decoder;
-use super::conversions;
+use conversions;
 
 use cpal::{self, Endpoint, Voice};
 use hound::WavReader;
-use hound::WavSpec;
 
 pub struct WavDecoder {
     reader: conversions::AmplifierIterator<Box<Iterator<Item=i16> + Send>>,

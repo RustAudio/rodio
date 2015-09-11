@@ -1,9 +1,6 @@
 use std::io::{Read, Seek};
-
 use cpal::Endpoint;
-use cpal::Voice;
 
-mod conversions;
 mod vorbis;
 mod wav;
 

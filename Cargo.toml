@@ -10,8 +10,7 @@ documentation = "http://tomaka.github.io/rodio/rodio/index.html"
 
 [dependencies]
 cpal = "0.2.2"
-#hound = "1.0.0"
-hound = { git = "https://github.com/tomaka/hound", branch = "wavreader-ownership" }
+hound = "1.0.0"
 lazy_static = "0.1.12"
 time = "0.1.32"
 vorbis = "0.0.13"

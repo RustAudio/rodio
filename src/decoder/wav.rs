@@ -4,7 +4,6 @@ use super::Decoder;
 use super::conversions;
 
 use cpal::{self, Endpoint, Voice};
-use hound::WavIntoSamples;
 use hound::WavReader;
 use hound::WavSpec;
 
@@ -53,7 +52,7 @@ impl WavDecoder {
 
         let voice = Voice::new(endpoint, &voice_format).unwrap();
 
-        let reader = reader.into_samples().map(|s| s.unwrap_or(0));
+        let reader = SamplesIterator { reader: reader, samples_read: 0 };
         let reader = conversions::ChannelsCountConverter::new(reader, spec.channels,
                                                               voice.get_channels());
         let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
@@ -65,6 +64,33 @@ impl WavDecoder {
         })
     }
 }
+
+struct SamplesIterator<R> where R: Read + Seek {
+    reader: WavReader<R>,
+    samples_read: u32,
+}
+
+impl<R> Iterator for SamplesIterator<R> where R: Read + Seek {
+    type Item = i16;
+
+    #[inline]
+    fn next(&mut self) -> Option<i16> {
+        if let Some(value) = self.reader.samples().next() {
+            self.samples_read += 1;
+            Some(value.unwrap_or(0))
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = (self.reader.len() - self.samples_read) as usize;
+        (len, Some(len))
+    }
+}
+
+impl<R> ExactSizeIterator for SamplesIterator<R> where R: Read + Seek {}
 
 /// Returns true if the stream contains WAV data, then resets it to where it was.
 fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {

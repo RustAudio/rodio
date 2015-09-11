@@ -1,4 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
+use std::cmp;
 use std::cmp::Ordering;
 use super::Decoder;
 use super::conversions;
@@ -8,7 +9,7 @@ use hound::WavReader;
 use hound::WavSpec;
 
 pub struct WavDecoder {
-    reader: Box<Iterator<Item=i16> + Send>,
+    reader: conversions::AmplifierIterator<Box<Iterator<Item=i16> + Send>>,
     voice: Voice,
 }
 
@@ -59,7 +60,7 @@ impl WavDecoder {
                                                             voice.get_samples_rate());
 
         Ok(WavDecoder {
-            reader: Box::new(reader),
+            reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),
             voice: voice,
         })
     }
@@ -108,6 +109,8 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
 impl Decoder for WavDecoder {
     fn write(&mut self) -> u64 {
         let (min, _) = self.reader.size_hint();
+        let min = cmp::min(min, 10240);     // using a minimal value so that filters get applied
+                                            // quickly
 
         if min == 0 {
             // finished
@@ -126,5 +129,9 @@ impl Decoder for WavDecoder {
         self.voice.play();
 
         duration
+    }
+
+    fn set_volume(&mut self, value: f32) {
+        self.reader.set_amplification(value);
     }
 }

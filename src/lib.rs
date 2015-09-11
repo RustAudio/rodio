@@ -22,6 +22,15 @@ lazy_static! {
 pub struct Handle(engine::Handle<'static>);
 
 impl Handle {
+    /// Changes the volume of the sound.
+    ///
+    /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
+    /// multiply each sample by this value.
+    #[inline]
+    pub fn set_volume(&mut self, value: f32) {
+        self.0.set_volume(value);
+    }
+
     /// Stops the sound.
     #[inline]
     pub fn stop(self) {

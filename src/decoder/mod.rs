@@ -12,6 +12,9 @@ pub trait Decoder {
     /// Appends data to the voice. Returns the number of nanoseconds after which new data will need
     /// to have been submitted.
     fn write(&mut self) -> u64;
+
+    /// Changes the volume of the sound.
+    fn set_volume(&mut self, f32);
 }
 
 /// Builds a new `Decoder` from a data stream by determining the correct format.

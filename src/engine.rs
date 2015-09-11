@@ -60,6 +60,7 @@ pub struct Handle<'a> {
 }
 
 impl<'a> Handle<'a> {
+    #[inline]
     pub fn stop(self) {
         let commands = self.engine.commands.lock().unwrap();
         commands.send(Command::Stop(self.id)).unwrap();

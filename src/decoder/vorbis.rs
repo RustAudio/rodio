@@ -44,7 +44,7 @@ impl VorbisDecoder {
 }
 
 impl Decoder for VorbisDecoder {
-    fn write(&mut self) {
+    fn write(&mut self) -> u64 {
         /*let (min, _) = self.reader.size_hint();
 
         if min == 0 {
@@ -52,11 +52,15 @@ impl Decoder for VorbisDecoder {
             return;
         }*/
 
-        {
+        let len = {
             let mut buffer = self.voice.append_data(32768);
+            let len = buffer.len();
             conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
-        }
+            len
+        };
 
         self.voice.play();
+
+        len as u64 * 1000000000 / self.voice.get_samples_rate().0 as u64
     }
 }

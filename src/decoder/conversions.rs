@@ -226,13 +226,21 @@ impl<I> ExactSizeIterator for ChannelsCountConverter<I>
 
 /// Iterator that converts from a certain samples rate to another.
 pub struct SamplesRateConverter<I> where I: Iterator {
+    /// The iterator that gives us samples.
     input: I,
+    /// We convert chunks of `from` samples into chunks of `to` samples.
     from: u32,
+    /// We convert chunks of `from` samples into chunks of `to` samples.
     to: u32,
-    current_sample_pos_in_chunk: u32,
-    next_output_sample_pos_in_chunk: u32,
+    /// One sample extracted from `input`.
     current_sample: Option<I::Item>,
+    /// Position of `current_sample` modulo `from`.
+    current_sample_pos_in_chunk: u32,
+    /// The sample right after `current_sample`, extracted from `input`.
     next_sample: Option<I::Item>,
+    /// The position of the next sample that the iterator should return, modulo `to`.
+    /// This counter is incremented (modulo `to`) every time the iterator is called.
+    next_output_sample_pos_in_chunk: u32,
 }
 
 impl<I> SamplesRateConverter<I> where I: Iterator {
@@ -280,8 +288,15 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
     type Item = I::Item;
 
     fn next(&mut self) -> Option<I::Item> {
-        let req_left_sample = (self.from * self.next_output_sample_pos_in_chunk / self.to) % self.from;
+        // The sample we are going to return from this function will be a linear interpolation
+        // between `self.current_sample` and `self.next_sample`.
 
+        // Finding the position of the first sample of the linear interpolation.
+        let req_left_sample = (self.from * self.next_output_sample_pos_in_chunk / self.to) %
+                              self.from;
+
+        // Advancing `self.current_sample`, `self.next_sample` and
+        // `self.current_sample_pos_in_chunk` until the latter variable matches `req_left_sample`.
         while self.current_sample_pos_in_chunk != req_left_sample {
             self.current_sample_pos_in_chunk += 1;
             self.current_sample_pos_in_chunk %= self.from;
@@ -289,6 +304,7 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             self.next_sample = self.input.next();
         }
 
+        // Doing the linear interpolation. We handle a possible end of stream here.
         let result = match (self.current_sample, self.next_sample) {
             (Some(ref cur), Some(ref next)) => {
                 let numerator = (self.from * self.next_output_sample_pos_in_chunk) % self.to;
@@ -302,6 +318,7 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             _ => return None,
         };
 
+        // Incrementing the counter for the next iteration.
         self.next_output_sample_pos_in_chunk += 1;
         self.next_output_sample_pos_in_chunk %= self.to;
 

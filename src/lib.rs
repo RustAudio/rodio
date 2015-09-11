@@ -23,12 +23,14 @@ pub struct Handle(engine::Handle<'static>);
 
 impl Handle {
     /// Stops the sound.
+    #[inline]
     pub fn stop(self) {
         self.0.stop()
     }
 }
 
 /// Plays a sound once. Returns a `Handle` that can be used to control the sound.
+#[inline]
 pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Handle
                     where R: Read + Seek + Send + 'static
 {

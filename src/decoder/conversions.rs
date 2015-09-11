@@ -163,6 +163,7 @@ impl<I> ChannelsCountConverter<I> where I: Iterator {
     ///
     /// Panicks if `from` or `to` are equal to 0.
     ///
+    #[inline]
     pub fn new(input: I, from: cpal::ChannelsCount, to: cpal::ChannelsCount)
                -> ChannelsCountConverter<I>
     {
@@ -211,6 +212,7 @@ impl<I> Iterator for ChannelsCountConverter<I> where I: Iterator, I::Item: Clone
         Some(self.output_buffer.remove(0))
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
 
@@ -250,6 +252,7 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
     ///
     /// Panicks if `from` or `to` are equal to 0.
     ///
+    #[inline]
     pub fn new(mut input: I, from: cpal::SamplesRate, to: cpal::SamplesRate)
                -> SamplesRateConverter<I>
     {
@@ -329,6 +332,7 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
         Some(result)
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
 

@@ -260,13 +260,17 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
         assert!(to >= 1);
 
         // finding greatest common divisor
-        // TODO: better method
         let gcd = {
-            let mut value = cmp::min(from, to);
-            while (from % value) != 0 || (to % value) != 0 {
-                value -= 1;
+            #[inline]
+            fn gcd(a: u32, b: u32) -> u32 {
+                if b == 0 {
+                    a
+                } else {
+                    gcd(b, a % b)
+                }
             }
-            value
+
+            gcd(from, to)
         };
 
         let first_sample = input.next();

@@ -6,7 +6,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use cpal::Endpoint;
-use cpal::Voice;
 use decoder;
 use decoder::Decoder;
 

@@ -9,6 +9,7 @@ pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};
 
 use std::io::{Read, Seek};
 
+mod conversions;
 mod decoder;
 mod engine;
 

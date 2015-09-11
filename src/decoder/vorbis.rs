@@ -1,7 +1,6 @@
 use std::io::{Read, Seek};
-use std::mem;
 use super::Decoder;
-use super::conversions;
+use conversions;
 
 use cpal::{self, Endpoint, Voice};
 use vorbis;

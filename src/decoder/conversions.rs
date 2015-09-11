@@ -153,7 +153,8 @@ pub struct ChannelsCountConverter<I> where I: Iterator {
     input: I,
     from: cpal::ChannelsCount,
     to: cpal::ChannelsCount,
-    output_buffer: Vec<I::Item>,
+    sample_repeat: Option<I::Item>,
+    next_output_sample_pos: cpal::ChannelsCount,
 }
 
 impl<I> ChannelsCountConverter<I> where I: Iterator {
@@ -174,7 +175,8 @@ impl<I> ChannelsCountConverter<I> where I: Iterator {
             input: input,
             from: from,
             to: to,
-            output_buffer: Vec::with_capacity(to as usize),
+            sample_repeat: None,
+            next_output_sample_pos: 0,
         }
     }
 }
@@ -183,41 +185,37 @@ impl<I> Iterator for ChannelsCountConverter<I> where I: Iterator, I::Item: Clone
     type Item = I::Item;
 
     fn next(&mut self) -> Option<I::Item> {
-        if self.output_buffer.len() == 0 {
-            // copying common channels from input to output
-            for _ in (0 .. cmp::min(self.from, self.to)) {
-                self.output_buffer.push(match self.input.next() {
-                    Some(i) => i,
-                    None => return None
-                });
-            }
+        let result = if self.next_output_sample_pos == self.from - 1 {
+            let value = self.input.next();
+            self.sample_repeat = value.clone();
+            value
+        } else if self.next_output_sample_pos < self.from {
+            self.input.next()
+        } else {
+            self.sample_repeat.clone()
+        };
 
-            // adding extra output channels
-            // TODO: could be done better
-            if self.to > self.from {
-                for i in (0 .. self.to - self.from) {
-                    let val = self.output_buffer[(i % self.from) as usize].clone();
-                    self.output_buffer.push(val);
-                }
-            }
+        self.next_output_sample_pos += 1;
 
-            // discarding extra channels
+        if self.next_output_sample_pos == self.to {
+            self.next_output_sample_pos -= self.to;
+
             if self.from > self.to {
-                for _ in (0 .. self.from - self.to) {
-                    let _ = self.input.next();
+                for _ in (self.to .. self.from) {
+                    self.input.next();      // discarding extra input
                 }
             }
         }
 
-        Some(self.output_buffer.remove(0))
+        result
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
 
-        let min = (min / self.from as usize) * self.to as usize + self.output_buffer.len();
-        let max = max.map(|max| (max / self.from as usize) * self.to as usize + self.output_buffer.len());
+        let min = (min / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize;
+        let max = max.map(|max| (max / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize);
 
         (min, max)
     }
@@ -367,11 +365,11 @@ mod test {
     fn add_channels() {
         let input = vec![1u16, 2, 1, 2];
         let output = ChannelsCountConverter::new(input.into_iter(), 2, 3).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 1, 1, 2, 1]);
+        assert_eq!(output, [1, 2, 2, 1, 2, 2]);
 
         let input = vec![1u16, 2, 1, 2];
         let output = ChannelsCountConverter::new(input.into_iter(), 2, 4).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 1, 2, 1, 2, 1, 2]);
+        assert_eq!(output, [1, 2, 2, 2, 1, 2, 2, 2]);
     }
 
     /*

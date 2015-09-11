@@ -63,4 +63,8 @@ impl Decoder for VorbisDecoder {
 
         len as u64 * 1000000000 / self.voice.get_samples_rate().0 as u64
     }
+
+    fn set_volume(&mut self, _: f32) {
+        unimplemented!();
+    }
 }

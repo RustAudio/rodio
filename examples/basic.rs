@@ -6,7 +6,8 @@ fn main() {
     let endpoint = rodio::get_default_endpoint().unwrap();
 
     let file = std::fs::File::open("examples/beep.wav").unwrap();
-    let beep1 = rodio::play_once(&endpoint, BufReader::new(file));
+    let mut beep1 = rodio::play_once(&endpoint, BufReader::new(file));
+    beep1.set_volume(0.2);
 
     std::thread::sleep_ms(1000);
 

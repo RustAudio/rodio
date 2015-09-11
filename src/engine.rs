@@ -61,6 +61,12 @@ pub struct Handle<'a> {
 
 impl<'a> Handle<'a> {
     #[inline]
+    pub fn set_volume(&mut self, value: f32) {
+        let commands = self.engine.commands.lock().unwrap();
+        commands.send(Command::SetVolume(self.id, value)).unwrap();
+    }
+
+    #[inline]
     pub fn stop(self) {
         let commands = self.engine.commands.lock().unwrap();
         commands.send(Command::Stop(self.id)).unwrap();
@@ -70,6 +76,7 @@ impl<'a> Handle<'a> {
 pub enum Command {
     Play(usize, Box<Decoder + Send>),
     Stop(usize),
+    SetVolume(usize, f32),
 }
 
 fn background(rx: Receiver<Command>) {
@@ -85,6 +92,14 @@ fn background(rx: Receiver<Command>) {
 
                 Command::Stop(id) => {
                     sounds.retain(|&(id2, _)| id2 != id)
+                },
+
+                Command::SetVolume(id, volume) => {
+                    if let Some(&mut (_, ref mut d)) = sounds.iter_mut()
+                                                             .find(|&&mut (i, _)| i == id)
+                    {
+                        d.set_volume(volume);
+                    }
                 },
             }
         }

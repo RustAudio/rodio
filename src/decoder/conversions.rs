@@ -43,6 +43,7 @@ pub fn convert_and_write<I, S>(mut samples: I, output: &mut UnknownTypeBuffer)
 /// Trait for containers that contain PCM data.
 pub trait Sample: cpal::Sample {
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
+    fn amplify(self, value: f32) -> Self;
 
     fn zero_value() -> Self;
 
@@ -55,6 +56,11 @@ impl Sample for u16 {
     #[inline]
     fn lerp(first: u16, second: u16, numerator: u32, denominator: u32) -> u16 {
         (first as u32 + (second as u32 - first as u32) * numerator / denominator) as u16
+    }
+
+    #[inline]
+    fn amplify(self, value: f32) -> u16 {
+        ((self as f32) * value) as u16
     }
 
     #[inline]
@@ -86,6 +92,11 @@ impl Sample for i16 {
     #[inline]
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
         (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32) as i16
+    }
+
+    #[inline]
+    fn amplify(self, value: f32) -> i16 {
+        ((self as f32) * value) as i16
     }
 
     #[inline]
@@ -121,6 +132,11 @@ impl Sample for f32 {
     #[inline]
     fn lerp(first: f32, second: f32, numerator: u32, denominator: u32) -> f32 {
         first + (second - first) * numerator as f32 / denominator as f32
+    }
+
+    #[inline]
+    fn amplify(self, value: f32) -> f32 {
+        self * value
     }
 
     #[inline]
@@ -344,6 +360,43 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
 
 impl<I> ExactSizeIterator for SamplesRateConverter<I>
                               where I: ExactSizeIterator, I::Item: Sample + Clone {}
+
+pub struct AmplifierIterator<I> where I: Iterator {
+    input: I,
+    amplication: f32,
+}
+
+impl<I> AmplifierIterator<I> where I: Iterator {
+    #[inline]
+    pub fn new(input: I, amplication: f32) -> AmplifierIterator<I> {
+        AmplifierIterator {
+            input: input,
+            amplication: amplication,
+        }
+    }
+
+    #[inline]
+    pub fn set_amplification(&mut self, new_value: f32) {
+        self.amplication = new_value;
+    }
+}
+
+impl<I> Iterator for AmplifierIterator<I> where I: Iterator, I::Item: Sample {
+    type Item = I::Item;
+
+    #[inline]
+    fn next(&mut self) -> Option<I::Item> {
+        self.input.next().map(|value| value.amplify(self.amplication))
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.input.size_hint()
+    }
+}
+
+impl<I> ExactSizeIterator for AmplifierIterator<I>
+                              where I: ExactSizeIterator, I::Item: Sample {}
 
 #[cfg(test)]
 mod test {

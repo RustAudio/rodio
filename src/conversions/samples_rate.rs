@@ -1,5 +1,6 @@
 use cpal;
 use conversions::Sample;
+use std::mem;
 
 /// Iterator that converts from a certain samples rate to another.
 pub struct SamplesRateConverter<I> where I: Iterator {
@@ -9,15 +10,17 @@ pub struct SamplesRateConverter<I> where I: Iterator {
     from: u32,
     /// We convert chunks of `from` samples into chunks of `to` samples.
     to: u32,
-    /// One sample extracted from `input`.
-    current_sample: Option<I::Item>,
+    /// One sample per channel, extracted from `input`.
+    current_samples: Vec<I::Item>,
     /// Position of `current_sample` modulo `from`.
     current_sample_pos_in_chunk: u32,
-    /// The sample right after `current_sample`, extracted from `input`.
-    next_sample: Option<I::Item>,
+    /// The samples right after `current_sample` (one per channel), extracted from `input`.
+    next_samples: Vec<I::Item>,
     /// The position of the next sample that the iterator should return, modulo `to`.
     /// This counter is incremented (modulo `to`) every time the iterator is called.
     next_output_sample_pos_in_chunk: u32,
+    /// The buffer containing the samples waiting to be output.
+    output_buffer: Vec<I::Item>,
 }
 
 impl<I> SamplesRateConverter<I> where I: Iterator {
@@ -28,8 +31,8 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
     /// Panicks if `from` or `to` are equal to 0.
     ///
     #[inline]
-    pub fn new(mut input: I, from: cpal::SamplesRate, to: cpal::SamplesRate)
-               -> SamplesRateConverter<I>
+    pub fn new(mut input: I, from: cpal::SamplesRate, to: cpal::SamplesRate,
+               num_channels: cpal::ChannelsCount) -> SamplesRateConverter<I>
     {
         let from = from.0;
         let to = to.0;
@@ -51,8 +54,8 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
             gcd(from, to)
         };
 
-        let first_sample = input.next();
-        let second_sample = input.next();
+        let first_samples = input.by_ref().take(num_channels as usize).collect();
+        let second_samples = input.by_ref().take(num_channels as usize).collect();
 
         SamplesRateConverter {
             input: input,
@@ -60,8 +63,9 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
             to: to / gcd,
             current_sample_pos_in_chunk: 0,
             next_output_sample_pos_in_chunk: 0,
-            current_sample: first_sample,
-            next_sample: second_sample,
+            current_samples: first_samples,
+            next_samples: second_samples,
+            output_buffer: Vec::with_capacity(num_channels as usize),
         }
     }
 }
@@ -70,6 +74,14 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
     type Item = I::Item;
 
     fn next(&mut self) -> Option<I::Item> {
+        if self.output_buffer.len() >= 1 {
+            return Some(self.output_buffer.remove(0));
+        }
+
+        if self.current_samples.len() == 0 {
+            return None;
+        }
+
         // The sample we are going to return from this function will be a linear interpolation
         // between `self.current_sample` and `self.next_sample`.
 
@@ -82,29 +94,28 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
         while self.current_sample_pos_in_chunk != req_left_sample {
             self.current_sample_pos_in_chunk += 1;
             self.current_sample_pos_in_chunk %= self.from;
-            self.current_sample = self.next_sample;
-            self.next_sample = self.input.next();
+
+            let new_samples = self.input.by_ref().take(self.current_samples.capacity()).collect();
+            mem::swap(&mut self.current_samples, &mut self.next_samples);
+            mem::replace(&mut self.next_samples, new_samples);
         }
 
-        // Doing the linear interpolation. We handle a possible end of stream here.
-        let result = match (self.current_sample, self.next_sample) {
-            (Some(ref cur), Some(ref next)) => {
-                let numerator = (self.from * self.next_output_sample_pos_in_chunk) % self.to;
-                Sample::lerp(cur.clone(), next.clone(), numerator, self.to)
-            },
-
-            (Some(ref cur), None) if self.next_output_sample_pos_in_chunk == 0 => {
-                cur.clone()
-            },
-
-            _ => return None,
-        };
+        self.output_buffer = self.current_samples.iter().zip(self.next_samples.iter())
+                                                 .map(|(cur, next)|
+        {
+            let numerator = (self.from * self.next_output_sample_pos_in_chunk) % self.to;
+            Sample::lerp(cur.clone(), next.clone(), numerator, self.to)
+        }).collect();
 
         // Incrementing the counter for the next iteration.
         self.next_output_sample_pos_in_chunk += 1;
         self.next_output_sample_pos_in_chunk %= self.to;
 
-        Some(result)
+        if self.output_buffer.len() >= 1 {
+            Some(self.output_buffer.remove(0))
+        } else {
+            None
+        }
     }
 
     #[inline]

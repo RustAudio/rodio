@@ -31,7 +31,7 @@ impl VorbisDecoder {
             let reader = conversions::ChannelsCountConverter::new(reader, packet.channels,
                                                                   to_channels);
             let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(packet.rate as u32),
-                                                                to_samples_rate);
+                                                                to_samples_rate, to_channels);
             reader
         });
 

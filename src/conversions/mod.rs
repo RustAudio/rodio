@@ -25,19 +25,19 @@ pub fn convert_and_write<I, S>(samples: I, output: &mut UnknownTypeBuffer)
 
     match output {
         &mut UnknownTypeBuffer::U16(ref mut buffer) => {
-            for (i, o) in samples.zip(buffer.iter_mut()) {
+            for (o, i) in buffer.iter_mut().zip(samples) {
                 *o = i.to_u16();
             }
         },
 
         &mut UnknownTypeBuffer::I16(ref mut buffer) => {
-            for (i, o) in samples.zip(buffer.iter_mut()) {
+            for (o, i) in buffer.iter_mut().zip(samples) {
                 *o = i.to_i16();
             }
         },
 
         &mut UnknownTypeBuffer::F32(ref mut buffer) => {
-            for (i, o) in samples.zip(buffer.iter_mut()) {
+            for (o, i) in buffer.iter_mut().zip(samples) {
                 *o = i.to_f32();
             }
         },

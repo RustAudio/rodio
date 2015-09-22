@@ -9,6 +9,7 @@ repository = "https://github.com/tomaka/rodio"
 documentation = "http://tomaka.github.io/rodio/rodio/index.html"
 
 [dependencies]
+arrayvec = "0.3.12"
 cpal = "0.2.2"
 hound = "1.0.0"
 lazy_static = "0.1.12"

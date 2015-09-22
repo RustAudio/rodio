@@ -1,6 +1,9 @@
+use std::mem;
+
+use arrayvec::ArrayVec;
+
 use cpal;
 use conversions::Sample;
-use std::mem;
 
 /// Iterator that converts from a certain samples rate to another.
 pub struct SamplesRateConverter<I> where I: Iterator {
@@ -11,16 +14,16 @@ pub struct SamplesRateConverter<I> where I: Iterator {
     /// We convert chunks of `from` samples into chunks of `to` samples.
     to: u32,
     /// One sample per channel, extracted from `input`.
-    current_samples: Vec<I::Item>,
+    current_samples: ArrayVec<[I::Item; 12]>,
     /// Position of `current_sample` modulo `from`.
     current_sample_pos_in_chunk: u32,
     /// The samples right after `current_sample` (one per channel), extracted from `input`.
-    next_samples: Vec<I::Item>,
+    next_samples: ArrayVec<[I::Item; 12]>,
     /// The position of the next sample that the iterator should return, modulo `to`.
     /// This counter is incremented (modulo `to`) every time the iterator is called.
     next_output_sample_pos_in_chunk: u32,
     /// The buffer containing the samples waiting to be output.
-    output_buffer: Vec<I::Item>,
+    output_buffer: ArrayVec<[I::Item; 12]>,
 }
 
 impl<I> SamplesRateConverter<I> where I: Iterator {
@@ -65,7 +68,7 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
             next_output_sample_pos_in_chunk: 0,
             current_samples: first_samples,
             next_samples: second_samples,
-            output_buffer: Vec::with_capacity(num_channels as usize),
+            output_buffer: ArrayVec::new(),   // with_capacity(num_channels as usize)
         }
     }
 }
@@ -75,7 +78,8 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
 
     fn next(&mut self) -> Option<I::Item> {
         if self.output_buffer.len() >= 1 {
-            return Some(self.output_buffer.remove(0));
+            // note: ArrayVec doesn't mimic the Vec API for remove
+            return self.output_buffer.remove(0);
         }
 
         if self.current_samples.len() == 0 {
@@ -111,7 +115,8 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
         self.next_output_sample_pos_in_chunk %= self.to;
 
         if self.output_buffer.len() >= 1 {
-            Some(self.output_buffer.remove(0))
+            // note: ArrayVec doesn't mimic the Vec API for remove
+            self.output_buffer.remove(0)
         } else {
             None
         }

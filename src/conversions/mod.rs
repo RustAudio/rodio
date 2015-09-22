@@ -23,21 +23,25 @@ pub fn convert_and_write<I, S>(samples: I, output: &mut UnknownTypeBuffer)
 {
     let samples = samples.chain(iter::repeat(Sample::zero_value()));
 
+    // note that it is important to do `buffer.zip(samples)` instead of `samples.zip(buffer)`
+    // otherwise when the buffer's iterator is exhausted the value obtained from `samples` is
+    // discarded
+
     match output {
         &mut UnknownTypeBuffer::U16(ref mut buffer) => {
-            for (i, o) in samples.zip(buffer.iter_mut()) {
+            for (o, i) in buffer.iter_mut().zip(samples) {
                 *o = i.to_u16();
             }
         },
 
         &mut UnknownTypeBuffer::I16(ref mut buffer) => {
-            for (i, o) in samples.zip(buffer.iter_mut()) {
+            for (o, i) in buffer.iter_mut().zip(samples) {
                 *o = i.to_i16();
             }
         },
 
         &mut UnknownTypeBuffer::F32(ref mut buffer) => {
-            for (i, o) in samples.zip(buffer.iter_mut()) {
+            for (o, i) in buffer.iter_mut().zip(samples) {
                 *o = i.to_f32();
             }
         },

@@ -1,3 +1,4 @@
+extern crate arrayvec;
 extern crate cpal;
 extern crate hound;
 #[macro_use]

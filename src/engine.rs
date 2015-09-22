@@ -103,21 +103,21 @@ fn background(rx: Receiver<Command>) {
             }
         }
 
-        // stores  
-        let mut next_step_ns = time::precise_time_ns();
+        // stores the time when this thread will have to be woken up
+        let mut next_step_ns = time::precise_time_ns() + 10000000;   // 10ms
 
         // updating the existing sounds
         for &mut (_, ref mut decoder) in &mut sounds {
             let val = decoder.write();
             let val = time::precise_time_ns() + val;
-            next_step_ns = cmp::min(next_step_ns, val);
+            next_step_ns = cmp::min(next_step_ns, val);     // updating next_step_ns
         }
 
-        // sleeping a bit?
+        // sleeping a bit if we can
         let sleep = next_step_ns as i64 - time::precise_time_ns() as i64;
-        let sleep = sleep - 500000;
+        let sleep = sleep - 500000;   // removing 50µs so that we don't risk an underflow
         if sleep >= 0 {
-            thread::sleep_ms(sleep as u32);
+            thread::sleep_ms((sleep / 1000000) as u32);
         }
     }
 }

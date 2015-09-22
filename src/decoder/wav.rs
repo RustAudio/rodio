@@ -116,7 +116,7 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
 impl Decoder for WavDecoder {
     fn write(&mut self) -> u64 {
         let (min, _) = self.reader.size_hint();
-        let min = cmp::min(min, 10240);     // using a minimal value so that filters get applied
+        let min = cmp::min(min, 10240);     // using a maximal value so that filters get applied
                                             // quickly
 
         if min == 0 {

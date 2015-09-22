@@ -74,6 +74,11 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
     type Item = I::Item;
 
     fn next(&mut self) -> Option<I::Item> {
+        // the algorithm below doesn't work if `self.from == self.to`
+        if self.from == self.to {
+            return self.input.next();
+        }
+
         if self.output_buffer.len() >= 1 {
             return Some(self.output_buffer.remove(0));
         }

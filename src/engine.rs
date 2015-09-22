@@ -124,8 +124,10 @@ fn background(rx: Receiver<Command>) {
             }
         }
 
+        let before_updates = time::precise_time_ns();
+
         // stores the time when this thread will have to be woken up
-        let mut next_step_ns = time::precise_time_ns() + 1000000000;   // 1s
+        let mut next_step_ns = before_updates + 1000000000;   // 1s
 
         // updating the existing sounds
         for &mut (_, ref mut decoder) in &mut sounds {
@@ -134,9 +136,16 @@ fn background(rx: Receiver<Command>) {
             next_step_ns = cmp::min(next_step_ns, val);     // updating next_step_ns
         }
 
+        // time taken to run the updates
+        let after_updates = time::precise_time_ns();
+        let updates_time_taken = after_updates - before_updates;
+
         // sleeping a bit if we can
-        let sleep = next_step_ns as i64 - time::precise_time_ns() as i64;
-        let sleep = sleep - 500000;   // removing 500µs so that we don't risk an underflow
+        let sleep = next_step_ns as i64 - after_updates as i64;
+        // the sleep duration is equal
+        // to `time_until_overflow - time_it_takes_to_write_data - 200µs`
+        // we remove 200µs to handle variations in the time it takes to write
+        let sleep = sleep - updates_time_taken as i64 - 200000;
         if sleep >= 0 {
             thread::park_timeout_ms((sleep / 1000000) as u32);
         }

@@ -31,15 +31,11 @@ impl WavDecoder {
 
             let f1 = f1.unwrap();
 
-            if f2.samples_rate.0 % spec.sample_rate == 0 {
-                return Some(f2);
-            }
-
             if f1.samples_rate.0 % spec.sample_rate == 0 {
                 return Some(f1);
             }
 
-            if f2.channels.len() >= spec.channels as usize {
+            if f2.samples_rate.0 % spec.sample_rate == 0 {
                 return Some(f2);
             }
 
@@ -47,7 +43,7 @@ impl WavDecoder {
                 return Some(f1);
             }
 
-            if f2.data_type == cpal::SampleFormat::I16 {
+            if f2.channels.len() >= spec.channels as usize {
                 return Some(f2);
             }
 
@@ -55,8 +51,13 @@ impl WavDecoder {
                 return Some(f1);
             }
 
-            Some(f2)
+            if f2.data_type == cpal::SampleFormat::I16 {
+                return Some(f2);
+            }
+
+            Some(f1)
         }).unwrap();
+        println!("{:?}", voice_format);
 
         let voice = Voice::new(endpoint, &voice_format).unwrap();
 

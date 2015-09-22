@@ -25,31 +25,39 @@ impl WavDecoder {
         let spec = reader.spec();
 
         // choosing a format amongst the ones available
-        let voice_format = {
-            let mut formats_list = endpoint.get_supported_formats_list().unwrap().collect::<Vec<_>>();
-            formats_list.sort_by(|f1, f2| {
-                if (f1.samples_rate.0 % spec.sample_rate) == 0 && (f2.samples_rate.0 % spec.sample_rate) != 0 {
-                    return Ordering::Greater;
-                } else if (f2.samples_rate.0 % spec.sample_rate) == 0 && (f1.samples_rate.0 % spec.sample_rate) != 0 {
-                    return Ordering::Less;
-                }
+        let voice_format = endpoint.get_supported_formats_list().unwrap().fold(None, |f1, f2| {
+            if f1.is_none() {
+                return Some(f2);
+            }
 
-                if f1.channels.len() >= spec.channels as usize && f1.channels.len() < f2.channels.len() {
-                    return Ordering::Greater;
-                } else if f2.channels.len() >= spec.channels as usize && f2.channels.len() < f1.channels.len() {
-                    return Ordering::Less;
-                }
+            let f1 = f1.unwrap();
 
-                if f1.data_type == cpal::SampleFormat::I16 && f2.data_type != cpal::SampleFormat::I16 {
-                    return Ordering::Greater;
-                } else if f2.data_type == cpal::SampleFormat::I16 && f1.data_type != cpal::SampleFormat::I16 {
-                    return Ordering::Less;
-                }
+            if f2.samples_rate.0 % spec.sample_rate == 0 {
+                return Some(f2);
+            }
 
-                Ordering::Equal
-            });
-            formats_list.into_iter().next().unwrap()
-        };
+            if f1.samples_rate.0 % spec.sample_rate == 0 {
+                return Some(f1);
+            }
+
+            if f2.channels.len() >= spec.channels as usize {
+                return Some(f2);
+            }
+
+            if f1.channels.len() >= spec.channels as usize {
+                return Some(f1);
+            }
+
+            if f2.data_type == cpal::SampleFormat::I16 {
+                return Some(f2);
+            }
+
+            if f1.data_type == cpal::SampleFormat::I16 {
+                return Some(f1);
+            }
+
+            Some(f2)
+        }).unwrap();
 
         let voice = Voice::new(endpoint, &voice_format).unwrap();
 

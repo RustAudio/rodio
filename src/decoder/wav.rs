@@ -56,7 +56,7 @@ impl WavDecoder {
         let reader = conversions::ChannelsCountConverter::new(reader, spec.channels,
                                                               voice.get_channels());
         let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
-                                                            voice.get_samples_rate());
+                                                            voice.get_samples_rate(), voice.get_channels());
 
         Ok(WavDecoder {
             reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),

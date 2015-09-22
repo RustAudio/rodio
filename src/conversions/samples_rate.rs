@@ -95,9 +95,8 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             self.current_sample_pos_in_chunk += 1;
             self.current_sample_pos_in_chunk %= self.from;
 
-            let new_samples = self.input.by_ref().take(self.current_samples.capacity()).collect();
             mem::swap(&mut self.current_samples, &mut self.next_samples);
-            mem::replace(&mut self.next_samples, new_samples);
+            for (o, i) in self.next_samples.iter_mut().zip(self.input.by_ref()) { *o = i; }
         }
 
         self.output_buffer = self.current_samples.iter().zip(self.next_samples.iter())

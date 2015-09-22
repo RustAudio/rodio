@@ -1,5 +1,7 @@
 use cpal;
 use conversions::Sample;
+
+use std::iter;
 use std::mem;
 
 /// Iterator that converts from a certain samples rate to another.
@@ -23,7 +25,7 @@ pub struct SamplesRateConverter<I> where I: Iterator {
     output_buffer: Vec<I::Item>,
 }
 
-impl<I> SamplesRateConverter<I> where I: Iterator {
+impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
     ///
     ///
     /// # Panic
@@ -65,7 +67,8 @@ impl<I> SamplesRateConverter<I> where I: Iterator {
             next_output_sample_pos_in_chunk: 0,
             current_samples: first_samples,
             next_samples: second_samples,
-            output_buffer: Vec::with_capacity(num_channels as usize),
+            output_buffer: iter::repeat(Sample::zero_value()).take(num_channels as usize)
+                                                             .collect(),
         }
     }
 }
@@ -104,12 +107,22 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             for (o, i) in self.next_samples.iter_mut().zip(self.input.by_ref()) { *o = i; }
         }
 
-        self.output_buffer = self.current_samples.iter().zip(self.next_samples.iter())
-                                                 .map(|(cur, next)|
+        // Merging `self.current_samples` and `self.next_samples` into `self.output_buffer`.
         {
-            let numerator = (self.from * self.next_output_sample_pos_in_chunk) % self.to;
-            Sample::lerp(cur.clone(), next.clone(), numerator, self.to)
-        }).collect();
+            // need to clone some values from `self` because of borrowing problems
+            let self_from = self.from;
+            let self_to = self.to;
+            let self_nospic = self.next_output_sample_pos_in_chunk;
+
+            for sample in self.current_samples.iter().zip(self.next_samples.iter())
+                              .map(move |(cur, next)| {
+                                   let numerator = (self_from * self_nospic) % self_to;
+                                   Sample::lerp(cur.clone(), next.clone(), numerator, self_to)
+                               })
+            {
+                self.output_buffer.push(sample);
+            }
+        }
 
         // Incrementing the counter for the next iteration.
         self.next_output_sample_pos_in_chunk += 1;

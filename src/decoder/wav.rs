@@ -57,7 +57,6 @@ impl WavDecoder {
 
             Some(f1)
         }).unwrap();
-        println!("{:?}", voice_format);
 
         let voice = Voice::new(endpoint, &voice_format).unwrap();
 

@@ -1,6 +1,6 @@
 use std::cmp;
 use std::io::{Read, Seek};
-use std::thread::{self, Builder};
+use std::thread::{self, Builder, Thread};
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -17,6 +17,8 @@ use time;
 pub struct Engine {
     /// Communication with the background thread.
     commands: Mutex<Sender<Command>>,
+    /// The background thread that executes commands.
+    thread: Option<Thread>,
     /// Counter that is incremented whenever a sound starts playing and that is used to track each
     /// sound invidiually.
     next_sound_id: AtomicUsize,
@@ -26,11 +28,18 @@ impl Engine {
     /// Builds the engine.
     pub fn new() -> Engine {
         let (tx, rx) = mpsc::channel();
+
         // we ignore errors when creating the background thread
         // the user won't get any audio, but that's better than a panic
-        let _ = Builder::new().name("rodio audio processing".to_string())
-                              .spawn(move || background(rx));
-        Engine { commands: Mutex::new(tx), next_sound_id: AtomicUsize::new(1) }
+        let thread = Builder::new().name("rodio audio processing".to_string())
+                                   .spawn(move || background(rx))
+                                   .ok().map(|jg| jg.thread().clone());
+
+        Engine {
+            commands: Mutex::new(tx),
+            thread: thread,
+            next_sound_id: AtomicUsize::new(1),
+        }
     }
 
     /// Starts playing a sound and returns a `Handler` to control it.
@@ -42,6 +51,10 @@ impl Engine {
         let sound_id = self.next_sound_id.fetch_add(1, Ordering::Relaxed);
         let commands = self.commands.lock().unwrap();
         commands.send(Command::Play(sound_id, decoder)).unwrap();
+
+        if let Some(ref thread) = self.thread {
+            thread.unpark();
+        }
 
         Handle {
             engine: self,
@@ -63,12 +76,20 @@ impl<'a> Handle<'a> {
     pub fn set_volume(&mut self, value: f32) {
         let commands = self.engine.commands.lock().unwrap();
         commands.send(Command::SetVolume(self.id, value)).unwrap();
+
+        // we do not wake up the commands thread
+        // the samples with the previous volume have already been submitted, therefore it won't
+        // change anything if we wake it up
     }
 
     #[inline]
     pub fn stop(self) {
         let commands = self.engine.commands.lock().unwrap();
         commands.send(Command::Stop(self.id)).unwrap();
+
+        if let Some(ref thread) = self.engine.thread {
+            thread.unpark();
+        }
     }
 }
 
@@ -104,7 +125,7 @@ fn background(rx: Receiver<Command>) {
         }
 
         // stores the time when this thread will have to be woken up
-        let mut next_step_ns = time::precise_time_ns() + 10000000;   // 10ms
+        let mut next_step_ns = time::precise_time_ns() + 1000000000;   // 1s
 
         // updating the existing sounds
         for &mut (_, ref mut decoder) in &mut sounds {
@@ -115,9 +136,9 @@ fn background(rx: Receiver<Command>) {
 
         // sleeping a bit if we can
         let sleep = next_step_ns as i64 - time::precise_time_ns() as i64;
-        let sleep = sleep - 500000;   // removing 50µs so that we don't risk an underflow
+        let sleep = sleep - 500000;   // removing 500µs so that we don't risk an underflow
         if sleep >= 0 {
-            thread::sleep_ms((sleep / 1000000) as u32);
+            thread::park_timeout_ms((sleep / 1000000) as u32);
         }
     }
 }

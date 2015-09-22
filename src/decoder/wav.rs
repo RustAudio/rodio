@@ -124,14 +124,13 @@ impl Decoder for WavDecoder {
             return 1000000000;
         }
 
-        let len = {
+        {
             let mut buffer = self.voice.append_data(min);
-            let len = buffer.len();
             conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
-            len
-        };
+        }
 
-        let duration = len as u64 * 1000000000 / self.voice.get_samples_rate().0 as u64;
+        let duration = self.voice.get_pending_samples() as u64 * 1000000000 /
+                        (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64);
 
         self.voice.play();
 

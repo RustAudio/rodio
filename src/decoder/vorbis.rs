@@ -1,4 +1,5 @@
 use std::io::{Read, Seek};
+use std::f64::INFINITY;
 use super::Decoder;
 use conversions;
 
@@ -6,7 +7,7 @@ use cpal::{self, Endpoint, Voice};
 use vorbis;
 
 pub struct VorbisDecoder {
-    reader: Box<Iterator<Item=i16> + Send>,
+    reader: conversions::AmplifierIterator<Box<Iterator<Item=i16> + Send>>,
     voice: Voice,
 }
 
@@ -36,7 +37,7 @@ impl VorbisDecoder {
         });
 
         Ok(VorbisDecoder {
-            reader: Box::new(reader),
+            reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),
             voice: voice,
         })
     }
@@ -44,27 +45,19 @@ impl VorbisDecoder {
 
 impl Decoder for VorbisDecoder {
     fn write(&mut self) -> u64 {
-        /*let (min, _) = self.reader.size_hint();
-
-        if min == 0 {
-            // finished
-            return;
-        }*/
-
-        let len = {
+        {
             let mut buffer = self.voice.append_data(32768);
-            let len = buffer.len();
             conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
-            len
-        };
+        }
 
+        let duration = self.voice.get_pending_samples() as u64 * 1000000000 /
+                        (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64);
         self.voice.play();
-
-        len as u64 * 1000000000 / self.voice.get_samples_rate().0 as u64
+        duration
     }
 
-    fn set_volume(&mut self, _: f32) {
-        unimplemented!();
+    fn set_volume(&mut self, value: f32) {
+        self.reader.set_amplification(value);
     }
 
     fn get_total_duration_ms(&self) -> u32 {

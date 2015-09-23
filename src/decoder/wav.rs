@@ -152,7 +152,7 @@ impl Decoder for WavDecoder {
         let (num_samples, _) = self.reader.size_hint();
         let num_samples = num_samples + self.voice.get_pending_samples();
 
-        num_samples as u32 * 1000 /
-                        (self.voice.get_samples_rate().0 as u32 * self.voice.get_channels() as u32)
+        (num_samples as u64 * 1000 /
+                (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64)) as u32
     }
 }

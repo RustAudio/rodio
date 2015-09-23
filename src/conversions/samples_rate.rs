@@ -67,8 +67,7 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
             next_output_sample_pos_in_chunk: 0,
             current_samples: first_samples,
             next_samples: second_samples,
-            output_buffer: iter::repeat(Sample::zero_value()).take(num_channels as usize)
-                                                             .collect(),
+            output_buffer: Vec::with_capacity(num_channels as usize - 1),
         }
     }
 }
@@ -104,22 +103,25 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             self.current_sample_pos_in_chunk %= self.from;
 
             mem::swap(&mut self.current_samples, &mut self.next_samples);
-            for (o, i) in self.next_samples.iter_mut().zip(self.input.by_ref()) { *o = i; }
+            self.next_samples.clear();
+            for _ in (0 .. self.next_samples.capacity()) {
+                if let Some(i) = self.input.next() {
+                    self.next_samples.push(i);
+                } else {
+                    break;
+                }
+            }
         }
 
         // Merging `self.current_samples` and `self.next_samples` into `self.output_buffer`.
-        {
-            // need to clone some values from `self` because of borrowing problems
-            let self_from = self.from;
-            let self_to = self.to;
-            let self_nospic = self.next_output_sample_pos_in_chunk;
+        let mut result = None;
+        let numerator = (self.from * self.next_output_sample_pos_in_chunk) % self.to;
+        for (off, (cur, next)) in self.current_samples.iter().zip(self.next_samples.iter()).enumerate() {
+            let sample = Sample::lerp(cur.clone(), next.clone(), numerator, self.to);
 
-            for sample in self.current_samples.iter().zip(self.next_samples.iter())
-                              .map(move |(cur, next)| {
-                                   let numerator = (self_from * self_nospic) % self_to;
-                                   Sample::lerp(cur.clone(), next.clone(), numerator, self_to)
-                               })
-            {
+            if off == 0 {
+                result = Some(sample);
+            } else {
                 self.output_buffer.push(sample);
             }
         }
@@ -128,11 +130,7 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
         self.next_output_sample_pos_in_chunk += 1;
         self.next_output_sample_pos_in_chunk %= self.to;
 
-        if self.output_buffer.len() >= 1 {
-            Some(self.output_buffer.remove(0))
-        } else {
-            None
-        }
+        result
     }
 
     #[inline]

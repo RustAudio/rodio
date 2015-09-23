@@ -1,4 +1,7 @@
 use std::io::{Read, Seek};
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use cpal::Endpoint;
 
 mod vorbis;
@@ -12,21 +15,27 @@ pub trait Decoder {
 
     /// Changes the volume of the sound.
     fn set_volume(&mut self, f32);
+
+    /// Returns the total duration of the second in milliseconds.
+    fn get_total_duration_ms(&self) -> u32;
+
+    /// Returns the number of milliseconds before the end of the sound.
+    fn get_remaining_duration_ms(&self) -> u32;
 }
 
 /// Builds a new `Decoder` from a data stream by determining the correct format.
-pub fn decode<R>(endpoint: &Endpoint, data: R) -> Box<Decoder + Send>
+pub fn decode<R>(endpoint: &Endpoint, data: R) -> Arc<Mutex<Decoder + Send>>
                  where R: Read + Seek + Send + 'static
 {
     let data = match wav::WavDecoder::new(endpoint, data) {
         Err(data) => data,
         Ok(decoder) => {
-            return Box::new(decoder);
+            return Arc::new(Mutex::new(decoder));
         }
     };
 
     if let Ok(decoder) = vorbis::VorbisDecoder::new(endpoint, data) {
-        return Box::new(decoder);
+        return Arc::new(Mutex::new(decoder));
     }
 
     panic!("Invalid format");

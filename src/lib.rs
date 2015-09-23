@@ -8,6 +8,7 @@ extern crate vorbis;
 pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};
 
 use std::io::{Read, Seek};
+use std::thread;
 
 mod conversions;
 mod decoder;
@@ -36,6 +37,24 @@ impl Handle {
     #[inline]
     pub fn stop(self) {
         self.0.stop()
+    }
+
+    /// Returns the number of milliseconds in total in the sound file.
+    #[inline]
+    pub fn get_total_duration_ms(&self) -> u32 {
+        self.0.get_total_duration_ms()
+    }
+
+    /// Returns the number of milliseconds remaining before the end of the sound.
+    #[inline]
+    pub fn get_remaining_duration_ms(&self) -> u32 {
+        self.0.get_remaining_duration_ms()
+    }
+
+    /// Sleeps the current thread until the sound ends.
+    #[inline]
+    pub fn sleep_until_end(&self) {
+        thread::sleep_ms(self.get_remaining_duration_ms());
     }
 }
 

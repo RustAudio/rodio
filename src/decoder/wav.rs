@@ -10,6 +10,7 @@ use hound::WavReader;
 pub struct WavDecoder {
     reader: conversions::AmplifierIterator<Box<Iterator<Item=i16> + Send>>,
     voice: Voice,
+    total_duration_ms: u32,
 }
 
 impl WavDecoder {
@@ -22,6 +23,7 @@ impl WavDecoder {
 
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
+        let total_duration_ms = reader.duration() * 1000 / spec.sample_rate;
 
         // choosing a format amongst the ones available
         let voice_format = endpoint.get_supported_formats_list().unwrap().fold(None, |f1, f2| {
@@ -69,6 +71,7 @@ impl WavDecoder {
         Ok(WavDecoder {
             reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),
             voice: voice,
+            total_duration_ms: total_duration_ms,
         })
     }
 }
@@ -139,5 +142,17 @@ impl Decoder for WavDecoder {
 
     fn set_volume(&mut self, value: f32) {
         self.reader.set_amplification(value);
+    }
+
+    fn get_total_duration_ms(&self) -> u32 {
+        self.total_duration_ms
+    }
+
+    fn get_remaining_duration_ms(&self) -> u32 {
+        let (num_samples, _) = self.reader.size_hint();
+        let num_samples = num_samples + self.voice.get_pending_samples();
+
+        num_samples as u32 * 1000 /
+                        (self.voice.get_samples_rate().0 as u32 * self.voice.get_channels() as u32)
     }
 }

@@ -3,6 +3,7 @@ use std::io::{Read, Seek};
 use std::thread::{self, Builder, Thread};
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use cpal::Endpoint;
@@ -17,11 +18,9 @@ use time;
 pub struct Engine {
     /// Communication with the background thread.
     commands: Mutex<Sender<Command>>,
+
     /// The background thread that executes commands.
     thread: Option<Thread>,
-    /// Counter that is incremented whenever a sound starts playing and that is used to track each
-    /// sound invidiually.
-    next_sound_id: AtomicUsize,
 }
 
 impl Engine {
@@ -38,7 +37,6 @@ impl Engine {
         Engine {
             commands: Mutex::new(tx),
             thread: thread,
-            next_sound_id: AtomicUsize::new(1),
         }
     }
 
@@ -48,9 +46,8 @@ impl Engine {
     {
         let decoder = decoder::decode(endpoint, input);
 
-        let sound_id = self.next_sound_id.fetch_add(1, Ordering::Relaxed);
         let commands = self.commands.lock().unwrap();
-        commands.send(Command::Play(sound_id, decoder)).unwrap();
+        commands.send(Command::Play(decoder.clone())).unwrap();
 
         if let Some(ref thread) = self.thread {
             thread.unpark();
@@ -58,7 +55,7 @@ impl Engine {
 
         Handle {
             engine: self,
-            id: sound_id,
+            decoder: decoder,
         }
     }
 }
@@ -68,57 +65,70 @@ impl Engine {
 /// Note that dropping the handle doesn't stop the sound. You must call `stop` explicitely.
 pub struct Handle<'a> {
     engine: &'a Engine,
-    id: usize,
+    decoder: Arc<Mutex<Decoder + Send>>,
 }
 
 impl<'a> Handle<'a> {
     #[inline]
-    pub fn set_volume(&mut self, value: f32) {
-        let commands = self.engine.commands.lock().unwrap();
-        commands.send(Command::SetVolume(self.id, value)).unwrap();
+    pub fn set_volume(&self, value: f32) {
+        // we try to touch the decoder directly from this thread
+        if let Ok(mut decoder) = self.decoder.try_lock() {
+            decoder.set_volume(value);
+        }
 
-        // we do not wake up the commands thread
-        // the samples with the previous volume have already been submitted, therefore it won't
-        // change anything if we wake it up
+        // if `try_lock` failed, that means that the decoder is in use
+        // therefore we use the backup plan of sending a message
+        let commands = self.engine.commands.lock().unwrap();
+        commands.send(Command::SetVolume(self.decoder.clone(), value));
     }
 
     #[inline]
     pub fn stop(self) {
         let commands = self.engine.commands.lock().unwrap();
-        commands.send(Command::Stop(self.id)).unwrap();
+        commands.send(Command::Stop(self.decoder)).unwrap();
 
         if let Some(ref thread) = self.engine.thread {
             thread.unpark();
         }
     }
+
+    #[inline]
+    pub fn get_remaining_duration_ms(&self) -> u32 {
+        let decoder = self.decoder.lock().unwrap();
+        decoder.get_remaining_duration_ms()
+    }
 }
 
 pub enum Command {
-    Play(usize, Box<Decoder + Send>),
-    Stop(usize),
-    SetVolume(usize, f32),
+    Play(Arc<Mutex<Decoder + Send>>),
+    Stop(Arc<Mutex<Decoder + Send>>),
+    SetVolume(Arc<Mutex<Decoder + Send>>, f32),
 }
 
 fn background(rx: Receiver<Command>) {
-    let mut sounds: Vec<(usize, Box<Decoder + Send>)> = Vec::new();
+    let mut sounds: Vec<Arc<Mutex<Decoder + Send>>> = Vec::new();
 
     loop {
         // polling for new sounds
         if let Ok(command) = rx.try_recv() {
             match command {
-                Command::Play(id, decoder) => {
-                    sounds.push((id, decoder));
+                Command::Play(decoder) => {
+                    sounds.push(decoder);
                 },
 
-                Command::Stop(id) => {
-                    sounds.retain(|&(id2, _)| id2 != id)
+                Command::Stop(decoder) => {
+                    let decoder = &*decoder as *const _;
+                    sounds.retain(|dec| {
+                        &**dec as *const _ != decoder
+                    })
                 },
 
-                Command::SetVolume(id, volume) => {
-                    if let Some(&mut (_, ref mut d)) = sounds.iter_mut()
-                                                             .find(|&&mut (i, _)| i == id)
+                Command::SetVolume(decoder, volume) => {
+                    let decoder = &*decoder as *const _;
+                    if let Some(d) = sounds.iter_mut()
+                                           .find(|dec| &***dec as *const _ != decoder)
                     {
-                        d.set_volume(volume);
+                        d.lock().unwrap().set_volume(volume);
                     }
                 },
             }
@@ -130,8 +140,8 @@ fn background(rx: Receiver<Command>) {
         let mut next_step_ns = before_updates + 1000000000;   // 1s
 
         // updating the existing sounds
-        for &mut (_, ref mut decoder) in &mut sounds {
-            let val = decoder.write();
+        for decoder in &sounds {
+            let val = decoder.lock().unwrap().write();
             let val = time::precise_time_ns() + val;
             next_step_ns = cmp::min(next_step_ns, val);     // updating next_step_ns
         }

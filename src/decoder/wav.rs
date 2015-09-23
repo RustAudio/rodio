@@ -140,4 +140,12 @@ impl Decoder for WavDecoder {
     fn set_volume(&mut self, value: f32) {
         self.reader.set_amplification(value);
     }
+
+    fn get_remaining_duration_ms(&self) -> u32 {
+        let (num_samples, _) = self.reader.size_hint();
+        let num_samples = num_samples + self.voice.get_pending_samples();
+
+        num_samples as u32 * 1000 /
+                        (self.voice.get_samples_rate().0 as u32 * self.voice.get_channels() as u32)
+    }
 }

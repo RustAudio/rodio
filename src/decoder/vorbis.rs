@@ -66,4 +66,8 @@ impl Decoder for VorbisDecoder {
     fn set_volume(&mut self, _: f32) {
         unimplemented!();
     }
+
+    fn get_remaining_duration_ms(&self) -> u32 {
+        unimplemented!();
+    }
 }

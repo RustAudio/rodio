@@ -67,7 +67,11 @@ impl Decoder for VorbisDecoder {
         unimplemented!();
     }
 
+    fn get_total_duration_ms(&self) -> u32 {
+        unimplemented!()
+    }
+
     fn get_remaining_duration_ms(&self) -> u32 {
-        unimplemented!();
+        unimplemented!()
     }
 }

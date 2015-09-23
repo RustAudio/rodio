@@ -16,6 +16,9 @@ pub trait Decoder {
     /// Changes the volume of the sound.
     fn set_volume(&mut self, f32);
 
+    /// Returns the total duration of the second in milliseconds.
+    fn get_total_duration_ms(&self) -> u32;
+
     /// Returns the number of milliseconds before the end of the sound.
     fn get_remaining_duration_ms(&self) -> u32;
 }

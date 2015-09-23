@@ -93,6 +93,12 @@ impl<'a> Handle<'a> {
     }
 
     #[inline]
+    pub fn get_total_duration_ms(&self) -> u32 {
+        let decoder = self.decoder.lock().unwrap();
+        decoder.get_total_duration_ms()
+    }
+
+    #[inline]
     pub fn get_remaining_duration_ms(&self) -> u32 {
         let decoder = self.decoder.lock().unwrap();
         decoder.get_remaining_duration_ms()

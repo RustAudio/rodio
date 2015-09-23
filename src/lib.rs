@@ -39,6 +39,12 @@ impl Handle {
         self.0.stop()
     }
 
+    /// Returns the number of milliseconds in total in the sound file.
+    #[inline]
+    pub fn get_total_duration_ms(&self) -> u32 {
+        self.0.get_total_duration_ms()
+    }
+
     /// Returns the number of milliseconds remaining before the end of the sound.
     #[inline]
     pub fn get_remaining_duration_ms(&self) -> u32 {

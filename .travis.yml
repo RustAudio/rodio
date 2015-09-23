@@ -3,10 +3,12 @@ sudo: false
 language: rust
 rust:
     - stable
+    - beta
     - nightly
 
 matrix:
   allow_failures:
+    - rust: stable
     - rust: nightly
 
 addons:

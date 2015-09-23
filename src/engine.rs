@@ -2,7 +2,6 @@ use std::cmp;
 use std::io::{Read, Seek};
 use std::thread::{self, Builder, Thread};
 use std::sync::mpsc::{self, Sender, Receiver};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -79,7 +78,7 @@ impl<'a> Handle<'a> {
         // if `try_lock` failed, that means that the decoder is in use
         // therefore we use the backup plan of sending a message
         let commands = self.engine.commands.lock().unwrap();
-        commands.send(Command::SetVolume(self.decoder.clone(), value));
+        commands.send(Command::SetVolume(self.decoder.clone(), value)).unwrap();
     }
 
     #[inline]

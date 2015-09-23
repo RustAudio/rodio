@@ -1,6 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::cmp;
-use std::cmp::Ordering;
 use super::Decoder;
 use conversions;
 

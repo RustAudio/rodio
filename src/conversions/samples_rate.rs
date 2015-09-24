@@ -56,8 +56,13 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
             gcd(from, to)
         };
 
-        let first_samples = input.by_ref().take(num_channels as usize).collect();
-        let second_samples = input.by_ref().take(num_channels as usize).collect();
+        let samples = if from == to {
+            // if `from` == `to` == 1, then we just pass through
+            debug_assert_eq!(from, gcd);
+            Vec::new()
+        } else {
+            input.by_ref().take(num_channels as usize).collect()
+        };
 
         SamplesRateConverter {
             input: input,
@@ -65,8 +70,9 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
             to: to / gcd,
             current_sample_pos_in_chunk: 0,
             next_output_sample_pos_in_chunk: 0,
-            current_samples: first_samples,
-            next_samples: second_samples,
+            current_samples: iter::repeat(Sample::zero_value()).take(num_channels as usize)
+                                                               .collect(),
+            next_samples: samples,
             output_buffer: Vec::with_capacity(num_channels as usize - 1),
         }
     }
@@ -78,6 +84,7 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
     fn next(&mut self) -> Option<I::Item> {
         // the algorithm below doesn't work if `self.from == self.to`
         if self.from == self.to {
+            debug_assert_eq!(self.from, 1);
             return self.input.next();
         }
 
@@ -85,6 +92,7 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             return Some(self.output_buffer.remove(0));
         }
 
+        // we have finished processing everything
         if self.current_samples.len() == 0 {
             return None;
         }
@@ -98,7 +106,10 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
 
         // Advancing `self.current_sample`, `self.next_sample` and
         // `self.current_sample_pos_in_chunk` until the latter variable matches `req_left_sample`.
-        while self.current_sample_pos_in_chunk != req_left_sample {
+        // We also always advance one step if `next_output_sample_pos_in_chunk` equals 0.
+        let mut advancing_required = self.next_output_sample_pos_in_chunk == 0;
+        while advancing_required || self.current_sample_pos_in_chunk != req_left_sample {
+            advancing_required = false;
             self.current_sample_pos_in_chunk += 1;
             self.current_sample_pos_in_chunk %= self.from;
 
@@ -130,7 +141,16 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
         self.next_output_sample_pos_in_chunk += 1;
         self.next_output_sample_pos_in_chunk %= self.to;
 
-        result
+        if result.is_some() {
+            result
+        } else {
+            // draining `self.current_samples`
+            if self.current_samples.len() >= 1 {
+                Some(self.current_samples.remove(0))
+            } else {
+                None
+            }
+        }
     }
 
     #[inline]
@@ -150,22 +170,72 @@ impl<I> ExactSizeIterator for SamplesRateConverter<I>
 
 #[cfg(test)]
 mod test {
-    /*use super::SamplesRateConverter;
+    use cpal::SamplesRate;
+    use super::SamplesRateConverter;
 
-    
     #[test]
-    fn half_samples_rate() {
-        let result = convert_samples_rate(&[1u16, 16, 2, 17, 3, 18, 4, 19],
-                                          ::SamplesRate(44100), ::SamplesRate(22050), 2);
+    fn identity_1channel() {
+        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+        let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(12345),
+                                               SamplesRate(12345), 1).collect::<Vec<_>>();
+        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
+    }
 
-        assert_eq!(result, [1, 16, 3, 18]);
+    #[test]
+    fn identity_2channels() {
+        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+        let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(12345),
+                                               SamplesRate(12345), 2).collect::<Vec<_>>();
+        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
+    }
+
+    #[test]
+    fn identity_2channels_misalign() {
+        let input = vec![2u16, 16, 4, 18, 6];
+        let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(12345),
+                                               SamplesRate(12345), 2).collect::<Vec<_>>();
+        assert_eq!(output.len(), 5);
+        assert_eq!(output, [2u16, 16, 4, 18, 6]);
+    }
+
+    #[test]
+    fn identity_5channels() {
+        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24];
+        let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(12345),
+                                               SamplesRate(12345), 5).collect::<Vec<_>>();
+        assert_eq!(output.len(), 10);
+        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24]);
+    }
+
+    #[test]
+    #[ignore]       // FIXME: buggy
+    fn half_samples_rate() {
+        let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
+        let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(44100),
+                                               SamplesRate(22050), 2).collect::<Vec<_>>();
+
+        assert_eq!(output.len(), 6);
+        assert_eq!(output, [1, 16, 3, 18, 5, 20]);
     }
 
     #[test]
     fn double_samples_rate() {
-        let result = convert_samples_rate(&[2u16, 16, 4, 18, 6, 20, 8, 22],
-                                          ::SamplesRate(22050), ::SamplesRate(44100), 2);
+        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+        let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(22050),
+                                               SamplesRate(44100), 2).collect::<Vec<_>>();
 
-        assert_eq!(result, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
-    }*/
+        assert_eq!(output.len(), 14);
+        assert_eq!(output, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
+    }
+
+    #[test]
+    #[ignore]       // FIXME: buggy
+    fn downsample() {
+        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+        let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(2000),
+                                               SamplesRate(3000), 2).collect::<Vec<_>>();
+
+        assert_eq!(output.len(), 12);
+        assert_eq!(output, [2, 16, 3, 17, 4, 18, 6, 20, 7, 21, 8, 22]);
+    }
 }

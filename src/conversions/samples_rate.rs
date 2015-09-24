@@ -70,8 +70,7 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
             to: to / gcd,
             current_sample_pos_in_chunk: 0,
             next_output_sample_pos_in_chunk: 0,
-            current_samples: iter::repeat(Sample::zero_value()).take(num_channels as usize)
-                                                               .collect(),
+            current_samples: Vec::with_capacity(num_channels as usize),
             next_samples: samples,
             output_buffer: Vec::with_capacity(num_channels as usize - 1),
         }
@@ -92,11 +91,6 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             return Some(self.output_buffer.remove(0));
         }
 
-        // we have finished processing everything
-        if self.current_samples.len() == 0 {
-            return None;
-        }
-
         // The sample we are going to return from this function will be a linear interpolation
         // between `self.current_sample` and `self.next_sample`.
 
@@ -113,13 +107,17 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             self.current_sample_pos_in_chunk += 1;
             self.current_sample_pos_in_chunk %= self.from;
 
-            mem::swap(&mut self.current_samples, &mut self.next_samples);
-            self.next_samples.clear();
-            for _ in (0 .. self.next_samples.capacity()) {
-                if let Some(i) = self.input.next() {
-                    self.next_samples.push(i);
-                } else {
-                    break;
+            if self.current_samples.len() >= 1 ||
+               self.current_sample_pos_in_chunk == req_left_sample
+            {
+                mem::swap(&mut self.current_samples, &mut self.next_samples);
+                self.next_samples.clear();
+                for _ in (0 .. self.next_samples.capacity()) {
+                    if let Some(i) = self.input.next() {
+                        self.next_samples.push(i);
+                    } else {
+                        break;
+                    }
                 }
             }
         }
@@ -146,7 +144,10 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
         } else {
             // draining `self.current_samples`
             if self.current_samples.len() >= 1 {
-                Some(self.current_samples.remove(0))
+                let r = Some(self.current_samples.remove(0));
+                mem::swap(&mut self.output_buffer, &mut self.current_samples);
+                self.current_samples.clear();
+                r
             } else {
                 None
             }
@@ -174,10 +175,22 @@ mod test {
     use super::SamplesRateConverter;
 
     #[test]
+    fn zero() {
+        let input: Vec<u16> = Vec::new();
+        let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(1278),
+                                               SamplesRate(78923), 1).collect::<Vec<_>>();
+
+        assert_eq!(output.len(), 0);
+        assert_eq!(output, []);
+    }
+
+    #[test]
     fn identity_1channel() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(12345),
                                                SamplesRate(12345), 1).collect::<Vec<_>>();
+
+        assert_eq!(output.len(), 8);
         assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
     }
 
@@ -186,6 +199,8 @@ mod test {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(12345),
                                                SamplesRate(12345), 2).collect::<Vec<_>>();
+
+        assert_eq!(output.len(), 8);
         assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
     }
 
@@ -208,7 +223,6 @@ mod test {
     }
 
     #[test]
-    #[ignore]       // FIXME: buggy
     fn half_samples_rate() {
         let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
         let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(44100),
@@ -229,7 +243,6 @@ mod test {
     }
 
     #[test]
-    #[ignore]       // FIXME: buggy
     fn downsample() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(2000),

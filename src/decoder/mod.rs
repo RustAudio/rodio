@@ -9,9 +9,11 @@ mod wav;
 
 /// Trait for objects that produce an audio stream.
 pub trait Decoder {
-    /// Appends data to the voice. Returns the number of nanoseconds after which new data will need
-    /// to have been submitted.
-    fn write(&mut self) -> u64;
+    /// Appends data to the voice.
+    /// 
+    /// Returns the number of nanoseconds after which new data will need to have been submitted.
+    /// Return `None` if the sound finished playing.
+    fn write(&mut self) -> Option<u64>;
 
     /// Changes the volume of the sound.
     fn set_volume(&mut self, f32);

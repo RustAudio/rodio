@@ -1,4 +1,5 @@
 use std::cmp;
+use std::mem;
 use std::io::{Read, Seek};
 use std::thread::{self, Builder, Thread};
 use std::sync::mpsc::{self, Sender, Receiver};
@@ -112,6 +113,7 @@ pub enum Command {
 
 fn background(rx: Receiver<Command>) {
     let mut sounds: Vec<Arc<Mutex<Decoder + Send>>> = Vec::new();
+    let mut sounds_to_remove: Vec<Arc<Mutex<Decoder + Send>>> = Vec::new();
 
     loop {
         // polling for new sounds
@@ -139,6 +141,12 @@ fn background(rx: Receiver<Command>) {
             }
         }
 
+        // removing sounds that have finished playing
+        for decoder in mem::replace(&mut sounds_to_remove, Vec::new()) {
+            let decoder = &*decoder as *const _;
+            sounds.retain(|dec| &**dec as *const _ != decoder)
+        }
+
         let before_updates = time::precise_time_ns();
 
         // stores the time when this thread will have to be woken up
@@ -146,9 +154,12 @@ fn background(rx: Receiver<Command>) {
 
         // updating the existing sounds
         for decoder in &sounds {
-            let val = decoder.lock().unwrap().write();
-            let val = time::precise_time_ns() + val;
-            next_step_ns = cmp::min(next_step_ns, val);     // updating next_step_ns
+            if let Some(val) = decoder.lock().unwrap().write() {
+                let val = time::precise_time_ns() + val;
+                next_step_ns = cmp::min(next_step_ns, val);     // updating next_step_ns
+            } else {
+                sounds_to_remove.push(decoder.clone());
+            }
         }
 
         // time taken to run the updates

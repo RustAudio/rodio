@@ -20,7 +20,7 @@ impl Sample for u16 {
 
     #[inline]
     fn amplify(self, value: f32) -> u16 {
-        ((self as f32) * value) as u16
+        self.to_i16().amplify(value).to_u16()
     }
 
     #[inline]

@@ -189,8 +189,7 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             );
             // calculating the number of samples after the transformation
             // TODO: this is wrong here \|/
-            let samples_after_chunk = (((samples_after_chunk / self.current_frame.capacity() - 1)
-                             / self.from as usize + 1) * self.to as usize) * self.current_frame.capacity();
+            let samples_after_chunk = samples_after_chunk * self.to as usize / self.from as usize;
 
             // `samples_current_chunk` will contain the number of samples remaining to be output
             // for the chunk currently being processed

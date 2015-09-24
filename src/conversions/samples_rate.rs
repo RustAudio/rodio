@@ -61,8 +61,8 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
             debug_assert_eq!(from, gcd);
             (Vec::new(), Vec::new())
         } else {
-            let first = input.by_ref().take(num_channels as usize).collect();
-            let next = input.by_ref().take(num_channels as usize).collect();
+            let mut first = input.by_ref().take(num_channels as usize).collect::<Vec<_>>();
+            let mut next = input.by_ref().take(num_channels as usize).collect::<Vec<_>>();
             (first, next)
         };
 
@@ -173,24 +173,39 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let apply = |samples: usize| {
-            let samples = if self.current_frame_pos_in_chunk == self.from - 1 {
-                samples + self.next_frame.len()
+            // `samples_after_chunk` will contain the number of samples remaining after the chunk
+            // currently being processed
+            let samples_after_chunk = samples;
+            // adding the samples of the next chunk that may have already been read
+            let samples_after_chunk = if self.current_frame_pos_in_chunk == self.from - 1 {
+                samples_after_chunk + self.next_frame.len()
             } else {
-                samples
+                samples_after_chunk
             };
+            // removing the samples of the current chunk that have not yet been read
+            let samples_after_chunk = samples_after_chunk.saturating_sub(
+                self.from.saturating_sub(self.current_frame_pos_in_chunk + 2) as usize *
+                    self.current_frame.capacity()
+            );
+            // calculating the number of samples after the transformation
+            // TODO: this is wrong here \|/
+            let samples_after_chunk = (((samples_after_chunk / self.current_frame.capacity() - 1)
+                             / self.from as usize + 1) * self.to as usize) * self.current_frame.capacity();
 
-            let samples_after_chunk = samples.saturating_sub(
-                    (self.from - self.current_frame_pos_in_chunk) as usize * self.current_frame.capacity());
-            let samples_after_chunk = samples_after_chunk * self.to as usize / self.from as usize;
-
+            // `samples_current_chunk` will contain the number of samples remaining to be output
+            // for the chunk currently being processed
             let samples_current_chunk = (self.to - self.next_output_frame_pos_in_chunk) as usize *
                                                                     self.current_frame.capacity();
 
-            samples_current_chunk + samples_after_chunk + self.output_buffer.len() + samples % self.from as usize
+            samples_current_chunk + samples_after_chunk + self.output_buffer.len()
         };
 
-        let (min, max) = self.input.size_hint();
-        (apply(min), max.map(apply))
+        if self.from == self.to {
+            self.input.size_hint()
+        } else {
+            let (min, max) = self.input.size_hint();
+            (apply(min), max.map(apply))
+        }
     }
 }
 
@@ -207,7 +222,7 @@ mod test {
         let input: Vec<u16> = Vec::new();
         let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(1278),
                                                SamplesRate(78923), 1);
-        //assert_eq!(output.len(), 0);       // FIXME:
+        //assert_eq!(output.len(), 0);
 
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, []);
@@ -262,7 +277,7 @@ mod test {
         let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
         let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(44100),
                                                SamplesRate(22050), 2);
-        //assert_eq!(output.len(), 6);       // FIXME:
+        assert_eq!(output.len(), 6);
 
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [1, 16, 3, 18, 5, 20]);
@@ -273,7 +288,7 @@ mod test {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(22050),
                                                SamplesRate(44100), 2);
-        //assert_eq!(output.len(), 14);       // FIXME:
+        //assert_eq!(output.len(), 14);
 
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
@@ -284,14 +299,14 @@ mod test {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output = SamplesRateConverter::new(input.into_iter(), SamplesRate(2000),
                                                SamplesRate(3000), 2);
-        //assert_eq!(output.len(), 12);       // FIXME:
+        assert_eq!(output.len(), 12);
 
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [2, 16, 3, 17, 4, 18, 6, 20, 7, 21, 8, 22]);
     }
 
     #[test]
-    #[ignore]       // FIXME:
+    #[ignore]
     fn upsample_lengths() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let mut output = SamplesRateConverter::new(input.into_iter(), SamplesRate(2000),

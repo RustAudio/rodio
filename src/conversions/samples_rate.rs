@@ -56,12 +56,14 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
             gcd(from, to)
         };
 
-        let samples = if from == to {
+        let (first_samples, next_samples) = if from == to {
             // if `from` == `to` == 1, then we just pass through
             debug_assert_eq!(from, gcd);
-            Vec::new()
+            (Vec::new(), Vec::new())
         } else {
-            input.by_ref().take(num_channels as usize).collect()
+            let first = input.by_ref().take(num_channels as usize).collect();
+            let next = input.by_ref().take(num_channels as usize).collect();
+            (first, next)
         };
 
         SamplesRateConverter {
@@ -70,9 +72,23 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
             to: to / gcd,
             current_frame_pos_in_chunk: 0,
             next_output_frame_pos_in_chunk: 0,
-            current_frame: Vec::with_capacity(num_channels as usize),
-            next_frame: samples,
+            current_frame: first_samples,
+            next_frame: next_samples,
             output_buffer: Vec::with_capacity(num_channels as usize - 1),
+        }
+    }
+
+    fn next_input_frame(&mut self) {
+        self.current_frame_pos_in_chunk += 1;
+
+        mem::swap(&mut self.current_frame, &mut self.next_frame);
+        self.next_frame.clear();
+        for _ in (0 .. self.next_frame.capacity()) {
+            if let Some(i) = self.input.next() {
+                self.next_frame.push(i);
+            } else {
+                break;
+            }
         }
     }
 }
@@ -87,42 +103,40 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
             return self.input.next();
         }
 
+        // Short circuit if there are some samples waiting.
         if self.output_buffer.len() >= 1 {
             return Some(self.output_buffer.remove(0));
         }
 
-        // The sample we are going to return from this function will be a linear interpolation
-        // between `self.current_sample` and `self.next_sample`.
+        // The frame we are going to return from this function will be a linear interpolation
+        // between `self.current_frame` and `self.next_frame`.
 
-        // Finding the position of the first sample of the linear interpolation.
-        let req_left_sample = (self.from * self.next_output_frame_pos_in_chunk / self.to) %
-                              self.from;
+        if self.next_output_frame_pos_in_chunk == self.to {
+            // If we jump to the next frame, we reset the whole state.
+            self.next_output_frame_pos_in_chunk = 0;
 
-        // Advancing `self.current_sample`, `self.next_sample` and
-        // `self.current_frame_pos_in_chunk` until the latter variable matches `req_left_sample`.
-        // We also always advance one step if `next_output_frame_pos_in_chunk` equals 0.
-        let mut advancing_required = self.next_output_frame_pos_in_chunk == 0;
-        while advancing_required || self.current_frame_pos_in_chunk != req_left_sample {
-            advancing_required = false;
-            self.current_frame_pos_in_chunk += 1;
-            self.current_frame_pos_in_chunk %= self.from;
+            self.next_input_frame();
+            while self.current_frame_pos_in_chunk != self.from {
+                self.next_input_frame();
+            }
+            self.current_frame_pos_in_chunk = 0;
 
-            if self.current_frame.len() >= 1 ||
-               self.current_frame_pos_in_chunk == req_left_sample
-            {
-                mem::swap(&mut self.current_frame, &mut self.next_frame);
-                self.next_frame.clear();
-                for _ in (0 .. self.next_frame.capacity()) {
-                    if let Some(i) = self.input.next() {
-                        self.next_frame.push(i);
-                    } else {
-                        break;
-                    }
-                }
+        } else {
+            // Finding the position of the first sample of the linear interpolation.
+            let req_left_sample = (self.from * self.next_output_frame_pos_in_chunk / self.to) %
+                                  self.from;
+
+            // Advancing `self.current_frame`, `self.next_frame` and
+            // `self.current_frame_pos_in_chunk` until the latter variable matches `req_left_sample`.
+            while self.current_frame_pos_in_chunk != req_left_sample {
+                self.next_input_frame();
+                debug_assert!(self.current_frame_pos_in_chunk < self.from);
             }
         }
 
         // Merging `self.current_frame` and `self.next_frame` into `self.output_buffer`.
+        // Note that `self.output_buffer` can be truncated if there is not enough data in
+        // `self.next_frame`.
         let mut result = None;
         let numerator = (self.from * self.next_output_frame_pos_in_chunk) % self.to;
         for (off, (cur, next)) in self.current_frame.iter().zip(self.next_frame.iter()).enumerate() {
@@ -137,11 +151,13 @@ impl<I> Iterator for SamplesRateConverter<I> where I: Iterator, I::Item: Sample 
 
         // Incrementing the counter for the next iteration.
         self.next_output_frame_pos_in_chunk += 1;
-        self.next_output_frame_pos_in_chunk %= self.to;
+
 
         if result.is_some() {
             result
         } else {
+            debug_assert!(self.next_frame.is_empty());
+
             // draining `self.current_frame`
             if self.current_frame.len() >= 1 {
                 let r = Some(self.current_frame.remove(0));

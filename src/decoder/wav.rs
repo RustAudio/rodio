@@ -1,19 +1,21 @@
 use std::io::{Read, Seek, SeekFrom};
 use super::Decoder;
-use conversions;
+
+use conversions::ChannelsCountConverter;
+use conversions::SamplesRateConverter;
+use conversions::DataConverter;
 
 use cpal;
 use hound::WavReader;
 
-pub struct WavDecoder {
-    reader: Box<Iterator<Item=f32> + Send>,
+pub struct WavDecoder<R> where R: Read + Seek {
+    reader: DataConverter<SamplesRateConverter<ChannelsCountConverter<SamplesIterator<R>>>, f32>,
     total_duration_ms: u32,
 }
 
-impl WavDecoder {
-    pub fn new<R>(mut data: R, output_channels: u16, output_samples_rate: u32)
-                  -> Result<WavDecoder, R>
-                  where R: Read + Seek + Send + 'static
+impl<R> WavDecoder<R> where R: Read + Seek {
+    pub fn new(mut data: R, output_channels: u16, output_samples_rate: u32)
+               -> Result<WavDecoder<R>, R>
     {
         if !is_wave(data.by_ref()) {
             return Err(data);
@@ -24,13 +26,13 @@ impl WavDecoder {
         let total_duration_ms = reader.duration() * 1000 / spec.sample_rate;
 
         let reader = SamplesIterator { reader: reader, samples_read: 0 };
-        let reader = conversions::ChannelsCountConverter::new(reader, spec.channels, 2);
-        let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
-                                                            cpal::SamplesRate(output_samples_rate), output_channels);
-        let reader = conversions::DataConverter::new(reader);
+        let reader = ChannelsCountConverter::new(reader, spec.channels, 2);
+        let reader = SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
+                                               cpal::SamplesRate(output_samples_rate), output_channels);
+        let reader = DataConverter::new(reader);
 
         Ok(WavDecoder {
-            reader: Box::new(reader),
+            reader: reader,
             total_duration_ms: total_duration_ms,
         })
     }
@@ -76,13 +78,13 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
     true
 }
 
-impl Decoder for WavDecoder {
+impl<R> Decoder for WavDecoder<R> where R: Read + Seek {
     fn get_total_duration_ms(&self) -> u32 {
         self.total_duration_ms
     }
 }
 
-impl Iterator for WavDecoder {
+impl<R> Iterator for WavDecoder<R> where R: Read + Seek {
     type Item = f32;
 
     #[inline]
@@ -96,4 +98,4 @@ impl Iterator for WavDecoder {
     }
 }
 
-impl ExactSizeIterator for WavDecoder {}
+impl<R> ExactSizeIterator for WavDecoder<R> where R: Read + Seek {}

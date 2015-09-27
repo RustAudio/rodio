@@ -37,7 +37,7 @@ impl VorbisDecoder {
 
 impl Decoder for VorbisDecoder {
     fn get_total_duration_ms(&self) -> u32 {
-        unimplemented!()
+        10000       // FIXME: wrong
     }
 }
 

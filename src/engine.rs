@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::io::{Read, Seek};
 use std::thread::{self, Builder, Thread};
 use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -74,10 +76,19 @@ impl Engine {
 
         // try build the decoder
         let decoder = decoder::decode(input, channels_count, samples_rate);
+        let decoder_id = &*decoder as *const _ as *const u8 as usize;
+
+        // getting some infos ; we are going to send the decoder to the background thread, so this
+        // is the last time we can get infos from it
+        let total_duration_ms = decoder.get_total_duration_ms();
+
+        // at each loop, the background thread will store the remaining time of the sound in this
+        // value
+        let remaining_duration_ms = Arc::new(AtomicUsize::new(total_duration_ms as usize));
 
         // send the play command
         let commands = self.commands.lock().unwrap();
-        commands.send(Command::Play(endpoint.clone(), new_voice, decoder.clone())).unwrap();
+        commands.send(Command::Play(endpoint.clone(), new_voice, decoder, remaining_duration_ms.clone())).unwrap();
 
         // unpark the background thread so that the sound starts playing immediately
         if let Some(ref thread) = self.thread {
@@ -86,8 +97,9 @@ impl Engine {
 
         Handle {
             engine: self,
-            decoder: decoder,
-            total_samples_per_second: channels_count as u64 * samples_rate as u64,
+            decoder_id: decoder_id,
+            total_duration_ms: total_duration_ms,
+            remaining_duration_ms: remaining_duration_ms,
         }
     }
 }
@@ -97,21 +109,22 @@ impl Engine {
 /// Note that dropping the handle doesn't stop the sound. You must call `stop` explicitely.
 pub struct Handle<'a> {
     engine: &'a Engine,
-    decoder: Arc<Mutex<Decoder<Item=f32> + Send>>,
-    total_samples_per_second: u64,
+    decoder_id: usize,
+    total_duration_ms: u32,
+    remaining_duration_ms: Arc<AtomicUsize>,
 }
 
 impl<'a> Handle<'a> {
     #[inline]
     pub fn set_volume(&self, value: f32) {
         let commands = self.engine.commands.lock().unwrap();
-        commands.send(Command::SetVolume(self.decoder.clone(), value)).unwrap();
+        commands.send(Command::SetVolume(self.decoder_id, value)).unwrap();
     }
 
     #[inline]
     pub fn stop(self) {
         let commands = self.engine.commands.lock().unwrap();
-        commands.send(Command::Stop(self.decoder)).unwrap();
+        commands.send(Command::Stop(self.decoder_id)).unwrap();
 
         if let Some(ref thread) = self.engine.thread {
             thread.unpark();
@@ -120,62 +133,54 @@ impl<'a> Handle<'a> {
 
     #[inline]
     pub fn get_total_duration_ms(&self) -> u32 {
-        let decoder = self.decoder.lock().unwrap();
-        decoder.get_total_duration_ms()
+        self.total_duration_ms
     }
 
     #[inline]
     pub fn get_remaining_duration_ms(&self) -> u32 {
-        let decoder = self.decoder.lock().unwrap();
-
-        let (num_samples, _) = decoder.size_hint();
-        //let num_samples = num_samples + self.voice.get_pending_samples();     // TODO: !
-
-        (num_samples as u64 * 1000 / self.total_samples_per_second) as u32
+        self.remaining_duration_ms.load(Ordering::Relaxed) as u32
     }
 }
 
 pub enum Command {
-    Play(Endpoint, Option<Voice>, Arc<Mutex<Decoder<Item=f32> + Send>>),
-    Stop(Arc<Mutex<Decoder<Item=f32> + Send>>),
-    SetVolume(Arc<Mutex<Decoder<Item=f32> + Send>>, f32),
+    Play(Endpoint, Option<Voice>, Box<Decoder<Item=f32> + Send>, Arc<AtomicUsize>),
+    Stop(usize),
+    SetVolume(usize, f32),
 }
 
 fn background(rx: Receiver<Command>) {
     // for each endpoint name, stores the voice and the list of sounds with their volume
-    let mut voices: HashMap<String, (Voice, Vec<(Arc<Mutex<Decoder<Item=f32> + Send>>, f32)>)> = HashMap::new();
+    let mut voices: HashMap<String, (Voice, Vec<(Box<Decoder<Item=f32> + Send>, Arc<AtomicUsize>, f32)>)> = HashMap::new();
 
     // list of sounds to stop playing
-    let mut sounds_to_remove: Vec<Arc<Mutex<Decoder<Item=f32> + Send>>> = Vec::new();
+    let mut sounds_to_remove: Vec<*const (Decoder<Item=f32> + Send)> = Vec::new();
 
     loop {
         // polling for new commands
         if let Ok(command) = rx.try_recv() {
             match command {
-                Command::Play(endpoint, new_voice, decoder) => {
+                Command::Play(endpoint, new_voice, decoder, remaining_duration_ms) => {
                     let mut entry = voices.entry(endpoint.get_name()).or_insert_with(|| {
                         (new_voice.unwrap(), Vec::new())
                     });
 
-                    entry.1.push((decoder, 1.0));
+                    entry.1.push((decoder, remaining_duration_ms, 1.0));
                 },
 
                 Command::Stop(decoder) => {
-                    let decoder = &*decoder as *const _;
                     for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                         sounds.retain(|dec| {
-                            &*dec.0 as *const _ != decoder
+                            &*dec.0 as *const _ as *const u8 as usize != decoder
                         })
                     }
                 },
 
                 Command::SetVolume(decoder, volume) => {
-                    let decoder = &*decoder as *const _;
                     for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                         if let Some(d) = sounds.iter_mut()
-                                               .find(|dec| &*dec.0 as *const _ == decoder)
+                                               .find(|dec| &*dec.0 as *const _ as *const u8 as usize == decoder)
                         {
-                            d.1 = volume;
+                            d.2 = volume;
                         }
                     }
                 },
@@ -184,7 +189,6 @@ fn background(rx: Receiver<Command>) {
 
         // removing sounds that have finished playing
         for decoder in mem::replace(&mut sounds_to_remove, Vec::new()) {
-            let decoder = &*decoder as *const _;
             for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                 sounds.retain(|dec| &*dec.0 as *const _ != decoder);
             }
@@ -193,16 +197,15 @@ fn background(rx: Receiver<Command>) {
         // updating the existing sounds
         let before_updates = time::precise_time_ns();
         for (_, &mut (ref mut voice, ref mut sounds)) in voices.iter_mut() {
-            // building an iterator that produces samples from `sounds`
-            let num_sounds = sounds.len() as f32;
-            let samples_iter = (0..).map(|_| {
-                // FIXME: locking is slow
-                sounds.iter().map(|s| s.0.lock().unwrap().next().unwrap_or(0.0) * s.1 / num_sounds)
-                      .fold(0.0, |a, b| a + b)
-            });
-
-            // starting the output
+            // writing to the output
             {
+                // building an iterator that produces samples from `sounds`
+                let num_sounds = sounds.len() as f32;
+                let samples_iter = (0..).map(|_| {
+                    sounds.iter_mut().map(|s| s.0.next().unwrap_or(0.0) * s.2 / num_sounds)
+                          .fold(0.0, |a, b| a + b)
+                });
+
                 let mut buffer = {
                     let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
                     voice.append_data(samples_to_write as usize)
@@ -219,6 +222,15 @@ fn background(rx: Receiver<Command>) {
                         for (o, i) in buffer.iter_mut().zip(samples_iter) { *o = i; }
                     },
                 }
+            }
+
+            // updating the contents of `remaining_duration_ms`
+            for &(ref decoder, ref remaining_duration_ms, _) in sounds.iter() {
+                let (num_samples, _) = decoder.size_hint();
+                let num_samples = num_samples + voice.get_pending_samples();
+                let value = (num_samples as u64 * 1000 / (voice.get_channels() as u64 *
+                                                        voice.get_samples_rate().0 as u64)) as u32;
+                remaining_duration_ms.store(value as usize, Ordering::Relaxed);
             }
 
             // TODO: do better

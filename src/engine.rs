@@ -204,7 +204,26 @@ fn background(rx: Receiver<Command>) {
         // polling for new commands
         if let Ok(command) = rx.try_recv() {
             match command {
-                Command::Play(endpoint, new_voice, decoder, remaining_duration_ms) => {
+                Command::Play(endpoint, mut new_voice, decoder, remaining_duration_ms) => {
+                    if let Some(ref mut new_voice) = new_voice {
+                        // we initialize the new voice by writing one period of 0s,
+                        // so that we are always one period ahead of time
+                        let period = new_voice.get_period();
+                        let mut buffer = new_voice.append_data(period);
+
+                        match buffer {
+                            UnknownTypeBuffer::U16(ref mut buffer) => {
+                                for o in buffer.iter_mut() { *o = 32768; }
+                            },
+                            UnknownTypeBuffer::I16(ref mut buffer) => {
+                                for o in buffer.iter_mut() { *o = 0; }
+                            },
+                            UnknownTypeBuffer::F32(ref mut buffer) => {
+                                for o in buffer.iter_mut() { *o = 0.0; }
+                            },
+                        }
+                    }
+
                     let mut entry = voices.entry(endpoint.get_name()).or_insert_with(|| {
                         (new_voice.unwrap(), Vec::new())
                     });
@@ -252,8 +271,8 @@ fn background(rx: Receiver<Command>) {
 
                 let mut buffer = {
                     let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
-                    let samples_to_write = cmp::max(samples_to_write, voice.get_period() as u32);
-                    voice.append_data(samples_to_write as usize)
+                    let samples_to_write = cmp::max(samples_to_write as usize, voice.get_period());
+                    voice.append_data(samples_to_write)
                 };
 
                 match buffer {

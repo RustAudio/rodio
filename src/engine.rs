@@ -274,7 +274,8 @@ fn background(rx: Receiver<Command>) {
 
                 let mut buffer = {
                     let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
-                    let samples_to_write = cmp::max(samples_to_write as usize, voice.get_period());
+                    let period = cmp::max(voice.get_period(), 1);
+                    let samples_to_write = (1 + (samples_to_write as usize - 1) / period) * period;
                     voice.append_data(samples_to_write)
                 };
 

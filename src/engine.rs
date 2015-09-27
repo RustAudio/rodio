@@ -8,6 +8,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use cpal;
 use cpal::UnknownTypeBuffer;
 use cpal::Voice;
 use cpal::Endpoint;
@@ -65,8 +66,31 @@ impl Engine {
 
             let &mut (c, s) = voices_formats.entry(endpoint.get_name()).or_insert_with(|| {
                 // TODO: handle possible errors here
-                // TODO: choose format better
-                let format = endpoint.get_supported_formats_list().unwrap().next().unwrap();
+                let format = endpoint.get_supported_formats_list().unwrap().fold(None, |f1, f2| {
+                    if f1.is_none() {
+                        return Some(f2);
+                    }
+
+                    let f1 = f1.unwrap();
+
+                    // we privilege f32 formats to avoid a conversion
+                    if f1.data_type == cpal::SampleFormat::F32 {
+                        return Some(f1);
+                    }
+                    if f2.data_type == cpal::SampleFormat::F32 {
+                        return Some(f2);
+                    }
+
+                    if f1.samples_rate.0 < 44100 {
+                        return Some(f2);
+                    }
+                    if f2.samples_rate.0 < 44100 {
+                        return Some(f1);
+                    }
+
+                    Some(f1)
+                }).expect("The endpoint doesn't support any format!?");
+
                 new_voice = Some(Voice::new(&endpoint, &format).unwrap());
                 (format.channels.len() as u16, format.samples_rate.0)
             });
@@ -219,7 +243,6 @@ fn background(rx: Receiver<Command>) {
                 });
 
                 let mut buffer = {
-                    // TODO: understand what's going on \|/
                     let samples_to_write = 10 * voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
                     voice.append_data(samples_to_write as usize)
                 };

@@ -1,3 +1,4 @@
+use std::cmp;
 use std::mem;
 use std::collections::HashMap;
 use std::io::{Read, Seek};
@@ -251,6 +252,7 @@ fn background(rx: Receiver<Command>) {
 
                 let mut buffer = {
                     let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
+                    let samples_to_write = cmp::max(samples_to_write, voice.get_period() as u32);
                     voice.append_data(samples_to_write as usize)
                 };
 

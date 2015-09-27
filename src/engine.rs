@@ -227,7 +227,6 @@ fn background(rx: Receiver<Command>) {
 
         // sleeping so that we get a loop every `FIXED_STEP_MS` millisecond
         let time_taken = time::precise_time_ns() - before_updates;
-        println!("{:?}", time_taken / 1000);
         let sleep = FIXED_STEP_NS.saturating_sub(time_taken);
         thread::park_timeout_ms((sleep / 1000000) as u32);
     }

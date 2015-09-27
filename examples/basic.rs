@@ -16,10 +16,13 @@ fn main() {
 
     std::thread::sleep_ms(1000);
     let file = std::fs::File::open("examples/beep3.ogg").unwrap();
-    rodio::play_once(&endpoint, file);
+    let beep3 = rodio::play_once(&endpoint, file);
 
     std::thread::sleep_ms(1000);
     beep1.stop();
 
-    std::thread::sleep_ms(7000);
+    std::thread::sleep_ms(1000);
+    beep3.stop();
+
+    std::thread::sleep_ms(1000);
 }

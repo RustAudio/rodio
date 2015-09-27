@@ -192,27 +192,7 @@ fn background(rx: Receiver<Command>) {
         // polling for new commands
         if let Ok(command) = rx.try_recv() {
             match command {
-                Command::Play(endpoint, mut new_voice, decoder, remaining_duration_ms) => {
-                    if let Some(ref mut new_voice) = new_voice {
-                        // we initialize the new voice by writing one period of 0s,
-                        // so that we are always one period ahead of time
-                        // TODO: we can hear the delay at initialization, find a better way to do
-                        let period = new_voice.get_period();
-                        let mut buffer = new_voice.append_data(period);
-
-                        match buffer {
-                            UnknownTypeBuffer::U16(ref mut buffer) => {
-                                for o in buffer.iter_mut() { *o = 32768; }
-                            },
-                            UnknownTypeBuffer::I16(ref mut buffer) => {
-                                for o in buffer.iter_mut() { *o = 0; }
-                            },
-                            UnknownTypeBuffer::F32(ref mut buffer) => {
-                                for o in buffer.iter_mut() { *o = 0.0; }
-                            },
-                        }
-                    }
-
+                Command::Play(endpoint, new_voice, decoder, remaining_duration_ms) => {
                     let mut entry = voices.entry(endpoint.get_name()).or_insert_with(|| {
                         (new_voice.unwrap(), Vec::new())
                     });
@@ -249,8 +229,15 @@ fn background(rx: Receiver<Command>) {
 
         // updating the existing sounds
         for (_, &mut (ref mut voice, ref mut sounds)) in voices.iter_mut() {
+            // we want the number of samples remaining to be processed by the sound to be around
+            // twice the number of samples that are being processed in one loop, with a minimum of 2 periods
+            let samples_read_per_loop = (voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000) as usize;
+            let pending_samples = voice.get_pending_samples();
+            let period = cmp::max(voice.get_period(), 1);
+            let samples_required_in_buffer = cmp::max(samples_read_per_loop * 2, period * 2);
+
             // writing to the output
-            {
+            if pending_samples < samples_required_in_buffer {
                 // building an iterator that produces samples from `sounds`
                 let num_sounds = sounds.len() as f32;
                 let samples_iter = (0..).map(|_| {
@@ -258,12 +245,7 @@ fn background(rx: Receiver<Command>) {
                           .fold(0.0, |a, b| a + b)
                 });
 
-                let mut buffer = {
-                    let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
-                    let period = cmp::max(voice.get_period(), 1);
-                    let samples_to_write = (1 + (samples_to_write as usize - 1) / period) * period;
-                    voice.append_data(samples_to_write)
-                };
+                let mut buffer = voice.append_data(samples_required_in_buffer - pending_samples);
 
                 match buffer {
                     UnknownTypeBuffer::U16(ref mut buffer) => {

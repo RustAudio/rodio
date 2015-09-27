@@ -7,13 +7,13 @@ use cpal::{self, Endpoint, Voice};
 use hound::WavReader;
 
 pub struct WavDecoder {
-    reader: conversions::AmplifierIterator<Box<Iterator<Item=i16> + Send>>,
-    voice: Voice,
+    reader: conversions::AmplifierIterator<Box<Iterator<Item=f32> + Send>>,
     total_duration_ms: u32,
 }
 
 impl WavDecoder {
-    pub fn new<R>(endpoint: &Endpoint, mut data: R) -> Result<WavDecoder, R>
+    pub fn new<R>(mut data: R, output_channels: u16, output_samples_rate: u32)
+                  -> Result<WavDecoder, R>
                   where R: Read + Seek + Send + 'static
     {
         if !is_wave(data.by_ref()) {
@@ -24,52 +24,14 @@ impl WavDecoder {
         let spec = reader.spec();
         let total_duration_ms = reader.duration() * 1000 / spec.sample_rate;
 
-        // choosing a format amongst the ones available
-        let voice_format = endpoint.get_supported_formats_list().unwrap().fold(None, |f1, f2| {
-            if f1.is_none() {
-                return Some(f2);
-            }
-
-            let f1 = f1.unwrap();
-
-            if f1.samples_rate.0 % spec.sample_rate == 0 {
-                return Some(f1);
-            }
-
-            if f2.samples_rate.0 % spec.sample_rate == 0 {
-                return Some(f2);
-            }
-
-            if f1.channels.len() >= spec.channels as usize {
-                return Some(f1);
-            }
-
-            if f2.channels.len() >= spec.channels as usize {
-                return Some(f2);
-            }
-
-            if f1.data_type == cpal::SampleFormat::I16 {
-                return Some(f1);
-            }
-
-            if f2.data_type == cpal::SampleFormat::I16 {
-                return Some(f2);
-            }
-
-            Some(f1)
-        }).unwrap();
-
-        let voice = Voice::new(endpoint, &voice_format).unwrap();
-
         let reader = SamplesIterator { reader: reader, samples_read: 0 };
-        let reader = conversions::ChannelsCountConverter::new(reader, spec.channels,
-                                                              voice.get_channels());
+        let reader = conversions::ChannelsCountConverter::new(reader, spec.channels, 2);
         let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
-                                                            voice.get_samples_rate(), voice.get_channels());
+                                                            cpal::SamplesRate(output_samples_rate), output_channels);
+        let reader = conversions::DataConverter::new(reader);
 
         Ok(WavDecoder {
             reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),
-            voice: voice,
             total_duration_ms: total_duration_ms,
         })
     }
@@ -116,21 +78,6 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
 }
 
 impl Decoder for WavDecoder {
-    fn write(&mut self) -> bool {
-        if let (0, _) = self.reader.size_hint() {
-            return false;
-        }
-
-        {
-            let samples = self.voice.get_samples_rate().0 * self.voice.get_channels() as u32;
-            let mut buffer = self.voice.append_data(samples as usize);
-            conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
-        }
-
-        self.voice.play();
-        true
-    }
-
     fn set_volume(&mut self, value: f32) {
         self.reader.set_amplification(value);
     }
@@ -138,12 +85,20 @@ impl Decoder for WavDecoder {
     fn get_total_duration_ms(&self) -> u32 {
         self.total_duration_ms
     }
+}
 
-    fn get_remaining_duration_ms(&self) -> u32 {
-        let (num_samples, _) = self.reader.size_hint();
-        let num_samples = num_samples + self.voice.get_pending_samples();
+impl Iterator for WavDecoder {
+    type Item = f32;
 
-        (num_samples as u64 * 1000 /
-                (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64)) as u32
+    #[inline]
+    fn next(&mut self) -> Option<f32> {
+        self.reader.next()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.reader.size_hint()
     }
 }
+
+impl ExactSizeIterator for WavDecoder {}

@@ -7,12 +7,12 @@ use cpal::{self, Endpoint, Voice};
 use vorbis;
 
 pub struct VorbisDecoder {
-    reader: conversions::AmplifierIterator<Box<Iterator<Item=i16> + Send>>,
-    voice: Voice,
+    reader: conversions::AmplifierIterator<Box<Iterator<Item=f32> + Send>>,
 }
 
 impl VorbisDecoder {
-    pub fn new<R>(endpoint: &Endpoint, data: R) -> Result<VorbisDecoder, ()>
+    pub fn new<R>(data: R, output_channels: u16, output_samples_rate: u32)
+                  -> Result<VorbisDecoder, ()>
                   where R: Read + Seek + Send + 'static
     {
         let decoder = match vorbis::Decoder::new(data) {
@@ -20,43 +20,23 @@ impl VorbisDecoder {
             Ok(r) => r
         };
 
-        // building the voice
-        let voice_format = endpoint.get_supported_formats_list().unwrap().next().unwrap();
-        let voice = Voice::new(endpoint, &voice_format).unwrap();
-
-        let to_channels = voice.get_channels();
-        let to_samples_rate = voice.get_samples_rate();
-
         let reader = decoder.into_packets().filter_map(|p| p.ok()).flat_map(move |packet| {
             let reader = packet.data.into_iter();
             let reader = conversions::ChannelsCountConverter::new(reader, packet.channels,
-                                                                  to_channels);
+                                                                  output_channels);
             let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(packet.rate as u32),
-                                                                to_samples_rate, to_channels);
+                                                                cpal::SamplesRate(output_samples_rate), output_channels);
+            let reader = conversions::DataConverter::new(reader);
             reader
         });
 
         Ok(VorbisDecoder {
             reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),
-            voice: voice,
         })
     }
 }
 
 impl Decoder for VorbisDecoder {
-    fn write(&mut self) -> bool {
-        // TODO: handle end
-
-        {
-            let samples = self.voice.get_samples_rate().0 * self.voice.get_channels() as u32;
-            let mut buffer = self.voice.append_data(samples as usize);
-            conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
-        }
-
-        self.voice.play();
-        true
-    }
-
     fn set_volume(&mut self, value: f32) {
         self.reader.set_amplification(value);
     }
@@ -64,8 +44,20 @@ impl Decoder for VorbisDecoder {
     fn get_total_duration_ms(&self) -> u32 {
         unimplemented!()
     }
+}
 
-    fn get_remaining_duration_ms(&self) -> u32 {
-        unimplemented!()
+impl Iterator for VorbisDecoder {
+    type Item = f32;
+
+    #[inline]
+    fn next(&mut self) -> Option<f32> {
+        self.reader.next()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.reader.size_hint()
     }
 }
+
+impl ExactSizeIterator for VorbisDecoder {}

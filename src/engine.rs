@@ -30,6 +30,9 @@ pub struct Engine {
 
     /// The background thread that executes commands.
     thread: Option<Thread>,
+
+    /// Contains the format (channels count and samples rate) of the voice of each endpoint.
+    voices_formats: Mutex<HashMap<String, (u16, u32)>>,
 }
 
 impl Engine {
@@ -46,6 +49,7 @@ impl Engine {
         Engine {
             commands: Mutex::new(tx),
             thread: thread,
+            voices_formats: Mutex::new(HashMap::new()),
         }
     }
 
@@ -53,11 +57,30 @@ impl Engine {
     pub fn play<R>(&self, endpoint: &Endpoint, input: R) -> Handle
                    where R: Read + Seek + Send + 'static
     {
-        let decoder = decoder::decode(input, 2, 44100);
+        // try looking for an existing voice, or create one if there isn't one
+        let (new_voice, channels_count, samples_rate) = {
+            let mut voices_formats = self.voices_formats.lock().unwrap();
+            let mut new_voice = None;
 
+            let &mut (c, s) = voices_formats.entry(endpoint.get_name()).or_insert_with(|| {
+                // TODO: handle possible errors here
+                // TODO: choose format better
+                let format = endpoint.get_supported_formats_list().unwrap().next().unwrap();
+                new_voice = Some(Voice::new(&endpoint, &format).unwrap());
+                (format.channels.len() as u16, format.samples_rate.0)
+            });
+
+            (new_voice, c, s)
+        };
+
+        // try build the decoder
+        let decoder = decoder::decode(input, channels_count, samples_rate);
+
+        // send the play command
         let commands = self.commands.lock().unwrap();
-        commands.send(Command::Play(endpoint.clone(), decoder.clone())).unwrap();
+        commands.send(Command::Play(endpoint.clone(), new_voice, decoder.clone())).unwrap();
 
+        // unpark the background thread so that the sound starts playing immediately
         if let Some(ref thread) = self.thread {
             thread.unpark();
         }
@@ -65,6 +88,7 @@ impl Engine {
         Handle {
             engine: self,
             decoder: decoder,
+            total_samples_per_second: channels_count as u64 * samples_rate as u64,
         }
     }
 }
@@ -75,6 +99,7 @@ impl Engine {
 pub struct Handle<'a> {
     engine: &'a Engine,
     decoder: Arc<Mutex<Decoder<Item=f32> + Send>>,
+    total_samples_per_second: u64,
 }
 
 impl<'a> Handle<'a> {
@@ -107,12 +132,12 @@ impl<'a> Handle<'a> {
         let (num_samples, _) = decoder.size_hint();
         //let num_samples = num_samples + self.voice.get_pending_samples();     // TODO: !
 
-        (num_samples as u64 * 1000 / 44100 * 2) as u32          // FIXME: arbitrary values
+        (num_samples as u64 * 1000 / self.total_samples_per_second) as u32
     }
 }
 
 pub enum Command {
-    Play(Endpoint, Arc<Mutex<Decoder<Item=f32> + Send>>),
+    Play(Endpoint, Option<Voice>, Arc<Mutex<Decoder<Item=f32> + Send>>),
     Stop(Arc<Mutex<Decoder<Item=f32> + Send>>),
     SetVolume(Arc<Mutex<Decoder<Item=f32> + Send>>, f32),
 }
@@ -128,14 +153,9 @@ fn background(rx: Receiver<Command>) {
         // polling for new commands
         if let Ok(command) = rx.try_recv() {
             match command {
-                Command::Play(endpoint, decoder) => {
+                Command::Play(endpoint, new_voice, decoder) => {
                     let mut entry = voices.entry(endpoint.get_name()).or_insert_with(|| {
-                        // TODO: handle possible errors here
-                        // TODO: choose format better
-                        let format = endpoint.get_supported_formats_list().unwrap().next().unwrap();
-                        let voice = Voice::new(&endpoint, &format).unwrap();
-
-                        (voice, Vec::new())
+                        (new_voice.unwrap(), Vec::new())
                     });
 
                     entry.1.push((decoder, 1.0));

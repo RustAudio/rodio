@@ -1,43 +1,28 @@
 use std::io::{Read, Seek};
-use std::sync::Arc;
-use std::sync::Mutex;
-
-use cpal::Endpoint;
 
 mod vorbis;
 mod wav;
 
 /// Trait for objects that produce an audio stream.
-pub trait Decoder {
-    /// Appends data to the voice.
-    /// 
-    /// Returns the number of nanoseconds after which new data will need to have been submitted.
-    /// Return `None` if the sound finished playing.
-    fn write(&mut self) -> Option<u64>;
-
-    /// Changes the volume of the sound.
-    fn set_volume(&mut self, f32);
-
+pub trait Decoder: Iterator /*+ ExactSizeIterator*/ {       // TODO: should be exact size, but not enforced yet
     /// Returns the total duration of the second in milliseconds.
     fn get_total_duration_ms(&self) -> u32;
-
-    /// Returns the number of milliseconds before the end of the sound.
-    fn get_remaining_duration_ms(&self) -> u32;
 }
 
 /// Builds a new `Decoder` from a data stream by determining the correct format.
-pub fn decode<R>(endpoint: &Endpoint, data: R) -> Arc<Mutex<Decoder + Send>>
+pub fn decode<R>(data: R, output_channels: u16, output_samples_rate: u32)
+                 -> Box<Decoder<Item=f32> + Send>
                  where R: Read + Seek + Send + 'static
 {
-    let data = match wav::WavDecoder::new(endpoint, data) {
+    let data = match wav::WavDecoder::new(data, output_channels, output_samples_rate) {
         Err(data) => data,
         Ok(decoder) => {
-            return Arc::new(Mutex::new(decoder));
+            return Box::new(decoder);
         }
     };
 
-    if let Ok(decoder) = vorbis::VorbisDecoder::new(endpoint, data) {
-        return Arc::new(Mutex::new(decoder));
+    if let Ok(decoder) = vorbis::VorbisDecoder::new(data, output_channels, output_samples_rate) {
+        return Box::new(decoder);
     }
 
     panic!("Invalid format");

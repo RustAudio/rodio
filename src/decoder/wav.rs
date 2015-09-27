@@ -1,20 +1,21 @@
 use std::io::{Read, Seek, SeekFrom};
-use std::cmp;
 use super::Decoder;
-use conversions;
 
-use cpal::{self, Endpoint, Voice};
+use conversions::ChannelsCountConverter;
+use conversions::SamplesRateConverter;
+use conversions::DataConverter;
+
+use cpal;
 use hound::WavReader;
 
-pub struct WavDecoder {
-    reader: conversions::AmplifierIterator<Box<Iterator<Item=i16> + Send>>,
-    voice: Voice,
+pub struct WavDecoder<R> where R: Read + Seek {
+    reader: DataConverter<SamplesRateConverter<ChannelsCountConverter<SamplesIterator<R>>>, f32>,
     total_duration_ms: u32,
 }
 
-impl WavDecoder {
-    pub fn new<R>(endpoint: &Endpoint, mut data: R) -> Result<WavDecoder, R>
-                  where R: Read + Seek + Send + 'static
+impl<R> WavDecoder<R> where R: Read + Seek {
+    pub fn new(mut data: R, output_channels: u16, output_samples_rate: u32)
+               -> Result<WavDecoder<R>, R>
     {
         if !is_wave(data.by_ref()) {
             return Err(data);
@@ -24,52 +25,14 @@ impl WavDecoder {
         let spec = reader.spec();
         let total_duration_ms = reader.duration() * 1000 / spec.sample_rate;
 
-        // choosing a format amongst the ones available
-        let voice_format = endpoint.get_supported_formats_list().unwrap().fold(None, |f1, f2| {
-            if f1.is_none() {
-                return Some(f2);
-            }
-
-            let f1 = f1.unwrap();
-
-            if f1.samples_rate.0 % spec.sample_rate == 0 {
-                return Some(f1);
-            }
-
-            if f2.samples_rate.0 % spec.sample_rate == 0 {
-                return Some(f2);
-            }
-
-            if f1.channels.len() >= spec.channels as usize {
-                return Some(f1);
-            }
-
-            if f2.channels.len() >= spec.channels as usize {
-                return Some(f2);
-            }
-
-            if f1.data_type == cpal::SampleFormat::I16 {
-                return Some(f1);
-            }
-
-            if f2.data_type == cpal::SampleFormat::I16 {
-                return Some(f2);
-            }
-
-            Some(f1)
-        }).unwrap();
-
-        let voice = Voice::new(endpoint, &voice_format).unwrap();
-
         let reader = SamplesIterator { reader: reader, samples_read: 0 };
-        let reader = conversions::ChannelsCountConverter::new(reader, spec.channels,
-                                                              voice.get_channels());
-        let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
-                                                            voice.get_samples_rate(), voice.get_channels());
+        let reader = ChannelsCountConverter::new(reader, spec.channels, output_channels);
+        let reader = SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
+                                               cpal::SamplesRate(output_samples_rate), output_channels);
+        let reader = DataConverter::new(reader);
 
         Ok(WavDecoder {
-            reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),
-            voice: voice,
+            reader: reader,
             total_duration_ms: total_duration_ms,
         })
     }
@@ -115,50 +78,24 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
     true
 }
 
-impl Decoder for WavDecoder {
-    fn write(&mut self) -> Option<u64> {
-        let (min, _) = self.reader.size_hint();
-        let min = cmp::min(min, 10240);     // using a maximal value so that filters get applied
-                                            // quickly
-
-        if min == 0 {
-            // finished playing
-            let remaining_time = self.voice.get_pending_samples() as u64 * 1000000000 /
-                       (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64);
-
-            if remaining_time == 0 {
-                return None;
-            } else {
-                return Some(remaining_time);
-            }
-        }
-
-        {
-            let mut buffer = self.voice.append_data(min);
-            conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
-        }
-
-        let duration = self.voice.get_pending_samples() as u64 * 1000000000 /
-                        (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64);
-
-        self.voice.play();
-
-        Some(duration)
-    }
-
-    fn set_volume(&mut self, value: f32) {
-        self.reader.set_amplification(value);
-    }
-
+impl<R> Decoder for WavDecoder<R> where R: Read + Seek {
     fn get_total_duration_ms(&self) -> u32 {
         self.total_duration_ms
     }
+}
 
-    fn get_remaining_duration_ms(&self) -> u32 {
-        let (num_samples, _) = self.reader.size_hint();
-        let num_samples = num_samples + self.voice.get_pending_samples();
+impl<R> Iterator for WavDecoder<R> where R: Read + Seek {
+    type Item = f32;
 
-        (num_samples as u64 * 1000 /
-                (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64)) as u32
+    #[inline]
+    fn next(&mut self) -> Option<f32> {
+        self.reader.next()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.reader.size_hint()
     }
 }
+
+impl<R> ExactSizeIterator for WavDecoder<R> where R: Read + Seek {}

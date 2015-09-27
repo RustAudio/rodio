@@ -1,4 +1,40 @@
+use std::marker::PhantomData;
 use cpal;
+
+/// Converts the samples data type to `O`.
+pub struct DataConverter<I, O> {
+    input: I,
+    marker: PhantomData<O>,
+}
+
+impl<I, O> DataConverter<I, O> {
+    /// Builds a new converter.
+    #[inline]
+    pub fn new(input: I) -> DataConverter<I, O> {
+        DataConverter {
+            input: input,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<I, O> Iterator for DataConverter<I, O> where I: Iterator, I::Item: Sample, O: Sample {
+    type Item = O;
+
+    #[inline]
+    fn next(&mut self) -> Option<O> {
+        self.input.next().map(|s| Sample::from(&s))
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.input.size_hint()
+    }
+}
+
+impl<I, O> ExactSizeIterator for DataConverter<I, O>
+                                 where I: ExactSizeIterator, I::Item: Sample, O: Sample {}
+
 
 /// Trait for containers that contain PCM data.
 pub trait Sample: cpal::Sample {
@@ -10,6 +46,8 @@ pub trait Sample: cpal::Sample {
     fn to_i16(&self) -> i16;
     fn to_u16(&self) -> u16;
     fn to_f32(&self) -> f32;
+
+    fn from<S>(&S) -> Self where S: Sample;
 }
 
 impl Sample for u16 {
@@ -45,6 +83,11 @@ impl Sample for u16 {
     #[inline]
     fn to_f32(&self) -> f32 {
         self.to_i16().to_f32()
+    }
+
+    #[inline]
+    fn from<S>(sample: &S) -> Self where S: Sample {
+        sample.to_u16()
     }
 }
 
@@ -86,6 +129,11 @@ impl Sample for i16 {
             *self as f32 / ::std::i16::MAX as f32
         }
     }
+
+    #[inline]
+    fn from<S>(sample: &S) -> Self where S: Sample {
+        sample.to_i16()
+    }
 }
 
 impl Sample for f32 {
@@ -121,6 +169,11 @@ impl Sample for f32 {
     #[inline]
     fn to_f32(&self) -> f32 {
         *self
+    }
+
+    #[inline]
+    fn from<S>(sample: &S) -> Self where S: Sample {
+        sample.to_f32()
     }
 }
 

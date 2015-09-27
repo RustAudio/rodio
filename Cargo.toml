@@ -1,6 +1,6 @@
 [package]
 name = "rodio"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
 license = "Apache-2.0"
 description = "Audio playback library"
@@ -9,7 +9,7 @@ repository = "https://github.com/tomaka/rodio"
 documentation = "http://tomaka.github.io/rodio/rodio/index.html"
 
 [dependencies]
-cpal = "0.2.5"
+cpal = "0.2.7"
 hound = "1.0.0"
 lazy_static = "0.1.12"
 time = "0.1.32"

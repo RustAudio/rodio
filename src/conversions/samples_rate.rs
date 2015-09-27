@@ -1,7 +1,6 @@
 use cpal;
 use conversions::Sample;
 
-use std::iter;
 use std::mem;
 
 /// Iterator that converts from a certain samples rate to another.
@@ -61,8 +60,8 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
             debug_assert_eq!(from, gcd);
             (Vec::new(), Vec::new())
         } else {
-            let mut first = input.by_ref().take(num_channels as usize).collect::<Vec<_>>();
-            let mut next = input.by_ref().take(num_channels as usize).collect::<Vec<_>>();
+            let first = input.by_ref().take(num_channels as usize).collect::<Vec<_>>();
+            let next = input.by_ref().take(num_channels as usize).collect::<Vec<_>>();
             (first, next)
         };
 

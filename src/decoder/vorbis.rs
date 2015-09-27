@@ -7,7 +7,7 @@ use cpal::{self, Endpoint, Voice};
 use vorbis;
 
 pub struct VorbisDecoder {
-    reader: conversions::AmplifierIterator<Box<Iterator<Item=f32> + Send>>,
+    reader: Box<Iterator<Item=f32> + Send>,
 }
 
 impl VorbisDecoder {
@@ -31,16 +31,12 @@ impl VorbisDecoder {
         });
 
         Ok(VorbisDecoder {
-            reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),
+            reader: Box::new(reader),
         })
     }
 }
 
 impl Decoder for VorbisDecoder {
-    fn set_volume(&mut self, value: f32) {
-        self.reader.set_amplification(value);
-    }
-
     fn get_total_duration_ms(&self) -> u32 {
         unimplemented!()
     }

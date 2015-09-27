@@ -7,7 +7,7 @@ use cpal::{self, Endpoint, Voice};
 use hound::WavReader;
 
 pub struct WavDecoder {
-    reader: conversions::AmplifierIterator<Box<Iterator<Item=f32> + Send>>,
+    reader: Box<Iterator<Item=f32> + Send>,
     total_duration_ms: u32,
 }
 
@@ -31,7 +31,7 @@ impl WavDecoder {
         let reader = conversions::DataConverter::new(reader);
 
         Ok(WavDecoder {
-            reader: conversions::AmplifierIterator::new(Box::new(reader), 1.0),
+            reader: Box::new(reader),
             total_duration_ms: total_duration_ms,
         })
     }
@@ -78,10 +78,6 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
 }
 
 impl Decoder for WavDecoder {
-    fn set_volume(&mut self, value: f32) {
-        self.reader.set_amplification(value);
-    }
-
     fn get_total_duration_ms(&self) -> u32 {
         self.total_duration_ms
     }

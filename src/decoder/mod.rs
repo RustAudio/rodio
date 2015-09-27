@@ -9,9 +9,6 @@ mod wav;
 
 /// Trait for objects that produce an audio stream.
 pub trait Decoder: Iterator /*+ ExactSizeIterator*/ {       // TODO: should be exact size, but not enforced yet
-    /// Changes the volume of the sound.
-    fn set_volume(&mut self, f32);
-
     /// Returns the total duration of the second in milliseconds.
     fn get_total_duration_ms(&self) -> u32;
 }

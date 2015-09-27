@@ -75,13 +75,6 @@ pub struct Handle<'a> {
 impl<'a> Handle<'a> {
     #[inline]
     pub fn set_volume(&self, value: f32) {
-        // we try to touch the decoder directly from this thread
-        if let Ok(mut decoder) = self.decoder.try_lock() {
-            decoder.set_volume(value);
-        }
-
-        // if `try_lock` failed, that means that the decoder is in use
-        // therefore we use the backup plan of sending a message
         let commands = self.engine.commands.lock().unwrap();
         commands.send(Command::SetVolume(self.decoder.clone(), value)).unwrap();
     }
@@ -120,8 +113,8 @@ pub enum Command {
 }
 
 fn background(rx: Receiver<Command>) {
-    // for each endpoint name, stores the voice and the list of sounds
-    let mut voices: HashMap<String, (Voice, Vec<Arc<Mutex<Decoder<Item=f32> + Send>>>)> = HashMap::new();
+    // for each endpoint name, stores the voice and the list of sounds with their volume
+    let mut voices: HashMap<String, (Voice, Vec<(Arc<Mutex<Decoder<Item=f32> + Send>>, f32)>)> = HashMap::new();
 
     // list of sounds to stop playing
     let mut sounds_to_remove: Vec<Arc<Mutex<Decoder<Item=f32> + Send>>> = Vec::new();
@@ -140,14 +133,14 @@ fn background(rx: Receiver<Command>) {
                         (voice, Vec::new())
                     });
 
-                    entry.1.push(decoder);
+                    entry.1.push((decoder, 1.0));
                 },
 
                 Command::Stop(decoder) => {
                     let decoder = &*decoder as *const _;
                     for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                         sounds.retain(|dec| {
-                            &**dec as *const _ != decoder
+                            &*dec.0 as *const _ != decoder
                         })
                     }
                 },
@@ -156,9 +149,9 @@ fn background(rx: Receiver<Command>) {
                     let decoder = &*decoder as *const _;
                     for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                         if let Some(d) = sounds.iter_mut()
-                                               .find(|dec| &***dec as *const _ != decoder)
+                                               .find(|dec| &*dec.0 as *const _ == decoder)
                         {
-                            d.lock().unwrap().set_volume(volume);
+                            d.1 = volume;
                         }
                     }
                 },
@@ -169,7 +162,7 @@ fn background(rx: Receiver<Command>) {
         for decoder in mem::replace(&mut sounds_to_remove, Vec::new()) {
             let decoder = &*decoder as *const _;
             for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
-                sounds.retain(|dec| &**dec as *const _ != decoder);
+                sounds.retain(|dec| &*dec.0 as *const _ != decoder);
             }
         }
 
@@ -180,14 +173,14 @@ fn background(rx: Receiver<Command>) {
             let num_sounds = sounds.len() as f32;
             let samples_iter = (0..).map(|_| {
                 // FIXME: locking is slow
-                sounds.iter().map(|s| s.lock().unwrap().next().unwrap_or(0.0) / num_sounds)
+                sounds.iter().map(|s| s.0.lock().unwrap().next().unwrap_or(0.0) * s.1 / num_sounds)
                       .fold(0.0, |a, b| a + b)
             });
 
             // starting the output
             {
                 let mut buffer = {
-                    let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32;
+                    let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * 17 / 1000;
                     voice.append_data(samples_to_write as usize)
                 };
 

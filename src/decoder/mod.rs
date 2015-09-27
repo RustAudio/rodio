@@ -2,8 +2,6 @@ use std::io::{Read, Seek};
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use cpal::Endpoint;
-
 mod vorbis;
 mod wav;
 

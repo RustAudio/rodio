@@ -8,9 +8,7 @@ pub use self::sample::Sample;
 pub use self::sample::DataConverter;
 pub use self::channels::ChannelsCountConverter;
 pub use self::samples_rate::SamplesRateConverter;
-pub use self::amplifier::AmplifierIterator;
 
-mod amplifier;
 mod channels;
 mod sample;
 mod samples_rate;

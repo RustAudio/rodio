@@ -1,9 +1,8 @@
 use std::io::{Read, Seek, SeekFrom};
-use std::cmp;
 use super::Decoder;
 use conversions;
 
-use cpal::{self, Endpoint, Voice};
+use cpal;
 use hound::WavReader;
 
 pub struct WavDecoder {

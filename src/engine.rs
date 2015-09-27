@@ -1,4 +1,3 @@
-use std::cmp;
 use std::mem;
 use std::collections::HashMap;
 use std::io::{Read, Seek};

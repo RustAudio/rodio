@@ -1,9 +1,8 @@
 use std::io::{Read, Seek};
-use std::f64::INFINITY;
 use super::Decoder;
 use conversions;
 
-use cpal::{self, Endpoint, Voice};
+use cpal;
 use vorbis;
 
 pub struct VorbisDecoder {

@@ -213,18 +213,21 @@ fn background(rx: Receiver<Command>) {
                         // so that we are always one period ahead of time
                         // TODO: we can hear the delay at initialization, find a better way to do
                         let period = new_voice.get_period();
-                        let mut buffer = new_voice.append_data(period);
 
-                        match buffer {
-                            UnknownTypeBuffer::U16(ref mut buffer) => {
-                                for o in buffer.iter_mut() { *o = 32768; }
-                            },
-                            UnknownTypeBuffer::I16(ref mut buffer) => {
-                                for o in buffer.iter_mut() { *o = 0; }
-                            },
-                            UnknownTypeBuffer::F32(ref mut buffer) => {
-                                for o in buffer.iter_mut() { *o = 0.0; }
-                            },
+                        if period != 0 {
+                            let mut buffer = new_voice.append_data(period);
+
+                            match buffer {
+                                UnknownTypeBuffer::U16(ref mut buffer) => {
+                                    for o in buffer.iter_mut() { *o = 32768; }
+                                },
+                                UnknownTypeBuffer::I16(ref mut buffer) => {
+                                    for o in buffer.iter_mut() { *o = 0; }
+                                },
+                                UnknownTypeBuffer::F32(ref mut buffer) => {
+                                    for o in buffer.iter_mut() { *o = 0.0; }
+                                },
+                            }
                         }
                     }
 

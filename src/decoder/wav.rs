@@ -26,7 +26,7 @@ impl<R> WavDecoder<R> where R: Read + Seek {
         let total_duration_ms = reader.duration() * 1000 / spec.sample_rate;
 
         let reader = SamplesIterator { reader: reader, samples_read: 0 };
-        let reader = ChannelsCountConverter::new(reader, spec.channels, 2);
+        let reader = ChannelsCountConverter::new(reader, spec.channels, output_channels);
         let reader = SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
                                                cpal::SamplesRate(output_samples_rate), output_channels);
         let reader = DataConverter::new(reader);

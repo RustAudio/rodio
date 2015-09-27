@@ -155,7 +155,20 @@ fn background(rx: Receiver<Command>) {
     // list of sounds to stop playing
     let mut sounds_to_remove: Vec<*const (Decoder<Item=f32> + Send)> = Vec::new();
 
+    // stores the time when the next loop must start
+    let mut next_loop_timer = time::precise_time_ns();
+
     loop {
+        // sleeping so that we get a loop every `FIXED_STEP_MS` millisecond
+        {
+            let now = time::precise_time_ns();
+            if next_loop_timer > now {
+                let sleep = next_loop_timer - now;
+                thread::park_timeout_ms((sleep / 1000000) as u32);
+            }
+            next_loop_timer += FIXED_STEP_NS;
+        }
+
         // polling for new commands
         if let Ok(command) = rx.try_recv() {
             match command {
@@ -195,7 +208,6 @@ fn background(rx: Receiver<Command>) {
         }
 
         // updating the existing sounds
-        let before_updates = time::precise_time_ns();
         for (_, &mut (ref mut voice, ref mut sounds)) in voices.iter_mut() {
             // writing to the output
             {
@@ -236,10 +248,5 @@ fn background(rx: Receiver<Command>) {
             // TODO: do better
             voice.play();
         }
-
-        // sleeping so that we get a loop every `FIXED_STEP_MS` millisecond
-        let time_taken = time::precise_time_ns() - before_updates;
-        let sleep = FIXED_STEP_NS.saturating_sub(time_taken);
-        thread::park_timeout_ms((sleep / 1000000) as u32);
     }
 }

@@ -74,17 +74,24 @@ impl Engine {
                     let f1 = f1.unwrap();
 
                     // we privilege f32 formats to avoid a conversion
-                    if f1.data_type == cpal::SampleFormat::F32 {
+                    if f1.data_type == cpal::SampleFormat::F32 && f2.data_type != cpal::SampleFormat::F32 {
                         return Some(f1);
                     }
-                    if f2.data_type == cpal::SampleFormat::F32 {
+                    if f2.data_type == cpal::SampleFormat::F32 && f1.data_type != cpal::SampleFormat::F32 {
                         return Some(f2);
                     }
 
-                    if f1.samples_rate.0 < 44100 {
+                    if f1.channels.len() < f2.channels.len() {
                         return Some(f2);
                     }
-                    if f2.samples_rate.0 < 44100 {
+                    if f2.channels.len() < f1.channels.len() {
+                        return Some(f1);
+                    }
+
+                    if f1.samples_rate.0 < 44100 && f2.samples_rate.0 >= 44100 {
+                        return Some(f2);
+                    }
+                    if f2.samples_rate.0 < 44100 && f1.samples_rate.0 >= 44100 {
                         return Some(f1);
                     }
 
@@ -186,7 +193,7 @@ fn background(rx: Receiver<Command>) {
         // sleeping so that we get a loop every `FIXED_STEP_MS` millisecond
         {
             let now = time::precise_time_ns();
-            if next_loop_timer > now {
+            if next_loop_timer > now + 1000000 {
                 let sleep = next_loop_timer - now;
                 thread::park_timeout_ms((sleep / 1000000) as u32);
             }
@@ -243,7 +250,7 @@ fn background(rx: Receiver<Command>) {
                 });
 
                 let mut buffer = {
-                    let samples_to_write = 10 * voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
+                    let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
                     voice.append_data(samples_to_write as usize)
                 };
 

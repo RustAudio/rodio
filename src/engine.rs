@@ -16,6 +16,11 @@ use conversions::Sample;
 
 use time;
 
+/// Duration of a loop of the engine in milliseconds.
+const FIXED_STEP_MS: u32 = 17;
+/// Duration of a loop of the engine in nanoseconds.
+const FIXED_STEP_NS: u64 = FIXED_STEP_MS as u64 * 1000000;
+
 /// The internal engine of this library.
 ///
 /// Each `Engine` owns a thread that runs in the background and plays the audio.
@@ -180,7 +185,7 @@ fn background(rx: Receiver<Command>) {
             // starting the output
             {
                 let mut buffer = {
-                    let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * 17 / 1000;
+                    let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
                     voice.append_data(samples_to_write as usize)
                 };
 
@@ -201,9 +206,9 @@ fn background(rx: Receiver<Command>) {
             voice.play();
         }
 
-        // sleeping so that we get a loop every 17ms
+        // sleeping so that we get a loop every `FIXED_STEP_MS` millisecond
         let time_taken = time::precise_time_ns() - before_updates;
-        let sleep = 17000000u64.saturating_sub(time_taken);
+        let sleep = FIXED_STEP_NS.saturating_sub(time_taken);
         thread::park_timeout_ms((sleep / 1000000) as u32);
     }
 }

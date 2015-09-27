@@ -116,34 +116,19 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
 }
 
 impl Decoder for WavDecoder {
-    fn write(&mut self) -> Option<u64> {
-        let (min, _) = self.reader.size_hint();
-        let min = cmp::min(min, 10240);     // using a maximal value so that filters get applied
-                                            // quickly
-
-        if min == 0 {
-            // finished playing
-            let remaining_time = self.voice.get_pending_samples() as u64 * 1000000000 /
-                       (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64);
-
-            if remaining_time == 0 {
-                return None;
-            } else {
-                return Some(remaining_time);
-            }
+    fn write(&mut self) -> bool {
+        if let (0, _) = self.reader.size_hint() {
+            return false;
         }
 
         {
-            let mut buffer = self.voice.append_data(min);
+            let samples = self.voice.get_samples_rate().0 * self.voice.get_channels() as u32;
+            let mut buffer = self.voice.append_data(samples as usize);
             conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
         }
 
-        let duration = self.voice.get_pending_samples() as u64 * 1000000000 /
-                        (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64);
-
         self.voice.play();
-
-        Some(duration)
+        true
     }
 
     fn set_volume(&mut self, value: f32) {

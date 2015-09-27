@@ -44,18 +44,17 @@ impl VorbisDecoder {
 }
 
 impl Decoder for VorbisDecoder {
-    fn write(&mut self) -> Option<u64> {
+    fn write(&mut self) -> bool {
         // TODO: handle end
 
         {
-            let mut buffer = self.voice.append_data(32768);
+            let samples = self.voice.get_samples_rate().0 * self.voice.get_channels() as u32;
+            let mut buffer = self.voice.append_data(samples as usize);
             conversions::convert_and_write(self.reader.by_ref(), &mut buffer);
         }
 
-        let duration = self.voice.get_pending_samples() as u64 * 1000000000 /
-                        (self.voice.get_samples_rate().0 as u64 * self.voice.get_channels() as u64);
         self.voice.play();
-        Some(duration)
+        true
     }
 
     fn set_volume(&mut self, value: f32) {

@@ -219,7 +219,8 @@ fn background(rx: Receiver<Command>) {
                 });
 
                 let mut buffer = {
-                    let samples_to_write = voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
+                    // TODO: understand what's going on \|/
+                    let samples_to_write = 10 * voice.get_samples_rate().0 * voice.get_channels() as u32 * FIXED_STEP_MS / 1000;
                     voice.append_data(samples_to_write as usize)
                 };
 

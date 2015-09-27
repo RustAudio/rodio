@@ -79,6 +79,11 @@ impl Engine {
                         return Some(f2);
                     }
 
+                    // do not go below 44100 if possible
+                    if f1.samples_rate.0 < 44100 {
+                        return Some(f2);
+                    }
+
                     // priviledge outputs with 2 channels for now
                     if f2.channels.len() == 2 && f1.channels.len() != 2 {
                         return Some(f2);

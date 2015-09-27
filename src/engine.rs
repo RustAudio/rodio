@@ -88,6 +88,9 @@ impl Engine {
                     if f2.channels.len() < f1.channels.len() {
                         return Some(f1);
                     }
+                    if f2.channels.len() > 7 {      // TODO: not proper
+                        return Some(f1);
+                    }
 
                     if f1.samples_rate.0 < 44100 && f2.samples_rate.0 >= 44100 {
                         return Some(f2);

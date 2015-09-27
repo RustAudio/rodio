@@ -211,6 +211,7 @@ fn background(rx: Receiver<Command>) {
                     if let Some(ref mut new_voice) = new_voice {
                         // we initialize the new voice by writing one period of 0s,
                         // so that we are always one period ahead of time
+                        // TODO: we can hear the delay at initialization, find a better way to do
                         let period = new_voice.get_period();
                         let mut buffer = new_voice.append_data(period);
 

@@ -1,3 +1,52 @@
+//! # Usage
+//!
+//! There are two main concepts in this library:
+//!
+//! - Sources, represented with the `Source` trait, that provide sound data.
+//! - Sinks, which accept sound data.
+//!
+//! In order to play a sound, you need to create a source, a sink, and connect the two. For example
+//! here is how you play a sound file:
+//!
+//! ```norun
+//! use std::io::BufReader;
+//! 
+//! let endpoint = rodio::get_default_endpoint().unwrap();
+//! let sink = rodio::Sink::new(&endpoint);
+//! 
+//! let file = std::fs::File::open("music.ogg").unwrap();
+//! let source = rodio::Decoder::new(BufReader::new(file));
+//! sink.append(source);
+//! ```
+//!
+//! The `append` method takes ownership of the source and starts playing it. If a sink is already
+//! playing a sound when you call `append`, the sound is added to a queue and will start playing
+//! when the existing source is over.
+//!
+//! If you want to play multiple sounds simultaneously, you should create multiple sinks.
+//!
+//! # How it works
+//! 
+//! Rodio spawns a background thread that is dedicated to reading from the sources and sending
+//! the output to the endpoint.
+//! 
+//! All the sounds are mixed together by rodio before being sent. Since this is handled by the
+//! software, there is no restriction for the number of sinks that can be created.
+//! 
+//! # Adding effects
+//! 
+//! The `Source` trait provides various filters, similarly to the standard `Iterator` trait.
+//! 
+//! Example:
+//! 
+//! ```ignore
+//! use rodio::Source;
+//! use std::time::Duration;
+//! 
+//! // repeats the first five seconds of this sound forever
+//! let source = source.take_duration(Duration::from_secs(5)).repeat_infinite();
+//! ```
+
 #![cfg_attr(test, deny(missing_docs))]
 #![cfg_attr(test, deny(warnings))]
 

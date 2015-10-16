@@ -71,6 +71,7 @@ impl Handle {
 pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Handle
                     where R: Read + Seek + Send + 'static
 {
+    let input = decoder::Decoder::new(input);
     Handle(ENGINE.play(&endpoint, input))
 }
 

@@ -1,20 +1,18 @@
 use std::io::{Read, Seek};
-use super::Decoder;
-use conversions;
 
-use cpal;
-use vorbis;
+use Source;
+
+//use vorbis;
 
 pub struct VorbisDecoder {
     reader: Box<Iterator<Item=f32> + Send>,
 }
 
 impl VorbisDecoder {
-    pub fn new<R>(data: R, output_channels: u16, output_samples_rate: u32)
-                  -> Result<VorbisDecoder, ()>
+    pub fn new<R>(_data: R) -> Result<VorbisDecoder, ()>
                   where R: Read + Seek + Send + 'static
     {
-        let decoder = match vorbis::Decoder::new(data) {
+        /*let decoder = match vorbis::Decoder::new(data) {
             Err(_) => return Err(()),
             Ok(r) => r
         };
@@ -31,13 +29,26 @@ impl VorbisDecoder {
 
         Ok(VorbisDecoder {
             reader: Box::new(reader),
-        })
+        })*/
+
+        unimplemented!()
     }
 }
 
-impl Decoder for VorbisDecoder {
-    fn get_total_duration_ms(&self) -> u32 {
-        10000       // FIXME: wrong
+impl Source for VorbisDecoder {
+    #[inline]
+    fn get_current_frame_len(&self) -> usize {
+        self.len()
+    }
+
+    #[inline]
+    fn get_channels(&self) -> u16 {
+        unimplemented!()
+    }
+
+    #[inline]
+    fn get_samples_rate(&self) -> u32 {
+        unimplemented!()
     }
 }
 

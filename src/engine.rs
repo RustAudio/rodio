@@ -1,7 +1,6 @@
 use std::cmp;
 use std::mem;
 use std::collections::HashMap;
-use std::io::{Read, Seek};
 use std::thread::{self, Builder, Thread};
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::atomic::AtomicUsize;
@@ -13,9 +12,10 @@ use cpal;
 use cpal::UnknownTypeBuffer;
 use cpal::Voice;
 use cpal::Endpoint;
-use decoder;
-use decoder::Decoder;
 use conversions::Sample;
+
+use source::Source;
+use source::UniformSourceIterator;
 
 use time;
 
@@ -57,8 +57,8 @@ impl Engine {
     }
 
     /// Starts playing a sound and returns a `Handler` to control it.
-    pub fn play<R>(&self, endpoint: &Endpoint, input: R) -> Handle
-                   where R: Read + Seek + Send + 'static
+    pub fn play<S>(&self, endpoint: &Endpoint, source: S) -> Handle
+                   where S: Source + Send + 'static, S::Item: Sample, S::Item: Send
     {
         // try looking for an existing voice, or create one if there isn't one
         let (new_voice, channels_count, samples_rate) = {
@@ -99,13 +99,14 @@ impl Engine {
             (new_voice, c, s)
         };
 
-        // try build the decoder
-        let decoder = decoder::decode(input, channels_count, samples_rate);
-        let decoder_id = &*decoder as *const _ as *const u8 as usize;
+        // boxing the source and obtaining an ID for it
+        let source = UniformSourceIterator::new(source, channels_count, samples_rate);
+        let source = Box::new(source) as Box<Iterator<Item=f32> + Send + 'static>;
+        let source_id = &*source as *const _ as *const u8 as usize;
 
         // getting some infos ; we are going to send the decoder to the background thread, so this
         // is the last time we can get infos from it
-        let total_duration_ms = decoder.get_total_duration_ms();
+        let total_duration_ms = source.size_hint().0 * 1000 / (samples_rate as usize * channels_count as usize);       // FIXME: use `len()` instead
 
         // at each loop, the background thread will store the remaining time of the sound in this
         // value
@@ -113,7 +114,7 @@ impl Engine {
 
         // send the play command
         let commands = self.commands.lock().unwrap();
-        commands.send(Command::Play(endpoint.clone(), new_voice, decoder, remaining_duration_ms.clone())).unwrap();
+        commands.send(Command::Play(endpoint.clone(), new_voice, source, remaining_duration_ms.clone())).unwrap();
 
         // unpark the background thread so that the sound starts playing immediately
         if let Some(ref thread) = self.thread {
@@ -122,8 +123,8 @@ impl Engine {
 
         Handle {
             engine: self,
-            decoder_id: decoder_id,
-            total_duration_ms: total_duration_ms,
+            source_id: source_id,
+            total_duration_ms: total_duration_ms as u32,
             remaining_duration_ms: remaining_duration_ms,
         }
     }
@@ -134,7 +135,7 @@ impl Engine {
 /// Note that dropping the handle doesn't stop the sound. You must call `stop` explicitely.
 pub struct Handle<'a> {
     engine: &'a Engine,
-    decoder_id: usize,
+    source_id: usize,
     total_duration_ms: u32,
     remaining_duration_ms: Arc<AtomicUsize>,
 }
@@ -143,13 +144,13 @@ impl<'a> Handle<'a> {
     #[inline]
     pub fn set_volume(&self, value: f32) {
         let commands = self.engine.commands.lock().unwrap();
-        commands.send(Command::SetVolume(self.decoder_id, value)).unwrap();
+        commands.send(Command::SetVolume(self.source_id, value)).unwrap();
     }
 
     #[inline]
     pub fn stop(self) {
         let commands = self.engine.commands.lock().unwrap();
-        commands.send(Command::Stop(self.decoder_id)).unwrap();
+        commands.send(Command::Stop(self.source_id)).unwrap();
 
         if let Some(ref thread) = self.engine.thread {
             thread.unpark();
@@ -168,17 +169,17 @@ impl<'a> Handle<'a> {
 }
 
 pub enum Command {
-    Play(Endpoint, Option<Voice>, Box<Decoder<Item=f32> + Send>, Arc<AtomicUsize>),
+    Play(Endpoint, Option<Voice>, Box<Iterator<Item=f32> + Send>, Arc<AtomicUsize>),
     Stop(usize),
     SetVolume(usize, f32),
 }
 
 fn background(rx: Receiver<Command>) {
     // for each endpoint name, stores the voice and the list of sounds with their volume
-    let mut voices: HashMap<String, (Voice, Vec<(Box<Decoder<Item=f32> + Send>, Arc<AtomicUsize>, f32)>)> = HashMap::new();
+    let mut voices: HashMap<String, (Voice, Vec<(Box<Iterator<Item=f32> + Send>, Arc<AtomicUsize>, f32)>)> = HashMap::new();
 
     // list of sounds to stop playing
-    let mut sounds_to_remove: Vec<*const (Decoder<Item=f32> + Send)> = Vec::new();
+    let mut sounds_to_remove: Vec<*const (Iterator<Item=f32> + Send)> = Vec::new();
 
     // stores the time when the next loop must start
     let mut next_loop_timer = time::precise_time_ns();

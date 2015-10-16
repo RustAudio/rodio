@@ -87,7 +87,7 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
 
         mem::swap(&mut self.current_frame, &mut self.next_frame);
         self.next_frame.clear();
-        for _ in (0 .. self.next_frame.capacity()) {
+        for _ in 0 .. self.next_frame.capacity() {
             if let Some(i) = self.input.next() {
                 self.next_frame.push(i);
             } else {

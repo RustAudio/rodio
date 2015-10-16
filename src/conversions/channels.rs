@@ -58,7 +58,7 @@ impl<I> Iterator for ChannelsCountConverter<I> where I: Iterator, I::Item: Clone
             self.next_output_sample_pos -= self.to;
 
             if self.from > self.to {
-                for _ in (self.to .. self.from) {
+                for _ in self.to .. self.from {
                     self.input.next();      // discarding extra input
                 }
             }

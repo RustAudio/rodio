@@ -3,10 +3,12 @@ use std::time::Duration;
 use Sample;
 
 pub use self::repeat::Repeat;
+pub use self::sine::SineWave;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 
 mod repeat;
+mod sine;
 mod take;
 mod uniform;
 

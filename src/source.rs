@@ -1,4 +1,5 @@
 use std::cmp;
+use std::time::Duration;
 
 use cpal;
 
@@ -11,17 +12,22 @@ use Sample;
 /// A source of samples.
 // TODO: should be ExactSizeIterator
 pub trait Source: Iterator where Self::Item: Sample {
-    /// Returns the number of samples before the current channel ends.
+    /// Returns the number of samples before the current channel ends. `None` means "infinite".
     ///
     /// After the engine has finished reading the specified number of samples, it will assume that
     /// the value of `get_channels()` and/or `get_samples_rate()` have changed.
-    fn get_current_frame_len(&self) -> usize;
+    fn get_current_frame_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
     fn get_channels(&self) -> u16;
 
     /// Returns the rate at which the source should be played.
     fn get_samples_rate(&self) -> u32;
+
+    /// Returns the total duration of this source, if known.
+    ///
+    /// `None` indicates at the same time "infinite" or "unknown".
+    fn get_total_duration(&self) -> Option<Duration>;
 }
 
 /// An iterator that reads from a `Source` and converts the samples to a specific rate and
@@ -89,19 +95,16 @@ impl<I, D> Iterator for UniformSourceIterator<I, D> where I: Source, I::Item: Sa
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.as_ref().unwrap().size_hint()
+        (self.inner.as_ref().unwrap().size_hint().0, None)
     }
 }
 
-impl<I, D> ExactSizeIterator for UniformSourceIterator<I, D> where I: ExactSizeIterator + Source, I::Item: Sample,
-                                                                   D: Sample
+impl<I, D> Source for UniformSourceIterator<I, D> where I: Iterator + Source, I::Item: Sample,
+                                                        D: Sample
 {
-}
-
-impl<I, D> Source for UniformSourceIterator<I, D> where I: ExactSizeIterator + Source, I::Item: Sample, D: Sample {
     #[inline]
-    fn get_current_frame_len(&self) -> usize {
-        self.len()
+    fn get_current_frame_len(&self) -> Option<usize> {
+        None
     }
 
     #[inline]
@@ -113,12 +116,16 @@ impl<I, D> Source for UniformSourceIterator<I, D> where I: ExactSizeIterator + S
     fn get_samples_rate(&self) -> u32 {
         self.target_samples_rate
     }
+
+    #[inline]
+    fn get_total_duration(&self) -> Option<Duration> {
+        None
+    }
 }
 
-/// The `Take` struct in the stdlib is missing `into_inner()`, so we reimplement it here.
 struct Take<I> {
     iter: I,
-    n: usize
+    n: Option<usize>,
 }
 
 impl<I> Iterator for Take<I> where I: Iterator {
@@ -126,40 +133,36 @@ impl<I> Iterator for Take<I> where I: Iterator {
 
     #[inline]
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if self.n != 0 {
-            self.n -= 1;
-            self.iter.next()
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn nth(&mut self, n: usize) -> Option<I::Item> {
-        if self.n > n {
-            self.n -= n + 1;
-            self.iter.nth(n)
-        } else {
-            if self.n > 0 {
-                self.iter.nth(self.n - 1);
-                self.n = 0;
+        if let Some(ref mut n) = self.n {
+            if *n != 0 {
+                *n -= 1;
+                self.iter.next()
+            } else {
+                None
             }
-            None
+
+        } else {
+            self.iter.next()
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (lower, upper) = self.iter.size_hint();
+        if let Some(n) = self.n {
+            let (lower, upper) = self.iter.size_hint();
 
-        let lower = cmp::min(lower, self.n);
+            let lower = cmp::min(lower, n);
 
-        let upper = match upper {
-            Some(x) if x < self.n => Some(x),
-            _ => Some(self.n)
-        };
+            let upper = match upper {
+                Some(x) if x < n => Some(x),
+                _ => Some(n)
+            };
 
-        (lower, upper)
+            (lower, upper)
+
+        } else {
+            self.iter.size_hint()
+        }
     }
 }
 

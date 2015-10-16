@@ -1,4 +1,5 @@
 use std::io::{Read, Seek};
+use std::time::Duration;
 
 use Source;
 
@@ -37,8 +38,8 @@ impl VorbisDecoder {
 
 impl Source for VorbisDecoder {
     #[inline]
-    fn get_current_frame_len(&self) -> usize {
-        self.len()
+    fn get_current_frame_len(&self) -> Option<usize> {
+        Some(self.len())
     }
 
     #[inline]
@@ -49,6 +50,11 @@ impl Source for VorbisDecoder {
     #[inline]
     fn get_samples_rate(&self) -> u32 {
         unimplemented!()
+    }
+
+    #[inline]
+    fn get_total_duration(&self) -> Option<Duration> {
+        None
     }
 }
 

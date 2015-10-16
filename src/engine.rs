@@ -106,7 +106,8 @@ impl Engine {
 
         // getting some infos ; we are going to send the decoder to the background thread, so this
         // is the last time we can get infos from it
-        let total_duration_ms = source.size_hint().0 * 1000 / (samples_rate as usize * channels_count as usize);       // FIXME: use `len()` instead
+        // FIXME: wrong
+        let total_duration_ms = source.size_hint().0 * 1000 / (samples_rate as usize * channels_count as usize);
 
         // at each loop, the background thread will store the remaining time of the sound in this
         // value
@@ -136,7 +137,7 @@ impl Engine {
 pub struct Handle<'a> {
     engine: &'a Engine,
     source_id: usize,
-    total_duration_ms: u32,
+    total_duration_ms: u32,     // FIXME: <-- incorrect handling
     remaining_duration_ms: Arc<AtomicUsize>,
 }
 

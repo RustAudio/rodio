@@ -1,4 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
+use std::time::Duration;
 
 use Source;
 
@@ -70,8 +71,8 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
 
 impl<R> Source for WavDecoder<R> where R: Read + Seek {
     #[inline]
-    fn get_current_frame_len(&self) -> usize {
-        self.len()
+    fn get_current_frame_len(&self) -> Option<usize> {
+        None
     }
 
     #[inline]
@@ -82,6 +83,12 @@ impl<R> Source for WavDecoder<R> where R: Read + Seek {
     #[inline]
     fn get_samples_rate(&self) -> u32 {
         self.samples_rate
+    }
+
+    #[inline]
+    fn get_total_duration(&self) -> Option<Duration> {
+        let ms = self.len() * 1000 / (self.channels as usize * self.samples_rate as usize);
+        Some(Duration::from_millis(ms as u64))
     }
 }
 

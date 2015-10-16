@@ -1,4 +1,5 @@
 use std::io::{Read, Seek};
+use std::time::Duration;
 
 use Sample;
 use Source;
@@ -57,7 +58,7 @@ impl<R> Iterator for Decoder<R> where R: Read + Seek {
 
 impl<R> Source for Decoder<R> where R: Read + Seek {
     #[inline]
-    fn get_current_frame_len(&self) -> usize {
+    fn get_current_frame_len(&self) -> Option<usize> {
         match self.0 {
             DecoderImpl::Wav(ref source) => source.get_current_frame_len(),
             DecoderImpl::Vorbis(ref source) => source.get_current_frame_len(),
@@ -77,6 +78,14 @@ impl<R> Source for Decoder<R> where R: Read + Seek {
         match self.0 {
             DecoderImpl::Wav(ref source) => source.get_samples_rate(),
             DecoderImpl::Vorbis(ref source) => source.get_samples_rate(),
+        }
+    }
+
+    #[inline]
+    fn get_total_duration(&self) -> Option<Duration> {
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.get_total_duration(),
+            DecoderImpl::Vorbis(ref source) => source.get_total_duration(),
         }
     }
 }

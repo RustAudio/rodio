@@ -140,9 +140,19 @@ pub struct Handle<'a> {
 }
 
 impl<'a> Handle<'a> {
-
     #[inline]
     pub fn append<S>(&self, source: S) where S: Source + Send + 'static, S::Item: Sample + Clone + Send {
+        if let Some(duration) = source.get_total_duration() {
+            let duration = duration.as_secs() as usize * 1000 +
+                           duration.subsec_nanos() as usize / 1000000;
+            self.remaining_duration_ms.fetch_add(duration, Ordering::Relaxed);
+
+        } else {
+            let duration = source.size_hint().0 * 1000 / (source.get_samples_rate() as usize *
+                                                          source.get_channels() as usize);
+            self.remaining_duration_ms.fetch_add(duration, Ordering::Relaxed);
+        }
+
         let source = UniformSourceIterator::new(source, self.channels, self.samples_rate);
         let source = Box::new(source);
         self.next_sounds.lock().unwrap().push(source);
@@ -162,11 +172,6 @@ impl<'a> Handle<'a> {
         if let Some(ref thread) = self.engine.thread {
             thread.unpark();
         }
-    }
-
-    #[inline]
-    pub fn get_total_duration_ms(&self) -> u32 {
-        unimplemented!()
     }
 
     #[inline]
@@ -276,6 +281,7 @@ fn background(rx: Receiver<Command>) {
             // updating the contents of `remaining_duration_ms`
             for &(ref decoder, ref remaining_duration_ms, _) in sounds.iter() {
                 let (num_samples, _) = decoder.size_hint();
+                // TODO: differenciate sounds from this sink from sounds from other sinks
                 let num_samples = num_samples + voice.get_pending_samples();
                 let value = (num_samples as u64 * 1000 / (voice.get_channels() as u64 *
                                                         voice.get_samples_rate().0 as u64)) as u32;
@@ -319,6 +325,9 @@ impl Iterator for QueueIterator {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.current.size_hint().0, None)
+        // TODO: slow? benchmark this
+        let next_hints = self.next.lock().unwrap().iter()
+                                  .map(|i| i.size_hint().0).fold(0, |a, b| a + b);
+        (self.current.size_hint().0 + next_hints, None)
     }
 }

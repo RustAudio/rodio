@@ -58,13 +58,9 @@ impl Sink {
         self.0.stop()
     }
 
-    /// Returns the number of milliseconds in total in the sound file.
-    #[inline]
-    pub fn get_total_duration_ms(&self) -> u32 {
-        self.0.get_total_duration_ms()
-    }
-
-    /// Returns the number of milliseconds remaining before the end of the sound.
+    /// Returns the minimum number of milliseconds remaining before the end of the sound.
+    ///
+    /// Note that this is a minimum value, and the sound can last longer.
     #[inline]
     pub fn get_remaining_duration_ms(&self) -> u32 {
         self.0.get_remaining_duration_ms()
@@ -73,6 +69,7 @@ impl Sink {
     /// Sleeps the current thread until the sound ends.
     #[inline]
     pub fn sleep_until_end(&self) {
+        // TODO: sleep repeatidely until the sound is finished (see the docs of `get_remaining_duration`)
         thread::sleep_ms(self.get_remaining_duration_ms());
     }
 }

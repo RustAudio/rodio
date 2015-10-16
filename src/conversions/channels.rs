@@ -31,6 +31,11 @@ impl<I> ChannelsCountConverter<I> where I: Iterator {
             next_output_sample_pos: 0,
         }
     }
+
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
+    }
 }
 
 impl<I> Iterator for ChannelsCountConverter<I> where I: Iterator, I::Item: Clone {

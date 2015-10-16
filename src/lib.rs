@@ -10,12 +10,17 @@ extern crate vorbis;
 
 pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};
 
+pub use conversions::Sample;
+pub use source::Source;
+
 use std::io::{Read, Seek};
 use std::thread;
 
 mod conversions;
 mod decoder;
 mod engine;
+
+pub mod source;
 
 lazy_static! {
     static ref ENGINE: engine::Engine = engine::Engine::new();
@@ -68,3 +73,22 @@ pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Handle
 {
     Handle(ENGINE.play(&endpoint, input))
 }
+
+/*pub fn decode<R>() -> DecoderSource where R: Read + Seek + Send + 'static {
+    DecoderSource {
+
+    }
+}
+
+pub struct Sink {
+    handle: engine::Handle<'static>,
+}
+
+impl Sink {
+    /// Plays a source after the current source (if any) has finished playing.
+    #[inline]
+    pub fn play<S>(&mut self, source: S) where S: Source {
+        let source: Box<Source> = Box::new(source);
+        self.handle.add(source);
+    }
+}*/

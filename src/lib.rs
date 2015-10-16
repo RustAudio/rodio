@@ -40,6 +40,7 @@ pub struct Sink {
 
 impl Sink {
     /// Builds a new `Sink`.
+    #[inline]
     pub fn new(endpoint: &Endpoint) -> Sink {
         Sink {
             handle: ENGINE.start(&endpoint),
@@ -48,6 +49,7 @@ impl Sink {
     }
 
     /// Appends a sound to the queue of sounds to play.
+    #[inline]
     pub fn append<S>(&self, source: S) where S: Source + Send + 'static,
                                              S::Item: Sample, S::Item: Send
     {
@@ -100,14 +102,7 @@ pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Sink
                     where R: Read + Seek + Send + 'static
 {
     let input = decoder::Decoder::new(input);
-    play(endpoint, input)
-}
-
-/// Plays a sound.
-pub fn play<S>(endpoint: &Endpoint, source: S) -> Sink where S: Source + Send + 'static,
-                                                             S::Item: Sample, S::Item: Send
-{
     let sink = Sink::new(endpoint);
-    sink.append(source);
+    sink.append(input);
     sink
 }

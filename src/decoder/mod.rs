@@ -3,11 +3,13 @@ use std::io::{Read, Seek};
 use Sample;
 use Source;
 
-pub mod vorbis;
-pub mod wav;
+mod vorbis;
+mod wav;
 
 /// Source of audio samples from decoding a file.
-pub enum Decoder<R> where R: Read + Seek {
+pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
+
+enum DecoderImpl<R> where R: Read + Seek {
     Wav(wav::WavDecoder<R>),
     Vorbis(vorbis::VorbisDecoder),
 }
@@ -17,12 +19,12 @@ impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
         let data = match wav::WavDecoder::new(data) {
             Err(data) => data,
             Ok(decoder) => {
-                return Decoder::Wav(decoder);
+                return Decoder(DecoderImpl::Wav(decoder));
             }
         };
 
         if let Ok(decoder) = vorbis::VorbisDecoder::new(data) {
-            return Decoder::Vorbis(decoder);
+            return Decoder(DecoderImpl::Vorbis(decoder));
         }
 
         panic!("Invalid format");
@@ -34,17 +36,17 @@ impl<R> Iterator for Decoder<R> where R: Read + Seek {
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        match self {
-            &mut Decoder::Wav(ref mut source) => source.next().map(|s| s.to_f32()),
-            &mut Decoder::Vorbis(ref mut source) => source.next(),
+        match self.0 {
+            DecoderImpl::Wav(ref mut source) => source.next().map(|s| s.to_f32()),
+            DecoderImpl::Vorbis(ref mut source) => source.next(),
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            &Decoder::Wav(ref source) => source.size_hint(),
-            &Decoder::Vorbis(ref source) => source.size_hint(),
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.size_hint(),
+            DecoderImpl::Vorbis(ref source) => source.size_hint(),
         }
     }
 }
@@ -54,25 +56,25 @@ impl<R> Iterator for Decoder<R> where R: Read + Seek {
 impl<R> Source for Decoder<R> where R: Read + Seek {
     #[inline]
     fn get_current_frame_len(&self) -> usize {
-        match self {
-            &Decoder::Wav(ref source) => source.get_current_frame_len(),
-            &Decoder::Vorbis(ref source) => source.get_current_frame_len(),
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.get_current_frame_len(),
+            DecoderImpl::Vorbis(ref source) => source.get_current_frame_len(),
         }
     }
 
     #[inline]
     fn get_channels(&self) -> u16 {
-        match self {
-            &Decoder::Wav(ref source) => source.get_channels(),
-            &Decoder::Vorbis(ref source) => source.get_channels(),
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.get_channels(),
+            DecoderImpl::Vorbis(ref source) => source.get_channels(),
         }
     }
 
     #[inline]
     fn get_samples_rate(&self) -> u32 {
-        match self {
-            &Decoder::Wav(ref source) => source.get_samples_rate(),
-            &Decoder::Vorbis(ref source) => source.get_samples_rate(),
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.get_samples_rate(),
+            DecoderImpl::Vorbis(ref source) => source.get_samples_rate(),
         }
     }
 }

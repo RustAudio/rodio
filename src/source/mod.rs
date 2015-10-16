@@ -2,11 +2,13 @@ use std::time::Duration;
 
 use Sample;
 
+pub use self::delay::Delay;
 pub use self::repeat::Repeat;
 pub use self::sine::SineWave;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 
+mod delay;
 mod repeat;
 mod sine;
 mod take;
@@ -45,5 +47,14 @@ pub trait Source: Iterator where Self::Item: Sample {
     #[inline]
     fn take_duration(self, duration: Duration) -> TakeDuration<Self> where Self: Sized {
         take::take_duration(self, duration)
+    }
+
+    /// Delays the sound by a certain duration.
+    ///
+    /// The rate and channels of the silence will use the same format as the first frame of the
+    /// source.
+    #[inline]
+    fn delay(self, duration: Duration) -> Delay<Self> where Self: Sized {
+        delay::delay(self, duration)
     }
 }

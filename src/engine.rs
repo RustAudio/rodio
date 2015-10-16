@@ -56,10 +56,7 @@ impl Engine {
         }
     }
 
-    /// Starts playing a sound and returns a `Handler` to control it.
-    pub fn play<S>(&self, endpoint: &Endpoint, source: S) -> Handle
-                   where S: Source + Send + 'static, S::Item: Sample, S::Item: Send
-    {
+    pub fn start(&self, endpoint: &Endpoint) -> Handle {
         // try looking for an existing voice, or create one if there isn't one
         let (new_voice, channels_count, samples_rate) = {
             let mut voices_formats = self.voices_formats.lock().unwrap();
@@ -99,35 +96,40 @@ impl Engine {
             (new_voice, c, s)
         };
 
-        // boxing the source and obtaining an ID for it
-        let source = UniformSourceIterator::new(source, channels_count, samples_rate);
-        let source = Box::new(source) as Box<Iterator<Item=f32> + Send + 'static>;
-        let source_id = &*source as *const _ as *const u8 as usize;
-
-        // getting some infos ; we are going to send the decoder to the background thread, so this
-        // is the last time we can get infos from it
-        // FIXME: wrong
-        let total_duration_ms = source.size_hint().0 * 1000 / (samples_rate as usize * channels_count as usize);
+        // the iterator that produces sounds
+        let next_sounds = Arc::new(Mutex::new(Vec::new()));
+        let source = QueueIterator { current: Box::new(None.into_iter()), next: next_sounds.clone() };
+        let source_id = &next_sounds as *const _ as *const u8 as usize;
 
         // at each loop, the background thread will store the remaining time of the sound in this
         // value
-        let remaining_duration_ms = Arc::new(AtomicUsize::new(total_duration_ms as usize));
+        // TODO: 0?
+        let remaining_duration_ms = Arc::new(AtomicUsize::new(0 as usize));
 
         // send the play command
-        let commands = self.commands.lock().unwrap();
-        commands.send(Command::Play(endpoint.clone(), new_voice, source, remaining_duration_ms.clone())).unwrap();
-
-        // unpark the background thread so that the sound starts playing immediately
-        if let Some(ref thread) = self.thread {
-            thread.unpark();
+        {
+            let commands = self.commands.lock().unwrap();
+            commands.send(Command::Play(endpoint.clone(), new_voice, source, remaining_duration_ms.clone())).unwrap();
         }
 
         Handle {
             engine: self,
             source_id: source_id,
-            total_duration_ms: total_duration_ms as u32,
             remaining_duration_ms: remaining_duration_ms,
+            samples_rate: samples_rate,
+            channels: channels_count,
+            next_sounds: next_sounds,
         }
+    }
+
+    /// Starts playing a sound and returns a `Handler` to control it.
+    // TODO: remove me
+    pub fn play<S>(&self, endpoint: &Endpoint, source: S) -> Handle
+                   where S: Source + Send + 'static, S::Item: Sample, S::Item: Send
+    {
+        let handle = self.start(endpoint);
+        handle.append(source);
+        handle
     }
 }
 
@@ -137,11 +139,25 @@ impl Engine {
 pub struct Handle<'a> {
     engine: &'a Engine,
     source_id: usize,
-    total_duration_ms: u32,     // FIXME: <-- incorrect handling
     remaining_duration_ms: Arc<AtomicUsize>,
+
+    samples_rate: u32,
+    channels: u16,
+
+    // Holds a pointer to the list of iterators to be played after the current one has
+    // finished playing.
+    next_sounds: Arc<Mutex<Vec<Box<Iterator<Item = f32> + Send>>>>,
 }
 
 impl<'a> Handle<'a> {
+
+    #[inline]
+    pub fn append<S>(&self, source: S) where S: Source + Send + 'static, S::Item: Sample + Clone + Send {
+        let source = UniformSourceIterator::new(source, self.channels, self.samples_rate);
+        let source = Box::new(source);
+        self.next_sounds.lock().unwrap().push(source);
+    }
+
     #[inline]
     pub fn set_volume(&self, value: f32) {
         let commands = self.engine.commands.lock().unwrap();
@@ -160,7 +176,7 @@ impl<'a> Handle<'a> {
 
     #[inline]
     pub fn get_total_duration_ms(&self) -> u32 {
-        self.total_duration_ms
+        unimplemented!()
     }
 
     #[inline]
@@ -170,17 +186,17 @@ impl<'a> Handle<'a> {
 }
 
 pub enum Command {
-    Play(Endpoint, Option<Voice>, Box<Iterator<Item=f32> + Send>, Arc<AtomicUsize>),
+    Play(Endpoint, Option<Voice>, QueueIterator, Arc<AtomicUsize>),
     Stop(usize),
     SetVolume(usize, f32),
 }
 
 fn background(rx: Receiver<Command>) {
     // for each endpoint name, stores the voice and the list of sounds with their volume
-    let mut voices: HashMap<String, (Voice, Vec<(Box<Iterator<Item=f32> + Send>, Arc<AtomicUsize>, f32)>)> = HashMap::new();
+    let mut voices: HashMap<String, (Voice, Vec<(QueueIterator, Arc<AtomicUsize>, f32)>)> = HashMap::new();
 
     // list of sounds to stop playing
-    let mut sounds_to_remove: Vec<*const (Iterator<Item=f32> + Send)> = Vec::new();
+    let mut sounds_to_remove: Vec<*const Mutex<Vec<Box<Iterator<Item = f32> + Send>>>> = Vec::new();
 
     // stores the time when the next loop must start
     let mut next_loop_timer = time::precise_time_ns();
@@ -210,7 +226,7 @@ fn background(rx: Receiver<Command>) {
                 Command::Stop(decoder) => {
                     for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                         sounds.retain(|dec| {
-                            &*dec.0 as *const _ as *const u8 as usize != decoder
+                            &*dec.0.next as *const _ as *const u8 as usize != decoder
                         })
                     }
                 },
@@ -218,7 +234,7 @@ fn background(rx: Receiver<Command>) {
                 Command::SetVolume(decoder, volume) => {
                     for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                         if let Some(d) = sounds.iter_mut()
-                                               .find(|dec| &*dec.0 as *const _ as *const u8 as usize == decoder)
+                                               .find(|dec| &*dec.0.next as *const _ as *const u8 as usize == decoder)
                         {
                             d.2 = volume;
                         }
@@ -230,7 +246,7 @@ fn background(rx: Receiver<Command>) {
         // removing sounds that have finished playing
         for decoder in mem::replace(&mut sounds_to_remove, Vec::new()) {
             for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
-                sounds.retain(|dec| &*dec.0 as *const _ != decoder);
+                sounds.retain(|dec| &*dec.0.next as *const _ != decoder);
             }
         }
 
@@ -279,5 +295,40 @@ fn background(rx: Receiver<Command>) {
             // TODO: do better
             voice.play();
         }
+    }
+}
+
+struct QueueIterator {
+    current: Box<Iterator<Item = f32> + Send>,
+    next: Arc<Mutex<Vec<Box<Iterator<Item = f32> + Send>>>>,
+}
+
+impl Iterator for QueueIterator {
+    type Item = f32;
+
+    #[inline]
+    fn next(&mut self) -> Option<f32> {
+        loop {
+            if let Some(sample) = self.current.next() {
+                return Some(sample);
+            }
+
+            let next = {
+                let mut next = self.next.lock().unwrap();
+                if next.len() == 0 {
+                    // if there's no iter waiting, we create a dummy iter with 1000 null samples
+                    Box::new((0 .. 1000).map(|_| 0.0f32)) as Box<Iterator<Item = f32> + Send>
+                } else {
+                    next.remove(0)
+                }
+            };
+
+            self.current = next;
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.current.size_hint().0, None)
     }
 }

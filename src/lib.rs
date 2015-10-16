@@ -28,20 +28,30 @@ lazy_static! {
     static ref ENGINE: engine::Engine = engine::Engine::new();
 }
 
-/// Handle to a playing sound.
+/// Handle to an endpoint that outputs sounds.
 ///
-/// Note that dropping the handle doesn't stop the sound. You must call `stop` explicitely.
-pub struct Sink(engine::Handle<'static>);
+/// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
+/// playing.
+pub struct Sink {
+    handle: engine::Handle<'static>,
+    // if true, then the sound will stop playing at the end
+    stop: bool,
+}
 
 impl Sink {
+    /// Builds a new `Sink`.
     pub fn new(endpoint: &Endpoint) -> Sink {
-        Sink(ENGINE.start(&endpoint))
+        Sink {
+            handle: ENGINE.start(&endpoint),
+            stop: true,
+        }
     }
 
+    /// Appends a sound to the queue of sounds to play.
     pub fn append<S>(&self, source: S) where S: Source + Send + 'static,
                                              S::Item: Sample, S::Item: Send
     {
-        self.0.append(source);
+        self.handle.append(source);
     }
 
     /// Changes the volume of the sound.
@@ -50,13 +60,13 @@ impl Sink {
     /// multiply each sample by this value.
     #[inline]
     pub fn set_volume(&mut self, value: f32) {
-        self.0.set_volume(value);
+        self.handle.set_volume(value);
     }
 
-    /// Stops the sound.
+    /// Destroys the sink without stopping the sounds that are still playing.
     #[inline]
-    pub fn stop(self) {
-        self.0.stop()
+    pub fn detach(mut self) {
+        self.stop = false;
     }
 
     /// Returns the minimum duration before the end of the sounds submitted to this sink.
@@ -64,7 +74,7 @@ impl Sink {
     /// Note that this is a minimum value, and the sound can last longer.
     #[inline]
     pub fn get_min_remaining_duration(&self) -> Duration {
-        self.0.get_min_remaining_duration()
+        self.handle.get_min_remaining_duration()
     }
 
     /// Sleeps the current thread until the sound ends.
@@ -72,6 +82,15 @@ impl Sink {
     pub fn sleep_until_end(&self) {
         // TODO: sleep repeatidely until the sound is finished (see the docs of `get_remaining_duration`)
         thread::sleep(self.get_min_remaining_duration());
+    }
+}
+
+impl Drop for Sink {
+    #[inline]
+    fn drop(&mut self) {
+        if self.stop {
+            self.handle.stop();
+        }
     }
 }
 

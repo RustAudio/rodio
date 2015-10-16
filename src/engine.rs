@@ -100,7 +100,7 @@ impl Engine {
         // the iterator that produces sounds
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
         let source = QueueIterator { current: Box::new(None.into_iter()), next: next_sounds.clone() };
-        let source_id = &next_sounds as *const _ as *const u8 as usize;
+        let source_id = &*next_sounds as *const Mutex<_> as *const u8 as usize;
 
         // at each loop, the background thread will store the remaining time of the sound in this
         // value
@@ -165,8 +165,10 @@ impl<'a> Handle<'a> {
         commands.send(Command::SetVolume(self.source_id, value)).unwrap();
     }
 
+    // note that this method could take `self` instead of `&self`, but it makes `Sink`'s life
+    // easier not to take `self`
     #[inline]
-    pub fn stop(self) {
+    pub fn stop(&self) {
         let commands = self.engine.commands.lock().unwrap();
         commands.send(Command::Stop(self.source_id)).unwrap();
 
@@ -222,7 +224,7 @@ fn background(rx: Receiver<Command>) {
                 Command::Stop(decoder) => {
                     for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                         sounds.retain(|dec| {
-                            &*dec.0.next as *const _ as *const u8 as usize != decoder
+                            &*dec.0.next as *const Mutex<_> as *const u8 as usize != decoder
                         })
                     }
                 },
@@ -230,7 +232,7 @@ fn background(rx: Receiver<Command>) {
                 Command::SetVolume(decoder, volume) => {
                     for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
                         if let Some(d) = sounds.iter_mut()
-                                               .find(|dec| &*dec.0.next as *const _ as *const u8 as usize == decoder)
+                                               .find(|dec| &*dec.0.next as *const Mutex<_> as *const u8 as usize == decoder)
                         {
                             d.2 = volume;
                         }
@@ -242,7 +244,7 @@ fn background(rx: Receiver<Command>) {
         // removing sounds that have finished playing
         for decoder in mem::replace(&mut sounds_to_remove, Vec::new()) {
             for (_, &mut (_, ref mut sounds)) in voices.iter_mut() {
-                sounds.retain(|dec| &*dec.0.next as *const _ != decoder);
+                sounds.retain(|dec| &*dec.0.next as *const Mutex<_> != decoder);
             }
         }
 

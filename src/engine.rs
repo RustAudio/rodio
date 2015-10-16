@@ -2,6 +2,7 @@ use std::cmp;
 use std::mem;
 use std::collections::HashMap;
 use std::thread::{self, Builder, Thread};
+use std::time::Duration;
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
@@ -175,8 +176,8 @@ impl<'a> Handle<'a> {
     }
 
     #[inline]
-    pub fn get_remaining_duration_ms(&self) -> u32 {
-        self.remaining_duration_ms.load(Ordering::Relaxed) as u32
+    pub fn get_min_remaining_duration(&self) -> Duration {
+        Duration::from_millis(self.remaining_duration_ms.load(Ordering::Relaxed) as u64)
     }
 }
 

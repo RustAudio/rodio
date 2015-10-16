@@ -8,7 +8,7 @@
 //! In order to play a sound, you need to create a source, a sink, and connect the two. For example
 //! here is how you play a sound file:
 //!
-//! ```norun
+//! ```no_run
 //! use std::io::BufReader;
 //! 
 //! let endpoint = rodio::get_default_endpoint().unwrap();

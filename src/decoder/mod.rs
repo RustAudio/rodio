@@ -7,6 +7,8 @@ mod vorbis;
 mod wav;
 
 /// Source of audio samples from decoding a file.
+///
+/// Supports WAV and Vorbis.
 pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
 
 enum DecoderImpl<R> where R: Read + Seek {

@@ -1,29 +1,89 @@
 use std::io::{Read, Seek};
+use std::time::Duration;
+
+use Sample;
+use Source;
 
 mod vorbis;
 mod wav;
 
-/// Trait for objects that produce an audio stream.
-pub trait Decoder: Iterator /*+ ExactSizeIterator*/ {       // TODO: should be exact size, but not enforced yet
-    /// Returns the total duration of the second in milliseconds.
-    fn get_total_duration_ms(&self) -> u32;
+/// Source of audio samples from decoding a file.
+///
+/// Supports WAV and Vorbis.
+pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
+
+enum DecoderImpl<R> where R: Read + Seek {
+    Wav(wav::WavDecoder<R>),
+    Vorbis(vorbis::VorbisDecoder<R>),
 }
 
-/// Builds a new `Decoder` from a data stream by determining the correct format.
-pub fn decode<R>(data: R, output_channels: u16, output_samples_rate: u32)
-                 -> Box<Decoder<Item=f32> + Send>
-                 where R: Read + Seek + Send + 'static
-{
-    let data = match wav::WavDecoder::new(data, output_channels, output_samples_rate) {
-        Err(data) => data,
-        Ok(decoder) => {
-            return Box::new(decoder);
-        }
-    };
+impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
+    pub fn new(data: R) -> Decoder<R> {
+        let data = match wav::WavDecoder::new(data) {
+            Err(data) => data,
+            Ok(decoder) => {
+                return Decoder(DecoderImpl::Wav(decoder));
+            }
+        };
 
-    if let Ok(decoder) = vorbis::VorbisDecoder::new(data, output_channels, output_samples_rate) {
-        return Box::new(decoder);
+        if let Ok(decoder) = vorbis::VorbisDecoder::new(data) {
+            return Decoder(DecoderImpl::Vorbis(decoder));
+        }
+
+        panic!("Invalid format");
+    }
+}
+
+impl<R> Iterator for Decoder<R> where R: Read + Seek {
+    type Item = f32;
+
+    #[inline]
+    fn next(&mut self) -> Option<f32> {
+        match self.0 {
+            DecoderImpl::Wav(ref mut source) => source.next().map(|s| s.to_f32()),
+            DecoderImpl::Vorbis(ref mut source) => source.next().map(|s| s.to_f32()),
+        }
     }
 
-    panic!("Invalid format");
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.size_hint(),
+            DecoderImpl::Vorbis(ref source) => source.size_hint(),
+        }
+    }
+}
+
+impl<R> Source for Decoder<R> where R: Read + Seek {
+    #[inline]
+    fn get_current_frame_len(&self) -> Option<usize> {
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.get_current_frame_len(),
+            DecoderImpl::Vorbis(ref source) => source.get_current_frame_len(),
+        }
+    }
+
+    #[inline]
+    fn get_channels(&self) -> u16 {
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.get_channels(),
+            DecoderImpl::Vorbis(ref source) => source.get_channels(),
+        }
+    }
+
+    #[inline]
+    fn get_samples_rate(&self) -> u32 {
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.get_samples_rate(),
+            DecoderImpl::Vorbis(ref source) => source.get_samples_rate(),
+        }
+    }
+
+    #[inline]
+    fn get_total_duration(&self) -> Option<Duration> {
+        match self.0 {
+            DecoderImpl::Wav(ref source) => source.get_total_duration(),
+            DecoderImpl::Vorbis(ref source) => source.get_total_duration(),
+        }
+    }
 }

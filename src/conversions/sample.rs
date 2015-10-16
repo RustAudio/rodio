@@ -16,6 +16,11 @@ impl<I, O> DataConverter<I, O> {
             marker: PhantomData,
         }
     }
+
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
+    }
 }
 
 impl<I, O> Iterator for DataConverter<I, O> where I: Iterator, I::Item: Sample, O: Sample {
@@ -36,7 +41,7 @@ impl<I, O> ExactSizeIterator for DataConverter<I, O>
                                  where I: ExactSizeIterator, I::Item: Sample, O: Sample {}
 
 
-/// Trait for containers that contain PCM data.
+/// Represents a value of a single sample.
 pub trait Sample: cpal::Sample {
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
     fn amplify(self, value: f32) -> Self;

@@ -9,3 +9,5 @@ Rust playback library.
  - Vorbis decoding is handled by [vorbis-rs](https://github.com/tomaka/vorbis-rs) (which uses bindings to C libraries).
 
 ## [Documentation](http://tomaka.github.io/rodio/rodio/index.html)
+
+See the documentation for usage.

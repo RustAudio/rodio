@@ -1,39 +1,30 @@
 use std::io::{Read, Seek, SeekFrom};
-use super::Decoder;
+use std::time::Duration;
 
-use conversions::ChannelsCountConverter;
-use conversions::SamplesRateConverter;
-use conversions::DataConverter;
+use Source;
 
-use cpal;
 use hound::WavReader;
 
 pub struct WavDecoder<R> where R: Read + Seek {
-    reader: DataConverter<SamplesRateConverter<ChannelsCountConverter<SamplesIterator<R>>>, f32>,
-    total_duration_ms: u32,
+    reader: SamplesIterator<R>,
+    samples_rate: u32,
+    channels: u16,
 }
 
 impl<R> WavDecoder<R> where R: Read + Seek {
-    pub fn new(mut data: R, output_channels: u16, output_samples_rate: u32)
-               -> Result<WavDecoder<R>, R>
-    {
+    pub fn new(mut data: R) -> Result<WavDecoder<R>, R> {
         if !is_wave(data.by_ref()) {
             return Err(data);
         }
 
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
-        let total_duration_ms = reader.duration() * 1000 / spec.sample_rate;
-
         let reader = SamplesIterator { reader: reader, samples_read: 0 };
-        let reader = ChannelsCountConverter::new(reader, spec.channels, output_channels);
-        let reader = SamplesRateConverter::new(reader, cpal::SamplesRate(spec.sample_rate),
-                                               cpal::SamplesRate(output_samples_rate), output_channels);
-        let reader = DataConverter::new(reader);
 
         Ok(WavDecoder {
             reader: reader,
-            total_duration_ms: total_duration_ms,
+            samples_rate: spec.sample_rate,
+            channels: spec.channels,
         })
     }
 }
@@ -78,17 +69,34 @@ fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
     true
 }
 
-impl<R> Decoder for WavDecoder<R> where R: Read + Seek {
-    fn get_total_duration_ms(&self) -> u32 {
-        self.total_duration_ms
+impl<R> Source for WavDecoder<R> where R: Read + Seek {
+    #[inline]
+    fn get_current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    #[inline]
+    fn get_channels(&self) -> u16 {
+        self.channels
+    }
+
+    #[inline]
+    fn get_samples_rate(&self) -> u32 {
+        self.samples_rate
+    }
+
+    #[inline]
+    fn get_total_duration(&self) -> Option<Duration> {
+        let ms = self.len() * 1000 / (self.channels as usize * self.samples_rate as usize);
+        Some(Duration::from_millis(ms as u64))
     }
 }
 
 impl<R> Iterator for WavDecoder<R> where R: Read + Seek {
-    type Item = f32;
+    type Item = i16;
 
     #[inline]
-    fn next(&mut self) -> Option<f32> {
+    fn next(&mut self) -> Option<i16> {
         self.reader.next()
     }
 

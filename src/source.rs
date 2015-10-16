@@ -13,6 +13,7 @@ use Sample;
 // TODO: should be ExactSizeIterator
 pub trait Source: Iterator where Self::Item: Sample {
     /// Returns the number of samples before the current channel ends. `None` means "infinite".
+    /// Should never return 0.
     ///
     /// After the engine has finished reading the specified number of samples, it will assume that
     /// the value of `get_channels()` and/or `get_samples_rate()` have changed.
@@ -60,6 +61,7 @@ impl<I, D> UniformSourceIterator<I, D> where I: Source, I::Item: Sample, D: Samp
                  -> DataConverter<ChannelsCountConverter<SamplesRateConverter<Take<I>>>, D>
     {
         let frame_len = input.get_current_frame_len();
+        debug_assert!(frame_len != Some(0));
 
         let from_channels = input.get_channels();
         let from_samples_rate = input.get_samples_rate();

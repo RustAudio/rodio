@@ -30,9 +30,19 @@ lazy_static! {
 /// Handle to a playing sound.
 ///
 /// Note that dropping the handle doesn't stop the sound. You must call `stop` explicitely.
-pub struct Handle(engine::Handle<'static>);
+pub struct Sink(engine::Handle<'static>);
 
-impl Handle {
+impl Sink {
+    pub fn new(endpoint: &Endpoint) -> Sink {
+        Sink(ENGINE.start(&endpoint))
+    }
+
+    pub fn append<S>(&self, source: S) where S: Source + Send + 'static,
+                                             S::Item: Sample, S::Item: Send
+    {
+        self.0.append(source);
+    }
+
     /// Changes the volume of the sound.
     ///
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
@@ -67,18 +77,20 @@ impl Handle {
     }
 }
 
-/// Plays a sound once. Returns a `Handle` that can be used to control the sound.
+/// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]
-pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Handle
+pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Sink
                     where R: Read + Seek + Send + 'static
 {
     let input = decoder::Decoder::new(input);
-    Handle(ENGINE.play(&endpoint, input))
+    play(endpoint, input)
 }
 
 /// Plays a sound.
-pub fn play<S>(endpoint: &Endpoint, source: S) -> Handle where S: Source + Send + 'static,
-                                                               S::Item: Sample, S::Item: Send
+pub fn play<S>(endpoint: &Endpoint, source: S) -> Sink where S: Source + Send + 'static,
+                                                             S::Item: Sample, S::Item: Send
 {
-    Handle(ENGINE.play(&endpoint, source))
+    let sink = Sink::new(endpoint);
+    sink.append(source);
+    sink
 }

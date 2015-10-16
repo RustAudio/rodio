@@ -121,16 +121,6 @@ impl Engine {
             next_sounds: next_sounds,
         }
     }
-
-    /// Starts playing a sound and returns a `Handler` to control it.
-    // TODO: remove me
-    pub fn play<S>(&self, endpoint: &Endpoint, source: S) -> Handle
-                   where S: Source + Send + 'static, S::Item: Sample, S::Item: Send
-    {
-        let handle = self.start(endpoint);
-        handle.append(source);
-        handle
-    }
 }
 
 /// Handle to a playing sound.

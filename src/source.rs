@@ -10,7 +10,6 @@ use conversions::ChannelsCountConverter;
 use Sample;
 
 /// A source of samples.
-// TODO: should be ExactSizeIterator
 pub trait Source: Iterator where Self::Item: Sample {
     /// Returns the number of samples before the current channel ends. `None` means "infinite".
     /// Should never return 0 unless there's no more data.

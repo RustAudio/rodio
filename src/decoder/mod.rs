@@ -54,8 +54,6 @@ impl<R> Iterator for Decoder<R> where R: Read + Seek {
     }
 }
 
-// TODO: ExactSizeIterator
-
 impl<R> Source for Decoder<R> where R: Read + Seek {
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {

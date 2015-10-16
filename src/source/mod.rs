@@ -3,9 +3,11 @@ use std::time::Duration;
 use Sample;
 
 pub use self::repeat::Repeat;
+pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 
 mod repeat;
+mod take;
 mod uniform;
 
 /// A source of samples.
@@ -35,5 +37,11 @@ pub trait Source: Iterator where Self::Item: Sample {
     #[inline]
     fn repeat_infinite(self) -> Repeat<Self> where Self: Sized {
         repeat::repeat(self)
+    }
+
+    /// Takes a certain duration of this source and then stops.
+    #[inline]
+    fn take_duration(self, duration: Duration) -> TakeDuration<Self> where Self: Sized {
+        take::take_duration(self, duration)
     }
 }

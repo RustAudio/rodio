@@ -1,55 +1,53 @@
 use std::io::{Read, Seek};
 use std::time::Duration;
+use std::vec;
 
 use Source;
 
-//use vorbis;
+use vorbis;
 
-pub struct VorbisDecoder {
-    reader: Box<Iterator<Item=f32> + Send>,
+pub struct VorbisDecoder<R> where R: Read + Seek {
+    decoder: vorbis::Decoder<R>,
+    current_data: vec::IntoIter<i16>,
+    current_samples_rate: u32,
+    current_channels: u16,
 }
 
-impl VorbisDecoder {
-    pub fn new<R>(_data: R) -> Result<VorbisDecoder, ()>
-                  where R: Read + Seek + Send + 'static
-    {
-        /*let decoder = match vorbis::Decoder::new(data) {
+impl<R> VorbisDecoder<R> where R: Read + Seek {
+    pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
+        let mut decoder = match vorbis::Decoder::new(data) {
             Err(_) => return Err(()),
             Ok(r) => r
         };
 
-        let reader = decoder.into_packets().filter_map(|p| p.ok()).flat_map(move |packet| {
-            let reader = packet.data.into_iter();
-            let reader = conversions::ChannelsCountConverter::new(reader, packet.channels,
-                                                                  output_channels);
-            let reader = conversions::SamplesRateConverter::new(reader, cpal::SamplesRate(packet.rate as u32),
-                                                                cpal::SamplesRate(output_samples_rate), output_channels);
-            let reader = conversions::DataConverter::new(reader);
-            reader
-        });
+        let (data, rate, channels) = match decoder.packets().filter_map(Result::ok).next() {
+            Some(p) => (p.data, p.rate as u32, p.channels as u16),
+            None => (Vec::new(), 44100, 2),
+        };
 
         Ok(VorbisDecoder {
-            reader: Box::new(reader),
-        })*/
-
-        unimplemented!()
+            decoder: decoder,
+            current_data: data.into_iter(),
+            current_samples_rate: rate,
+            current_channels: channels,
+        })
     }
 }
 
-impl Source for VorbisDecoder {
+impl<R> Source for VorbisDecoder<R> where R: Read + Seek {
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
-        Some(self.len())
+        Some(self.current_data.len())
     }
 
     #[inline]
     fn get_channels(&self) -> u16 {
-        unimplemented!()
+        self.current_channels
     }
 
     #[inline]
     fn get_samples_rate(&self) -> u32 {
-        unimplemented!()
+        self.current_samples_rate
     }
 
     #[inline]
@@ -58,18 +56,37 @@ impl Source for VorbisDecoder {
     }
 }
 
-impl Iterator for VorbisDecoder {
-    type Item = f32;
+impl<R> Iterator for VorbisDecoder<R> where R: Read + Seek {
+    type Item = i16;
 
     #[inline]
-    fn next(&mut self) -> Option<f32> {
-        self.reader.next()
+    fn next(&mut self) -> Option<i16> {
+        // TODO: do better
+        if let Some(sample) = self.current_data.next() {
+            if self.current_data.len() == 0 {
+                if let Some(packet) = self.decoder.packets().filter_map(Result::ok).next() {
+                    self.current_data = packet.data.into_iter();
+                    self.current_samples_rate = packet.rate as u32;
+                    self.current_channels = packet.channels;
+                }
+            }
+
+            return Some(sample);
+        }
+
+        if let Some(packet) = self.decoder.packets().filter_map(Result::ok).next() {
+            self.current_data = packet.data.into_iter();
+            self.current_samples_rate = packet.rate as u32;
+            self.current_channels = packet.channels;
+            Some(self.current_data.next().unwrap())
+
+        } else {
+            None
+        }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.reader.size_hint()
+        (self.current_data.size_hint().0, None)
     }
 }
-
-impl ExactSizeIterator for VorbisDecoder {}

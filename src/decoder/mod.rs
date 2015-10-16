@@ -14,7 +14,7 @@ pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
 
 enum DecoderImpl<R> where R: Read + Seek {
     Wav(wav::WavDecoder<R>),
-    Vorbis(vorbis::VorbisDecoder),
+    Vorbis(vorbis::VorbisDecoder<R>),
 }
 
 impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
@@ -41,7 +41,7 @@ impl<R> Iterator for Decoder<R> where R: Read + Seek {
     fn next(&mut self) -> Option<f32> {
         match self.0 {
             DecoderImpl::Wav(ref mut source) => source.next().map(|s| s.to_f32()),
-            DecoderImpl::Vorbis(ref mut source) => source.next(),
+            DecoderImpl::Vorbis(ref mut source) => source.next().map(|s| s.to_f32()),
         }
     }
 

@@ -11,15 +11,15 @@ mod wav;
 /// Source of audio samples from decoding a file.
 ///
 /// Supports WAV, MP3 and Vorbis.
-pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek + Send + 'static;
+pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
 
-enum DecoderImpl<R> where R: Read + Seek + Send + 'static {
+enum DecoderImpl<R> where R: Read + Seek {
     Wav(wav::WavDecoder<R>),
     Mp3(mp3::Mp3Decoder<R>),
     Vorbis(vorbis::VorbisDecoder<R>),
 }
 
-impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
+impl<R> Decoder<R> where R: Read + Seek {
     pub fn new(data: R) -> Decoder<R> {
         let data = match wav::WavDecoder::new(data) {
             Err(data) => data,
@@ -46,7 +46,7 @@ impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
     }
 }
 
-impl<R> Iterator for Decoder<R> where R: Read + Seek + Send + 'static {
+impl<R> Iterator for Decoder<R> where R: Read + Seek {
     type Item = f32;
 
     #[inline]
@@ -68,7 +68,7 @@ impl<R> Iterator for Decoder<R> where R: Read + Seek + Send + 'static {
     }
 }
 
-impl<R> Source for Decoder<R> where R: Read + Seek + Send + 'static {
+impl<R> Source for Decoder<R> where R: Read + Seek {
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         match self.0 {

@@ -5,14 +5,14 @@ use Source;
 
 use simplemad;
 
-pub struct Mp3Decoder<R> where R: Read + Send + 'static {
+pub struct Mp3Decoder<R> where R: Read {
     reader: simplemad::Decoder<R>,
     current_frame: simplemad::Frame,
     current_frame_channel: usize,
     current_frame_sample_pos: usize,
 }
 
-impl<R> Mp3Decoder<R> where R: Read + Seek + Send + 'static {
+impl<R> Mp3Decoder<R> where R: Read + Seek {
     pub fn new(mut data: R) -> Result<Mp3Decoder<R>, R> {
         if !is_mp3(data.by_ref()) {
             return Err(data);
@@ -31,7 +31,7 @@ impl<R> Mp3Decoder<R> where R: Read + Seek + Send + 'static {
     }
 }
 
-impl<R> Source for Mp3Decoder<R> where R: Read + Send + 'static {
+impl<R> Source for Mp3Decoder<R> where R: Read {
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         Some(self.current_frame.samples[0].len())
@@ -53,7 +53,7 @@ impl<R> Source for Mp3Decoder<R> where R: Read + Send + 'static {
     }
 }
 
-impl<R> Iterator for Mp3Decoder<R> where R: Read + Send + 'static {
+impl<R> Iterator for Mp3Decoder<R> where R: Read {
     type Item = i16;        // TODO: i32
 
     #[inline]
@@ -91,7 +91,7 @@ impl<R> Iterator for Mp3Decoder<R> where R: Read + Send + 'static {
 
 /// Returns the next frame of a decoder, ignores errors.
 fn next_frame<R>(decoder: &mut simplemad::Decoder<R>) -> simplemad::Frame
-                 where R: Read + Send + 'static
+                 where R: Read
 {
     let frame = decoder.filter_map(|f| f.ok()).next();
     let frame = frame.unwrap_or_else(|| {

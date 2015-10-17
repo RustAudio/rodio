@@ -7,6 +7,7 @@ pub use self::delay::Delay;
 pub use self::fadein::FadeIn;
 pub use self::repeat::Repeat;
 pub use self::sine::SineWave;
+pub use self::speed::Speed;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 
@@ -15,6 +16,7 @@ mod delay;
 mod fadein;
 mod repeat;
 mod sine;
+mod speed;
 mod take;
 mod uniform;
 
@@ -72,5 +74,11 @@ pub trait Source: Iterator where Self::Item: Sample {
     #[inline]
     fn fade_in(self, duration: Duration) -> FadeIn<Self> where Self: Sized {
         fadein::fadein(self, duration)
+    }
+
+    /// Changes the play speed of the sound. Does not adjust the samples, only the play speed.
+    #[inline]
+    fn speed(self, ratio: f32) -> Speed<Self> where Self: Sized {
+        speed::speed(self, ratio)
     }
 }

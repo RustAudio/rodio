@@ -2,12 +2,14 @@ use std::time::Duration;
 
 use Sample;
 
+pub use self::amplify::Amplify;
 pub use self::delay::Delay;
 pub use self::repeat::Repeat;
 pub use self::sine::SineWave;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 
+mod amplify;
 mod delay;
 mod repeat;
 mod sine;
@@ -56,5 +58,11 @@ pub trait Source: Iterator where Self::Item: Sample {
     #[inline]
     fn delay(self, duration: Duration) -> Delay<Self> where Self: Sized {
         delay::delay(self, duration)
+    }
+
+    /// Amplifies the sound by the given value.
+    #[inline]
+    fn amplify(self, value: f32) -> Amplify<Self> where Self: Sized {
+        amplify::amplify(self, value)
     }
 }

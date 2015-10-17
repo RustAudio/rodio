@@ -1,4 +1,4 @@
-use std::io::{Read, Seek/*, SeekFrom*/};
+use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
 use Source;
@@ -13,11 +13,12 @@ pub struct Mp3Decoder<R> where R: Read + Send + 'static {
 }
 
 impl<R> Mp3Decoder<R> where R: Read + Seek + Send + 'static {
-    pub fn new(data: R) -> Result<Mp3Decoder<R>, ()> {
-        let mut reader = match simplemad::Decoder::decode(data) {
-            Ok(r) => r,
-            Err(_) => return Err(())
-        };
+    pub fn new(mut data: R) -> Result<Mp3Decoder<R>, R> {
+        if !is_mp3(data.by_ref()) {
+            return Err(data);
+        }
+
+        let mut reader = simplemad::Decoder::decode(data).unwrap();
 
         let current_frame = next_frame(&mut reader);
 
@@ -103,4 +104,17 @@ fn next_frame<R>(decoder: &mut simplemad::Decoder<R>) -> simplemad::Frame
     });
 
     frame
+}
+
+/// Returns true if the stream contains MP3 data, then resets it to where it was.
+fn is_mp3<R>(mut data: R) -> bool where R: Read + Seek {
+    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+
+    if simplemad::Decoder::decode(data.by_ref()).is_err() {
+        data.seek(SeekFrom::Start(stream_pos)).unwrap();
+        return false;
+    }
+
+    data.seek(SeekFrom::Start(stream_pos)).unwrap();
+    true
 }

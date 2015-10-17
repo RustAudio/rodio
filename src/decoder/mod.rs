@@ -35,9 +35,12 @@ impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
             }
         };
 
-        if let Ok(decoder) = mp3::Mp3Decoder::new(data) {
-            return Decoder(DecoderImpl::Mp3(decoder));
-        }
+        let _data = match mp3::Mp3Decoder::new(data) {
+            Err(data) => data,
+            Ok(decoder) => {
+                return Decoder(DecoderImpl::Mp3(decoder));
+            }
+        };
 
         panic!("Invalid format");
     }

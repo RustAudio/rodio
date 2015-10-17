@@ -1,4 +1,4 @@
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 use std::vec;
 
@@ -14,11 +14,12 @@ pub struct VorbisDecoder<R> where R: Read + Seek {
 }
 
 impl<R> VorbisDecoder<R> where R: Read + Seek {
-    pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
-        let mut decoder = match vorbis::Decoder::new(data) {
-            Err(_) => return Err(()),
-            Ok(r) => r
-        };
+    pub fn new(mut data: R) -> Result<VorbisDecoder<R>, R> {
+        if !is_vorbis(data.by_ref()) {
+            return Err(data);
+        }
+
+        let mut decoder = vorbis::Decoder::new(data).unwrap();
 
         let (data, rate, channels) = match decoder.packets().filter_map(Result::ok).next() {
             Some(p) => (p.data, p.rate as u32, p.channels as u16),
@@ -89,4 +90,17 @@ impl<R> Iterator for VorbisDecoder<R> where R: Read + Seek {
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.current_data.size_hint().0, None)
     }
+}
+
+/// Returns true if the stream contains Vorbis data, then resets it to where it was.
+fn is_vorbis<R>(mut data: R) -> bool where R: Read + Seek {
+    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+
+    if vorbis::Decoder::new(data.by_ref()).is_err() {
+        data.seek(SeekFrom::Start(stream_pos)).unwrap();
+        return false;
+    }
+
+    data.seek(SeekFrom::Start(stream_pos)).unwrap();
+    true
 }

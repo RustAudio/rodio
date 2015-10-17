@@ -4,6 +4,7 @@ use Sample;
 
 pub use self::amplify::Amplify;
 pub use self::delay::Delay;
+pub use self::fadein::FadeIn;
 pub use self::repeat::Repeat;
 pub use self::sine::SineWave;
 pub use self::take::TakeDuration;
@@ -11,6 +12,7 @@ pub use self::uniform::UniformSourceIterator;
 
 mod amplify;
 mod delay;
+mod fadein;
 mod repeat;
 mod sine;
 mod take;
@@ -64,5 +66,11 @@ pub trait Source: Iterator where Self::Item: Sample {
     #[inline]
     fn amplify(self, value: f32) -> Amplify<Self> where Self: Sized {
         amplify::amplify(self, value)
+    }
+
+    /// Fades in the sound.
+    #[inline]
+    fn fade_in(self, duration: Duration) -> FadeIn<Self> where Self: Sized {
+        fadein::fadein(self, duration)
     }
 }

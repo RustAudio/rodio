@@ -54,15 +54,21 @@ impl<R> Source for Mp3Decoder<R> where R: Read {
 }
 
 impl<R> Iterator for Mp3Decoder<R> where R: Read {
-    type Item = i16;        // TODO: i32
+    type Item = i16;
 
     #[inline]
-    fn next(&mut self) -> Option<i16> {        // TODO: i32
+    fn next(&mut self) -> Option<i16> {
         if self.current_frame.samples[0].len() == 0 {
             return None;
         }
 
-        let sample = (self.current_frame.samples[self.current_frame_channel][self.current_frame_sample_pos] / 0x10000) as i16;
+        // getting the sample and converting it from fixed step to i16
+        let sample = self.current_frame.samples[self.current_frame_channel][self.current_frame_sample_pos];
+        let sample = sample + (1 << (28 - 16));
+        let sample = if sample >= 0x10000000 { 0x10000000 - 1 } else if sample <= -0x10000000 { -0x10000000 } else { sample };
+        let sample = sample >> (28 + 1 - 16);
+        let sample = sample as i16;
+
         self.current_frame_channel += 1;
 
         if self.current_frame_channel < self.current_frame.samples.len() {

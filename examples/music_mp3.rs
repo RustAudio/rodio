@@ -10,5 +10,5 @@ fn main() {
     sink.append(rodio::Decoder::new(BufReader::new(file)));
 
     //sink.sleep_until_end();
-    std::thread::sleep_ms(5000);
+    std::thread::sleep_ms(32000);
 }

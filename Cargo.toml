@@ -12,6 +12,6 @@ documentation = "http://tomaka.github.io/rodio/rodio/index.html"
 cpal = "0.2.7"
 hound = "1.0.0"
 lazy_static = "0.1.12"
-simplemad = { git = "http://github.com/bendykst/simple-mad.rs" }
+simplemad = "0.5.2"
 time = "0.1.32"
 vorbis = "0.0.13"

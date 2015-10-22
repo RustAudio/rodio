@@ -14,6 +14,7 @@ pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
 }
 
 /// Filter that modifies each sample by a given value.
+#[derive(Clone, Debug)]
 pub struct Amplify<I> where I: Source, I::Item: Sample {
     input: I,
     factor: f32,

@@ -17,6 +17,7 @@ pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
 }
 
 /// Filter that modifies each sample by a given value.
+#[derive(Clone, Debug)]
 pub struct FadeIn<I> where I: Source, I::Item: Sample {
     input: I,
     remaining_ns: f32,

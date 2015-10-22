@@ -15,6 +15,7 @@ pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
 }
 
 /// A source that repeats the given source.
+#[derive(Clone, Debug)]
 pub struct TakeDuration<I> where I: Source, I::Item: Sample {
     input: I,
     remaining_duration: Duration,

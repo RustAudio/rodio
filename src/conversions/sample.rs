@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 use cpal;
 
 /// Converts the samples data type to `O`.
+#[derive(Clone, Debug)]
 pub struct DataConverter<I, O> {
     input: I,
     marker: PhantomData<O>,

@@ -4,6 +4,7 @@ use Source;
 /// An infinite source that produces a sine.
 ///
 /// Always has a rate of 48kHz and one channel.
+#[derive(Clone, Debug)]
 pub struct SineWave {
     freq: f32,
     num_sample: usize,

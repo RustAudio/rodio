@@ -4,6 +4,7 @@ use conversions::Sample;
 use std::mem;
 
 /// Iterator that converts from a certain samples rate to another.
+#[derive(Clone, Debug)]
 pub struct SamplesRateConverter<I> where I: Iterator {
     /// The iterator that gives us samples.
     input: I,

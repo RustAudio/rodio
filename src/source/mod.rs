@@ -3,6 +3,7 @@ use std::time::Duration;
 use Sample;
 
 pub use self::amplify::Amplify;
+pub use self::buffered::Buffered;
 pub use self::delay::Delay;
 pub use self::fadein::FadeIn;
 pub use self::repeat::Repeat;
@@ -12,6 +13,7 @@ pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 
 mod amplify;
+mod buffered;
 mod delay;
 mod fadein;
 mod repeat;
@@ -39,6 +41,12 @@ pub trait Source: Iterator where Self::Item: Sample {
     ///
     /// `None` indicates at the same time "infinite" or "unknown".
     fn get_total_duration(&self) -> Option<Duration>;
+
+    /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
+    #[inline]
+    fn buffered(self) -> Buffered<Self> where Self: Sized {
+        buffered::buffered(self)
+    }
 
     /// Repeats this source forever.
     ///

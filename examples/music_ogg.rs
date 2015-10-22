@@ -7,7 +7,7 @@ fn main() {
     let sink = rodio::Sink::new(&endpoint);
 
     let file = std::fs::File::open("examples/music.ogg").unwrap();
-    sink.append(rodio::Decoder::new(BufReader::new(file)));
+    sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
 
     std::thread::sleep_ms(60000);
 }

@@ -15,7 +15,7 @@
 //! let sink = rodio::Sink::new(&endpoint);
 //! 
 //! let file = std::fs::File::open("music.ogg").unwrap();
-//! let source = rodio::Decoder::new(BufReader::new(file));
+//! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
 //! sink.append(source);
 //! ```
 //!
@@ -147,11 +147,11 @@ impl Drop for Sink {
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]
-pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Sink
+pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Result<Sink, decoder::DecoderError>
                     where R: Read + Seek + Send + 'static
 {
-    let input = decoder::Decoder::new(input);
+    let input = try!(decoder::Decoder::new(input));
     let sink = Sink::new(endpoint);
     sink.append(input);
-    sink
+    Ok(sink)
 }

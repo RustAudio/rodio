@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/tomaka/rodio.svg?branch=master)](https://travis-ci.org/tomaka/rodio)
 
+[![](http://meritbadge.herokuapp.com/rodio)](https://crates.io/crates/rodio)
+
 Rust playback library.
 
  - Playback is handled by [cpal](https://github.com/tomaka/cpal).

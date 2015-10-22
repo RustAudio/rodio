@@ -6,6 +6,7 @@ pub use self::amplify::Amplify;
 pub use self::buffered::Buffered;
 pub use self::delay::Delay;
 pub use self::fadein::FadeIn;
+pub use self::mix::Mix;
 pub use self::repeat::Repeat;
 pub use self::sine::SineWave;
 pub use self::speed::Speed;
@@ -16,6 +17,7 @@ mod amplify;
 mod buffered;
 mod delay;
 mod fadein;
+mod mix;
 mod repeat;
 mod sine;
 mod speed;
@@ -46,6 +48,12 @@ pub trait Source: Iterator where Self::Item: Sample {
     #[inline]
     fn buffered(self) -> Buffered<Self> where Self: Sized {
         buffered::buffered(self)
+    }
+
+    /// Mixes this source with another one.
+    #[inline]
+    fn mix<S>(self, other: S) -> Mix<Self, S> where Self: Sized, S: Source, S::Item: Sample {
+        mix::mix(self, other)
     }
 
     /// Repeats this source forever.

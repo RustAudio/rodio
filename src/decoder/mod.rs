@@ -18,19 +18,19 @@ enum DecoderImpl<R> where R: Read + Seek {
 }
 
 impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
-    pub fn new(data: R) -> Decoder<R> {
+    pub fn new(data: R) -> Result<Decoder<R>, DecoderError> {
         let data = match wav::WavDecoder::new(data) {
             Err(data) => data,
             Ok(decoder) => {
-                return Decoder(DecoderImpl::Wav(decoder));
+                return Ok(Decoder(DecoderImpl::Wav(decoder)));
             }
         };
 
         if let Ok(decoder) = vorbis::VorbisDecoder::new(data) {
-            return Decoder(DecoderImpl::Vorbis(decoder));
+            return Ok(Decoder(DecoderImpl::Vorbis(decoder)));
         }
 
-        panic!("Invalid format");
+        Err(DecoderError::UnrecognizedFormat)
     }
 }
 
@@ -86,4 +86,11 @@ impl<R> Source for Decoder<R> where R: Read + Seek {
             DecoderImpl::Vorbis(ref source) => source.get_total_duration(),
         }
     }
+}
+
+/// Error that can happen when creating a decoder.
+#[derive(Debug, Clone)]
+pub enum DecoderError {
+    /// The format of the data has not been recognized.
+    UnrecognizedFormat,
 }

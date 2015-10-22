@@ -6,6 +6,7 @@ use Source;
 
 use vorbis;
 
+/// Decoder for an OGG file that contains Vorbis sound format.
 pub struct VorbisDecoder<R> where R: Read + Seek {
     decoder: vorbis::Decoder<R>,
     current_data: vec::IntoIter<i16>,
@@ -14,6 +15,7 @@ pub struct VorbisDecoder<R> where R: Read + Seek {
 }
 
 impl<R> VorbisDecoder<R> where R: Read + Seek {
+    /// Attempts to decode the data as ogg/vorbis.
     pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
         let mut decoder = match vorbis::Decoder::new(data) {
             Err(_) => return Err(()),

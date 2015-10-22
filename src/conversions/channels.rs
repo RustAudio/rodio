@@ -11,7 +11,7 @@ pub struct ChannelsCountConverter<I> where I: Iterator {
 }
 
 impl<I> ChannelsCountConverter<I> where I: Iterator {
-    ///
+    /// Initializes the iterator.
     ///
     /// # Panic
     ///
@@ -33,6 +33,7 @@ impl<I> ChannelsCountConverter<I> where I: Iterator {
         }
     }
 
+    /// Destroys this iterator and returns the underlying iterator.
     #[inline]
     pub fn into_inner(self) -> I {
         self.input

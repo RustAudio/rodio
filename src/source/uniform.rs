@@ -20,6 +20,7 @@ pub struct UniformSourceIterator<I, D> where I: Source, I::Item: Sample, D: Samp
     inner: Option<DataConverter<ChannelsCountConverter<SamplesRateConverter<Take<I>>>, D>>,
     target_channels: u16,
     target_samples_rate: u32,
+    total_duration: Option<Duration>,
 }
 
 impl<I, D> UniformSourceIterator<I, D> where I: Source, I::Item: Sample, D: Sample {
@@ -27,12 +28,14 @@ impl<I, D> UniformSourceIterator<I, D> where I: Source, I::Item: Sample, D: Samp
     pub fn new(input: I, target_channels: u16, target_samples_rate: u32)
                -> UniformSourceIterator<I, D>
     {
+        let total_duration = input.get_total_duration();
         let input = UniformSourceIterator::bootstrap(input, target_channels, target_samples_rate);
 
         UniformSourceIterator {
             inner: Some(input),
             target_channels: target_channels,
             target_samples_rate: target_samples_rate,
+            total_duration: total_duration,
         }
     }
 
@@ -100,7 +103,7 @@ impl<I, D> Source for UniformSourceIterator<I, D> where I: Iterator + Source, I:
 
     #[inline]
     fn get_total_duration(&self) -> Option<Duration> {
-        None
+        self.total_duration
     }
 }
 

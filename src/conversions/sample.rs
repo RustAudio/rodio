@@ -18,6 +18,7 @@ impl<I, O> DataConverter<I, O> {
         }
     }
 
+    /// Destroys this iterator and returns the underlying iterator.
     #[inline]
     pub fn into_inner(self) -> I {
         self.input
@@ -44,15 +45,25 @@ impl<I, O> ExactSizeIterator for DataConverter<I, O>
 
 /// Represents a value of a single sample.
 pub trait Sample: cpal::Sample {
+    /// Linear interpolation between two samples.
+    ///
+    /// The result should be equal to 
+    /// `first * numerator / denominator + second * (1 - numerator / denominator)`.
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
+    /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
 
+    /// Returns the value corresponding to the absence of sound.
     fn zero_value() -> Self;
 
+    /// Converts this sample into a standard i16 sample.
     fn to_i16(&self) -> i16;
+    /// Converts this sample into a standard u16 sample.
     fn to_u16(&self) -> u16;
+    /// Converts this sample into a standard f32 sample.
     fn to_f32(&self) -> f32;
 
+    /// Converts any sample type to this one by calling `to_i16`, `to_u16` or `to_f32`.
     fn from<S>(&S) -> Self where S: Sample;
 }
 

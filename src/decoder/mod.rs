@@ -18,6 +18,9 @@ enum DecoderImpl<R> where R: Read + Seek {
 }
 
 impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
+    /// Builds a new decoder.
+    ///
+    /// Attempts to automatically detect the format of the source of data.
     pub fn new(data: R) -> Result<Decoder<R>, DecoderError> {
         let data = match wav::WavDecoder::new(data) {
             Err(data) => data,

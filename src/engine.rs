@@ -36,6 +36,9 @@ pub struct Engine {
     thread: Option<Thread>,
 
     /// Contains the format (channels count and samples rate) of the voice of each endpoint.
+    ///
+    /// The key of the hashmap is the name of the endpoint, and the value are the channels count
+    /// and samples rate.
     voices_formats: Mutex<HashMap<String, (u16, u32)>>,
 }
 
@@ -53,18 +56,23 @@ impl Engine {
         Engine {
             commands: Mutex::new(tx),
             thread: thread,
-            voices_formats: Mutex::new(HashMap::new()),
+            voices_formats: Mutex::new(HashMap::with_capacity(1)),
         }
     }
 
+    /// Builds a new sink that targets a given endpoint.
     pub fn start(&self, endpoint: &Endpoint) -> Handle {
-        // try looking for an existing voice, or create one if there isn't one
+        // try looking for an existing `Voice`, or create one if there isn't one
+        // `new_voice` is `Some` if a new voice has been created
         let (new_voice, channels_count, samples_rate) = {
             let mut voices_formats = self.voices_formats.lock().unwrap();
+
+            // will contain the new voice, or `None` if no new voice is needed
             let mut new_voice = None;
 
             let &mut (c, s) = voices_formats.entry(endpoint.get_name()).or_insert_with(|| {
                 // TODO: handle possible errors here
+                // determining the format to use for the new voice
                 let format = endpoint.get_supported_formats_list().unwrap().fold(None, |f1, f2| {
                     if f1.is_none() {
                         return Some(f2);
@@ -97,20 +105,30 @@ impl Engine {
             (new_voice, c, s)
         };
 
-        // the iterator that produces sounds
+        // `next_sounds` contains a Vec that can later be used to append new iterators to the sink
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
-        let source = QueueIterator { current: Box::new(None.into_iter()), next: next_sounds.clone() };
+
+        // the `QueueIterator` is the main source of samples and will be read by the background
+        // thread
+        let source = QueueIterator {
+            current: Box::new(None.into_iter()),
+            next: next_sounds.clone(),
+        };
+
+        // we use the pointer of the `Arc` of `next_sounds` as an identifier for this sink for the
+        // purpose of communicating with the background thread
         let source_id = &*next_sounds as *const Mutex<_> as *const u8 as usize;
 
         // at each loop, the background thread will store the remaining time of the sound in this
         // value
-        // TODO: 0?
+        // the initial value is `0` since there's no sound
         let remaining_duration_ms = Arc::new(AtomicUsize::new(0 as usize));
 
-        // send the play command
+        // send the play command, passing everything to the background thread
         {
-            let commands = self.commands.lock().unwrap();
-            commands.send(Command::Play(endpoint.clone(), new_voice, source, remaining_duration_ms.clone())).unwrap();
+            let command = Command::Play(endpoint.clone(), new_voice, source,
+                                        remaining_duration_ms.clone());
+            self.commands.lock().unwrap().send(command).unwrap();
         }
 
         Handle {
@@ -124,9 +142,9 @@ impl Engine {
     }
 }
 
-/// Handle to a playing sound.
+/// A sink.
 ///
-/// Note that dropping the handle doesn't stop the sound. You must call `stop` explicitely.
+/// Note that dropping the handle doesn't delete the sink. You must call `stop` explicitely.
 pub struct Handle<'a> {
     engine: &'a Engine,
     source_id: usize,
@@ -141,8 +159,12 @@ pub struct Handle<'a> {
 }
 
 impl<'a> Handle<'a> {
+    /// Appends a new source of data after the current one.
     #[inline]
-    pub fn append<S>(&self, source: S) where S: Source + Send + 'static, S::Item: Sample + Clone + Send {
+    pub fn append<S>(&self, source: S)
+        where S: Source + Send + 'static, S::Item: Sample + Clone + Send
+    {
+        // adding the estimated duration of the sound to `remaining_duration_ms`
         if let Some(duration) = source.get_total_duration() {
             let duration = duration.as_secs() as usize * 1000 +
                            duration.subsec_nanos() as usize / 1000000;
@@ -154,19 +176,22 @@ impl<'a> Handle<'a> {
             self.remaining_duration_ms.fetch_add(duration, Ordering::Relaxed);
         }
 
+        // pushing the source to `next_sounds`
         let source = UniformSourceIterator::new(source, self.channels, self.samples_rate);
         let source = Box::new(source);
         self.next_sounds.lock().unwrap().push(source);
     }
 
+    /// Changes the volume of the sound played by this sink.
     #[inline]
     pub fn set_volume(&self, value: f32) {
         let commands = self.engine.commands.lock().unwrap();
         commands.send(Command::SetVolume(self.source_id, value)).unwrap();
     }
 
-    // note that this method could take `self` instead of `&self`, but it makes `Sink`'s life
-    // easier not to take `self`
+    /// Stops the sound.
+    // note that this method could take `self` instead of `&self`, but it makes the `Sink` object's
+    // life easier not to take `self`
     #[inline]
     pub fn stop(&self) {
         let commands = self.engine.commands.lock().unwrap();
@@ -177,15 +202,22 @@ impl<'a> Handle<'a> {
         }
     }
 
+    /// Returns the minimum estimated duration of the sound being played by this sink.
     #[inline]
     pub fn get_min_remaining_duration(&self) -> Duration {
         Duration::from_millis(self.remaining_duration_ms.load(Ordering::Relaxed) as u64)
     }
 }
 
+/// A command sent by the regular threads to the background thread.
 pub enum Command {
+    /// Adds a new voice to the list of voices to process.
     Play(Endpoint, Option<Voice>, QueueIterator, Arc<AtomicUsize>),
+
+    /// Stops a voice.
     Stop(usize),
+
+    /// Changes the volume of a voice.
     SetVolume(usize, f32),
 }
 
@@ -203,7 +235,7 @@ fn background(rx: Receiver<Command>) {
         // sleeping so that we get a loop every `FIXED_STEP_MS` millisecond
         {
             let now = time::precise_time_ns();
-            if next_loop_timer > now + 1000000 {
+            if next_loop_timer > now + 1000000 /* 1ms */ {
                 let sleep = next_loop_timer - now;
                 thread::park_timeout_ms((sleep / 1000000) as u32);
             }
@@ -297,8 +329,13 @@ fn background(rx: Receiver<Command>) {
     }
 }
 
+/// Main source of samples for a voice.
 struct QueueIterator {
+    /// The current iterator that produces samples.
     current: Box<Iterator<Item = f32> + Send>,
+
+    /// A `Vec` containing the next iterators to play. Shared with other threads so they can add
+    /// sounds to the list.
     next: Arc<Mutex<Vec<Box<Iterator<Item = f32> + Send>>>>,
 }
 
@@ -308,6 +345,7 @@ impl Iterator for QueueIterator {
     #[inline]
     fn next(&mut self) -> Option<f32> {
         loop {
+            // basic situation that will happen most of the time
             if let Some(sample) = self.current.next() {
                 return Some(sample);
             }
@@ -316,6 +354,7 @@ impl Iterator for QueueIterator {
                 let mut next = self.next.lock().unwrap();
                 if next.len() == 0 {
                     // if there's no iter waiting, we create a dummy iter with 1000 null samples
+                    // this avoids a spinlock
                     Box::new((0 .. 1000).map(|_| 0.0f32)) as Box<Iterator<Item = f32> + Send>
                 } else {
                     next.remove(0)

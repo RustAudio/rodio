@@ -78,6 +78,7 @@ impl<I> SamplesRateConverter<I> where I: Iterator, I::Item: Sample {
         }
     }
 
+    /// Destroys this iterator and returns the underlying iterator.
     #[inline]
     pub fn into_inner(self) -> I {
         self.input

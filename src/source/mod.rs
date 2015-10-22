@@ -97,4 +97,24 @@ pub trait Source: Iterator where Self::Item: Sample {
     fn speed(self, ratio: f32) -> Speed<Self> where Self: Sized {
         speed::speed(self, ratio)
     }
+
+    /// Adds a basic reverb effect.
+    ///
+    /// This function requires the source to implement `Clone`. This can be done by using
+    /// `buffered()`.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use std::time::Duration;
+    ///
+    /// let source = source.buffered().reverb(Duration::from_millis(100), 0.7);
+    /// ```
+    #[inline]
+    fn reverb(self, duration: Duration, amplitude: f32) -> Mix<Self, Delay<Amplify<Self>>>
+                                                           where Self: Sized + Clone
+    {
+        let echo = self.clone().amplify(amplitude).delay(duration);
+        self.mix(echo)
+    }
 }

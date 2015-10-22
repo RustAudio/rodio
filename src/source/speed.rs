@@ -14,6 +14,7 @@ pub fn speed<I>(input: I, factor: f32) -> Speed<I>
 }
 
 /// Filter that modifies each sample by a given value.
+#[derive(Clone, Debug)]
 pub struct Speed<I> where I: Source, I::Item: Sample {
     input: I,
     factor: f32,

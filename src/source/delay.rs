@@ -19,6 +19,7 @@ pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
 }
 
 /// A source that delays the given source by a certain amount.
+#[derive(Clone, Debug)]
 pub struct Delay<I> where I: Source, I::Item: Sample {
     input: I,
     remaining_samples: usize,

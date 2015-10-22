@@ -15,6 +15,7 @@ use Source;
 ///
 /// It implements `Source` as well, but all the data is guaranteed to be in a single frame whose
 /// channels and samples rate have been passed to `new`.
+#[derive(Clone)]
 pub struct UniformSourceIterator<I, D> where I: Source, I::Item: Sample, D: Sample {
     inner: Option<DataConverter<ChannelsCountConverter<SamplesRateConverter<Take<I>>>, D>>,
     target_channels: u16,
@@ -103,6 +104,7 @@ impl<I, D> Source for UniformSourceIterator<I, D> where I: Iterator + Source, I:
     }
 }
 
+#[derive(Clone, Debug)]
 struct Take<I> {
     iter: I,
     n: Option<usize>,

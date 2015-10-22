@@ -11,10 +11,12 @@ pub fn repeat<I>(input: I) -> Repeat<I> where I: Source, I::Item: Sample {
 }
 
 /// A source that repeats the given source.
+#[derive(Clone)]
 pub struct Repeat<I> where I: Source, I::Item: Sample {
     inner: RepeatImpl<I>,
 }
 
+#[derive(Clone)]
 enum RepeatImpl<I> where I: Source, I::Item: Sample {
     FirstPass(I, Vec<(Vec<I::Item>, u32, u16)>),
     NextPasses(Vec<(Vec<I::Item>, u32, u16)>, usize, usize)

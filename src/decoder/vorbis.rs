@@ -83,6 +83,7 @@ impl<R> Iterator for VorbisDecoder<R> where R: Read + Seek {
             Some(self.current_data.next().unwrap())
 
         } else {
+            println!("test");
             None
         }
     }

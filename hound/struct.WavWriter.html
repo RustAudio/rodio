@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `WavWriter` struct in crate `hound`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, WavWriter">
+
+    <title>hound::WavWriter - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>hound</a></p><script>window.sidebarCurrent = {name: 'WavWriter', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>hound</a>::<wbr><a class='struct' href=''>WavWriter</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-335' class='srclink' href='../src/hound/write.rs.html#116-136' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct WavWriter&lt;W&gt; <span class='where'>where W: <a class='trait' href='https://doc.rust-lang.org/nightly/std/io/trait.Write.html' title='std::io::Write'>Write</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/std/io/trait.Seek.html' title='std::io::Seek'>Seek</a></span> {
+    // some fields omitted
+}</pre><div class='docblock'><p>A writer that accepts samples and writes the WAVE format.</p>
+
+<p>The writer needs a <code>WavSpec</code> that describes the audio properties. Then
+samples can be written with <code>write_sample</code>. Channel data is interleaved.
+The number of samples written must be a multiple of the number of channels.
+After all samples have been written, the file must be finalized. This can
+be done by calling <code>finalize</code>. If <code>finalize</code> is not called, the file will
+be finalized upon drop. However, finalization may fail, and without calling
+<code>finalize</code>, such a failure cannot be observed.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl&lt;W&gt; <a class='struct' href='../hound/struct.WavWriter.html' title='hound::WavWriter'>WavWriter</a>&lt;W&gt; <span class='where'>where W: <a class='trait' href='https://doc.rust-lang.org/nightly/std/io/trait.Write.html' title='std::io::Write'>Write</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/std/io/trait.Seek.html' title='std::io::Seek'>Seek</a></span></code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(writer: W, spec: <a class='struct' href='../hound/struct.WavSpec.html' title='hound::WavSpec'>WavSpec</a>) -&gt; <a class='struct' href='../hound/struct.WavWriter.html' title='hound::WavWriter'>WavWriter</a>&lt;W&gt;</code></h4>
+<div class='docblock'><p>Creates a writer that writes the WAVE format to the underlying writer.</p>
+
+<p>The underlying writer is assumed to be at offset 0. <code>WavWriter</code> employs
+buffering internally to avoid too many <code>write</code> calls to the underlying
+writer.</p>
+</div><h4 id='method.write_sample' class='method'><code>fn <a href='#method.write_sample' class='fnname'>write_sample</a>&lt;S: <a class='trait' href='../hound/trait.Sample.html' title='hound::Sample'>Sample</a>&gt;(&amp;mut self, sample: S) -&gt; <a class='type' href='../hound/type.Result.html' title='hound::Result'>Result</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+<div class='docblock'><p>Writes a single sample for one channel.</p>
+
+<p>WAVE interleaves channel data, so the channel that this writes the
+sample to depends on previous writes. This will return an error if the
+sample does not fit in the number of bits specified in the <code>WavSpec</code>.</p>
+</div><h4 id='method.finalize' class='method'><code>fn <a href='#method.finalize' class='fnname'>finalize</a>(self) -&gt; <a class='type' href='../hound/type.Result.html' title='hound::Result'>Result</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+<div class='docblock'><p>Writes the parts of the WAVE format that require knowing all samples.</p>
+
+<p>This method must be called after all samples have been written. If it
+is not called, the destructor will finalize the file, but any errors
+that occur in the process cannot be observed in that manner.</p>
+</div></div><h3 class='impl'><code>impl <a class='struct' href='../hound/struct.WavWriter.html' title='hound::WavWriter'>WavWriter</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/io/buffered/struct.BufWriter.html' title='std::io::buffered::BufWriter'>BufWriter</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/fs/struct.File.html' title='std::fs::File'>File</a>&gt;&gt;</code></h3><div class='impl-items'><h4 id='method.create' class='method'><code>fn <a href='#method.create' class='fnname'>create</a>&lt;P: <a class='trait' href='https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html' title='core::convert::AsRef'>AsRef</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/path/struct.Path.html' title='std::path::Path'>Path</a>&gt;&gt;(filename: P, spec: <a class='struct' href='../hound/struct.WavSpec.html' title='hound::WavSpec'>WavSpec</a>) -&gt; <a class='type' href='https://doc.rust-lang.org/nightly/std/io/error/type.Result.html' title='std::io::error::Result'>Result</a>&lt;<a class='struct' href='../hound/struct.WavWriter.html' title='hound::WavWriter'>WavWriter</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/io/buffered/struct.BufWriter.html' title='std::io::buffered::BufWriter'>BufWriter</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/fs/struct.File.html' title='std::fs::File'>File</a>&gt;&gt;&gt;</code></h4>
+<div class='docblock'><p>Creates a writer that writes the WAVE format to a file.</p>
+
+<p>This is a convenience constructor that creates the file, wraps it in a
+<code>BufWriter</code>, and then constructs a <code>WavWriter</code> from it. The file will
+be overwritten if it exists.</p>
+</div></div><h2 id='implementations'>Trait Implementations</h2><h3 class='impl'><code>impl&lt;W&gt; <a class='trait' href='https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html' title='core::ops::Drop'>Drop</a> for <a class='struct' href='../hound/struct.WavWriter.html' title='hound::WavWriter'>WavWriter</a>&lt;W&gt; <span class='where'>where W: <a class='trait' href='https://doc.rust-lang.org/nightly/std/io/trait.Write.html' title='std::io::Write'>Write</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/std/io/trait.Seek.html' title='std::io::Seek'>Seek</a></span></code></h3><div class='impl-items'><h4 id='method.drop' class='method'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html#method.drop' class='fnname'>drop</a>(&amp;mut self)</code></h4>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "hound";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

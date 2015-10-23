@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `OggVorbis_File` struct in crate `vorbisfile_sys`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, OggVorbis_File">
+
+    <title>vorbisfile_sys::OggVorbis_File - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>vorbisfile_sys</a></p><script>window.sidebarCurrent = {name: 'OggVorbis_File', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>vorbisfile_sys</a>::<wbr><a class='struct' href=''>OggVorbis_File</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-26' class='srclink' href='../src/vorbisfile_sys/lib.rs.html#25-53' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct OggVorbis_File {
+    pub datasource: <a href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut <a class='enum' href='../libc/types/common/c95/enum.c_void.html' title='libc::types::common::c95::c_void'>c_void</a></a>,
+    pub seekable: <a class='type' href='../libc/types/os/arch/c95/type.c_int.html' title='libc::types::os::arch::c95::c_int'>c_int</a>,
+    pub offset: <a class='type' href='../ogg/type.ogg_int64_t.html' title='ogg::ogg_int64_t'>ogg_int64_t</a>,
+    pub end: <a class='type' href='../ogg/type.ogg_int64_t.html' title='ogg::ogg_int64_t'>ogg_int64_t</a>,
+    pub oy: <a class='struct' href='../ogg/struct.ogg_sync_state.html' title='ogg::ogg_sync_state'>ogg_sync_state</a>,
+    pub links: <a class='type' href='../libc/types/os/arch/c95/type.c_int.html' title='libc::types::os::arch::c95::c_int'>c_int</a>,
+    pub offsets: <a href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut <a class='type' href='../ogg/type.ogg_int64_t.html' title='ogg::ogg_int64_t'>ogg_int64_t</a></a>,
+    pub dataoffsets: <a href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut <a class='type' href='../ogg/type.ogg_int64_t.html' title='ogg::ogg_int64_t'>ogg_int64_t</a></a>,
+    pub serialnos: <a href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut <a class='type' href='../libc/types/os/arch/c95/type.c_long.html' title='libc::types::os::arch::c95::c_long'>c_long</a></a>,
+    pub pcmlengths: <a href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut <a class='type' href='../ogg/type.ogg_int64_t.html' title='ogg::ogg_int64_t'>ogg_int64_t</a></a>,
+    pub vi: <a href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut <a class='struct' href='../vorbis_sys/struct.vorbis_info.html' title='vorbis_sys::vorbis_info'>vorbis_info</a></a>,
+    pub vc: <a href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut <a class='struct' href='../vorbis_sys/struct.vorbis_comment.html' title='vorbis_sys::vorbis_comment'>vorbis_comment</a></a>,
+    pub pcm_offset: <a class='type' href='../ogg/type.ogg_int64_t.html' title='ogg::ogg_int64_t'>ogg_int64_t</a>,
+    pub ready_state: <a class='type' href='../libc/types/os/arch/c95/type.c_int.html' title='libc::types::os::arch::c95::c_int'>c_int</a>,
+    pub current_serialno: <a class='type' href='../libc/types/os/arch/c95/type.c_long.html' title='libc::types::os::arch::c95::c_long'>c_long</a>,
+    pub current_link: <a class='type' href='../libc/types/os/arch/c95/type.c_int.html' title='libc::types::os::arch::c95::c_int'>c_int</a>,
+    pub bittrack: <a class='type' href='../libc/types/os/arch/c95/type.c_double.html' title='libc::types::os::arch::c95::c_double'>c_double</a>,
+    pub samptrack: <a class='type' href='../libc/types/os/arch/c95/type.c_double.html' title='libc::types::os::arch::c95::c_double'>c_double</a>,
+    pub os: <a class='struct' href='../ogg/struct.ogg_stream_state.html' title='ogg::ogg_stream_state'>ogg_stream_state</a>,
+    pub vd: <a class='struct' href='../vorbis_sys/struct.vorbis_dsp_state.html' title='vorbis_sys::vorbis_dsp_state'>vorbis_dsp_state</a>,
+    pub vb: <a class='struct' href='../vorbis_sys/struct.vorbis_block.html' title='vorbis_sys::vorbis_block'>vorbis_block</a>,
+    pub callbacks: <a class='struct' href='../vorbisfile_sys/struct.ov_callbacks.html' title='vorbisfile_sys::ov_callbacks'>ov_callbacks</a>,
+}</pre><h2 class='fields'>Fields</h2>
+<table><tr class='stab '>
+                                  <td id='structfield.datasource'><code>datasource</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.seekable'><code>seekable</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.offset'><code>offset</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.end'><code>end</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.oy'><code>oy</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.links'><code>links</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.offsets'><code>offsets</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.dataoffsets'><code>dataoffsets</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.serialnos'><code>serialnos</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.pcmlengths'><code>pcmlengths</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.vi'><code>vi</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.vc'><code>vc</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.pcm_offset'><code>pcm_offset</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.ready_state'><code>ready_state</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.current_serialno'><code>current_serialno</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.current_link'><code>current_link</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.bittrack'><code>bittrack</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.samptrack'><code>samptrack</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.os'><code>os</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.vd'><code>vd</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.vb'><code>vb</code></td><td></td></tr><tr class='stab '>
+                                  <td id='structfield.callbacks'><code>callbacks</code></td><td></td></tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "vorbisfile_sys";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

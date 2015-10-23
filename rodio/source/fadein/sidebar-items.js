@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["FadeIn","Filter that modifies each sample by a given value."]]});

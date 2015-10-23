@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `hound` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, hound">
+
+    <title>hound - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'></p><script>window.sidebarCurrent = {name: 'hound', ty: 'mod', relpath: '../'};</script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content mod">
+<h1 class='fqn'><span class='in-band'>Crate <a class='mod' href=''>hound</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-0' class='srclink' href='../src/hound/lib.rs.html#13-422' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>Hound, a wav encoding and decoding library.</p>
+
+<h1 id='examples' class='section-header'><a href='#examples'>Examples</a></h1>
+<p>The following example renders a 440 Hz sine wave, and stores it as as a
+mono wav file with a sample rate of 44.1 kHz and 16 bits per sample.</p>
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>f32</span>::<span class='ident'>consts</span>::<span class='ident'>PI</span>;
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>i16</span>;
+<span class='kw'>use</span> <span class='ident'>hound</span>;
+
+<span class='kw'>let</span> <span class='ident'>spec</span> <span class='op'>=</span> <span class='ident'>hound</span>::<span class='ident'>WavSpec</span> {
+    <span class='ident'>channels</span>: <span class='number'>1</span>,
+    <span class='ident'>sample_rate</span>: <span class='number'>44100</span>,
+    <span class='ident'>bits_per_sample</span>: <span class='number'>16</span>
+};
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>writer</span> <span class='op'>=</span> <span class='ident'>hound</span>::<span class='ident'>WavWriter</span>::<span class='ident'>create</span>(<span class='string'>&quot;sine.wav&quot;</span>, <span class='ident'>spec</span>).<span class='ident'>unwrap</span>();
+<span class='kw'>for</span> <span class='ident'>t</span> <span class='kw'>in</span> (<span class='number'>0</span> .. <span class='number'>44100</span>).<span class='ident'>map</span>(<span class='op'>|</span><span class='ident'>x</span><span class='op'>|</span> <span class='ident'>x</span> <span class='kw'>as</span> <span class='ident'>f32</span> <span class='op'>/</span> <span class='number'>44100.0</span>) {
+    <span class='kw'>let</span> <span class='ident'>sample</span> <span class='op'>=</span> (<span class='ident'>t</span> <span class='op'>*</span> <span class='number'>440.0</span> <span class='op'>*</span> <span class='number'>2.0</span> <span class='op'>*</span> <span class='ident'>PI</span>).<span class='ident'>sin</span>();
+    <span class='kw'>let</span> <span class='ident'>amplitude</span> <span class='op'>=</span> <span class='ident'>i16</span>::<span class='ident'>MAX</span> <span class='kw'>as</span> <span class='ident'>f32</span>;
+    <span class='ident'>writer</span>.<span class='ident'>write_sample</span>((<span class='ident'>sample</span> <span class='op'>*</span> <span class='ident'>amplitude</span>) <span class='kw'>as</span> <span class='ident'>i16</span>).<span class='ident'>unwrap</span>();
+}
+<span class='ident'>writer</span>.<span class='ident'>finalize</span>().<span class='ident'>unwrap</span>();</pre>
+
+<p>The following example computes the root mean square (RMS) of an audio file
+with at most 16 bits per sample.</p>
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>hound</span>;
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>reader</span> <span class='op'>=</span> <span class='ident'>hound</span>::<span class='ident'>WavReader</span>::<span class='ident'>open</span>(<span class='string'>&quot;testsamples/pop.wav&quot;</span>).<span class='ident'>unwrap</span>();
+<span class='kw'>let</span> <span class='ident'>sqr_sum</span> <span class='op'>=</span> <span class='ident'>reader</span>.<span class='ident'>samples</span>::<span class='op'>&lt;</span><span class='ident'>i16</span><span class='op'>&gt;</span>()
+                    .<span class='ident'>fold</span>(<span class='number'>0.0</span>, <span class='op'>|</span><span class='ident'>sqr_sum</span>, <span class='ident'>s</span><span class='op'>|</span> {
+    <span class='kw'>let</span> <span class='ident'>sample</span> <span class='op'>=</span> <span class='ident'>s</span>.<span class='ident'>unwrap</span>() <span class='kw'>as</span> <span class='ident'>f64</span>;
+    <span class='ident'>sqr_sum</span> <span class='op'>+</span> <span class='ident'>sample</span> <span class='op'>*</span> <span class='ident'>sample</span>
+});
+<span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;RMS is {}&quot;</span>, (<span class='ident'>sqr_sum</span> <span class='op'>/</span> <span class='ident'>reader</span>.<span class='ident'>len</span>() <span class='kw'>as</span> <span class='ident'>f64</span>).<span class='ident'>sqrt</span>());</pre>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.WavIntoSamples.html'
+                               title='hound::WavIntoSamples'>WavIntoSamples</a></td>
+                        <td class='docblock short'>
+                             <p>An iterator that yields samples of type <code>S</code> read from a <code>WavReader</code>.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.WavReader.html'
+                               title='hound::WavReader'>WavReader</a></td>
+                        <td class='docblock short'>
+                             <p>A reader that reads the WAVE format from the underlying reader.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.WavSamples.html'
+                               title='hound::WavSamples'>WavSamples</a></td>
+                        <td class='docblock short'>
+                             <p>An iterator that yields samples of type <code>S</code> read from a <code>WavReader</code>.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.WavSpec.html'
+                               title='hound::WavSpec'>WavSpec</a></td>
+                        <td class='docblock short'>
+                             <p>Specifies properties of the audio data.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.WavWriter.html'
+                               title='hound::WavWriter'>WavWriter</a></td>
+                        <td class='docblock short'>
+                             <p>A writer that accepts samples and writes the WAVE format.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.Error.html'
+                               title='hound::Error'>Error</a></td>
+                        <td class='docblock short'>
+                             <p>The error type for operations on <code>WavReader</code> and <code>WavWriter</code>.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='trait' href='trait.Sample.html'
+                               title='hound::Sample'>Sample</a></td>
+                        <td class='docblock short'>
+                             <p>A type that can be used to represent audio samples.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='type' href='type.Result.html'
+                               title='hound::Result'>Result</a></td>
+                        <td class='docblock short'>
+                             <p>A type for results generated by Hound where the error type is hard-wired.</p>
+
+                        </td>
+                    </tr>
+                </table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "hound";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

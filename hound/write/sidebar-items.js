@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["WavWriter","A writer that accepts samples and writes the WAVE format."]],"trait":[["WriteExt","Extends the functionality of `io::Write` with additional methods."]]});

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `cpal` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, cpal">
+
+    <title>cpal - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'></p><script>window.sidebarCurrent = {name: 'cpal', ty: 'mod', relpath: '../'};</script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content mod">
+<h1 class='fqn'><span class='in-band'>Crate <a class='mod' href=''>cpal</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-0' class='srclink' href='../src/cpal/lib.rs.html#1-431' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'>
+<h1 id='how-to-use-cpal' class='section-header'><a href='#how-to-use-cpal'>How to use cpal</a></h1>
+<p>In order to play a sound, first you need to create a <code>Voice</code>.</p>
+<pre class='rust rust-example-rendered'>
+<span class='comment'>// getting the default sound output of the system (can return `None` if nothing is supported)</span>
+<span class='kw'>let</span> <span class='ident'>endpoint</span> <span class='op'>=</span> <span class='ident'>cpal</span>::<span class='ident'>get_default_endpoint</span>().<span class='ident'>unwrap</span>();
+
+<span class='comment'>// note that the user can at any moment disconnect the device, therefore all operations return</span>
+<span class='comment'>// a `Result` to handle this situation</span>
+
+<span class='comment'>// getting a format for the PCM</span>
+<span class='kw'>let</span> <span class='ident'>format</span> <span class='op'>=</span> <span class='ident'>endpoint</span>.<span class='ident'>get_supported_formats_list</span>().<span class='ident'>unwrap</span>().<span class='ident'>next</span>().<span class='ident'>unwrap</span>();
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>voice</span> <span class='op'>=</span> <span class='ident'>cpal</span>::<span class='ident'>Voice</span>::<span class='ident'>new</span>(<span class='kw-2'>&amp;</span><span class='ident'>endpoint</span>, <span class='kw-2'>&amp;</span><span class='ident'>format</span>).<span class='ident'>unwrap</span>();</pre>
+
+<p>Then you must send raw samples to it by calling <code>append_data</code>. You must take the number of channels
+and samples rate into account when writing the data.</p>
+
+<p>TODO: add example</p>
+
+<p><strong>Important</strong>: the <code>append_data</code> function can return a buffer shorter than what you requested.
+This is the case if the device doesn&#39;t have enough space available. <strong>It happens very often</strong>,
+this is not some obscure situation that can be ignored.</p>
+
+<p>After you have submitted data for the first time, call <code>play</code>:</p>
+<pre class='rust rust-example-rendered'>
+<span class='ident'>voice</span>.<span class='ident'>play</span>();</pre>
+
+<p>The audio device of the user will read the buffer that you sent, and play it. If the audio device
+reaches the end of the data, it will stop playing. You must continuously fill the buffer by
+calling <code>append_data</code> repeatedly if you don&#39;t want the audio to stop playing.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.Buffer.html'
+                               title='cpal::Buffer'>Buffer</a></td>
+                        <td class='docblock short'>
+                             <p>Represents a buffer that must be filled with audio data.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.Endpoint.html'
+                               title='cpal::Endpoint'>Endpoint</a></td>
+                        <td class='docblock short'>
+                             <p>An opaque type that identifies an end point.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.EndpointsIterator.html'
+                               title='cpal::EndpointsIterator'>EndpointsIterator</a></td>
+                        <td class='docblock short'>
+                             <p>An iterator for the list of formats that are supported by the backend.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.Format.html'
+                               title='cpal::Format'>Format</a></td>
+                        <td class='docblock short'>
+                             <p>Describes a format.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.SamplesRate.html'
+                               title='cpal::SamplesRate'>SamplesRate</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.SupportedFormatsIterator.html'
+                               title='cpal::SupportedFormatsIterator'>SupportedFormatsIterator</a></td>
+                        <td class='docblock short'>
+                             <p>An iterator that produces a list of formats supported by the endpoint.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.Voice.html'
+                               title='cpal::Voice'>Voice</a></td>
+                        <td class='docblock short'>
+                             <p>Controls a sound output. A typical application has one <code>Voice</code> for each sound
+it wants to output.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.ChannelPosition.html'
+                               title='cpal::ChannelPosition'>ChannelPosition</a></td>
+                        <td class='docblock short'>
+                             <p>Possible position of a channel.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.CreationError.html'
+                               title='cpal::CreationError'>CreationError</a></td>
+                        <td class='docblock short'>
+                             <p>Error that can happen when creating a <code>Voice</code>.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.FormatsEnumerationError.html'
+                               title='cpal::FormatsEnumerationError'>FormatsEnumerationError</a></td>
+                        <td class='docblock short'>
+                             <p>Error that can happen when enumerating the list of supported formats.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.SampleFormat.html'
+                               title='cpal::SampleFormat'>SampleFormat</a></td>
+                        <td class='docblock short'>
+                             <p>Format that each sample has.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.UnknownTypeBuffer.html'
+                               title='cpal::UnknownTypeBuffer'>UnknownTypeBuffer</a></td>
+                        <td class='docblock short'>
+                             <p>This is the struct that is provided to you by cpal when you want to write samples to a buffer.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='trait' href='trait.Sample.html'
+                               title='cpal::Sample'>Sample</a></td>
+                        <td class='docblock short'>
+                             <p>Trait for containers that contain PCM data.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.get_default_endpoint.html'
+                               title='cpal::get_default_endpoint'>get_default_endpoint</a></td>
+                        <td class='docblock short'>
+                             <p>Return the default endpoint, or <code>None</code> if no device is available.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.get_endpoints_list.html'
+                               title='cpal::get_endpoints_list'>get_endpoints_list</a></td>
+                        <td class='docblock short'>
+                             <p>Return an iterator to the list of formats that are supported by the system.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='type' href='type.ChannelsCount.html'
+                               title='cpal::ChannelsCount'>ChannelsCount</a></td>
+                        <td class='docblock short'>
+                             <p>Number of channels.</p>
+
+                        </td>
+                    </tr>
+                </table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "cpal";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["VorbisError","Errors that can happen while decoding"]],"struct":[["Decoder","Allows you to decode a sound file stream into packets."],["Packet","Packet of data."],["PacketsIntoIter",""],["PacketsIter",""]]});

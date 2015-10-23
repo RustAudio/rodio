@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `vorbis_sys` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, vorbis_sys">
+
+    <title>vorbis_sys - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'></p><script>window.sidebarCurrent = {name: 'vorbis_sys', ty: 'mod', relpath: '../'};</script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content mod">
+<h1 class='fqn'><span class='in-band'>Crate <a class='mod' href=''>vorbis_sys</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-0' class='srclink' href='../src/vorbis_sys/lib.rs.html#1-165' title='goto source code'>[src]</a></span></h1>
+<h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.alloc_chain.html'
+                               title='vorbis_sys::alloc_chain'>alloc_chain</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.vorbis_block.html'
+                               title='vorbis_sys::vorbis_block'>vorbis_block</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.vorbis_comment.html'
+                               title='vorbis_sys::vorbis_comment'>vorbis_comment</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.vorbis_dsp_state.html'
+                               title='vorbis_sys::vorbis_dsp_state'>vorbis_dsp_state</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.vorbis_info.html'
+                               title='vorbis_sys::vorbis_info'>vorbis_info</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                </table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EBADHEADER.html'
+                               title='vorbis_sys::OV_EBADHEADER'>OV_EBADHEADER</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EBADLINK.html'
+                               title='vorbis_sys::OV_EBADLINK'>OV_EBADLINK</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EBADPACKET.html'
+                               title='vorbis_sys::OV_EBADPACKET'>OV_EBADPACKET</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EFAULT.html'
+                               title='vorbis_sys::OV_EFAULT'>OV_EFAULT</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EIMPL.html'
+                               title='vorbis_sys::OV_EIMPL'>OV_EIMPL</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EINVAL.html'
+                               title='vorbis_sys::OV_EINVAL'>OV_EINVAL</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_ENOSEEK.html'
+                               title='vorbis_sys::OV_ENOSEEK'>OV_ENOSEEK</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_ENOTAUDIO.html'
+                               title='vorbis_sys::OV_ENOTAUDIO'>OV_ENOTAUDIO</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_ENOTVORBIS.html'
+                               title='vorbis_sys::OV_ENOTVORBIS'>OV_ENOTVORBIS</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EOF.html'
+                               title='vorbis_sys::OV_EOF'>OV_EOF</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EREAD.html'
+                               title='vorbis_sys::OV_EREAD'>OV_EREAD</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_EVERSION.html'
+                               title='vorbis_sys::OV_EVERSION'>OV_EVERSION</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_FALSE.html'
+                               title='vorbis_sys::OV_FALSE'>OV_FALSE</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OV_HOLE.html'
+                               title='vorbis_sys::OV_HOLE'>OV_HOLE</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                </table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_analysis.html'
+                               title='vorbis_sys::vorbis_analysis'>vorbis_analysis</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_analysis_blockout.html'
+                               title='vorbis_sys::vorbis_analysis_blockout'>vorbis_analysis_blockout</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_analysis_buffer.html'
+                               title='vorbis_sys::vorbis_analysis_buffer'>vorbis_analysis_buffer</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_analysis_headerout.html'
+                               title='vorbis_sys::vorbis_analysis_headerout'>vorbis_analysis_headerout</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_analysis_init.html'
+                               title='vorbis_sys::vorbis_analysis_init'>vorbis_analysis_init</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_analysis_wrote.html'
+                               title='vorbis_sys::vorbis_analysis_wrote'>vorbis_analysis_wrote</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_bitrate_addblock.html'
+                               title='vorbis_sys::vorbis_bitrate_addblock'>vorbis_bitrate_addblock</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_bitrate_flushpacket.html'
+                               title='vorbis_sys::vorbis_bitrate_flushpacket'>vorbis_bitrate_flushpacket</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_block_clear.html'
+                               title='vorbis_sys::vorbis_block_clear'>vorbis_block_clear</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_block_init.html'
+                               title='vorbis_sys::vorbis_block_init'>vorbis_block_init</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_comment_add.html'
+                               title='vorbis_sys::vorbis_comment_add'>vorbis_comment_add</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_comment_add_tag.html'
+                               title='vorbis_sys::vorbis_comment_add_tag'>vorbis_comment_add_tag</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_comment_clear.html'
+                               title='vorbis_sys::vorbis_comment_clear'>vorbis_comment_clear</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_comment_init.html'
+                               title='vorbis_sys::vorbis_comment_init'>vorbis_comment_init</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_comment_query.html'
+                               title='vorbis_sys::vorbis_comment_query'>vorbis_comment_query</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_comment_query_count.html'
+                               title='vorbis_sys::vorbis_comment_query_count'>vorbis_comment_query_count</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_commentheader_out.html'
+                               title='vorbis_sys::vorbis_commentheader_out'>vorbis_commentheader_out</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_dsp_clear.html'
+                               title='vorbis_sys::vorbis_dsp_clear'>vorbis_dsp_clear</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_granule_time.html'
+                               title='vorbis_sys::vorbis_granule_time'>vorbis_granule_time</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_info_blocksize.html'
+                               title='vorbis_sys::vorbis_info_blocksize'>vorbis_info_blocksize</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_info_clear.html'
+                               title='vorbis_sys::vorbis_info_clear'>vorbis_info_clear</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_info_init.html'
+                               title='vorbis_sys::vorbis_info_init'>vorbis_info_init</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_packet_blocksize.html'
+                               title='vorbis_sys::vorbis_packet_blocksize'>vorbis_packet_blocksize</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis.html'
+                               title='vorbis_sys::vorbis_synthesis'>vorbis_synthesis</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_blockin.html'
+                               title='vorbis_sys::vorbis_synthesis_blockin'>vorbis_synthesis_blockin</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_halfrate.html'
+                               title='vorbis_sys::vorbis_synthesis_halfrate'>vorbis_synthesis_halfrate</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_halfrate_p.html'
+                               title='vorbis_sys::vorbis_synthesis_halfrate_p'>vorbis_synthesis_halfrate_p</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_headerin.html'
+                               title='vorbis_sys::vorbis_synthesis_headerin'>vorbis_synthesis_headerin</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_idheader.html'
+                               title='vorbis_sys::vorbis_synthesis_idheader'>vorbis_synthesis_idheader</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_init.html'
+                               title='vorbis_sys::vorbis_synthesis_init'>vorbis_synthesis_init</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_lapout.html'
+                               title='vorbis_sys::vorbis_synthesis_lapout'>vorbis_synthesis_lapout</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_pcmout.html'
+                               title='vorbis_sys::vorbis_synthesis_pcmout'>vorbis_synthesis_pcmout</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_read.html'
+                               title='vorbis_sys::vorbis_synthesis_read'>vorbis_synthesis_read</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_restart.html'
+                               title='vorbis_sys::vorbis_synthesis_restart'>vorbis_synthesis_restart</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_synthesis_trackonly.html'
+                               title='vorbis_sys::vorbis_synthesis_trackonly'>vorbis_synthesis_trackonly</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.vorbis_version_string.html'
+                               title='vorbis_sys::vorbis_version_string'>vorbis_version_string</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                </table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "vorbis_sys";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

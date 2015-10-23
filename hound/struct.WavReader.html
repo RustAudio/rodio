@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `WavReader` struct in crate `hound`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, WavReader">
+
+    <title>hound::WavReader - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>hound</a></p><script>window.sidebarCurrent = {name: 'WavReader', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>hound</a>::<wbr><a class='struct' href=''>WavReader</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-108' class='srclink' href='../src/hound/read.rs.html#171-190' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct WavReader&lt;R&gt; {
+    // some fields omitted
+}</pre><div class='docblock'><p>A reader that reads the WAVE format from the underlying reader.</p>
+
+<p>A <code>WavReader</code> is a streaming reader. It reads data from the underlying
+reader on demand, and it reads no more than strictly necessary. No internal
+buffering is performed on the underlying reader, but this can easily be
+added by wrapping the reader in an <code>io::BufReader</code>. The <code>open</code> constructor
+takes care of this for you.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl&lt;R&gt; <a class='struct' href='../hound/struct.WavReader.html' title='hound::WavReader'>WavReader</a>&lt;R&gt; <span class='where'>where R: <a class='trait' href='https://doc.rust-lang.org/nightly/std/io/trait.Read.html' title='std::io::Read'>Read</a></span></code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(reader: R) -&gt; <a class='type' href='../hound/type.Result.html' title='hound::Result'>Result</a>&lt;<a class='struct' href='../hound/struct.WavReader.html' title='hound::WavReader'>WavReader</a>&lt;R&gt;&gt;</code></h4>
+<div class='docblock'><p>Attempts to create a reader that reads the WAVE format.</p>
+
+<p>The header is read immediately. Reading the data will be done on
+demand.</p>
+</div><h4 id='method.spec' class='method'><code>fn <a href='#method.spec' class='fnname'>spec</a>(&amp;self) -&gt; <a class='struct' href='../hound/struct.WavSpec.html' title='hound::WavSpec'>WavSpec</a></code></h4>
+<div class='docblock'><p>Returns information about the WAVE file.</p>
+</div><h4 id='method.samples' class='method'><code>fn <a href='#method.samples' class='fnname'>samples</a>&lt;'wr, S: <a class='trait' href='../hound/trait.Sample.html' title='hound::Sample'>Sample</a>&gt;(&amp;'wr mut self) -&gt; <a class='struct' href='../hound/struct.WavSamples.html' title='hound::WavSamples'>WavSamples</a>&lt;'wr, R, S&gt;</code></h4>
+<div class='docblock'><p>Returns an iterator over all samples.</p>
+
+<p>The channel data is is interleaved. The iterator is streaming. That is,
+if you call this method once, read a few samples, and call this method
+again, the second iterator will not start again from the beginning of
+the file, it will continue where the first iterator stopped.</p>
+
+<p>The type <code>S</code> must have at least <code>spec().bits_per_sample</code> bits,
+otherwise every iteration will return an error. All bit depths up to
+32 bits per sample can be decoded into an <code>i32</code>, but if you know
+beforehand that you will be reading a file with 16 bits per sample, you
+can save memory by decoding into an <code>i16</code>.</p>
+</div><h4 id='method.into_samples' class='method'><code>fn <a href='#method.into_samples' class='fnname'>into_samples</a>&lt;S: <a class='trait' href='../hound/trait.Sample.html' title='hound::Sample'>Sample</a>&gt;(self) -&gt; <a class='struct' href='../hound/struct.WavIntoSamples.html' title='hound::WavIntoSamples'>WavIntoSamples</a>&lt;R, S&gt;</code></h4>
+<div class='docblock'><p>Same as <code>samples</code>, but takes ownership of the <code>WavReader</code>.</p>
+
+<p>See <code>samples()</code> for more info.</p>
+</div><h4 id='method.duration' class='method'><code>fn <a href='#method.duration' class='fnname'>duration</a>(&amp;self) -&gt; <a href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a></code></h4>
+<div class='docblock'><p>Returns the duration of the file in samples.</p>
+
+<p>The duration is independent of the number of channels. It is expressed
+in units of samples. The duration in seconds can be obtained by
+dividing this number by the sample rate. The duration is independent of
+how many samples have been read already.</p>
+</div><h4 id='method.len' class='method'><code>fn <a href='#method.len' class='fnname'>len</a>(&amp;self) -&gt; <a href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a></code></h4>
+<div class='docblock'><p>Returns the number of values that the sample iterator will yield.</p>
+
+<p>The length of the file is its duration (in samples) times the number of
+channels. The length is independent of how many samples have been read
+already. To get the number of samples left, use <code>len()</code> on the
+<code>samples()</code> iterator.</p>
+</div><h4 id='method.into_inner' class='method'><code>fn <a href='#method.into_inner' class='fnname'>into_inner</a>(self) -&gt; R</code></h4>
+<div class='docblock'><p>Destroys the <code>WavReader</code> and returns the underlying reader.</p>
+</div></div><h3 class='impl'><code>impl <a class='struct' href='../hound/struct.WavReader.html' title='hound::WavReader'>WavReader</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/io/buffered/struct.BufReader.html' title='std::io::buffered::BufReader'>BufReader</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/fs/struct.File.html' title='std::fs::File'>File</a>&gt;&gt;</code></h3><div class='impl-items'><h4 id='method.open' class='method'><code>fn <a href='#method.open' class='fnname'>open</a>&lt;P: <a class='trait' href='https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html' title='core::convert::AsRef'>AsRef</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/path/struct.Path.html' title='std::path::Path'>Path</a>&gt;&gt;(filename: P) -&gt; <a class='type' href='../hound/type.Result.html' title='hound::Result'>Result</a>&lt;<a class='struct' href='../hound/struct.WavReader.html' title='hound::WavReader'>WavReader</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/io/buffered/struct.BufReader.html' title='std::io::buffered::BufReader'>BufReader</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/fs/struct.File.html' title='std::fs::File'>File</a>&gt;&gt;&gt;</code></h4>
+<div class='docblock'><p>Attempts to create a reader that reads from the specified file.</p>
+
+<p>This is a convenience constructor that opens a <code>File</code>, wraps it in a
+<code>BufReader</code> and then constructs a <code>WavReader</code> from it.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "hound";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Sample` trait in crate `rodio`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Sample">
+
+    <title>rodio::Sample - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>rodio</a></p><script>window.sidebarCurrent = {name: 'Sample', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content trait">
+<h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>rodio</a>::<wbr><a class='trait' href=''>Sample</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-124' class='srclink' href='../src/rodio/conversions/sample.rs.html#47-68' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait Sample: <a class='trait' href='../cpal/samples_formats/trait.Sample.html' title='cpal::samples_formats::Sample'>Sample</a> {
+    fn <a href='#tymethod.lerp' class='fnname'>lerp</a>(first: Self, second: Self, numerator: <a href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>, denominator: <a href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>) -&gt; Self;
+    fn <a href='#tymethod.amplify' class='fnname'>amplify</a>(self, value: <a href='https://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a>) -&gt; Self;
+    fn <a href='#tymethod.zero_value' class='fnname'>zero_value</a>() -&gt; Self;
+    fn <a href='#tymethod.to_i16' class='fnname'>to_i16</a>(&amp;self) -&gt; <a href='https://doc.rust-lang.org/nightly/std/primitive.i16.html'>i16</a>;
+    fn <a href='#tymethod.to_u16' class='fnname'>to_u16</a>(&amp;self) -&gt; <a href='https://doc.rust-lang.org/nightly/std/primitive.u16.html'>u16</a>;
+    fn <a href='#tymethod.to_f32' class='fnname'>to_f32</a>(&amp;self) -&gt; <a href='https://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a>;
+    fn <a href='#tymethod.from' class='fnname'>from</a>&lt;S&gt;(&amp;S) -&gt; Self <span class='where'>where S: <a class='trait' href='../rodio/trait.Sample.html' title='rodio::Sample'>Sample</a></span>;
+}</pre><div class='docblock'><p>Represents a value of a single sample.</p>
+</div>
+            <h2 id='required-methods'>Required Methods</h2>
+            <div class='methods'>
+        <h3 id='tymethod.lerp' class='method stab '><code>fn <a href='#tymethod.lerp' class='fnname'>lerp</a>(first: Self, second: Self, numerator: <a href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>, denominator: <a href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>) -&gt; Self</code></h3><div class='docblock'><p>Linear interpolation between two samples.</p>
+
+<p>The result should be equal to 
+<code>first * numerator / denominator + second * (1 - numerator / denominator)</code>.</p>
+</div><h3 id='tymethod.amplify' class='method stab '><code>fn <a href='#tymethod.amplify' class='fnname'>amplify</a>(self, value: <a href='https://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a>) -&gt; Self</code></h3><div class='docblock'><p>Multiplies the value of this sample by the given amount.</p>
+</div><h3 id='tymethod.zero_value' class='method stab '><code>fn <a href='#tymethod.zero_value' class='fnname'>zero_value</a>() -&gt; Self</code></h3><div class='docblock'><p>Returns the value corresponding to the absence of sound.</p>
+</div><h3 id='tymethod.to_i16' class='method stab '><code>fn <a href='#tymethod.to_i16' class='fnname'>to_i16</a>(&amp;self) -&gt; <a href='https://doc.rust-lang.org/nightly/std/primitive.i16.html'>i16</a></code></h3><div class='docblock'><p>Converts this sample into a standard i16 sample.</p>
+</div><h3 id='tymethod.to_u16' class='method stab '><code>fn <a href='#tymethod.to_u16' class='fnname'>to_u16</a>(&amp;self) -&gt; <a href='https://doc.rust-lang.org/nightly/std/primitive.u16.html'>u16</a></code></h3><div class='docblock'><p>Converts this sample into a standard u16 sample.</p>
+</div><h3 id='tymethod.to_f32' class='method stab '><code>fn <a href='#tymethod.to_f32' class='fnname'>to_f32</a>(&amp;self) -&gt; <a href='https://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a></code></h3><div class='docblock'><p>Converts this sample into a standard f32 sample.</p>
+</div><h3 id='tymethod.from' class='method stab '><code>fn <a href='#tymethod.from' class='fnname'>from</a>&lt;S&gt;(&amp;S) -&gt; Self <span class='where'>where S: <a class='trait' href='../rodio/trait.Sample.html' title='rodio::Sample'>Sample</a></span></code></h3><div class='docblock'><p>Converts any sample type to this one by calling <code>to_i16</code>, <code>to_u16</code> or <code>to_f32</code>.</p>
+</div></div>
+        <h2 id='implementors'>Implementors</h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><code>impl <a class='trait' href='../rodio/trait.Sample.html' title='rodio::Sample'>Sample</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.u16.html'>u16</a></code></li>
+<li><code>impl <a class='trait' href='../rodio/trait.Sample.html' title='rodio::Sample'>Sample</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.i16.html'>i16</a></code></li>
+<li><code>impl <a class='trait' href='../rodio/trait.Sample.html' title='rodio::Sample'>Sample</a> for <a href='https://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a></code></li>
+</ul><script type="text/javascript" async
+                              src="../implementors/rodio/trait.Sample.js">
+                      </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rodio";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["SineWave","An infinite source that produces a sine."]]});

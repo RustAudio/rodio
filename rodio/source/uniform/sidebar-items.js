@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["UniformSourceIterator","An iterator that reads from a `Source` and converts the samples to a specific rate and channels count."]]});

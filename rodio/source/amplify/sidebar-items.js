@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Amplify","Filter that modifies each sample by a given value."]]});

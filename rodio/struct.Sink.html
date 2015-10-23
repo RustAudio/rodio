@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Sink` struct in crate `rodio`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Sink">
+
+    <title>rodio::Sink - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>rodio</a></p><script>window.sidebarCurrent = {name: 'Sink', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>rodio</a>::<wbr><a class='struct' href=''>Sink</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-1320' class='srclink' href='../src/rodio/lib.rs.html#84-88' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Sink {
+    // some fields omitted
+}</pre><div class='docblock'><p>Handle to an endpoint that outputs sounds.</p>
+
+<p>Dropping the <code>Sink</code> stops all sounds. You can use <code>detach</code> if you want the sounds to continue
+playing.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl <a class='struct' href='../rodio/struct.Sink.html' title='rodio::Sink'>Sink</a></code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(endpoint: &amp;<a class='struct' href='../rodio/struct.Endpoint.html' title='rodio::Endpoint'>Endpoint</a>) -&gt; <a class='struct' href='../rodio/struct.Sink.html' title='rodio::Sink'>Sink</a></code></h4>
+<div class='docblock'><p>Builds a new <code>Sink</code>.</p>
+</div><h4 id='method.append' class='method'><code>fn <a href='#method.append' class='fnname'>append</a>&lt;S&gt;(&amp;self, source: S) <span class='where'>where S: <a class='trait' href='../rodio/source/trait.Source.html' title='rodio::source::Source'>Source</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + 'static, S::Item: <a class='trait' href='../rodio/trait.Sample.html' title='rodio::Sample'>Sample</a>, S::Item: <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a></span></code></h4>
+<div class='docblock'><p>Appends a sound to the queue of sounds to play.</p>
+</div><h4 id='method.set_volume' class='method'><code>fn <a href='#method.set_volume' class='fnname'>set_volume</a>(&amp;mut self, value: <a href='https://doc.rust-lang.org/nightly/std/primitive.f32.html'>f32</a>)</code></h4>
+<div class='docblock'><p>Changes the volume of the sound.</p>
+
+<p>The value <code>1.0</code> is the &quot;normal&quot; volume (unfiltered input). Any value other than 1.0 will
+multiply each sample by this value.</p>
+</div><h4 id='method.detach' class='method'><code>fn <a href='#method.detach' class='fnname'>detach</a>(self)</code></h4>
+<div class='docblock'><p>Destroys the sink without stopping the sounds that are still playing.</p>
+</div><h4 id='method.get_min_remaining_duration' class='method'><code>fn <a href='#method.get_min_remaining_duration' class='fnname'>get_min_remaining_duration</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/std/time/duration/struct.Duration.html' title='std::time::duration::Duration'>Duration</a></code></h4>
+<div class='docblock'><p>Returns the minimum duration before the end of the sounds submitted to this sink.</p>
+
+<p>Note that this is a minimum value, and the sound can last longer.</p>
+</div><h4 id='method.sleep_until_end' class='method'><code>fn <a href='#method.sleep_until_end' class='fnname'>sleep_until_end</a>(&amp;self)</code></h4>
+<div class='docblock'><p>Sleeps the current thread until the sound ends.</p>
+</div></div><h2 id='implementations'>Trait Implementations</h2><h3 class='impl'><code>impl <a class='trait' href='https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html' title='core::ops::Drop'>Drop</a> for <a class='struct' href='../rodio/struct.Sink.html' title='rodio::Sink'>Sink</a></code></h3><div class='impl-items'><h4 id='method.drop' class='method'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html#method.drop' class='fnname'>drop</a>(&amp;mut self)</code></h4>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rodio";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

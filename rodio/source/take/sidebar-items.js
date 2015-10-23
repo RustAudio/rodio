@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["TakeDuration","A source that repeats the given source."]]});

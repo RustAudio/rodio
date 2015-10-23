@@ -292,10 +292,9 @@ fn background(rx: Receiver<Command>) {
             // writing to the output
             if pending_samples < samples_required_in_buffer {
                 // building an iterator that produces samples from `sounds`
-                let num_sounds = sounds.len() as f32;
                 let samples_iter = (0..).map(|_| {
-                    sounds.iter_mut().map(|s| s.0.next().unwrap_or(0.0) * s.2 / num_sounds)
-                          .fold(0.0, |a, b| a + b)
+                    sounds.iter_mut().map(|s| s.0.next().unwrap_or(0.0) * s.2)
+                          .fold(0.0, |a, b| { let v = a + b; if v > 1.0 { 1.0 } else if v < -1.0 { -1.0 } else { v } })
                 });
 
                 let mut buffer = voice.append_data(samples_required_in_buffer - pending_samples);

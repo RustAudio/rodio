@@ -36,6 +36,7 @@ impl<I1, I2> Iterator for Mix<I1, I2> where I1: Source, I1::Item: Sample,
         let s1 = self.input1.next();
         let s2 = self.input2.next();
 
+        // FIXME: shouldn't lerp, this is wrong
         match (s1, s2) {
             (Some(s1), Some(s2)) => Some(Sample::lerp(s1, s2, 1, 2)),
             (Some(s1), None) => Some(Sample::lerp(s1, Sample::zero_value(), 1, 2)),

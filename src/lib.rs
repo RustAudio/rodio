@@ -49,6 +49,7 @@
 
 #![cfg_attr(test, deny(missing_docs))]
 #![cfg_attr(test, deny(warnings))]
+#![deny(unsafe_code)]
 
 extern crate cpal;
 extern crate hound;

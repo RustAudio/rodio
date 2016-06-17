@@ -1,6 +1,6 @@
 [package]
 name = "rodio"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
 license = "Apache-2.0"
 description = "Audio playback library"
@@ -13,4 +13,4 @@ cpal = "0.2.8"
 hound = "1.0.0"
 lazy_static = "0.1.12"
 time = "0.1.32"
-vorbis = "0.0.13"
+vorbis = "0.0.14"

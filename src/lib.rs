@@ -50,6 +50,7 @@
 #![cfg_attr(test, deny(missing_docs))]
 
 extern crate cpal;
+extern crate futures;
 extern crate hound;
 #[macro_use]
 extern crate lazy_static;
@@ -81,7 +82,7 @@ lazy_static! {
 /// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
 /// playing.
 pub struct Sink {
-    handle: engine::Handle<'static>,
+    handle: engine::Handle,
     // if true, then the sound will stop playing at the end
     stop: bool,
 }
@@ -119,19 +120,10 @@ impl Sink {
         self.stop = false;
     }
 
-    /// Returns the minimum duration before the end of the sounds submitted to this sink.
-    ///
-    /// Note that this is a minimum value, and the sound can last longer.
-    #[inline]
-    pub fn get_min_remaining_duration(&self) -> Duration {
-        self.handle.get_min_remaining_duration()
-    }
-
     /// Sleeps the current thread until the sound ends.
     #[inline]
     pub fn sleep_until_end(&self) {
-        // TODO: sleep repeatidely until the sound is finished (see the docs of `get_remaining_duration`)
-        thread::sleep(self.get_min_remaining_duration());
+        self.handle.sleep_until_end();
     }
 }
 

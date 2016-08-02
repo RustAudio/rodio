@@ -9,7 +9,8 @@ repository = "https://github.com/tomaka/rodio"
 documentation = "http://tomaka.github.io/rodio/rodio/index.html"
 
 [dependencies]
-cpal = "0.2.8"
+cpal = { git = "https://github.com/tomaka/cpal", branch = "futures" }
+futures = { git = "https://github.com/alexcrichton/futures-rs" }
 hound = "1.0.0"
 lazy_static = "0.1.12"
 time = "0.1.32"

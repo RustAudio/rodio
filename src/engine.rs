@@ -44,7 +44,7 @@ pub struct Engine {
 struct EndPointVoices {
     format: Format,
     next_id: AtomicUsize,
-    sounds: Mutex<HashMap<usize, QueueIterator>>,       // TODO: fnv hasher
+    pending_sounds: Mutex<Vec<(usize, QueueIterator)>>,
 }
 
 impl Engine {
@@ -69,6 +69,8 @@ impl Engine {
 
     /// Builds a new sink that targets a given endpoint.
     pub fn start(&self, endpoint: &Endpoint) -> Handle {
+        let mut future_to_forget = None;
+
         // Getting the `EndPointVoices` struct of the requested endpoint.
         let end_point = self.end_points.lock().unwrap().entry(endpoint.get_name()).or_insert_with(|| {
             // TODO: handle possible errors here
@@ -102,16 +104,28 @@ impl Engine {
             let end_point_voices = Arc::new(EndPointVoices {
                 format: format,
                 next_id: AtomicUsize::new(1),
-                sounds: Mutex::new(HashMap::with_capacity(8)),
+                pending_sounds: Mutex::new(Vec::with_capacity(8)),
             });
 
             let epv = end_point_voices.clone();
-            stream.for_each(move |mut buffer| -> Result<_, ()> {
-                let mut sounds = epv.sounds.lock().unwrap();
+
+            let mut sounds = Arc::new(Mutex::new(Vec::new()));
+            future_to_forget = Some(stream.for_each(move |mut buffer| -> Result<_, ()> {
+                let mut sounds = sounds.lock().unwrap();
+
+                {
+                    let mut pending = epv.pending_sounds.lock().unwrap();
+                    sounds.append(&mut pending);
+                }
+
+                if sounds.len() == 0 {
+                    return Ok(());
+                }
 
                 let samples_iter = (0..).map(|_| {
-                    sounds.values_mut().map(|s| s.next().unwrap_or(0.0) /* TODO: multiply by volume */)
-                          .fold(0.0, |a, b| { let v = a + b; if v > 1.0 { 1.0 } else if v < -1.0 { -1.0 } else { v } })
+                    let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0) /* TODO: multiply by volume */)
+                                  .fold(0.0, |a, b| a + b);
+                    if v < -1.0 { -1.0 } else if v > 1.0 { 1.0 } else { v }
                 });
 
                 match buffer {
@@ -127,9 +141,9 @@ impl Engine {
                 };
 
                 Ok(())
-            }).forget();
+            }));
 
-            voice.play();
+            voice.play();       // TODO: don't do this now
 
             end_point_voices
         }).clone();
@@ -146,7 +160,11 @@ impl Engine {
         };
 
         // Adding the new sound to the list of parallel sounds.
-        end_point.sounds.lock().unwrap().insert(handle_id, queue_iterator);
+        end_point.pending_sounds.lock().unwrap().push((handle_id, queue_iterator));
+
+        if let Some(future_to_forget) = future_to_forget {
+            future_to_forget.forget();
+        }
 
         // Returning the handle.
         Handle {

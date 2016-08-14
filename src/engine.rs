@@ -24,8 +24,6 @@ use conversions::Sample;
 use source::Source;
 use source::UniformSourceIterator;
 
-use time;
-
 /// Duration of a loop of the engine in milliseconds.
 const FIXED_STEP_MS: u32 = 17;
 /// Duration of a loop of the engine in nanoseconds.

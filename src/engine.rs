@@ -237,7 +237,7 @@ fn background(rx: Receiver<Command>) {
             let now = time::precise_time_ns();
             if next_loop_timer > now + 1000000 /* 1ms */ {
                 let sleep = next_loop_timer - now;
-                thread::park_timeout_ms((sleep / 1000000) as u32);
+                thread::park_timeout(Duration::from_millis(sleep / 1000000));
             }
             next_loop_timer += FIXED_STEP_NS;
         }
@@ -329,7 +329,7 @@ fn background(rx: Receiver<Command>) {
 }
 
 /// Main source of samples for a voice.
-struct QueueIterator {
+pub struct QueueIterator {
     /// The current iterator that produces samples.
     current: Box<Iterator<Item = f32> + Send>,
 

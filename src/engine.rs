@@ -11,6 +11,9 @@ use std::sync::Mutex;
 
 use futures::Future;
 use futures::stream::Stream;
+use futures::task;
+use futures::task::Executor;
+use futures::task::Run;
 
 use cpal;
 use cpal::Format;
@@ -67,7 +70,7 @@ impl Engine {
 
     /// Builds a new sink that targets a given endpoint.
     pub fn start(&self, endpoint: &Endpoint) -> Handle {
-        let mut future_to_forget = None;
+        let mut future_to_exec = None;
 
         // Getting the `EndPointVoices` struct of the requested endpoint.
         let end_point = self.end_points.lock().unwrap().entry(endpoint.get_name()).or_insert_with(|| {
@@ -108,7 +111,7 @@ impl Engine {
             let epv = end_point_voices.clone();
 
             let mut sounds = Arc::new(Mutex::new(Vec::new()));
-            future_to_forget = Some(stream.for_each(move |mut buffer| -> Result<_, ()> {
+            future_to_exec = Some(stream.for_each(move |mut buffer| -> Result<_, ()> {
                 let mut sounds = sounds.lock().unwrap();
 
                 {
@@ -160,8 +163,10 @@ impl Engine {
         // Adding the new sound to the list of parallel sounds.
         end_point.pending_sounds.lock().unwrap().push((handle_id, queue_iterator));
 
-        if let Some(future_to_forget) = future_to_forget {
-            future_to_forget.forget();
+        if let Some(future_to_exec) = future_to_exec {
+            struct MyExecutor;
+            impl Executor for MyExecutor { fn execute(&self, r: Run) { r.run(); } }
+            task::spawn(future_to_exec).execute(Arc::new(MyExecutor));
         }
 
         // Returning the handle.

@@ -4,34 +4,39 @@ use std::vec;
 
 use Source;
 
-use vorbis;
+use lewton::inside_ogg::OggStreamReader;
+use ogg;
 
 /// Decoder for an OGG file that contains Vorbis sound format.
 pub struct VorbisDecoder<R> where R: Read + Seek {
-    decoder: vorbis::Decoder<R>,
+    stream_reader: OggStreamReader<R>,
     current_data: vec::IntoIter<i16>,
-    current_samples_rate: u32,
-    current_channels: u16,
 }
 
 impl<R> VorbisDecoder<R> where R: Read + Seek {
     /// Attempts to decode the data as ogg/vorbis.
     pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
-        let mut decoder = match vorbis::Decoder::new(data) {
+        let packet_reader = ogg::PacketReader::new(data);
+        let mut stream_reader = match OggStreamReader::new(packet_reader) {
             Err(_) => return Err(()),
             Ok(r) => r
         };
 
-        let (data, rate, channels) = match decoder.packets().filter_map(Result::ok).next() {
-            Some(p) => (p.data, p.rate as u32, p.channels as u16),
-            None => (Vec::new(), 44100, 2),
+        let mut data = match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
+            Some(d) => d,
+            None => Vec::new(),
+        };
+
+        // The first packet is always empty, therefore
+        // we need to read the second frame to get some data
+        match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
+            Some(mut d) => data.append(&mut d),
+            None => (),
         };
 
         Ok(VorbisDecoder {
-            decoder: decoder,
+            stream_reader: stream_reader,
             current_data: data.into_iter(),
-            current_samples_rate: rate,
-            current_channels: channels,
         })
     }
 }
@@ -44,12 +49,12 @@ impl<R> Source for VorbisDecoder<R> where R: Read + Seek {
 
     #[inline]
     fn get_channels(&self) -> u16 {
-        self.current_channels
+        self.stream_reader.ident_hdr.audio_channels as u16
     }
 
     #[inline]
     fn get_samples_rate(&self) -> u32 {
-        self.current_samples_rate
+        self.stream_reader.ident_hdr.audio_sample_rate
     }
 
     #[inline]
@@ -63,28 +68,18 @@ impl<R> Iterator for VorbisDecoder<R> where R: Read + Seek {
 
     #[inline]
     fn next(&mut self) -> Option<i16> {
-        // TODO: do better
         if let Some(sample) = self.current_data.next() {
             if self.current_data.len() == 0 {
-                if let Some(packet) = self.decoder.packets().filter_map(Result::ok).next() {
-                    self.current_data = packet.data.into_iter();
-                    self.current_samples_rate = packet.rate as u32;
-                    self.current_channels = packet.channels;
+                if let Some(data) = self.stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
+                    self.current_data = data.into_iter();
                 }
             }
-
             return Some(sample);
-        }
-
-        if let Some(packet) = self.decoder.packets().filter_map(Result::ok).next() {
-            self.current_data = packet.data.into_iter();
-            self.current_samples_rate = packet.rate as u32;
-            self.current_channels = packet.channels;
-            Some(self.current_data.next().unwrap())
-
         } else {
-            println!("test");
-            None
+            if let Some(data) = self.stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
+                self.current_data = data.into_iter();
+            }
+            return self.current_data.next();
         }
     }
 

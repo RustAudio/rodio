@@ -1,15 +1,11 @@
-use std::cmp;
-use std::mem;
 use std::collections::HashMap;
-use std::thread::{self, Builder, Thread};
-use std::time::Duration;
+use std::thread::Builder;
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use futures::Future;
 use futures::stream::Stream;
 use futures::task;
 use futures::task::Executor;
@@ -20,17 +16,11 @@ use cpal::Format;
 use cpal::UnknownTypeBuffer;
 use cpal::EventLoop;
 use cpal::Voice;
-use cpal::SamplesStream;
 use cpal::Endpoint;
 use conversions::Sample;
 
 use source::Source;
 use source::UniformSourceIterator;
-
-/// Duration of a loop of the engine in milliseconds.
-const FIXED_STEP_MS: u32 = 17;
-/// Duration of a loop of the engine in nanoseconds.
-const FIXED_STEP_NS: u64 = FIXED_STEP_MS as u64 * 1000000;
 
 /// The internal engine of this library.
 ///
@@ -53,14 +43,15 @@ impl Engine {
     pub fn new() -> Engine {
         let events_loop = Arc::new(EventLoop::new());
 
-        // we ignore errors when creating the background thread
-        // the user won't get any audio, but that's better than a panic
-        let thread = {
-            let events_loop = events_loop.clone();
-            Builder::new().name("rodio audio processing".to_string())
-                          .spawn(move || events_loop.run())
-                          .ok().map(|jg| jg.thread().clone())
-        };
+        // We ignore errors when creating the background thread.
+        // The user won't get any audio, but that's better than a panic.
+        Builder::new()
+            .name("rodio audio processing".to_string())
+            .spawn({
+                let events_loop = events_loop.clone();
+                move || events_loop.run()
+            })
+            .ok().map(|jg| jg.thread().clone());
 
         Engine {
             events_loop: events_loop,
@@ -110,7 +101,7 @@ impl Engine {
 
             let epv = end_point_voices.clone();
 
-            let mut sounds = Arc::new(Mutex::new(Vec::new()));
+            let sounds = Arc::new(Mutex::new(Vec::new()));
             future_to_exec = Some(stream.for_each(move |mut buffer| -> Result<_, ()> {
                 let mut sounds = sounds.lock().unwrap();
 
@@ -217,7 +208,7 @@ impl Handle {
 
     /// Changes the volume of the sound played by this sink.
     #[inline]
-    pub fn set_volume(&self, value: f32) {
+    pub fn set_volume(&self, _value: f32) {
         // FIXME:
     }
 

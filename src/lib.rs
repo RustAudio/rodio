@@ -64,8 +64,6 @@ pub use decoder::Decoder;
 pub use source::Source;
 
 use std::io::{Read, Seek};
-use std::time::Duration;
-use std::thread;
 
 mod conversions;
 mod engine;

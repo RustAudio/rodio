@@ -1,6 +1,8 @@
 extern crate rodio;
 
 use std::io::BufReader;
+use std::thread;
+use std::time::Duration;
 
 fn main() {
     let endpoint = rodio::get_default_endpoint().unwrap();
@@ -9,5 +11,5 @@ fn main() {
     let file = std::fs::File::open("examples/music.ogg").unwrap();
     sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
 
-    std::thread::sleep_ms(60000);
+    thread::sleep(Duration::from_millis(60000));
 }

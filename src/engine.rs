@@ -104,7 +104,6 @@ impl Engine {
             let sounds = Arc::new(Mutex::new(Vec::new()));
             future_to_exec = Some(stream.for_each(move |mut buffer| -> Result<_, ()> {
                 let mut sounds = sounds.lock().unwrap();
-
                 {
                     let mut pending = epv.pending_sounds.lock().unwrap();
                     sounds.append(&mut pending);
@@ -113,11 +112,10 @@ impl Engine {
                 if sounds.len() == 0 {
                     return Ok(());
                 }
-
+                let volume = Arc::new(Mutex::new(1.0));
                 let samples_iter = (0..).map(|_| {
-                    let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0) /* TODO: multiply by volume */)
-                                  .fold(0.0, |a, b| a + b);
-                    if v < -1.0 { -1.0 } else if v > 1.0 { 1.0 } else { v }
+                    sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0))
+                                  .fold(0.0, |a, b| a + b).min(1.0).max(-1.0)
                 });
 
                 match buffer {
@@ -166,6 +164,7 @@ impl Engine {
             samples_rate: end_point.format.samples_rate.0,
             channels: end_point.format.channels.len() as u16,
             next_sounds: next_sounds,
+            volume: volume,
             end: Mutex::new(None),
         }
     }
@@ -173,7 +172,7 @@ impl Engine {
 
 /// A sink.
 ///
-/// Note that dropping the handle doesn't delete the sink. You must call `stop` explicitely.
+/// Note that dropping the handle doesn't delete the sink. You must call `stop` explicitly.
 pub struct Handle {
     handle_id: usize,
 
@@ -183,6 +182,9 @@ pub struct Handle {
     // Holds a pointer to the list of iterators to be played after the current one has
     // finished playing.
     next_sounds: Arc<Mutex<Vec<(Box<Iterator<Item = f32> + Send>, Option<Sender<()>>)>>>,
+
+    //The volume that this handle plays its sound at.
+    volume: Arc<Mutex<f32>>,
 
     // Receiver that is triggered when the last sound ends.
     end: Mutex<Option<Receiver<()>>>,
@@ -208,8 +210,14 @@ impl Handle {
 
     /// Changes the volume of the sound played by this sink.
     #[inline]
+    pub fn get_volume(&self) -> f32 {
+        *self.volume.lock().unwrap()
+    }
+
+    /// Changes the volume of the sound played by this sink.
+    #[inline]
     pub fn set_volume(&self, _value: f32) {
-        // FIXME:
+        *self.volume.lock().unwrap() = _value.min(1.0).max(-1.0);
     }
 
     /// Stops the sound.

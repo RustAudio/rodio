@@ -10,10 +10,10 @@
 //!
 //! ```no_run
 //! use std::io::BufReader;
-//! 
+//!
 //! let endpoint = rodio::get_default_endpoint().unwrap();
 //! let sink = rodio::Sink::new(&endpoint);
-//! 
+//!
 //! let file = std::fs::File::open("music.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
 //! sink.append(source);
@@ -26,23 +26,23 @@
 //! If you want to play multiple sounds simultaneously, you should create multiple sinks.
 //!
 //! # How it works
-//! 
+//!
 //! Rodio spawns a background thread that is dedicated to reading from the sources and sending
 //! the output to the endpoint.
-//! 
+//!
 //! All the sounds are mixed together by rodio before being sent. Since this is handled by the
 //! software, there is no restriction for the number of sinks that can be created.
-//! 
+//!
 //! # Adding effects
-//! 
+//!
 //! The `Source` trait provides various filters, similarly to the standard `Iterator` trait.
-//! 
+//!
 //! Example:
-//! 
+//!
 //! ```ignore
 //! use rodio::Source;
 //! use std::time::Duration;
-//! 
+//!
 //! // repeats the first five seconds of this sound forever
 //! let source = source.take_duration(Duration::from_secs(5)).repeat_infinite();
 //! ```
@@ -103,6 +103,15 @@ impl Sink {
         self.handle.append(source);
     }
 
+    /// Gets the volume of the sound.
+    ///
+    /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
+    /// multiply each sample by this value.
+    #[inline]
+    pub fn get_volume(&self) -> f32 {
+        self.handle.get_volume()
+    }
+
     /// Changes the volume of the sound.
     ///
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
@@ -139,7 +148,7 @@ impl Drop for Sink {
 pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Result<Sink, decoder::DecoderError>
                     where R: Read + Seek + Send + 'static
 {
-    let input = try!(decoder::Decoder::new(input));
+    let input = decoder::Decoder::new(input)?;
     let sink = Sink::new(endpoint);
     sink.append(input);
     Ok(sink)

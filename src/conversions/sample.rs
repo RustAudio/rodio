@@ -25,7 +25,11 @@ impl<I, O> DataConverter<I, O> {
     }
 }
 
-impl<I, O> Iterator for DataConverter<I, O> where I: Iterator, I::Item: Sample, O: Sample {
+impl<I, O> Iterator for DataConverter<I, O>
+    where I: Iterator,
+          I::Item: Sample,
+          O: Sample
+{
     type Item = O;
 
     #[inline]
@@ -40,14 +44,18 @@ impl<I, O> Iterator for DataConverter<I, O> where I: Iterator, I::Item: Sample, 
 }
 
 impl<I, O> ExactSizeIterator for DataConverter<I, O>
-                                 where I: ExactSizeIterator, I::Item: Sample, O: Sample {}
+    where I: ExactSizeIterator,
+          I::Item: Sample,
+          O: Sample
+{
+}
 
 
 /// Represents a value of a single sample.
 pub trait Sample: cpal::Sample {
     /// Linear interpolation between two samples.
     ///
-    /// The result should be equal to 
+    /// The result should be equal to
     /// `first * numerator / denominator + second * (1 - numerator / denominator)`.
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
     /// Multiplies the value of this sample by the given amount.
@@ -103,7 +111,9 @@ impl Sample for u16 {
     }
 
     #[inline]
-    fn from<S>(sample: &S) -> Self where S: Sample {
+    fn from<S>(sample: &S) -> Self
+        where S: Sample
+    {
         sample.to_u16()
     }
 }
@@ -111,7 +121,9 @@ impl Sample for u16 {
 impl Sample for i16 {
     #[inline]
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
-        (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32) as i16
+        (first as i32 +
+         (second as i32 - first as i32) * numerator as i32 /
+         denominator as i32) as i16
     }
 
     #[inline]
@@ -148,7 +160,9 @@ impl Sample for i16 {
     }
 
     #[inline]
-    fn from<S>(sample: &S) -> Self where S: Sample {
+    fn from<S>(sample: &S) -> Self
+        where S: Sample
+    {
         sample.to_i16()
     }
 }
@@ -189,7 +203,9 @@ impl Sample for f32 {
     }
 
     #[inline]
-    fn from<S>(sample: &S) -> Self where S: Sample {
+    fn from<S>(sample: &S) -> Self
+        where S: Sample
+    {
         sample.to_f32()
     }
 }

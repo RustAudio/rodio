@@ -8,18 +8,22 @@ use lewton::inside_ogg::OggStreamReader;
 use ogg;
 
 /// Decoder for an OGG file that contains Vorbis sound format.
-pub struct VorbisDecoder<R> where R: Read + Seek {
+pub struct VorbisDecoder<R>
+    where R: Read + Seek
+{
     stream_reader: OggStreamReader<R>,
     current_data: vec::IntoIter<i16>,
 }
 
-impl<R> VorbisDecoder<R> where R: Read + Seek {
+impl<R> VorbisDecoder<R>
+    where R: Read + Seek
+{
     /// Attempts to decode the data as ogg/vorbis.
     pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
         let packet_reader = ogg::PacketReader::new(data);
         let mut stream_reader = match OggStreamReader::new(packet_reader) {
             Err(_) => return Err(()),
-            Ok(r) => r
+            Ok(r) => r,
         };
 
         let mut data = match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
@@ -41,7 +45,9 @@ impl<R> VorbisDecoder<R> where R: Read + Seek {
     }
 }
 
-impl<R> Source for VorbisDecoder<R> where R: Read + Seek {
+impl<R> Source for VorbisDecoder<R>
+    where R: Read + Seek
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         Some(self.current_data.len())
@@ -63,7 +69,9 @@ impl<R> Source for VorbisDecoder<R> where R: Read + Seek {
     }
 }
 
-impl<R> Iterator for VorbisDecoder<R> where R: Read + Seek {
+impl<R> Iterator for VorbisDecoder<R>
+    where R: Read + Seek
+{
     type Item = i16;
 
     #[inline]

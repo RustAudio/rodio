@@ -2,7 +2,9 @@ use cpal;
 
 /// Iterator that converts from a certain channels count to another.
 #[derive(Clone, Debug)]
-pub struct ChannelsCountConverter<I> where I: Iterator {
+pub struct ChannelsCountConverter<I>
+    where I: Iterator
+{
     input: I,
     from: cpal::ChannelsCount,
     to: cpal::ChannelsCount,
@@ -10,7 +12,9 @@ pub struct ChannelsCountConverter<I> where I: Iterator {
     next_output_sample_pos: cpal::ChannelsCount,
 }
 
-impl<I> ChannelsCountConverter<I> where I: Iterator {
+impl<I> ChannelsCountConverter<I>
+    where I: Iterator
+{
     /// Initializes the iterator.
     ///
     /// # Panic
@@ -18,9 +22,10 @@ impl<I> ChannelsCountConverter<I> where I: Iterator {
     /// Panicks if `from` or `to` are equal to 0.
     ///
     #[inline]
-    pub fn new(input: I, from: cpal::ChannelsCount, to: cpal::ChannelsCount)
-               -> ChannelsCountConverter<I>
-    {
+    pub fn new(input: I,
+               from: cpal::ChannelsCount,
+               to: cpal::ChannelsCount)
+               -> ChannelsCountConverter<I> {
         assert!(from >= 1);
         assert!(to >= 1);
 
@@ -40,7 +45,10 @@ impl<I> ChannelsCountConverter<I> where I: Iterator {
     }
 }
 
-impl<I> Iterator for ChannelsCountConverter<I> where I: Iterator, I::Item: Clone {
+impl<I> Iterator for ChannelsCountConverter<I>
+    where I: Iterator,
+          I::Item: Clone
+{
     type Item = I::Item;
 
     fn next(&mut self) -> Option<I::Item> {
@@ -60,7 +68,7 @@ impl<I> Iterator for ChannelsCountConverter<I> where I: Iterator, I::Item: Clone
             self.next_output_sample_pos -= self.to;
 
             if self.from > self.to {
-                for _ in self.to .. self.from {
+                for _ in self.to..self.from {
                     self.input.next();      // discarding extra input
                 }
             }
@@ -73,15 +81,21 @@ impl<I> Iterator for ChannelsCountConverter<I> where I: Iterator, I::Item: Clone
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
 
-        let min = (min / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize;
-        let max = max.map(|max| (max / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize);
+        let min = (min / self.from as usize) * self.to as usize +
+                  self.next_output_sample_pos as usize;
+        let max = max.map(|max| {
+            (max / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize
+        });
 
         (min, max)
     }
 }
 
 impl<I> ExactSizeIterator for ChannelsCountConverter<I>
-                              where I: ExactSizeIterator, I::Item: Clone {}
+    where I: ExactSizeIterator,
+          I::Item: Clone
+{
+}
 
 #[cfg(test)]
 mod test {

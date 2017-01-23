@@ -35,7 +35,14 @@ pub struct Engine {
 struct EndPointVoices {
     format: Format,
     next_id: AtomicUsize,
-    pending_sounds: Mutex<Vec<(usize, QueueIterator)>>,
+    pending_sounds: Mutex<Vec<HandleHandle>>,
+}
+
+// Handle to a handle I guess.
+// The tuple type was getting a bit unwieldy so I added this.
+struct HandleHandle {
+    handle_id: usize,
+    queue_iterator: QueueIterator,
 }
 
 impl Engine {
@@ -115,7 +122,7 @@ impl Engine {
                 }
 
                 let samples_iter = (0..).map(|_| {
-                    let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0) /* TODO: multiply by volume */)
+                    let v = sounds.iter_mut().map(|s| s.queue_iterator.next().unwrap_or(0.0) /* TODO: multiply by volume */)
                                   .fold(0.0, |a, b| a + b);
                     if v < -1.0 { -1.0 } else if v > 1.0 { 1.0 } else { v }
                 });
@@ -152,7 +159,12 @@ impl Engine {
         };
 
         // Adding the new sound to the list of parallel sounds.
-        end_point.pending_sounds.lock().unwrap().push((handle_id, queue_iterator));
+        end_point.pending_sounds.lock().unwrap().push(
+            HandleHandle {
+                handle_id: handle_id,
+                queue_iterator: queue_iterator,
+            }
+        );
 
         if let Some(future_to_exec) = future_to_exec {
             struct MyExecutor;

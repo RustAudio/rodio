@@ -10,13 +10,21 @@ fn main() {
     let file = std::fs::File::open("examples/beep.wav").unwrap();
     let mut beep1 = rodio::play_once(&endpoint, BufReader::new(file)).unwrap();
     beep1.set_volume(0.2);
-    println!("Beep1 volume: {}", beep1.get_volume());
 
     thread::sleep(Duration::from_millis(1000));
-    beep1.pause();
-    thread::sleep(Duration::from_millis(5000));
-    beep1.play();
-    thread::sleep(Duration::from_millis(9000));
-    println!("Beep should end now.");
 
+    let file = std::fs::File::open("examples/beep2.wav").unwrap();
+    rodio::play_once(&endpoint, BufReader::new(file)).unwrap().detach();
+
+    thread::sleep(Duration::from_millis(1000));
+    let file = std::fs::File::open("examples/beep3.ogg").unwrap();
+    let beep3 = rodio::play_once(&endpoint, file).unwrap();
+
+    thread::sleep(Duration::from_millis(1000));
+    drop(beep1);
+
+    thread::sleep(Duration::from_millis(1000));
+    drop(beep3);
+
+    thread::sleep(Duration::from_millis(1000));
 }

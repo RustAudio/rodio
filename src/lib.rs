@@ -111,6 +111,25 @@ impl Sink {
     pub fn get_volume(&self) -> f32 {
         self.handle.get_volume()
     }
+    /// Resumes playback of a paused sound.
+    #[inline]
+    pub fn play(&self) {
+        self.handle.play();
+    }
+
+    /// Pauses playback of this sink.
+    ///
+    /// A paused sound can be resumed with play
+    pub fn pause(&self) {
+        self.handle.pause();
+    }
+
+    /// Gets if a sound is paused
+    ///
+    /// Sounds can be paused and resumed using pause() and play().  This gets if a sound is paused.
+    pub fn is_paused(&self) -> bool {
+        self.handle.is_paused()
+    }
 
     /// Changes the volume of the sound.
     ///

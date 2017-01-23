@@ -44,6 +44,8 @@ struct HandleHandle {
     handle_id: usize,
     queue_iterator: QueueIterator,
     volume: Arc<Mutex<f32>>,
+
+    paused: Arc<Mutex<bool>>,
 }
 
 impl Engine {
@@ -123,9 +125,12 @@ impl Engine {
                 }
 
                 let samples_iter = (0..).map(|_| {
-                    let v = sounds.iter_mut().map(|s| s.queue_iterator.next().unwrap_or(0.0) * (*s.volume.lock().unwrap()))
-                                  .fold(0.0, |a, b| a + b);
-                    if v < -1.0 { -1.0 } else if v > 1.0 { 1.0 } else { v }
+                    sounds.iter_mut().filter_map(|s| {
+                        if *s.paused.lock().unwrap() {
+                            return None;
+                        }
+                        Some(s.queue_iterator.next().unwrap_or(0.0) * (*s.volume.lock().unwrap()))
+                    }).fold(0.0, |a, b| a + b).min(1.0).max(-1.0)
                 });
 
                 match buffer {
@@ -154,6 +159,9 @@ impl Engine {
         // Initialize the volume
         let volume = Arc::new(Mutex::new(1.0));
 
+        // If paused is set to true then don't play from this handle.
+        let paused = Arc::new(Mutex::new(false));
+
         // `next_sounds` contains a Vec that can later be used to append new iterators to the sink
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
         let queue_iterator = QueueIterator {
@@ -168,6 +176,8 @@ impl Engine {
                 handle_id: handle_id,
                 queue_iterator: queue_iterator,
                 volume: volume.clone(),
+
+                paused: paused.clone(),
             }
         );
 
@@ -184,6 +194,8 @@ impl Engine {
             channels: end_point.format.channels.len() as u16,
             next_sounds: next_sounds,
             volume: volume,
+
+            paused: paused,
             end: Mutex::new(None),
         }
     }
@@ -204,6 +216,9 @@ pub struct Handle {
 
     // The volume that this handle plays its sound at.
     volume: Arc<Mutex<f32>>,
+
+    // If this is true cease iteration of this handle until it is false.
+    paused: Arc<Mutex<bool>>,
 
     // Receiver that is triggered when the last sound ends.
     end: Mutex<Option<Receiver<()>>>,
@@ -231,6 +246,24 @@ impl Handle {
     #[inline]
     pub fn get_volume(&self) -> f32 {
         *self.volume.lock().unwrap()
+    }
+
+    /// If the sound is paused then resume playing it.
+    #[inline]
+    pub fn play(&self) {
+        *self.paused.lock().unwrap() = false;
+    }
+
+    /// Pause the sound
+    #[inline]
+    pub fn pause(&self) {
+        *self.paused.lock().unwrap() = true;
+    }
+
+    /// Returns true if the sound is currently paused
+    #[inline]
+    pub fn is_paused(&self) -> bool {
+        *self.paused.lock().unwrap()
     }
 
     /// Changes the volume of the sound played by this sink.

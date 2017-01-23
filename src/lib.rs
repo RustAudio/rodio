@@ -97,10 +97,33 @@ impl Sink {
 
     /// Appends a sound to the queue of sounds to play.
     #[inline]
-    pub fn append<S>(&self, source: S) where S: Source + Send + 'static,
-                                             S::Item: Sample, S::Item: Send
+    pub fn append<S>(&self, source: S)
+        where S: Source + Send + 'static,
+              S::Item: Sample,
+              S::Item: Send
     {
         self.handle.append(source);
+    }
+
+
+    /// Resumes playback of a paused sound.
+    #[inline]
+    pub fn play(&self) {
+        self.handle.play();
+    }
+
+    /// Pauses playback of this sink.
+    ///
+    /// A paused sound can be resumed with play
+    pub fn pause(&self) {
+        self.handle.pause();
+    }
+
+    /// Gets if a sound is paused
+    ///
+    /// Sounds can be paused and resumed using pause() and play().  This gets if a sound is paused.
+    pub fn is_paused(&self) -> bool {
+        self.handle.is_paused()
     }
 
     /// Gets the volume of the sound.
@@ -146,7 +169,7 @@ impl Drop for Sink {
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]
 pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Result<Sink, decoder::DecoderError>
-                    where R: Read + Seek + Send + 'static
+    where R: Read + Seek + Send + 'static
 {
     let input = decoder::Decoder::new(input)?;
     let sink = Sink::new(endpoint);

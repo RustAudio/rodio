@@ -5,7 +5,8 @@ use Source;
 
 /// Internal function that builds a `Amplify` object.
 pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
-                  where I: Source, I::Item: Sample
+    where I: Source,
+          I::Item: Sample
 {
     Amplify {
         input: input,
@@ -15,12 +16,18 @@ pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
 
 /// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
-pub struct Amplify<I> where I: Source, I::Item: Sample {
+pub struct Amplify<I>
+    where I: Source,
+          I::Item: Sample
+{
     input: I,
     factor: f32,
 }
 
-impl<I> Iterator for Amplify<I> where I: Source, I::Item: Sample {
+impl<I> Iterator for Amplify<I>
+    where I: Source,
+          I::Item: Sample
+{
     type Item = I::Item;
 
     #[inline]
@@ -34,10 +41,16 @@ impl<I> Iterator for Amplify<I> where I: Source, I::Item: Sample {
     }
 }
 
-impl<I> ExactSizeIterator for Amplify<I> where I: Source + ExactSizeIterator, I::Item: Sample {
+impl<I> ExactSizeIterator for Amplify<I>
+    where I: Source + ExactSizeIterator,
+          I::Item: Sample
+{
 }
 
-impl<I> Source for Amplify<I> where I: Source, I::Item: Sample {
+impl<I> Source for Amplify<I>
+    where I: Source,
+          I::Item: Sample
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         self.input.get_current_frame_len()

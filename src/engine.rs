@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::thread::Builder;
 use std::sync::mpsc::{self, Sender, Receiver};
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -35,7 +34,18 @@ pub struct Engine {
 struct EndPointVoices {
     format: Format,
     next_id: AtomicUsize,
-    pending_sounds: Mutex<Vec<(usize, QueueIterator)>>,
+    pending_sounds: Mutex<Vec<HandleHandle>>,
+}
+
+// Handle to a handle
+struct HandleHandle {
+    handle_id: usize,
+    queue_iterator: QueueIterator,
+    volume: Arc<Mutex<f32>>,
+
+    paused: Arc<AtomicBool>,
+
+    dead: Arc<AtomicBool>,
 }
 
 impl Engine {
@@ -113,11 +123,14 @@ impl Engine {
                 if sounds.len() == 0 {
                     return Ok(());
                 }
-
+                sounds.retain(|s| !s.dead.load(Ordering::Relaxed));
                 let samples_iter = (0..).map(|_| {
-                    let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0) /* TODO: multiply by volume */)
-                                  .fold(0.0, |a, b| a + b);
-                    if v < -1.0 { -1.0 } else if v > 1.0 { 1.0 } else { v }
+                    sounds.iter_mut().filter_map(|s| {
+                        if s.paused.load(Ordering::Relaxed) {
+                            return None;
+                        }
+                        Some(s.queue_iterator.next().unwrap_or(0.0) * (*s.volume.lock().unwrap()))
+                    }).fold(0.0, |a, b| a + b).min(1.0).max(-1.0)
                 });
 
                 match buffer {
@@ -143,6 +156,15 @@ impl Engine {
         // Assigning an id for the handle.
         let handle_id = end_point.next_id.fetch_add(1, Ordering::Relaxed);
 
+        // Initialize the volume
+        let volume = Arc::new(Mutex::new(1.0));
+
+        // If paused is set to true then don't play from this handle.
+        let paused = Arc::new(AtomicBool::new(false));
+
+        // If dead is set to true then this Handle should be removed.
+        let dead = Arc::new(AtomicBool::new(false));
+
         // `next_sounds` contains a Vec that can later be used to append new iterators to the sink
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
         let queue_iterator = QueueIterator {
@@ -152,7 +174,15 @@ impl Engine {
         };
 
         // Adding the new sound to the list of parallel sounds.
-        end_point.pending_sounds.lock().unwrap().push((handle_id, queue_iterator));
+        end_point.pending_sounds.lock().unwrap().push(
+            HandleHandle {
+                handle_id: handle_id,
+                queue_iterator: queue_iterator,
+                volume: volume.clone(),
+                paused: paused.clone(),
+                dead: dead.clone(),
+            }
+        );
 
         if let Some(future_to_exec) = future_to_exec {
             struct MyExecutor;
@@ -166,6 +196,11 @@ impl Engine {
             samples_rate: end_point.format.samples_rate.0,
             channels: end_point.format.channels.len() as u16,
             next_sounds: next_sounds,
+            volume: volume,
+
+            paused: paused,
+
+            dead: dead,
             end: Mutex::new(None),
         }
     }
@@ -183,6 +218,15 @@ pub struct Handle {
     // Holds a pointer to the list of iterators to be played after the current one has
     // finished playing.
     next_sounds: Arc<Mutex<Vec<(Box<Iterator<Item = f32> + Send>, Option<Sender<()>>)>>>,
+
+    // The volume that this handle plays its sound at.
+    volume: Arc<Mutex<f32>>,
+
+    // If this is true cease iteration of this handle until it is false.
+    paused: Arc<AtomicBool>,
+
+    // We set this to true when we wish to dispose of the sink.
+    dead: Arc<AtomicBool>,
 
     // Receiver that is triggered when the last sound ends.
     end: Mutex<Option<Receiver<()>>>,
@@ -206,10 +250,34 @@ impl Handle {
         self.next_sounds.lock().unwrap().push((source, Some(tx)));
     }
 
+    /// Gets the volume of the sound played by this sink.
+    #[inline]
+    pub fn get_volume(&self) -> f32 {
+        *self.volume.lock().unwrap()
+    }
+
+    /// If the sound is paused then resume playing it.
+    #[inline]
+    pub fn play(&self) {
+        self.paused.store(false, Ordering::Relaxed);
+    }
+
+    /// Pause the sound
+    #[inline]
+    pub fn pause(&self) {
+        self.paused.store(true, Ordering::Relaxed);
+    }
+
+    /// Returns true if the sound is currently paused
+    #[inline]
+    pub fn is_paused(&self) -> bool {
+        self.paused.load(Ordering::Relaxed)
+    }
+
     /// Changes the volume of the sound played by this sink.
     #[inline]
     pub fn set_volume(&self, _value: f32) {
-        // FIXME:
+        *self.volume.lock().unwrap() = _value.min(1.0).max(-1.0);
     }
 
     /// Stops the sound.
@@ -217,7 +285,7 @@ impl Handle {
     // life easier not to take `self`
     #[inline]
     pub fn stop(&self) {
-        // FIXME:
+        self.dead.store(true, Ordering::Relaxed);
     }
 
     /// Sleeps the current thread until the sound ends.

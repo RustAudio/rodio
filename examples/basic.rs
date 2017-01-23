@@ -9,7 +9,7 @@ fn main() {
 
     let file = std::fs::File::open("examples/beep.wav").unwrap();
     let mut beep1 = rodio::play_once(&endpoint, BufReader::new(file)).unwrap();
-    beep1.set_volume(0.0);
+    beep1.set_volume(0.2);
     println!("Beep1 volume: {}", beep1.get_volume());
 
     thread::sleep(Duration::from_millis(1000));

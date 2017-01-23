@@ -46,6 +46,8 @@ struct HandleHandle {
     volume: Arc<Mutex<f32>>,
 
     paused: Arc<Mutex<bool>>,
+
+    dead: Arc<Mutex<bool>>,
 }
 
 impl Engine {
@@ -123,7 +125,7 @@ impl Engine {
                 if sounds.len() == 0 {
                     return Ok(());
                 }
-
+                sounds.retain(|s| !*s.dead.lock().unwrap());
                 let samples_iter = (0..).map(|_| {
                     sounds.iter_mut().filter_map(|s| {
                         if *s.paused.lock().unwrap() {
@@ -162,6 +164,9 @@ impl Engine {
         // If paused is set to true then don't play from this handle.
         let paused = Arc::new(Mutex::new(false));
 
+        // If dead is set to true then this Handle should be removed.
+        let dead = Arc::new(Mutex::new(false));
+
         // `next_sounds` contains a Vec that can later be used to append new iterators to the sink
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
         let queue_iterator = QueueIterator {
@@ -178,6 +183,8 @@ impl Engine {
                 volume: volume.clone(),
 
                 paused: paused.clone(),
+
+                dead: dead.clone(),
             }
         );
 
@@ -196,6 +203,8 @@ impl Engine {
             volume: volume,
 
             paused: paused,
+
+            dead: dead,
             end: Mutex::new(None),
         }
     }
@@ -219,6 +228,9 @@ pub struct Handle {
 
     // If this is true cease iteration of this handle until it is false.
     paused: Arc<Mutex<bool>>,
+
+    // We set this to true when we wish to dispose of the sink.
+    dead: Arc<Mutex<bool>>,
 
     // Receiver that is triggered when the last sound ends.
     end: Mutex<Option<Receiver<()>>>,
@@ -277,7 +289,7 @@ impl Handle {
     // life easier not to take `self`
     #[inline]
     pub fn stop(&self) {
-        // FIXME:
+        *self.dead.lock().unwrap() = true;
     }
 
     /// Sleeps the current thread until the sound ends.

@@ -43,6 +43,7 @@ struct EndPointVoices {
 struct HandleHandle {
     handle_id: usize,
     queue_iterator: QueueIterator,
+    volume: Arc<Mutex<f32>>,
 }
 
 impl Engine {
@@ -122,7 +123,7 @@ impl Engine {
                 }
 
                 let samples_iter = (0..).map(|_| {
-                    let v = sounds.iter_mut().map(|s| s.queue_iterator.next().unwrap_or(0.0) /* TODO: multiply by volume */)
+                    let v = sounds.iter_mut().map(|s| s.queue_iterator.next().unwrap_or(0.0) * (*s.volume.lock().unwrap()))
                                   .fold(0.0, |a, b| a + b);
                     if v < -1.0 { -1.0 } else if v > 1.0 { 1.0 } else { v }
                 });
@@ -150,6 +151,9 @@ impl Engine {
         // Assigning an id for the handle.
         let handle_id = end_point.next_id.fetch_add(1, Ordering::Relaxed);
 
+        // Initialize the volume
+        let volume = Arc::new(Mutex::new(1.0));
+
         // `next_sounds` contains a Vec that can later be used to append new iterators to the sink
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
         let queue_iterator = QueueIterator {
@@ -163,6 +167,7 @@ impl Engine {
             HandleHandle {
                 handle_id: handle_id,
                 queue_iterator: queue_iterator,
+                volume: volume.clone(),
             }
         );
 
@@ -178,6 +183,7 @@ impl Engine {
             samples_rate: end_point.format.samples_rate.0,
             channels: end_point.format.channels.len() as u16,
             next_sounds: next_sounds,
+            volume: volume,
             end: Mutex::new(None),
         }
     }
@@ -195,6 +201,9 @@ pub struct Handle {
     // Holds a pointer to the list of iterators to be played after the current one has
     // finished playing.
     next_sounds: Arc<Mutex<Vec<(Box<Iterator<Item = f32> + Send>, Option<Sender<()>>)>>>,
+
+    // The volume that this handle plays its sound at.
+    volume: Arc<Mutex<f32>>,
 
     // Receiver that is triggered when the last sound ends.
     end: Mutex<Option<Receiver<()>>>,
@@ -218,10 +227,16 @@ impl Handle {
         self.next_sounds.lock().unwrap().push((source, Some(tx)));
     }
 
+    /// Gets the volume of the sound played by this sink.
+    #[inline]
+    pub fn get_volume(&self) -> f32 {
+        *self.volume.lock().unwrap()
+    }
+
     /// Changes the volume of the sound played by this sink.
     #[inline]
     pub fn set_volume(&self, _value: f32) {
-        // FIXME:
+        *self.volume.lock().unwrap() = _value.min(1.0).max(-1.0);
     }
 
     /// Stops the sound.

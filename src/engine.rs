@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::thread::Builder;
 use std::sync::mpsc::{self, Sender, Receiver};
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -38,16 +37,15 @@ struct EndPointVoices {
     pending_sounds: Mutex<Vec<HandleHandle>>,
 }
 
-// Handle to a handle I guess.
-// The tuple type was getting a bit unwieldy so I added this.
+// Handle to a handle
 struct HandleHandle {
     handle_id: usize,
     queue_iterator: QueueIterator,
     volume: Arc<Mutex<f32>>,
 
-    paused: Arc<Mutex<bool>>,
+    paused: Arc<AtomicBool>,
 
-    dead: Arc<Mutex<bool>>,
+    dead: Arc<AtomicBool>,
 }
 
 impl Engine {
@@ -125,10 +123,10 @@ impl Engine {
                 if sounds.len() == 0 {
                     return Ok(());
                 }
-                sounds.retain(|s| !*s.dead.lock().unwrap());
+                sounds.retain(|s| !s.dead.load(Ordering::Relaxed));
                 let samples_iter = (0..).map(|_| {
                     sounds.iter_mut().filter_map(|s| {
-                        if *s.paused.lock().unwrap() {
+                        if s.paused.load(Ordering::Relaxed) {
                             return None;
                         }
                         Some(s.queue_iterator.next().unwrap_or(0.0) * (*s.volume.lock().unwrap()))
@@ -162,10 +160,10 @@ impl Engine {
         let volume = Arc::new(Mutex::new(1.0));
 
         // If paused is set to true then don't play from this handle.
-        let paused = Arc::new(Mutex::new(false));
+        let paused = Arc::new(AtomicBool::new(false));
 
         // If dead is set to true then this Handle should be removed.
-        let dead = Arc::new(Mutex::new(false));
+        let dead = Arc::new(AtomicBool::new(false));
 
         // `next_sounds` contains a Vec that can later be used to append new iterators to the sink
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
@@ -181,9 +179,7 @@ impl Engine {
                 handle_id: handle_id,
                 queue_iterator: queue_iterator,
                 volume: volume.clone(),
-
                 paused: paused.clone(),
-
                 dead: dead.clone(),
             }
         );
@@ -227,10 +223,10 @@ pub struct Handle {
     volume: Arc<Mutex<f32>>,
 
     // If this is true cease iteration of this handle until it is false.
-    paused: Arc<Mutex<bool>>,
+    paused: Arc<AtomicBool>,
 
     // We set this to true when we wish to dispose of the sink.
-    dead: Arc<Mutex<bool>>,
+    dead: Arc<AtomicBool>,
 
     // Receiver that is triggered when the last sound ends.
     end: Mutex<Option<Receiver<()>>>,
@@ -263,19 +259,19 @@ impl Handle {
     /// If the sound is paused then resume playing it.
     #[inline]
     pub fn play(&self) {
-        *self.paused.lock().unwrap() = false;
+        self.paused.store(false, Ordering::Relaxed);
     }
 
     /// Pause the sound
     #[inline]
     pub fn pause(&self) {
-        *self.paused.lock().unwrap() = true;
+        self.paused.store(true, Ordering::Relaxed);
     }
 
     /// Returns true if the sound is currently paused
     #[inline]
     pub fn is_paused(&self) -> bool {
-        *self.paused.lock().unwrap()
+        self.paused.load(Ordering::Relaxed)
     }
 
     /// Changes the volume of the sound played by this sink.
@@ -289,7 +285,7 @@ impl Handle {
     // life easier not to take `self`
     #[inline]
     pub fn stop(&self) {
-        *self.dead.lock().unwrap() = true;
+        self.dead.store(true, Ordering::Relaxed);
     }
 
     /// Sleeps the current thread until the sound ends.

@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::thread::Builder;
 use std::sync::mpsc::{self, Sender, Receiver};
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -21,6 +20,9 @@ use conversions::Sample;
 
 use source::Source;
 use source::UniformSourceIterator;
+
+use engine_filters::Pauseable;
+use engine_filters::VolumeFilter;
 
 /// The internal engine of this library.
 ///
@@ -113,9 +115,9 @@ impl Engine {
                 if sounds.len() == 0 {
                     return Ok(());
                 }
-
+                sounds.retain(|s| !s.1.local_dead);
                 let samples_iter = (0..).map(|_| {
-                    let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0) /* TODO: multiply by volume */)
+                    let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0))
                                   .fold(0.0, |a, b| a + b);
                     if v < -1.0 { -1.0 } else if v > 1.0 { 1.0 } else { v }
                 });
@@ -143,12 +145,29 @@ impl Engine {
         // Assigning an id for the handle.
         let handle_id = end_point.next_id.fetch_add(1, Ordering::Relaxed);
 
+        // Initialize the volume
+        let volume = Arc::new(Mutex::new(1.0));
+
+        // If paused is set to true then don't play from this handle.
+        let paused = Arc::new(AtomicBool::new(false));
+
+        // If dead is set to true then this Handle should be removed.
+        let dead = Arc::new(AtomicBool::new(false));
+
         // `next_sounds` contains a Vec that can later be used to append new iterators to the sink
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
+
+        // Frequency with which dead value should be updated.
+        let update_frequency = (5 * end_point.format.samples_rate.0)/1000;
+
         let queue_iterator = QueueIterator {
             current: Box::new(None.into_iter()),
             signal_after_end: None,
             next: next_sounds.clone(),
+            local_dead: false,
+            remote_dead: dead.clone(),
+            samples_until_update: update_frequency,
+            update_frequency: update_frequency,
         };
 
         // Adding the new sound to the list of parallel sounds.
@@ -166,6 +185,9 @@ impl Engine {
             samples_rate: end_point.format.samples_rate.0,
             channels: end_point.format.channels.len() as u16,
             next_sounds: next_sounds,
+            dead: dead,
+            paused: paused,
+            volume: volume,
             end: Mutex::new(None),
         }
     }
@@ -173,12 +195,21 @@ impl Engine {
 
 /// A sink.
 ///
-/// Note that dropping the handle doesn't delete the sink. You must call `stop` explicitely.
+/// Note that dropping the handle doesn't delete the sink. You must call `stop` explicitly.
 pub struct Handle {
     handle_id: usize,
 
     samples_rate: u32,
     channels: u16,
+
+    // Pointer to paused value in Pausable
+    paused: Arc<AtomicBool>,
+
+    // Pointer to volume value in VolumeFilter
+    volume: Arc<Mutex<f32>>,
+
+    // Pointer to dead value in QueueIterator
+    dead: Arc<AtomicBool>,
 
     // Holds a pointer to the list of iterators to be played after the current one has
     // finished playing.
@@ -200,16 +231,43 @@ impl Handle {
         let (tx, rx) = mpsc::channel();
         *self.end.lock().unwrap() = Some(rx);
 
+        let source = Pauseable::new(source, self.paused.clone(), 5);
+        let source = VolumeFilter::new(source, self.volume.clone(), 5);
+
         // Pushing the source and the `tx` to `next_sounds`.
         let source = UniformSourceIterator::new(source, self.channels, self.samples_rate);
         let source = Box::new(source);
         self.next_sounds.lock().unwrap().push((source, Some(tx)));
     }
 
+    /// Gets the volume of the sound played by this sink.
+    #[inline]
+    pub fn volume(&self) -> f32 {
+        *self.volume.lock().unwrap()
+    }
+
     /// Changes the volume of the sound played by this sink.
     #[inline]
     pub fn set_volume(&self, _value: f32) {
-        // FIXME:
+        *self.volume.lock().unwrap() = _value.min(1.0).max(0.0);
+    }
+
+    /// If the sound is paused then resume playing it.
+    #[inline]
+    pub fn play(&self) {
+        self.paused.store(false, Ordering::Relaxed);
+    }
+
+    /// Pause the sound
+    #[inline]
+    pub fn pause(&self) {
+        self.paused.store(true, Ordering::Relaxed);
+    }
+
+    /// Returns true if the sound is currently paused
+    #[inline]
+    pub fn is_paused(&self) -> bool {
+        self.paused.load(Ordering::Relaxed)
     }
 
     /// Stops the sound.
@@ -217,7 +275,7 @@ impl Handle {
     // life easier not to take `self`
     #[inline]
     pub fn stop(&self) {
-        // FIXME:
+        self.dead.store(true, Ordering::Relaxed);
     }
 
     /// Sleeps the current thread until the sound ends.
@@ -243,6 +301,18 @@ struct QueueIterator {
     // A `Vec` containing the next iterators to play. Shared with other threads so they can add
     // sounds to the list.
     next: Arc<Mutex<Vec<(Box<Iterator<Item = f32> + Send>, Option<Sender<()>>)>>>,
+
+    //Local storage of the dead value.  Allows us to only check the remote occasionally.
+    local_dead: bool,
+
+    //The dead value which may be manipulated by another thread.
+    remote_dead: Arc<AtomicBool>,
+
+    //The frequency with which local_dead should be updated by remote_dead
+    update_frequency: u32,
+
+    //How many samples remain until it is time to update local_dead with remote_dead.
+    samples_until_update: u32,
 }
 
 impl Iterator for QueueIterator {
@@ -250,6 +320,14 @@ impl Iterator for QueueIterator {
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
+        self.samples_until_update -= 1;
+        if self.samples_until_update == 0 {
+            self.local_dead = self.remote_dead.load(Ordering::Relaxed);
+            self.samples_until_update = self.update_frequency;
+        }
+        if self.local_dead {
+            return Some(0.0);
+        }
         loop {
             // basic situation that will happen most of the time
             if let Some(sample) = self.current.next() {

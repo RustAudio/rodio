@@ -10,10 +10,10 @@
 //!
 //! ```no_run
 //! use std::io::BufReader;
-//! 
+//!
 //! let endpoint = rodio::get_default_endpoint().unwrap();
 //! let sink = rodio::Sink::new(&endpoint);
-//! 
+//!
 //! let file = std::fs::File::open("music.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
 //! sink.append(source);
@@ -26,23 +26,23 @@
 //! If you want to play multiple sounds simultaneously, you should create multiple sinks.
 //!
 //! # How it works
-//! 
+//!
 //! Rodio spawns a background thread that is dedicated to reading from the sources and sending
 //! the output to the endpoint.
-//! 
+//!
 //! All the sounds are mixed together by rodio before being sent. Since this is handled by the
 //! software, there is no restriction for the number of sinks that can be created.
-//! 
+//!
 //! # Adding effects
-//! 
+//!
 //! The `Source` trait provides various filters, similarly to the standard `Iterator` trait.
-//! 
+//!
 //! Example:
-//! 
+//!
 //! ```ignore
 //! use rodio::Source;
 //! use std::time::Duration;
-//! 
+//!
 //! // repeats the first five seconds of this sound forever
 //! let source = source.take_duration(Duration::from_secs(5)).repeat_infinite();
 //! ```
@@ -67,6 +67,7 @@ use std::io::{Read, Seek};
 
 mod conversions;
 mod engine;
+mod engine_filters;
 
 pub mod decoder;
 pub mod source;
@@ -103,6 +104,15 @@ impl Sink {
         self.handle.append(source);
     }
 
+    // Gets the volume of the sound.
+    ///
+    /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
+    /// multiply each sample by this value.
+    #[inline]
+    pub fn volume(&self) -> f32 {
+        self.handle.volume()
+    }
+
     /// Changes the volume of the sound.
     ///
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
@@ -110,6 +120,26 @@ impl Sink {
     #[inline]
     pub fn set_volume(&mut self, value: f32) {
         self.handle.set_volume(value);
+    }
+
+    /// Resumes playback of a paused sound.
+    #[inline]
+    pub fn play(&self) {
+        self.handle.play();
+    }
+
+    /// Pauses playback of this sink.
+    ///
+    /// A paused sound can be resumed with play
+    pub fn pause(&self) {
+        self.handle.pause();
+    }
+
+    /// Gets if a sound is paused
+    ///
+    /// Sounds can be paused and resumed using pause() and play().  This gets if a sound is paused.
+    pub fn is_paused(&self) -> bool {
+        self.handle.is_paused()
     }
 
     /// Destroys the sink without stopping the sounds that are still playing.

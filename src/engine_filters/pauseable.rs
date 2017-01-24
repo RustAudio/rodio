@@ -25,7 +25,7 @@ pub struct Pauseable<I> where I: Source, I::Item: Sample {
 
 impl<I> Pauseable<I> where I: Source, I::Item: Sample {
     pub fn new(source: I, remote_paused: Arc<AtomicBool>, update_ms: u32) -> Pauseable<I> {
-        let update_frequency = (update_ms * source.get_samples_rate())/1000;
+        let update_frequency = (update_ms * source.get_samples_rate())/1000; // TODO: handle the fact that the samples rate can change
         Pauseable {
             input: source,
             local_paused: remote_paused.load(Ordering::Relaxed),

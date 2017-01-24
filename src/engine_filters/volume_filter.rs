@@ -25,7 +25,7 @@ pub struct VolumeFilter<I> where I: Source, I::Item: Sample {
 
 impl<I> VolumeFilter<I> where I: Source, I::Item: Sample {
     pub fn new(source: I, remote_volume: Arc<Mutex<f32>>, update_ms: u32) -> VolumeFilter<I> {
-        let update_frequency = (update_ms * source.get_samples_rate())/1000;
+        let update_frequency = (update_ms * source.get_samples_rate())/1000; // TODO: handle the fact that the samples rate can change
         VolumeFilter {
             input: source,
             local_volume: *remote_volume.lock().unwrap(),

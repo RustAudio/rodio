@@ -104,7 +104,7 @@ impl Engine {
             let epv = end_point_voices.clone();
 
             let sounds = Arc::new(Mutex::new(Vec::new()));
-            future_to_exec = Some(stream.for_each(move |mut buffer| -> Result<_, ()> {
+            future_to_exec = Some(stream.for_each(move |mut buffer| -> Result<(), ()> {
                 let mut sounds = sounds.lock().unwrap();
 
                 {
@@ -112,10 +112,19 @@ impl Engine {
                     sounds.append(&mut pending);
                 }
 
+
                 if sounds.len() == 0 {
                     return Ok(());
                 }
                 sounds.retain(|s| !s.1.local_dead);
+                //Drop if it's not playing a real source, and it's sink is detached
+                sounds.retain(|s|{
+                    if !s.1.is_playing_real_source{
+                        Arc::strong_count(&s.1.next)>1
+                    }else{
+                        true
+                    }
+                });
                 let samples_iter = (0..).map(|_| {
                     let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0))
                                   .fold(0.0, |a, b| a + b);
@@ -168,6 +177,7 @@ impl Engine {
             remote_dead: dead.clone(),
             samples_until_update: update_frequency,
             update_frequency: update_frequency,
+            is_playing_real_source: true,
         };
 
         // Adding the new sound to the list of parallel sounds.
@@ -313,6 +323,9 @@ struct QueueIterator {
 
     //How many samples remain until it is time to update local_dead with remote_dead.
     samples_until_update: u32,
+    
+    //Whether we're playing a source from a sink, or a dummy  iter
+    is_playing_real_source: bool,
 }
 
 impl Iterator for QueueIterator {
@@ -343,8 +356,10 @@ impl Iterator for QueueIterator {
                 if next.len() == 0 {
                     // if there's no iter waiting, we create a dummy iter with 1000 null samples
                     // this avoids a spinlock
+                    self.is_playing_real_source = false;
                     (Box::new((0 .. 1000).map(|_| 0.0f32)) as Box<Iterator<Item = f32> + Send>, None)
                 } else {
+                    self.is_playing_real_source = true;
                     next.remove(0)
                 }
             };

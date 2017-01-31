@@ -1,3 +1,5 @@
+use std::error::Error;
+use std::fmt;
 use std::io::{Read, Seek};
 use std::time::Duration;
 
@@ -96,4 +98,20 @@ impl<R> Source for Decoder<R> where R: Read + Seek {
 pub enum DecoderError {
     /// The format of the data has not been recognized.
     UnrecognizedFormat,
+}
+
+impl fmt::Display for DecoderError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &DecoderError::UnrecognizedFormat => write!(f, "Unrecognized format")
+        }
+    }
+}
+
+impl Error for DecoderError {
+    fn description(&self) -> &str {
+        match self {
+            &DecoderError::UnrecognizedFormat => "Unrecognized format"
+        }
+    }
 }

@@ -115,7 +115,18 @@ impl Engine {
                 if sounds.len() == 0 {
                     return Ok(());
                 }
-                sounds.retain(|s| !s.1.local_dead);
+                // Drop if it's not playing a real source, and it's sink is detached
+                // or the sink was dropped before being detached.
+                sounds.retain(|s| {
+                    if s.1.local_dead {
+                        return false;
+                    }
+                    if !s.1.is_playing_real_source {
+                        return !s.1.local_handle_dead;
+                    } else {
+                        true
+                    }
+                });
                 let samples_iter = (0..).map(|_| {
                     let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0))
                                   .fold(0.0, |a, b| a + b);
@@ -154,6 +165,9 @@ impl Engine {
         // If dead is set to true then this Handle should be removed.
         let dead = Arc::new(AtomicBool::new(false));
 
+        // Used to detect detached handles.
+        let handle_dead = Arc::new(AtomicBool::new(false));
+
         // `next_sounds` contains a Vec that can later be used to append new iterators to the sink
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
 
@@ -166,8 +180,11 @@ impl Engine {
             next: next_sounds.clone(),
             local_dead: false,
             remote_dead: dead.clone(),
+            local_handle_dead: false,
+            remote_handle_dead: handle_dead.clone(),
             samples_until_update: update_frequency,
             update_frequency: update_frequency,
+            is_playing_real_source: true,
         };
 
         // Adding the new sound to the list of parallel sounds.
@@ -186,6 +203,7 @@ impl Engine {
             channels: end_point.format.channels.len() as u16,
             next_sounds: next_sounds,
             dead: dead,
+            handle_dead: handle_dead,
             paused: paused,
             volume: volume,
             end: Mutex::new(None),
@@ -210,6 +228,10 @@ pub struct Handle {
 
     // Pointer to dead value in QueueIterator
     dead: Arc<AtomicBool>,
+
+    // Set this to true when we are dropped, regardless of if we were detached or not.
+    // This is read by the engine thread.
+    handle_dead: Arc<AtomicBool>,
 
     // Holds a pointer to the list of iterators to be played after the current one has
     // finished playing.
@@ -290,6 +312,13 @@ impl Handle {
     }
 }
 
+impl Drop for Handle {
+    #[inline]
+    fn drop(&mut self) {
+        self.handle_dead.store(true, Ordering::Relaxed);
+    }
+}
+
 // Main source of samples for a voice.
 struct QueueIterator {
     // The current iterator that produces samples.
@@ -308,11 +337,20 @@ struct QueueIterator {
     //The dead value which may be manipulated by another thread.
     remote_dead: Arc<AtomicBool>,
 
+    // Local storage of the handle_dead value.  Allows us to only check the remote occasionally.
+    local_handle_dead: bool,
+
+    // Is our handle dead?  Used to identify situations with a dropped handle that's been detached.
+    remote_handle_dead: Arc<AtomicBool>,
+
     //The frequency with which local_dead should be updated by remote_dead
     update_frequency: u32,
 
     //How many samples remain until it is time to update local_dead with remote_dead.
     samples_until_update: u32,
+
+    // Whether we're playing a source from a sink, or a dummy  iter
+    is_playing_real_source: bool,
 }
 
 impl Iterator for QueueIterator {
@@ -323,6 +361,7 @@ impl Iterator for QueueIterator {
         self.samples_until_update -= 1;
         if self.samples_until_update == 0 {
             self.local_dead = self.remote_dead.load(Ordering::Relaxed);
+            self.local_handle_dead = self.remote_handle_dead.load(Ordering::Relaxed);
             self.samples_until_update = self.update_frequency;
         }
         if self.local_dead {
@@ -341,10 +380,12 @@ impl Iterator for QueueIterator {
             let (next, signal_after_end) = {
                 let mut next = self.next.lock().unwrap();
                 if next.len() == 0 {
+                    self.is_playing_real_source = false;
                     // if there's no iter waiting, we create a dummy iter with 1000 null samples
                     // this avoids a spinlock
                     (Box::new((0 .. 1000).map(|_| 0.0f32)) as Box<Iterator<Item = f32> + Send>, None)
                 } else {
+                    self.is_playing_real_source = true;
                     next.remove(0)
                 }
             };

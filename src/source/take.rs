@@ -5,7 +5,8 @@ use Sample;
 
 /// Internal function that builds a `Repeat` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
-                        where I: Source, I::Item: Sample
+    where I: Source,
+          I::Item: Sample
 {
     TakeDuration {
         input: input,
@@ -16,13 +17,19 @@ pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
 
 /// A source that repeats the given source.
 #[derive(Clone, Debug)]
-pub struct TakeDuration<I> where I: Source, I::Item: Sample {
+pub struct TakeDuration<I>
+    where I: Source,
+          I::Item: Sample
+{
     input: I,
     remaining_duration: Duration,
     requested_duration: Duration,
 }
 
-impl<I> TakeDuration<I> where I: Source, I::Item: Sample {
+impl<I> TakeDuration<I>
+    where I: Source,
+          I::Item: Sample
+{
     /// Returns the duration elapsed for each sample extracted.
     #[inline]
     fn get_duration_per_sample(&self) -> Duration {
@@ -32,7 +39,10 @@ impl<I> TakeDuration<I> where I: Source, I::Item: Sample {
     }
 }
 
-impl<I> Iterator for TakeDuration<I> where I: Source, I::Item: Sample {
+impl<I> Iterator for TakeDuration<I>
+    where I: Source,
+          I::Item: Sample
+{
     type Item = <I as Iterator>::Item;
 
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
@@ -55,14 +65,18 @@ impl<I> Iterator for TakeDuration<I> where I: Source, I::Item: Sample {
     // TODO: size_hint
 }
 
-impl<I> Source for TakeDuration<I> where I: Iterator + Source, I::Item: Sample {
+impl<I> Source for TakeDuration<I>
+    where I: Iterator + Source,
+          I::Item: Sample
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         if let Some(value) = self.input.get_current_frame_len() {
             let remaining_nanosecs = self.remaining_duration.as_secs() * 1000000000 +
                                      self.remaining_duration.subsec_nanos() as u64;
-            let remaining_samples = remaining_nanosecs * self.input.get_samples_rate() as u64
-                                                       * self.get_channels() as u64 / 1000000000;
+            let remaining_samples = remaining_nanosecs * self.input.get_samples_rate() as u64 *
+                                    self.get_channels() as u64 /
+                                    1000000000;
 
             if (value as u64) < remaining_samples {
                 Some(value)

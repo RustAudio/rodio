@@ -14,12 +14,16 @@ mod wav;
 /// Supports WAV and Vorbis.
 pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
 
-enum DecoderImpl<R> where R: Read + Seek {
+enum DecoderImpl<R>
+    where R: Read + Seek
+{
     Wav(wav::WavDecoder<R>),
     Vorbis(vorbis::VorbisDecoder<R>),
 }
 
-impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
+impl<R> Decoder<R>
+    where R: Read + Seek + Send + 'static
+{
     /// Builds a new decoder.
     ///
     /// Attempts to automatically detect the format of the source of data.
@@ -39,7 +43,9 @@ impl<R> Decoder<R> where R: Read + Seek + Send + 'static {
     }
 }
 
-impl<R> Iterator for Decoder<R> where R: Read + Seek {
+impl<R> Iterator for Decoder<R>
+    where R: Read + Seek
+{
     type Item = f32;
 
     #[inline]
@@ -59,7 +65,9 @@ impl<R> Iterator for Decoder<R> where R: Read + Seek {
     }
 }
 
-impl<R> Source for Decoder<R> where R: Read + Seek {
+impl<R> Source for Decoder<R>
+    where R: Read + Seek
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         match self.0 {
@@ -103,7 +111,7 @@ pub enum DecoderError {
 impl fmt::Display for DecoderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &DecoderError::UnrecognizedFormat => write!(f, "Unrecognized format")
+            &DecoderError::UnrecognizedFormat => write!(f, "Unrecognized format"),
         }
     }
 }
@@ -111,7 +119,7 @@ impl fmt::Display for DecoderError {
 impl Error for DecoderError {
     fn description(&self) -> &str {
         match self {
-            &DecoderError::UnrecognizedFormat => "Unrecognized format"
+            &DecoderError::UnrecognizedFormat => "Unrecognized format",
         }
     }
 }

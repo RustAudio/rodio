@@ -98,8 +98,10 @@ impl Sink {
 
     /// Appends a sound to the queue of sounds to play.
     #[inline]
-    pub fn append<S>(&self, source: S) where S: Source + Send + 'static,
-                                             S::Item: Sample, S::Item: Send
+    pub fn append<S>(&self, source: S)
+        where S: Source + Send + 'static,
+              S::Item: Sample,
+              S::Item: Send
     {
         self.handle.append(source);
     }
@@ -167,7 +169,7 @@ impl Drop for Sink {
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]
 pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Result<Sink, decoder::DecoderError>
-                    where R: Read + Seek + Send + 'static
+    where R: Read + Seek + Send + 'static
 {
     let input = try!(decoder::Decoder::new(input));
     let sink = Sink::new(endpoint);

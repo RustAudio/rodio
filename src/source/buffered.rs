@@ -8,7 +8,8 @@ use Sample;
 /// Internal function that builds a `Buffered` object.
 #[inline]
 pub fn buffered<I>(input: I) -> Buffered<I>
-                   where I: Source, I::Item: Sample
+    where I: Source,
+          I::Item: Sample
 {
     let total_duration = input.get_total_duration();
     let first_frame = extract(input);
@@ -21,7 +22,10 @@ pub fn buffered<I>(input: I) -> Buffered<I>
 }
 
 /// Iterator that at the same time extracts data from the iterator and stores it in a buffer.
-pub struct Buffered<I> where I: Source, I::Item: Sample {
+pub struct Buffered<I>
+    where I: Source,
+          I::Item: Sample
+{
     /// Immutable reference to the next frame of data. Cannot be `Frame::Input`.
     current_frame: Arc<Frame<I>>,
 
@@ -32,7 +36,10 @@ pub struct Buffered<I> where I: Source, I::Item: Sample {
     total_duration: Option<Duration>,
 }
 
-enum Frame<I> where I: Source, I::Item: Sample {
+enum Frame<I>
+    where I: Source,
+          I::Item: Sample
+{
     /// Data that has already been extracted from the iterator. Also contains a pointer to the
     /// next frame.
     Data(FrameData<I>),
@@ -45,7 +52,10 @@ enum Frame<I> where I: Source, I::Item: Sample {
     Input(Mutex<Option<I>>),
 }
 
-struct FrameData<I> where I: Source, I::Item: Sample {
+struct FrameData<I>
+    where I: Source,
+          I::Item: Sample
+{
     data: Vec<I::Item>,
     channels: u16,
     rate: u32,
@@ -53,7 +63,10 @@ struct FrameData<I> where I: Source, I::Item: Sample {
 }
 
 /// Builds a frame from the input iterator.
-fn extract<I>(mut input: I) -> Arc<Frame<I>> where I: Source, I::Item: Sample {
+fn extract<I>(mut input: I) -> Arc<Frame<I>>
+    where I: Source,
+          I::Item: Sample
+{
     let frame_len = input.get_current_frame_len();
 
     if frame_len == Some(0) {
@@ -72,13 +85,16 @@ fn extract<I>(mut input: I) -> Arc<Frame<I>> where I: Source, I::Item: Sample {
     }))
 }
 
-impl<I> Buffered<I> where I: Source, I::Item: Sample {
+impl<I> Buffered<I>
+    where I: Source,
+          I::Item: Sample
+{
     /// Advances to the next frame.
     fn next_frame(&mut self) {
         let next_frame = {
             let mut next_frame_ptr = match &*self.current_frame {
                 &Frame::Data(FrameData { ref next, .. }) => next.lock().unwrap(),
-                _ => unreachable!()
+                _ => unreachable!(),
             };
 
             let next_frame = match &**next_frame_ptr {
@@ -87,7 +103,7 @@ impl<I> Buffered<I> where I: Source, I::Item: Sample {
                 &Frame::Input(ref input) => {
                     let input = input.lock().unwrap().take().unwrap();
                     extract(input)
-                },
+                }
             };
 
             *next_frame_ptr = next_frame.clone();
@@ -99,7 +115,10 @@ impl<I> Buffered<I> where I: Source, I::Item: Sample {
     }
 }
 
-impl<I> Iterator for Buffered<I> where I: Source, I::Item: Sample {
+impl<I> Iterator for Buffered<I>
+    where I: Source,
+          I::Item: Sample
+{
     type Item = I::Item;
 
     #[inline]
@@ -112,16 +131,14 @@ impl<I> Iterator for Buffered<I> where I: Source, I::Item: Sample {
                 current_sample = Some(data[self.position_in_frame].clone());
                 self.position_in_frame += 1;
                 advance_frame = self.position_in_frame >= data.len();
-            },
+            }
 
             &Frame::End => {
                 current_sample = None;
                 advance_frame = false;
-            },
+            }
 
-            &Frame::Input(_) => {
-                unreachable!()
-            },
+            &Frame::Input(_) => unreachable!(),
         };
 
 
@@ -134,7 +151,7 @@ impl<I> Iterator for Buffered<I> where I: Source, I::Item: Sample {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        // TODO: 
+        // TODO:
         (0, None)
     }
 }
@@ -143,13 +160,16 @@ impl<I> Iterator for Buffered<I> where I: Source, I::Item: Sample {
 /*impl<I> ExactSizeIterator for Amplify<I> where I: Source + ExactSizeIterator, I::Item: Sample {
 }*/
 
-impl<I> Source for Buffered<I> where I: Source, I::Item: Sample {
+impl<I> Source for Buffered<I>
+    where I: Source,
+          I::Item: Sample
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         match &*self.current_frame {
             &Frame::Data(FrameData { ref data, .. }) => Some(data.len() - self.position_in_frame),
             &Frame::End => Some(0),
-            &Frame::Input(_) => unreachable!()
+            &Frame::Input(_) => unreachable!(),
         }
     }
 
@@ -158,7 +178,7 @@ impl<I> Source for Buffered<I> where I: Source, I::Item: Sample {
         match &*self.current_frame {
             &Frame::Data(FrameData { channels, .. }) => channels,
             &Frame::End => 1,
-            &Frame::Input(_) => unreachable!()
+            &Frame::Input(_) => unreachable!(),
         }
     }
 
@@ -167,7 +187,7 @@ impl<I> Source for Buffered<I> where I: Source, I::Item: Sample {
         match &*self.current_frame {
             &Frame::Data(FrameData { rate, .. }) => rate,
             &Frame::End => 44100,
-            &Frame::Input(_) => unreachable!()
+            &Frame::Input(_) => unreachable!(),
         }
     }
 
@@ -177,7 +197,10 @@ impl<I> Source for Buffered<I> where I: Source, I::Item: Sample {
     }
 }
 
-impl<I> Clone for Buffered<I> where I: Source, I::Item: Sample {
+impl<I> Clone for Buffered<I>
+    where I: Source,
+          I::Item: Sample
+{
     #[inline]
     fn clone(&self) -> Buffered<I> {
         Buffered {

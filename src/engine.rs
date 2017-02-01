@@ -28,10 +28,11 @@ use engine_filters::VolumeFilter;
 ///
 /// Each `Engine` owns a thread that runs in the background and plays the audio.
 pub struct Engine {
-    /// The events loop which the voices are created with.
+    // The events loop which the voices are created with.
     events_loop: Arc<EventLoop>,
 
-    end_points: Mutex<HashMap<String, Arc<EndPointVoices>>>,        // TODO: don't use the endpoint name, as it's slow
+    // TODO: don't use the endpoint name, as it's slow
+    end_points: Mutex<HashMap<String, Arc<EndPointVoices>>>,
 }
 
 struct EndPointVoices {
@@ -53,7 +54,8 @@ impl Engine {
                 let events_loop = events_loop.clone();
                 move || events_loop.run()
             })
-            .ok().map(|jg| jg.thread().clone());
+            .ok()
+            .map(|jg| jg.thread().clone());
 
         Engine {
             events_loop: events_loop,
@@ -66,92 +68,115 @@ impl Engine {
         let mut future_to_exec = None;
 
         // Getting the `EndPointVoices` struct of the requested endpoint.
-        let end_point = self.end_points.lock().unwrap().entry(endpoint.get_name()).or_insert_with(|| {
-            // TODO: handle possible errors here
-            // determining the format to use for the new voice
-            let format = endpoint.get_supported_formats_list().unwrap().fold(None, |f1, f2| {
-                if f1.is_none() {
-                    return Some(f2);
-                }
+        let end_point = self.end_points
+            .lock()
+            .unwrap()
+            .entry(endpoint.get_name())
+            .or_insert_with(|| {
+                // TODO: handle possible errors here
+                // determining the format to use for the new voice
+                let format = endpoint.get_supported_formats_list()
+                    .unwrap()
+                    .fold(None, |f1, f2| {
+                        if f1.is_none() {
+                            return Some(f2);
+                        }
 
-                let f1 = f1.unwrap();
+                        let f1 = f1.unwrap();
 
-                // we privilege f32 formats to avoid a conversion
-                if f2.data_type == cpal::SampleFormat::F32 && f1.data_type != cpal::SampleFormat::F32 {
-                    return Some(f2);
-                }
+                        // we privilege f32 formats to avoid a conversion
+                        if f2.data_type == cpal::SampleFormat::F32 &&
+                           f1.data_type != cpal::SampleFormat::F32 {
+                            return Some(f2);
+                        }
 
-                // do not go below 44100 if possible
-                if f1.samples_rate.0 < 44100 {
-                    return Some(f2);
-                }
+                        // do not go below 44100 if possible
+                        if f1.samples_rate.0 < 44100 {
+                            return Some(f2);
+                        }
 
-                // priviledge outputs with 2 channels for now
-                if f2.channels.len() == 2 && f1.channels.len() != 2 {
-                    return Some(f2);
-                }
+                        // priviledge outputs with 2 channels for now
+                        if f2.channels.len() == 2 && f1.channels.len() != 2 {
+                            return Some(f2);
+                        }
 
-                Some(f1)
-            }).expect("The endpoint doesn't support any format!?");
+                        Some(f1)
+                    })
+                    .expect("The endpoint doesn't support any format!?");
 
-            let (mut voice, stream) = Voice::new(&endpoint, &format, &self.events_loop).unwrap();
-            let end_point_voices = Arc::new(EndPointVoices {
-                format: format,
-                next_id: AtomicUsize::new(1),
-                pending_sounds: Mutex::new(Vec::with_capacity(8)),
-            });
-
-            let epv = end_point_voices.clone();
-
-            let sounds = Arc::new(Mutex::new(Vec::new()));
-            future_to_exec = Some(stream.for_each(move |mut buffer| -> Result<_, ()> {
-                let mut sounds = sounds.lock().unwrap();
-
-                {
-                    let mut pending = epv.pending_sounds.lock().unwrap();
-                    sounds.append(&mut pending);
-                }
-
-                if sounds.len() == 0 {
-                    return Ok(());
-                }
-                // Drop if it's not playing a real source, and it's sink is detached
-                // or the sink was dropped before being detached.
-                sounds.retain(|s| {
-                    if s.1.local_dead {
-                        return false;
-                    }
-                    if !s.1.is_playing_real_source {
-                        return !s.1.local_handle_dead;
-                    } else {
-                        true
-                    }
-                });
-                let samples_iter = (0..).map(|_| {
-                    let v = sounds.iter_mut().map(|s| s.1.next().unwrap_or(0.0))
-                                  .fold(0.0, |a, b| a + b);
-                    if v < -1.0 { -1.0 } else if v > 1.0 { 1.0 } else { v }
+                let (mut voice, stream) = Voice::new(&endpoint, &format, &self.events_loop)
+                    .unwrap();
+                let end_point_voices = Arc::new(EndPointVoices {
+                    format: format,
+                    next_id: AtomicUsize::new(1),
+                    pending_sounds: Mutex::new(Vec::with_capacity(8)),
                 });
 
-                match buffer {
-                    UnknownTypeBuffer::U16(ref mut buffer) => {
-                        for (o, i) in buffer.iter_mut().zip(samples_iter) { *o = i.to_u16(); }
-                    },
-                    UnknownTypeBuffer::I16(ref mut buffer) => {
-                        for (o, i) in buffer.iter_mut().zip(samples_iter) { *o = i.to_i16(); }
-                    },
-                    UnknownTypeBuffer::F32(ref mut buffer) => {
-                        for (o, i) in buffer.iter_mut().zip(samples_iter) { *o = i; }
-                    },
-                };
+                let epv = end_point_voices.clone();
 
-                Ok(())
-            }));
+                let sounds = Arc::new(Mutex::new(Vec::new()));
+                future_to_exec = Some(stream.for_each(move |mut buffer| -> Result<_, ()> {
+                    let mut sounds = sounds.lock().unwrap();
 
-            voice.play();       // TODO: don't do this now
+                    {
+                        let mut pending = epv.pending_sounds.lock().unwrap();
+                        sounds.append(&mut pending);
+                    }
 
-            end_point_voices
-        }).clone();
+                    if sounds.len() == 0 {
+                        return Ok(());
+                    }
+                    // Drop if it's not playing a real source, and it's sink is detached
+                    // or the sink was dropped before being detached.
+                    sounds.retain(|s| {
+                        if s.1.local_dead {
+                            return false;
+                        }
+                        if !s.1.is_playing_real_source {
+                            return !s.1.local_handle_dead;
+                        } else {
+                            true
+                        }
+                    });
+                    let samples_iter = (0..).map(|_| {
+                        let v = sounds.iter_mut()
+                            .map(|s| s.1.next().unwrap_or(0.0))
+                            .fold(0.0, |a, b| a + b);
+                        if v < -1.0 {
+                            -1.0
+                        } else if v > 1.0 {
+                            1.0
+                        } else {
+                            v
+                        }
+                    });
+
+                    match buffer {
+                        UnknownTypeBuffer::U16(ref mut buffer) => {
+                            for (o, i) in buffer.iter_mut().zip(samples_iter) {
+                                *o = i.to_u16();
+                            }
+                        }
+                        UnknownTypeBuffer::I16(ref mut buffer) => {
+                            for (o, i) in buffer.iter_mut().zip(samples_iter) {
+                                *o = i.to_i16();
+                            }
+                        }
+                        UnknownTypeBuffer::F32(ref mut buffer) => {
+                            for (o, i) in buffer.iter_mut().zip(samples_iter) {
+                                *o = i;
+                            }
+                        }
+                    };
+
+                    Ok(())
+                }));
+
+                voice.play(); // TODO: don't do this now
+
+                end_point_voices
+            })
+            .clone();
 
         // Assigning an id for the handle.
         let handle_id = end_point.next_id.fetch_add(1, Ordering::Relaxed);
@@ -172,7 +197,7 @@ impl Engine {
         let next_sounds = Arc::new(Mutex::new(Vec::new()));
 
         // Frequency with which dead value should be updated.
-        let update_frequency = (5 * end_point.format.samples_rate.0)/1000;
+        let update_frequency = (5 * end_point.format.samples_rate.0) / 1000;
 
         let queue_iterator = QueueIterator {
             current: Box::new(None.into_iter()),
@@ -192,7 +217,11 @@ impl Engine {
 
         if let Some(future_to_exec) = future_to_exec {
             struct MyExecutor;
-            impl Executor for MyExecutor { fn execute(&self, r: Run) { r.run(); } }
+            impl Executor for MyExecutor {
+                fn execute(&self, r: Run) {
+                    r.run();
+                }
+            }
             task::spawn(future_to_exec).execute(Arc::new(MyExecutor));
         }
 
@@ -247,7 +276,8 @@ impl Handle {
     /// Returns a receiver that is triggered when the sound is finished playing.
     #[inline]
     pub fn append<S>(&self, source: S)
-        where S: Source + Send + 'static, S::Item: Sample + Clone + Send
+        where S: Source + Send + 'static,
+              S::Item: Sample + Clone + Send
     {
         // Updating `end`.
         let (tx, rx) = mpsc::channel();
@@ -383,7 +413,7 @@ impl Iterator for QueueIterator {
                     self.is_playing_real_source = false;
                     // if there's no iter waiting, we create a dummy iter with 1000 null samples
                     // this avoids a spinlock
-                    (Box::new((0 .. 1000).map(|_| 0.0f32)) as Box<Iterator<Item = f32> + Send>, None)
+                    (Box::new((0..1000).map(|_| 0.0f32)) as Box<Iterator<Item = f32> + Send>, None)
                 } else {
                     self.is_playing_real_source = true;
                     next.remove(0)
@@ -398,8 +428,12 @@ impl Iterator for QueueIterator {
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         // TODO: slow? benchmark this
-        let next_hints = self.next.lock().unwrap().iter()
-                                  .map(|i| i.0.size_hint().0).fold(0, |a, b| a + b);
+        let next_hints = self.next
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|i| i.0.size_hint().0)
+            .fold(0, |a, b| a + b);
         (self.current.size_hint().0 + next_hints, None)
     }
 }

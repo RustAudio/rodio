@@ -5,7 +5,8 @@ use Source;
 
 /// Internal function that builds a `Speed` object.
 pub fn speed<I>(input: I, factor: f32) -> Speed<I>
-                where I: Source, I::Item: Sample
+    where I: Source,
+          I::Item: Sample
 {
     Speed {
         input: input,
@@ -15,12 +16,18 @@ pub fn speed<I>(input: I, factor: f32) -> Speed<I>
 
 /// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
-pub struct Speed<I> where I: Source, I::Item: Sample {
+pub struct Speed<I>
+    where I: Source,
+          I::Item: Sample
+{
     input: I,
     factor: f32,
 }
 
-impl<I> Iterator for Speed<I> where I: Source, I::Item: Sample {
+impl<I> Iterator for Speed<I>
+    where I: Source,
+          I::Item: Sample
+{
     type Item = I::Item;
 
     #[inline]
@@ -34,10 +41,16 @@ impl<I> Iterator for Speed<I> where I: Source, I::Item: Sample {
     }
 }
 
-impl<I> ExactSizeIterator for Speed<I> where I: Source + ExactSizeIterator, I::Item: Sample {
+impl<I> ExactSizeIterator for Speed<I>
+    where I: Source + ExactSizeIterator,
+          I::Item: Sample
+{
 }
 
-impl<I> Source for Speed<I> where I: Source, I::Item: Sample {
+impl<I> Source for Speed<I>
+    where I: Source,
+          I::Item: Sample
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         self.input.get_current_frame_len()

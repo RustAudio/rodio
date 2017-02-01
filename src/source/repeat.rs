@@ -6,19 +6,31 @@ use Sample;
 use Source;
 
 /// Internal function that builds a `Repeat` object.
-pub fn repeat<I>(input: I) -> Repeat<I> where I: Source, I::Item: Sample {
+pub fn repeat<I>(input: I) -> Repeat<I>
+    where I: Source,
+          I::Item: Sample
+{
     let input = input.buffered();
-    Repeat { inner: input.clone(), next: input }
+    Repeat {
+        inner: input.clone(),
+        next: input,
+    }
 }
 
 /// A source that repeats the given source.
 #[derive(Clone)]
-pub struct Repeat<I> where I: Source, I::Item: Sample {
+pub struct Repeat<I>
+    where I: Source,
+          I::Item: Sample
+{
     inner: Buffered<I>,
     next: Buffered<I>,
 }
 
-impl<I> Iterator for Repeat<I> where I: Source, I::Item: Sample {
+impl<I> Iterator for Repeat<I>
+    where I: Source,
+          I::Item: Sample
+{
     type Item = <I as Iterator>::Item;
 
     #[inline]
@@ -38,12 +50,15 @@ impl<I> Iterator for Repeat<I> where I: Source, I::Item: Sample {
     }
 }
 
-impl<I> Source for Repeat<I> where I: Iterator + Source, I::Item: Sample {
+impl<I> Source for Repeat<I>
+    where I: Iterator + Source,
+          I::Item: Sample
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         match self.inner.get_current_frame_len() {
             Some(0) => self.next.get_current_frame_len(),
-            a => a
+            a => a,
         }
     }
 
@@ -51,7 +66,7 @@ impl<I> Source for Repeat<I> where I: Iterator + Source, I::Item: Sample {
     fn get_channels(&self) -> u16 {
         match self.inner.get_current_frame_len() {
             Some(0) => self.next.get_channels(),
-            _ => self.inner.get_channels()
+            _ => self.inner.get_channels(),
         }
     }
 
@@ -59,7 +74,7 @@ impl<I> Source for Repeat<I> where I: Iterator + Source, I::Item: Sample {
     fn get_samples_rate(&self) -> u32 {
         match self.inner.get_current_frame_len() {
             Some(0) => self.next.get_samples_rate(),
-            _ => self.inner.get_samples_rate()
+            _ => self.inner.get_samples_rate(),
         }
     }
 

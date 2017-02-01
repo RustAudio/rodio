@@ -5,11 +5,12 @@ use Sample;
 
 /// Internal function that builds a `Delay` object.
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
-                where I: Source, I::Item: Sample
+    where I: Source,
+          I::Item: Sample
 {
     let duration_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-    let samples = duration_ns * input.get_samples_rate() as u64
-                              * input.get_channels() as u64 / 1000000000;
+    let samples = duration_ns * input.get_samples_rate() as u64 * input.get_channels() as u64 /
+                  1000000000;
 
     Delay {
         input: input,
@@ -20,13 +21,19 @@ pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
 
 /// A source that delays the given source by a certain amount.
 #[derive(Clone, Debug)]
-pub struct Delay<I> where I: Source, I::Item: Sample {
+pub struct Delay<I>
+    where I: Source,
+          I::Item: Sample
+{
     input: I,
     remaining_samples: usize,
     requested_duration: Duration,
 }
 
-impl<I> Iterator for Delay<I> where I: Source, I::Item: Sample {
+impl<I> Iterator for Delay<I>
+    where I: Source,
+          I::Item: Sample
+{
     type Item = <I as Iterator>::Item;
 
     #[inline]
@@ -47,7 +54,10 @@ impl<I> Iterator for Delay<I> where I: Source, I::Item: Sample {
     }
 }
 
-impl<I> Source for Delay<I> where I: Iterator + Source, I::Item: Sample {
+impl<I> Source for Delay<I>
+    where I: Iterator + Source,
+          I::Item: Sample
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         self.input.get_current_frame_len().map(|val| val + self.remaining_samples)

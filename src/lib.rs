@@ -67,7 +67,6 @@ use std::io::{Read, Seek};
 
 mod conversions;
 mod engine;
-mod engine_filters;
 
 pub mod decoder;
 pub mod source;

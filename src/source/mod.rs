@@ -7,22 +7,26 @@ pub use self::buffered::Buffered;
 pub use self::delay::Delay;
 pub use self::fadein::FadeIn;
 pub use self::mix::Mix;
+pub use self::pauseable::Pauseable;
 pub use self::repeat::Repeat;
 pub use self::sine::SineWave;
 pub use self::speed::Speed;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
+pub use self::volume_filter::VolumeFilter;
 
 mod amplify;
 mod buffered;
 mod delay;
 mod fadein;
 mod mix;
+mod pauseable;
 mod repeat;
 mod sine;
 mod speed;
 mod take;
 mod uniform;
+mod volume_filter;
 
 /// A source of samples.
 pub trait Source: Iterator

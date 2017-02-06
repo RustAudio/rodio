@@ -18,11 +18,10 @@ use cpal::Voice;
 use cpal::Endpoint;
 use conversions::Sample;
 
+use source::Pauseable;
 use source::Source;
+use source::VolumeFilter;
 use source::UniformSourceIterator;
-
-use engine_filters::Pauseable;
-use engine_filters::VolumeFilter;
 
 /// The internal engine of this library.
 ///

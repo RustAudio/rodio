@@ -5,6 +5,7 @@ use Sample;
 pub use self::amplify::Amplify;
 pub use self::buffered::Buffered;
 pub use self::delay::Delay;
+pub use self::empty::Empty;
 pub use self::fadein::FadeIn;
 pub use self::mix::Mix;
 pub use self::pauseable::Pauseable;
@@ -14,10 +15,12 @@ pub use self::speed::Speed;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 pub use self::volume_filter::VolumeFilter;
+pub use self::zero::Zero;
 
 mod amplify;
 mod buffered;
 mod delay;
+mod empty;
 mod fadein;
 mod mix;
 mod pauseable;
@@ -27,6 +30,7 @@ mod speed;
 mod take;
 mod uniform;
 mod volume_filter;
+mod zero;
 
 /// A source of samples.
 pub trait Source: Iterator

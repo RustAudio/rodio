@@ -69,6 +69,7 @@ mod conversions;
 mod engine;
 
 pub mod decoder;
+pub mod queue;
 pub mod source;
 
 lazy_static! {

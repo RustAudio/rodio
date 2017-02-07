@@ -51,8 +51,10 @@ impl<I> Iterator for Stoppable<I>
             if self.remote_stopped.load(Ordering::Relaxed) {
                 return None;
             } else {
-                self.samples_until_update -= 1;
+                self.samples_until_update = self.update_frequency;
             }
+        } else {
+            self.samples_until_update -= 1;
         }
 
         self.input.next()

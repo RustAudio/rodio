@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
@@ -30,13 +32,13 @@ pub fn queue<S>(keep_alive_if_empty: bool)
 {
     let input = Arc::new(SourcesQueueInput {
         next_sounds: Mutex::new(Vec::new()),
+        keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
     });
 
     let output = SourcesQueueOutput {
         current: Box::new(Empty::<S>::new()) as Box<_>,
         signal_after_end: None,
         input: input.clone(),
-        keep_alive_if_empty: keep_alive_if_empty,
     };
 
     (input, output)
@@ -45,6 +47,9 @@ pub fn queue<S>(keep_alive_if_empty: bool)
 /// The input of the queue.
 pub struct SourcesQueueInput<S> {
     next_sounds: Mutex<Vec<(Box<Source<Item = S> + Send>, Option<Sender<()>>)>>,
+
+    // See constructor.
+    keep_alive_if_empty: AtomicBool,
 }
 
 impl<S> SourcesQueueInput<S> where S: Sample + Send + 'static {
@@ -67,6 +72,13 @@ impl<S> SourcesQueueInput<S> where S: Sample + Send + 'static {
         self.next_sounds.lock().unwrap().push((Box::new(source) as Box<_>, Some(tx)));
         rx
     }
+
+    /// Sets whether the queue stays alive if there's no more sound to play.
+    ///
+    /// See also the constructor.
+    pub fn set_keep_alive_if_empty(&self, keep_alive_if_empty: bool) {
+        self.keep_alive_if_empty.store(keep_alive_if_empty, Ordering::Release);
+    }
 }
 
 /// The output of the queue. Implements `Source`.
@@ -79,9 +91,6 @@ pub struct SourcesQueueOutput<S> {
 
     // The next sounds.
     input: Arc<SourcesQueueInput<S>>,
-
-    // See constructor.
-    keep_alive_if_empty: bool,
 }
 
 impl<S> Source for SourcesQueueOutput<S> where S: Sample + Send + 'static {
@@ -145,7 +154,7 @@ impl<S> SourcesQueueOutput<S> where S: Sample + Send + 'static {
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.len() == 0 {
-                if self.keep_alive_if_empty {
+                if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
                     let silence = Zero::<S>::new(1, 44000);          // TODO: meh
                     (Box::new(silence.take_duration(Duration::from_millis(10))) as Box<_>, None)

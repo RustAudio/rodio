@@ -148,7 +148,7 @@ impl<S> SourcesQueueOutput<S> where S: Sample + Send + 'static {
                 if self.keep_alive_if_empty {
                     // Play a short silence in order to avoid spinlocking.
                     let silence = Zero::<S>::new(1, 44000);          // TODO: meh
-                    (Box::new(silence) as Box<_>, None)
+                    (Box::new(silence.take_duration(Duration::from_millis(10))) as Box<_>, None)
                 } else {
                     return Err(());
                 }

@@ -64,6 +64,11 @@ pub use decoder::Decoder;
 pub use source::Source;
 
 use std::io::{Read, Seek};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::sync::mpsc::Receiver;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 mod conversions;
 mod engine;
@@ -82,18 +87,25 @@ lazy_static! {
 /// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
 /// playing.
 pub struct Sink {
-    handle: engine::Handle,
-    // if true, then the sound will stop playing at the end
-    stop: bool,
+    queue_tx: Arc<queue::SourcesQueueInput<f32>>,
+    sleep_until_end: Mutex<Option<Receiver<()>>>,
+
+    pause: Arc<AtomicBool>,
+    volume: Arc<Mutex<f32>>,
 }
 
 impl Sink {
     /// Builds a new `Sink`.
     #[inline]
     pub fn new(endpoint: &Endpoint) -> Sink {
+        let (queue_tx, queue_rx) = queue::queue(false);
+        ENGINE.start(endpoint, queue_rx);
+
         Sink {
-            handle: ENGINE.start(&endpoint),
-            stop: true,
+            queue_tx: queue_tx,
+            sleep_until_end: Mutex::new(None),
+            pause: Arc::new(AtomicBool::new(false)),
+            volume: Arc::new(Mutex::new(1.0)),
         }
     }
 
@@ -104,7 +116,10 @@ impl Sink {
               S::Item: Sample,
               S::Item: Send
     {
-        self.handle.append(source);
+        let source = source::Pauseable::new(source, self.pause.clone(), 5);
+        let source = source::VolumeFilter::new(source, self.volume.clone(), 5);
+        let source = source::SamplesConverter::new(source);
+        *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
     }
 
     // Gets the volume of the sound.
@@ -113,7 +128,7 @@ impl Sink {
     /// multiply each sample by this value.
     #[inline]
     pub fn volume(&self) -> f32 {
-        self.handle.volume()
+        *self.volume.lock().unwrap()
     }
 
     /// Changes the volume of the sound.
@@ -122,48 +137,51 @@ impl Sink {
     /// multiply each sample by this value.
     #[inline]
     pub fn set_volume(&mut self, value: f32) {
-        self.handle.set_volume(value);
+        *self.volume.lock().unwrap() = value;
     }
 
     /// Resumes playback of a paused sound.
+    ///
+    /// No effect if not paused.
     #[inline]
     pub fn play(&self) {
-        self.handle.play();
+        self.pause.store(false, Ordering::SeqCst);
     }
 
     /// Pauses playback of this sink.
     ///
-    /// A paused sound can be resumed with play
+    /// No effect if already paused.
+    ///
+    /// A paused sound can be resumed with `play()`.
     pub fn pause(&self) {
-        self.handle.pause();
+        self.pause.store(true, Ordering::SeqCst);
     }
 
     /// Gets if a sound is paused
     ///
-    /// Sounds can be paused and resumed using pause() and play().  This gets if a sound is paused.
+    /// Sounds can be paused and resumed using pause() and play(). This gets if a sound is paused.
     pub fn is_paused(&self) -> bool {
-        self.handle.is_paused()
+        self.pause.load(Ordering::SeqCst)
     }
 
     /// Destroys the sink without stopping the sounds that are still playing.
     #[inline]
     pub fn detach(mut self) {
-        self.stop = false;
+        unimplemented!()
     }
 
     /// Sleeps the current thread until the sound ends.
     #[inline]
     pub fn sleep_until_end(&self) {
-        self.handle.sleep_until_end();
+        if let Some(sleep_until_end) = self.sleep_until_end.lock().unwrap().take() {
+            let _ = sleep_until_end.recv();
+        }
     }
 }
 
 impl Drop for Sink {
     #[inline]
     fn drop(&mut self) {
-        if self.stop {
-            self.handle.stop();
-        }
     }
 }
 

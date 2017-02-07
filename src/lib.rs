@@ -69,6 +69,7 @@ mod conversions;
 mod engine;
 
 pub mod decoder;
+pub mod dynamic_mixer;
 pub mod queue;
 pub mod source;
 

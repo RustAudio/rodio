@@ -96,7 +96,34 @@ pub struct SourcesQueueOutput<S> {
 impl<S> Source for SourcesQueueOutput<S> where S: Sample + Send + 'static {
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
-        self.current.get_current_frame_len()
+        // This function is non-trivial because the boundary between two sounds in the queue should
+        // be a frame boundary as well.
+        //
+        // The current sound is free to return `None` for `get_current_frame_len()`, in which case
+        // we *should* return the number of samples remaining the current sound.
+        // This can be estimated with `size_hint()`.
+        //
+        // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
+        // situation we force a frame to have a maximum number of samples indicate by this
+        // constant.
+        const THRESHOLD: usize = 10240;
+
+        // Try the current `get_current_frame_len`.
+        if let Some(val) = self.current.get_current_frame_len() {
+            if val != 0 {
+                return Some(val);
+            }
+        }
+
+        // Try the size hint.
+        if let Some(val) = self.current.size_hint().1 {
+            if val < THRESHOLD && val != 0 {
+                return Some(val);
+            }
+        }
+
+        // Otherwise we use the constant value.
+        Some(THRESHOLD)
     }
 
     #[inline]

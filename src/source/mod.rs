@@ -40,7 +40,8 @@ mod zero;
 pub trait Source: Iterator
     where Self::Item: Sample
 {
-    /// Returns the number of samples before the current frame ends. `None` means "infinite".
+    /// Returns the number of samples before the current frame ends. `None` means "infinite" or
+    /// "until the sound ends".
     /// Should never return 0 unless there's no more data.
     ///
     /// After the engine has finished reading the specified number of samples, it will assume that

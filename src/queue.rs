@@ -129,6 +129,7 @@ impl<S> Iterator for SourcesQueueOutput<S> where S: Sample + Send + 'static {
             // Since `self.current` has finished, we need to pick the next sound.
             // In order to avoid inlining this expensive operation, the code is in another function.
             if self.go_next().is_err() {
+                println!("returned none");
                 return None;
             }
         }

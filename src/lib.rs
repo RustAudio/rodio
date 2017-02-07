@@ -101,7 +101,7 @@ impl Sink {
     /// Builds a new `Sink`.
     #[inline]
     pub fn new(endpoint: &Endpoint) -> Sink {
-        let (queue_tx, queue_rx) = queue::queue(false);
+        let (queue_tx, queue_rx) = queue::queue(true);
         ENGINE.start(endpoint, queue_rx);
 
         Sink {
@@ -188,6 +188,8 @@ impl Sink {
 impl Drop for Sink {
     #[inline]
     fn drop(&mut self) {
+        self.queue_tx.set_keep_alive_if_empty(false);
+
         if !self.detached {
             self.stopped.store(true, Ordering::Relaxed);
         }

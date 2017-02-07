@@ -56,33 +56,42 @@ impl Engine {
     pub fn start<S>(&self, endpoint: &Endpoint, source: S)
         where S: Source<Item = f32> + Send + 'static
     {
+        let mut voice_to_start = None;
+
         let mixer = {
             let mut end_points = self.end_points.lock().unwrap();
 
             match end_points.entry(endpoint.get_name()) {
                 Entry::Vacant(e) => {
-                    let arc = new_voice(endpoint, &self.events_loop);
-                    e.insert(Arc::downgrade(&arc));
-                    arc
+                    let (mixer, voice) = new_voice(endpoint, &self.events_loop);
+                    e.insert(Arc::downgrade(&mixer));
+                    voice_to_start = Some(voice);
+                    mixer
                 },
                 Entry::Occupied(mut e) => {
                     if let Some(m) = e.get().upgrade() {
                         m.clone()
                     } else {
-                        let voice = new_voice(endpoint, &self.events_loop);
-                        e.insert(Arc::downgrade(&voice));
-                        voice
+                        let (mixer, voice) = new_voice(endpoint, &self.events_loop);
+                        e.insert(Arc::downgrade(&mixer));
+                        voice_to_start = Some(voice);
+                        mixer
                     }
                 },
             }
         };
 
         mixer.add(source);
+
+        if let Some(mut voice) = voice_to_start {
+            voice.play();
+        }
     }
 }
 
 // TODO: handle possible errors here
-fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>) -> Arc<dynamic_mixer::DynamicMixerController<f32>> {
+fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>)
+             -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, Voice) {
     // Determine the format to use for the new voice.
     let format = endpoint.get_supported_formats_list()
         .unwrap()
@@ -113,7 +122,7 @@ fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>) -> Arc<dynamic_m
         })
         .expect("The endpoint doesn't support any format!?");
 
-    let (mut voice, stream) = Voice::new(&endpoint, &format, events_loop)
+    let (voice, stream) = Voice::new(&endpoint, &format, events_loop)
         .unwrap();
 
     let (mixer_tx, mut mixer_rx) = {
@@ -152,9 +161,5 @@ fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>) -> Arc<dynamic_m
         task::spawn(future_to_exec).execute(Arc::new(MyExecutor));
     }
 
-    voice.play(); // TODO: don't do this now
-    // TODO: is there a chance that a context switch here starts playing the sound and
-    // immediately drops it?
-
-    mixer_tx
+    (mixer_tx, voice)
 }

@@ -101,12 +101,21 @@ impl<S> Iterator for DynamicMixer<S> where S: Sample + Send + 'static {
             return None;
         }
 
+        let mut to_drop = Vec::new();
+
         let mut sum = S::zero_value();
-        for src in self.current_sources.iter_mut() {
+        for (num, src) in self.current_sources.iter_mut().enumerate() {
             if let Some(val) = src.next() {
                 sum += val;
+            } else {
+                to_drop.push(num);
             }
         }
+
+        for &td in to_drop.iter().rev() {
+            self.current_sources.remove(td);
+        }
+
         Some(sum)
     }
 

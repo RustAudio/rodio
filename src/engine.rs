@@ -19,10 +19,41 @@ use conversions::Sample;
 use dynamic_mixer;
 use source::Source;
 
-/// The internal engine of this library.
+/// Plays a source to an end point until it ends.
 ///
-/// Each `Engine` owns a thread that runs in the background and plays the audio.
-pub struct Engine {
+/// The playing uses a background thread.
+pub fn play_raw<S>(endpoint: &Endpoint, source: S)
+    where S: Source<Item = f32> + Send + 'static
+{
+    lazy_static! {
+        static ref ENGINE: Engine = {
+            let events_loop = Arc::new(EventLoop::new());
+
+            // We ignore errors when creating the background thread.
+            // The user won't get any audio, but that's better than a panic.
+            Builder::new()
+                .name("rodio audio processing".to_string())
+                .spawn({
+                    let events_loop = events_loop.clone();
+                    move || events_loop.run()
+                })
+                .ok()
+                .map(|jg| jg.thread().clone());
+
+            Engine {
+                events_loop: events_loop,
+                end_points: Mutex::new(HashMap::with_capacity(1)),
+            }
+        };
+    }
+
+    ENGINE.start(endpoint, source);
+}
+
+// The internal engine of this library.
+//
+// Each `Engine` owns a thread that runs in the background and plays the audio.
+struct Engine {
     // The events loop which the voices are created with.
     events_loop: Arc<EventLoop>,
 
@@ -31,29 +62,8 @@ pub struct Engine {
 }
 
 impl Engine {
-    /// Builds the engine.
-    pub fn new() -> Engine {
-        let events_loop = Arc::new(EventLoop::new());
-
-        // We ignore errors when creating the background thread.
-        // The user won't get any audio, but that's better than a panic.
-        Builder::new()
-            .name("rodio audio processing".to_string())
-            .spawn({
-                let events_loop = events_loop.clone();
-                move || events_loop.run()
-            })
-            .ok()
-            .map(|jg| jg.thread().clone());
-
-        Engine {
-            events_loop: events_loop,
-            end_points: Mutex::new(HashMap::with_capacity(1)),
-        }
-    }
-
-    /// Builds a new sink that targets a given endpoint.
-    pub fn start<S>(&self, endpoint: &Endpoint, source: S)
+    // Builds a new sink that targets a given endpoint.
+    fn start<S>(&self, endpoint: &Endpoint, source: S)
         where S: Source<Item = f32> + Send + 'static
     {
         let mut voice_to_start = None;

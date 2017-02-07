@@ -61,6 +61,7 @@ pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
+pub use engine::play_raw;
 pub use source::Source;
 
 use std::io::{Read, Seek};
@@ -77,10 +78,6 @@ pub mod decoder;
 pub mod dynamic_mixer;
 pub mod queue;
 pub mod source;
-
-lazy_static! {
-    static ref ENGINE: engine::Engine = engine::Engine::new();
-}
 
 /// Handle to an endpoint that outputs sounds.
 ///
@@ -102,7 +99,7 @@ impl Sink {
     #[inline]
     pub fn new(endpoint: &Endpoint) -> Sink {
         let (queue_tx, queue_rx) = queue::queue(true);
-        ENGINE.start(endpoint, queue_rx);
+        play_raw(endpoint, queue_rx);
 
         Sink {
             queue_tx: queue_tx,

@@ -92,6 +92,9 @@ pub struct Sink {
 
     pause: Arc<AtomicBool>,
     volume: Arc<Mutex<f32>>,
+    stopped: Arc<AtomicBool>,
+
+    detached: bool,
 }
 
 impl Sink {
@@ -106,6 +109,8 @@ impl Sink {
             sleep_until_end: Mutex::new(None),
             pause: Arc::new(AtomicBool::new(false)),
             volume: Arc::new(Mutex::new(1.0)),
+            stopped: Arc::new(AtomicBool::new(false)),
+            detached: false,
         }
     }
 
@@ -117,6 +122,7 @@ impl Sink {
               S::Item: Send
     {
         let source = source::Pauseable::new(source, self.pause.clone(), 5);
+        let source = source::Stoppable::new(source, self.stopped.clone(), 5);
         let source = source::VolumeFilter::new(source, self.volume.clone(), 5);
         let source = source::SamplesConverter::new(source);
         *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
@@ -167,7 +173,7 @@ impl Sink {
     /// Destroys the sink without stopping the sounds that are still playing.
     #[inline]
     pub fn detach(mut self) {
-        unimplemented!()
+        self.detached = true;
     }
 
     /// Sleeps the current thread until the sound ends.
@@ -182,6 +188,9 @@ impl Sink {
 impl Drop for Sink {
     #[inline]
     fn drop(&mut self) {
+        if !self.detached {
+            self.stopped.store(true, Ordering::Relaxed);
+        }
     }
 }
 

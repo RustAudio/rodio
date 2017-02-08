@@ -106,7 +106,7 @@ impl<S> Iterator for DynamicMixer<S> where S: Sample + Send + 'static {
         let mut sum = S::zero_value();
         for (num, src) in self.current_sources.iter_mut().enumerate() {
             if let Some(val) = src.next() {
-                sum += val;
+                sum = sum.saturating_add(val);
             } else {
                 to_drop.push(num);
             }

@@ -1,4 +1,6 @@
 use std::marker::PhantomData;
+use std::ops::Add;
+use std::ops::AddAssign;
 use cpal;
 
 /// Converts the samples data type to `O`.
@@ -52,11 +54,12 @@ impl<I, O> ExactSizeIterator for DataConverter<I, O>
 
 
 /// Represents a value of a single sample.
-pub trait Sample: cpal::Sample {
+pub trait Sample: cpal::Sample + Add + AddAssign {
     /// Linear interpolation between two samples.
     ///
     /// The result should be equal to
     /// `first * numerator / denominator + second * (1 - numerator / denominator)`.
+    // TODO: remove ; not necessary
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;

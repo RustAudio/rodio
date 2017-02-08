@@ -61,109 +61,20 @@ pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
+pub use engine::play_raw;
+pub use sink::Sink;
 pub use source::Source;
 
 use std::io::{Read, Seek};
 
 mod conversions;
 mod engine;
+mod sink;
 
 pub mod decoder;
+pub mod dynamic_mixer;
+pub mod queue;
 pub mod source;
-
-lazy_static! {
-    static ref ENGINE: engine::Engine = engine::Engine::new();
-}
-
-/// Handle to an endpoint that outputs sounds.
-///
-/// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
-/// playing.
-pub struct Sink {
-    handle: engine::Handle,
-    // if true, then the sound will stop playing at the end
-    stop: bool,
-}
-
-impl Sink {
-    /// Builds a new `Sink`.
-    #[inline]
-    pub fn new(endpoint: &Endpoint) -> Sink {
-        Sink {
-            handle: ENGINE.start(&endpoint),
-            stop: true,
-        }
-    }
-
-    /// Appends a sound to the queue of sounds to play.
-    #[inline]
-    pub fn append<S>(&self, source: S)
-        where S: Source + Send + 'static,
-              S::Item: Sample,
-              S::Item: Send
-    {
-        self.handle.append(source);
-    }
-
-    // Gets the volume of the sound.
-    ///
-    /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
-    /// multiply each sample by this value.
-    #[inline]
-    pub fn volume(&self) -> f32 {
-        self.handle.volume()
-    }
-
-    /// Changes the volume of the sound.
-    ///
-    /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
-    /// multiply each sample by this value.
-    #[inline]
-    pub fn set_volume(&mut self, value: f32) {
-        self.handle.set_volume(value);
-    }
-
-    /// Resumes playback of a paused sound.
-    #[inline]
-    pub fn play(&self) {
-        self.handle.play();
-    }
-
-    /// Pauses playback of this sink.
-    ///
-    /// A paused sound can be resumed with play
-    pub fn pause(&self) {
-        self.handle.pause();
-    }
-
-    /// Gets if a sound is paused
-    ///
-    /// Sounds can be paused and resumed using pause() and play().  This gets if a sound is paused.
-    pub fn is_paused(&self) -> bool {
-        self.handle.is_paused()
-    }
-
-    /// Destroys the sink without stopping the sounds that are still playing.
-    #[inline]
-    pub fn detach(mut self) {
-        self.stop = false;
-    }
-
-    /// Sleeps the current thread until the sound ends.
-    #[inline]
-    pub fn sleep_until_end(&self) {
-        self.handle.sleep_until_end();
-    }
-}
-
-impl Drop for Sink {
-    #[inline]
-    fn drop(&mut self) {
-        if self.stop {
-            self.handle.stop();
-        }
-    }
-}
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]

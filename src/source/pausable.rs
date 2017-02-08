@@ -7,7 +7,7 @@ use Source;
 
 /// Filter that allows another thread to pause the stream.
 #[derive(Clone, Debug)]
-pub struct Pauseable<I>
+pub struct Pausable<I>
     where I: Source,
           I::Item: Sample
 {
@@ -26,14 +26,14 @@ pub struct Pauseable<I>
     samples_until_update: u32,
 }
 
-impl<I> Pauseable<I>
+impl<I> Pausable<I>
     where I: Source,
           I::Item: Sample
 {
-    pub fn new(source: I, remote_paused: Arc<AtomicBool>, update_ms: u32) -> Pauseable<I> {
+    pub fn new(source: I, remote_paused: Arc<AtomicBool>, update_ms: u32) -> Pausable<I> {
         // TODO: handle the fact that the samples rate can change
         let update_frequency = (update_ms * source.get_samples_rate()) / 1000;
-        Pauseable {
+        Pausable {
             input: source,
             local_paused: remote_paused.load(Ordering::Relaxed),
             remote_paused: remote_paused,
@@ -43,7 +43,7 @@ impl<I> Pauseable<I>
     }
 }
 
-impl<I> Iterator for Pauseable<I>
+impl<I> Iterator for Pausable<I>
     where I: Source,
           I::Item: Sample
 {
@@ -68,7 +68,7 @@ impl<I> Iterator for Pauseable<I>
     }
 }
 
-impl<I> Source for Pauseable<I>
+impl<I> Source for Pausable<I>
     where I: Source,
           I::Item: Sample
 {

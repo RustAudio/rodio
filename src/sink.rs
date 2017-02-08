@@ -50,7 +50,7 @@ impl Sink {
               S::Item: Sample,
               S::Item: Send
     {
-        let source = source::Pauseable::new(source, self.pause.clone(), 5);
+        let source = source::Pausable::new(source, self.pause.clone(), 5);
         let source = source::Stoppable::new(source, self.stopped.clone(), 5);
         let source = source::VolumeFilter::new(source, self.volume.clone(), 5);
         let source = source::SamplesConverter::new(source);

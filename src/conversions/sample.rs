@@ -52,8 +52,19 @@ impl<I, O> ExactSizeIterator for DataConverter<I, O>
 {
 }
 
-
 /// Represents a value of a single sample.
+///
+/// This trait is implemented by default on three types: `i16`, `u16` and `f32`.
+///
+/// - For `i16`, silence corresponds to the value `0`. The minimum and maximum amplitudes are
+///   represented by `i16::min_value()` and `i16::max_value()` respectively.
+/// - For `u16`, silence corresponds to the value `u16::max_value() / 2`. The minimum and maximum
+///   amplitudes are represented by `0` and `u16::max_value()` respectively.
+/// - For `f32`, silence corresponds to the value `0.0`. The minimum and maximum amplitudes are
+///  represented by `-1.0` and `1.0` respectively.
+///
+/// You can implement this trait on your own type as well if you wish so.
+///
 pub trait Sample: cpal::Sample + Add + AddAssign {
     /// Linear interpolation between two samples.
     ///

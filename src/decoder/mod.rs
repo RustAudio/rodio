@@ -1,3 +1,5 @@
+//! Decodes samples from an audio file.
+
 use std::error::Error;
 use std::fmt;
 use std::io::{Read, Seek};

@@ -2,8 +2,12 @@
 //!
 //! There are two main concepts in this library:
 //!
-//! - Sources, represented with the `Source` trait, that provide sound data.
+//! - Sources, represented with [the `Source` trait](source/trait.Source.html), that provide sound
+//!   data.
 //! - Sinks, which accept sound data.
+//!
+//! > **Note**: If you are not familiar with what a sound is or how a sound is stored in memory,
+//! > check out the documentation of [the `Source` trait](source/trait.Source.html).
 //!
 //! In order to play a sound, you need to create a source, a sink, and connect the two. For example
 //! here is how you play a sound file:

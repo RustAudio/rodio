@@ -37,6 +37,72 @@ mod volume_filter;
 mod zero;
 
 /// A source of samples.
+///
+/// # A quick lesson about sounds
+///
+/// ## Sampling
+///
+/// A sound is a vibration that propagates through air and reaches your ears. This vibration can
+/// be represented as an analog signal.
+///
+/// In order to store this signal in the computer's memory or on the disk, we perform what is
+/// called *sampling*. The consists in choosing an interval of time (for example 20µs) and reading
+/// the amplitude of the signal at each interval (for example, if the interval is 20µs we read the
+/// amplitude every 20µs). By doing so we obtain a list of numerical values, each value being
+/// called a *sample*.
+///
+/// Therefore a sound can be represented in memory by a frequency and a list of samples. The
+/// frequency is expressed in hertz and corresponds to the number of samples that have been
+/// read per second. For example if we read one sample every 20µs, the frequency would be
+/// 50000 Hz. In reality, common values for the frequency are 44100, 48000 and 96000.
+///
+/// ## Channels
+///
+/// But a frequency and a list of values only represent one signal. When you listen to a sound,
+/// your left and right ears don't receive exactly the same signal. In order to handle this,
+/// we usually record not one but two different signals: one for the left ear and one for the right
+/// ear. We say that such a sound has two *channels*.
+///
+/// Sometimes sounds even have five or six channels, each corresponding to a location around the
+/// head of the listener.
+///
+/// The standard in audio manipulation is to *interleave* the multiple channels. In other words,
+/// in a sound with two channels the list of samples contains the first sample of the first
+/// channel, then the first sample of the second channel, then the second sample of the first
+/// channel, then the second sample of the second channel, and so on. The same applies if you have
+/// more than two channels. The rodio library only supports this schema.
+///
+/// Therefore in order to represent a sound in memory in fact we need three characteristics: the
+/// frequency, the number of channels, and the list of samples.
+///
+/// ## The `Source` trait
+///
+/// A Rust object that represents a sound should implement the `Source` trait.
+///
+/// The three characteristics that describe a sound are provided through this trait:
+///
+/// - The number of channels can be retreived with `get_channels`.
+/// - The frequency can be retreived with `get_samples_rate`.
+/// - The list of values can be retreived by iterating on the source. The `Source` trait requires
+///   that the `Iterator` trait be implemented as well.
+///
+/// # Frames
+///
+/// The samples rate and number of channels of some sound sources can change by itself from time
+/// to time.
+///
+/// > **Note**: As a basic example, if you play two audio files one after the other and treat the
+/// > whole as a single source, then the channels and samples rate of that source may change at the
+/// > transition between the two files.
+///
+/// However, for optimization purposes rodio supposes that the number of channels and the frequency
+/// stay the same for long periods of time and avoids calling `get_channels()` and
+/// `get_samples_rate` too frequently.
+///
+/// In order to properly handle this situation, the `get_current_frame_len()` method should return
+/// the number of samples that remain in the iterator before the samples rate and number of
+/// channels can potentially change.
+///
 pub trait Source: Iterator
     where Self::Item: Sample
 {
@@ -44,14 +110,14 @@ pub trait Source: Iterator
     /// "until the sound ends".
     /// Should never return 0 unless there's no more data.
     ///
-    /// After the engine has finished reading the specified number of samples, it will assume that
-    /// the value of `get_channels()` and/or `get_samples_rate()` have changed.
+    /// After the engine has finished reading the specified number of samples, it will check
+    /// whether the value of `get_channels()` and/or `get_samples_rate()` have changed.
     fn get_current_frame_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
     fn get_channels(&self) -> u16;
 
-    /// Returns the rate at which the source should be played.
+    /// Returns the rate at which the source should be played. In number of samples per second.
     fn get_samples_rate(&self) -> u32;
 
     /// Returns the total duration of this source, if known.

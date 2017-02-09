@@ -1,3 +1,5 @@
+//! Sources of sound and various filters.
+
 use std::time::Duration;
 
 use Sample;

@@ -198,3 +198,70 @@ impl<S> SourcesQueueOutput<S> where S: Sample + Send + 'static {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use queue;
+    use buffer::SamplesBuffer;
+    use source::Source;
+
+    #[test]
+    #[ignore]       // FIXME: samples rate and channel not updated immediately after transition
+    fn basic() {
+        let (tx, mut rx) = queue::queue(false);
+
+        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+        tx.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
+
+        assert_eq!(rx.get_channels(), 1);
+        assert_eq!(rx.get_samples_rate(), 48000);
+        assert_eq!(rx.next(), Some(10));
+        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10));
+        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.get_channels(), 2);
+        assert_eq!(rx.get_samples_rate(), 96000);
+        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), None);
+    }
+
+    #[test]
+    fn immediate_end() {
+        let (_, mut rx) = queue::queue::<i16>(false);
+        assert_eq!(rx.next(), None);
+    }
+
+    #[test]
+    fn keep_alive() {
+        let (tx, mut rx) = queue::queue(true);
+        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+
+        assert_eq!(rx.next(), Some(10));
+        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10));
+        assert_eq!(rx.next(), Some(-10));
+
+        for _ in 0..100000 {
+            assert_eq!(rx.next(), Some(0));
+        }
+    }
+
+    #[test]
+    #[ignore]           // TODO: not yet implemented
+    fn no_delay_when_added() {
+        let (tx, mut rx) = queue::queue(true);
+
+        for _ in 0..500 {
+            assert_eq!(rx.next(), Some(0));
+        }
+
+        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+        assert_eq!(rx.next(), Some(10));
+        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10));
+        assert_eq!(rx.next(), Some(-10));
+    }
+}

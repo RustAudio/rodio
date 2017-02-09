@@ -116,11 +116,77 @@ impl<S> Iterator for DynamicMixer<S> where S: Sample + Send + 'static {
             self.current_sources.remove(td);
         }
 
-        Some(sum)
+        if self.current_sources.is_empty() {
+            None
+        } else {
+            Some(sum)
+        }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         (0, None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dynamic_mixer;
+    use buffer::SamplesBuffer;
+    use source::Source;
+
+    #[test]
+    fn basic() {
+        let (tx, mut rx) = dynamic_mixer::mixer(1, 48000);
+
+        tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
+
+        assert_eq!(rx.get_channels(), 1);
+        assert_eq!(rx.get_samples_rate(), 48000);
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), None);
+    }
+
+    #[test]
+    fn channels_conv() {
+        let (tx, mut rx) = dynamic_mixer::mixer(2, 48000);
+
+        tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
+
+        assert_eq!(rx.get_channels(), 2);
+        assert_eq!(rx.get_samples_rate(), 48000);
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), None);
+    }
+
+    #[test]
+    fn rate_conv() {
+        let (tx, mut rx) = dynamic_mixer::mixer(1, 96000);
+
+        tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
+
+        assert_eq!(rx.get_channels(), 1);
+        assert_eq!(rx.get_samples_rate(), 96000);
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), None);
     }
 }

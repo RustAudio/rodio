@@ -75,6 +75,7 @@ mod conversions;
 mod engine;
 mod sink;
 
+pub mod buffer;
 pub mod decoder;
 pub mod dynamic_mixer;
 pub mod queue;

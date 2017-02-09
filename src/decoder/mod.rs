@@ -6,12 +6,13 @@ use std::time::Duration;
 use Sample;
 use Source;
 
+mod flac;
 mod vorbis;
 mod wav;
 
 /// Source of audio samples from decoding a file.
 ///
-/// Supports WAV and Vorbis.
+/// Supports WAV, Vorbis and Flac.
 pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
 
 enum DecoderImpl<R>
@@ -19,6 +20,7 @@ enum DecoderImpl<R>
 {
     Wav(wav::WavDecoder<R>),
     Vorbis(vorbis::VorbisDecoder<R>),
+    Flac(flac::FlacDecoder<R>),
 }
 
 impl<R> Decoder<R>
@@ -32,6 +34,13 @@ impl<R> Decoder<R>
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Wav(decoder)));
+            }
+        };
+
+        let data = match flac::FlacDecoder::new(data) {
+            Err(data) => data,
+            Ok(decoder) => {
+                return Ok(Decoder(DecoderImpl::Flac(decoder)));
             }
         };
 
@@ -53,6 +62,7 @@ impl<R> Iterator for Decoder<R>
         match self.0 {
             DecoderImpl::Wav(ref mut source) => source.next().map(|s| s.to_f32()),
             DecoderImpl::Vorbis(ref mut source) => source.next().map(|s| s.to_f32()),
+            DecoderImpl::Flac(ref mut source) => source.next().map(|s| s.to_f32()),
         }
     }
 
@@ -61,6 +71,7 @@ impl<R> Iterator for Decoder<R>
         match self.0 {
             DecoderImpl::Wav(ref source) => source.size_hint(),
             DecoderImpl::Vorbis(ref source) => source.size_hint(),
+            DecoderImpl::Flac(ref source) => source.size_hint(),
         }
     }
 }
@@ -73,6 +84,7 @@ impl<R> Source for Decoder<R>
         match self.0 {
             DecoderImpl::Wav(ref source) => source.get_current_frame_len(),
             DecoderImpl::Vorbis(ref source) => source.get_current_frame_len(),
+            DecoderImpl::Flac(ref source) => source.get_current_frame_len(),
         }
     }
 
@@ -81,6 +93,7 @@ impl<R> Source for Decoder<R>
         match self.0 {
             DecoderImpl::Wav(ref source) => source.get_channels(),
             DecoderImpl::Vorbis(ref source) => source.get_channels(),
+            DecoderImpl::Flac(ref source) => source.get_channels(),
         }
     }
 
@@ -89,6 +102,7 @@ impl<R> Source for Decoder<R>
         match self.0 {
             DecoderImpl::Wav(ref source) => source.get_samples_rate(),
             DecoderImpl::Vorbis(ref source) => source.get_samples_rate(),
+            DecoderImpl::Flac(ref source) => source.get_samples_rate(),
         }
     }
 
@@ -97,6 +111,7 @@ impl<R> Source for Decoder<R>
         match self.0 {
             DecoderImpl::Wav(ref source) => source.get_total_duration(),
             DecoderImpl::Vorbis(ref source) => source.get_total_duration(),
+            DecoderImpl::Flac(ref source) => source.get_total_duration(),
         }
     }
 }

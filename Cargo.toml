@@ -9,6 +9,7 @@ repository = "https://github.com/tomaka/rodio"
 documentation = "http://docs.rs/rodio"
 
 [dependencies]
+claxon = "0.3.0"
 cpal = "0.4.0"
 futures = "0.1.1"
 hound = "1.0.0"

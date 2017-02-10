@@ -79,6 +79,7 @@
 
 #![cfg_attr(test, deny(missing_docs))]
 
+extern crate claxon;
 extern crate cpal;
 extern crate futures;
 extern crate hound;

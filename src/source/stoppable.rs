@@ -5,7 +5,7 @@ use std::time::Duration;
 use Sample;
 use Source;
 
-/// Filter that allows another thread to pause the stream.
+/// Filter that allows another thread to stop the stream.
 #[derive(Clone, Debug)]
 pub struct Stoppable<I>
     where I: Source,

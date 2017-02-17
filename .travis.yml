@@ -16,15 +16,7 @@ addons:
     packages:
     - libasound2-dev
 
-after_success: 
-    - |
-        [ $TRAVIS_BRANCH = master ] &&
-        [ $TRAVIS_PULL_REQUEST = false ] &&
-        [ $TRAVIS_RUST_VERSION = nightly ] &&
-        cargo doc &&
-        git clone https://github.com/davisp/ghp-import &&
-        ./ghp-import/ghp-import target/doc &&
-        git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+after_success:
     - |
         [ $TRAVIS_BRANCH = master ] &&
         [ $TRAVIS_PULL_REQUEST = false ] &&

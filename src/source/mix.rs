@@ -8,7 +8,10 @@ use Source;
 
 /// Internal function that builds a `Mix` object.
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
-                   where I1: Source, I1::Item: Sample, I2: Source, I2::Item: Sample
+    where I1: Source,
+          I1::Item: Sample,
+          I2: Source,
+          I2::Item: Sample
 {
     let channels = input1.get_channels();
     let rate = input1.get_samples_rate();
@@ -21,13 +24,21 @@ pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
 
 /// Filter that modifies each sample by a given value.
 #[derive(Clone)]
-pub struct Mix<I1, I2> where I1: Source, I1::Item: Sample, I2: Source, I2::Item: Sample {
+pub struct Mix<I1, I2>
+    where I1: Source,
+          I1::Item: Sample,
+          I2: Source,
+          I2::Item: Sample
+{
     input1: UniformSourceIterator<I1, I1::Item>,
     input2: UniformSourceIterator<I2, I1::Item>,
 }
 
-impl<I1, I2> Iterator for Mix<I1, I2> where I1: Source, I1::Item: Sample,
-                                            I2: Source, I2::Item: Sample
+impl<I1, I2> Iterator for Mix<I1, I2>
+    where I1: Source,
+          I1::Item: Sample,
+          I2: Source,
+          I2::Item: Sample
 {
     type Item = I1::Item;
 
@@ -53,7 +64,7 @@ impl<I1, I2> Iterator for Mix<I1, I2> where I1: Source, I1::Item: Sample,
         let min = cmp::max(s1.0, s2.0);
         let max = match (s1.1, s2.1) {
             (Some(s1), Some(s2)) => Some(cmp::max(s1, s2)),
-            _ => None
+            _ => None,
         };
 
         (min, max)
@@ -61,13 +72,18 @@ impl<I1, I2> Iterator for Mix<I1, I2> where I1: Source, I1::Item: Sample,
 }
 
 impl<I1, I2> ExactSizeIterator for Mix<I1, I2>
-    where I1: Source + ExactSizeIterator, I1::Item: Sample,
-          I2: Source + ExactSizeIterator, I2::Item: Sample
+    where I1: Source + ExactSizeIterator,
+          I1::Item: Sample,
+          I2: Source + ExactSizeIterator,
+          I2::Item: Sample
 {
 }
 
-impl<I1, I2> Source for Mix<I1, I2> where I1: Source, I1::Item: Sample,
-                                          I2: Source, I2::Item: Sample
+impl<I1, I2> Source for Mix<I1, I2>
+    where I1: Source,
+          I1::Item: Sample,
+          I2: Source,
+          I2::Item: Sample
 {
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {

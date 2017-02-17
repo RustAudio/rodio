@@ -6,13 +6,17 @@ use Source;
 use hound::WavReader;
 
 /// Decoder for the WAV format.
-pub struct WavDecoder<R> where R: Read + Seek {
+pub struct WavDecoder<R>
+    where R: Read + Seek
+{
     reader: SamplesIterator<R>,
     samples_rate: u32,
     channels: u16,
 }
 
-impl<R> WavDecoder<R> where R: Read + Seek {
+impl<R> WavDecoder<R>
+    where R: Read + Seek
+{
     /// Attempts to decode the data as WAV.
     pub fn new(mut data: R) -> Result<WavDecoder<R>, R> {
         if !is_wave(data.by_ref()) {
@@ -21,7 +25,10 @@ impl<R> WavDecoder<R> where R: Read + Seek {
 
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
-        let reader = SamplesIterator { reader: reader, samples_read: 0 };
+        let reader = SamplesIterator {
+            reader: reader,
+            samples_read: 0,
+        };
 
         Ok(WavDecoder {
             reader: reader,
@@ -31,12 +38,16 @@ impl<R> WavDecoder<R> where R: Read + Seek {
     }
 }
 
-struct SamplesIterator<R> where R: Read + Seek {
+struct SamplesIterator<R>
+    where R: Read + Seek
+{
     reader: WavReader<R>,
     samples_read: u32,
 }
 
-impl<R> Iterator for SamplesIterator<R> where R: Read + Seek {
+impl<R> Iterator for SamplesIterator<R>
+    where R: Read + Seek
+{
     type Item = i16;
 
     #[inline]
@@ -58,7 +69,9 @@ impl<R> Iterator for SamplesIterator<R> where R: Read + Seek {
 
 impl<R> ExactSizeIterator for SamplesIterator<R> where R: Read + Seek {}
 
-impl<R> Source for WavDecoder<R> where R: Read + Seek {
+impl<R> Source for WavDecoder<R>
+    where R: Read + Seek
+{
     #[inline]
     fn get_current_frame_len(&self) -> Option<usize> {
         None
@@ -81,7 +94,9 @@ impl<R> Source for WavDecoder<R> where R: Read + Seek {
     }
 }
 
-impl<R> Iterator for WavDecoder<R> where R: Read + Seek {
+impl<R> Iterator for WavDecoder<R>
+    where R: Read + Seek
+{
     type Item = i16;
 
     #[inline]
@@ -98,7 +113,9 @@ impl<R> Iterator for WavDecoder<R> where R: Read + Seek {
 impl<R> ExactSizeIterator for WavDecoder<R> where R: Read + Seek {}
 
 /// Returns true if the stream contains WAV data, then resets it to where it was.
-fn is_wave<R>(mut data: R) -> bool where R: Read + Seek {
+fn is_wave<R>(mut data: R) -> bool
+    where R: Read + Seek
+{
     let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
 
     if WavReader::new(data.by_ref()).is_err() {

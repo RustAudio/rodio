@@ -1,4 +1,6 @@
 use std::marker::PhantomData;
+use std::ops::Add;
+use std::ops::AddAssign;
 use cpal;
 
 /// Converts the samples data type to `O`.
@@ -25,7 +27,11 @@ impl<I, O> DataConverter<I, O> {
     }
 }
 
-impl<I, O> Iterator for DataConverter<I, O> where I: Iterator, I::Item: Sample, O: Sample {
+impl<I, O> Iterator for DataConverter<I, O>
+    where I: Iterator,
+          I::Item: Sample,
+          O: Sample
+{
     type Item = O;
 
     #[inline]
@@ -40,15 +46,31 @@ impl<I, O> Iterator for DataConverter<I, O> where I: Iterator, I::Item: Sample, 
 }
 
 impl<I, O> ExactSizeIterator for DataConverter<I, O>
-                                 where I: ExactSizeIterator, I::Item: Sample, O: Sample {}
-
+    where I: ExactSizeIterator,
+          I::Item: Sample,
+          O: Sample
+{
+}
 
 /// Represents a value of a single sample.
-pub trait Sample: cpal::Sample {
+///
+/// This trait is implemented by default on three types: `i16`, `u16` and `f32`.
+///
+/// - For `i16`, silence corresponds to the value `0`. The minimum and maximum amplitudes are
+///   represented by `i16::min_value()` and `i16::max_value()` respectively.
+/// - For `u16`, silence corresponds to the value `u16::max_value() / 2`. The minimum and maximum
+///   amplitudes are represented by `0` and `u16::max_value()` respectively.
+/// - For `f32`, silence corresponds to the value `0.0`. The minimum and maximum amplitudes are
+///  represented by `-1.0` and `1.0` respectively.
+///
+/// You can implement this trait on your own type as well if you wish so.
+///
+pub trait Sample: cpal::Sample + Add + AddAssign {
     /// Linear interpolation between two samples.
     ///
-    /// The result should be equal to 
+    /// The result should be equal to
     /// `first * numerator / denominator + second * (1 - numerator / denominator)`.
+    // TODO: remove ; not necessary
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
@@ -103,7 +125,9 @@ impl Sample for u16 {
     }
 
     #[inline]
-    fn from<S>(sample: &S) -> Self where S: Sample {
+    fn from<S>(sample: &S) -> Self
+        where S: Sample
+    {
         sample.to_u16()
     }
 }
@@ -111,7 +135,8 @@ impl Sample for u16 {
 impl Sample for i16 {
     #[inline]
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
-        (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32) as i16
+        (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32) as
+        i16
     }
 
     #[inline]
@@ -148,7 +173,9 @@ impl Sample for i16 {
     }
 
     #[inline]
-    fn from<S>(sample: &S) -> Self where S: Sample {
+    fn from<S>(sample: &S) -> Self
+        where S: Sample
+    {
         sample.to_i16()
     }
 }
@@ -189,7 +216,9 @@ impl Sample for f32 {
     }
 
     #[inline]
-    fn from<S>(sample: &S) -> Self where S: Sample {
+    fn from<S>(sample: &S) -> Self
+        where S: Sample
+    {
         sample.to_f32()
     }
 }

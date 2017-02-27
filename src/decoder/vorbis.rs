@@ -5,7 +5,6 @@ use std::vec;
 use Source;
 
 use lewton::inside_ogg::OggStreamReader;
-use ogg;
 
 /// Decoder for an OGG file that contains Vorbis sound format.
 pub struct VorbisDecoder<R>
@@ -20,8 +19,7 @@ impl<R> VorbisDecoder<R>
 {
     /// Attempts to decode the data as ogg/vorbis.
     pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
-        let packet_reader = ogg::PacketReader::new(data);
-        let mut stream_reader = match OggStreamReader::new(packet_reader) {
+        let mut stream_reader = match OggStreamReader::new(data) {
             Err(_) => return Err(()),
             Ok(r) => r,
         };

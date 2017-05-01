@@ -218,4 +218,12 @@ pub trait Source: Iterator
         let echo = self.clone().amplify(amplitude).delay(duration);
         self.mix(echo)
     }
+
+    /// Converts the samples of this source to another type.
+    #[inline]
+    fn convert_samples<D>(self) -> SamplesConverter<Self, D>
+        where Self: Sized, D: Sample
+    {
+        SamplesConverter::new(self)
+    }
 }

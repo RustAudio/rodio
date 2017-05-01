@@ -12,6 +12,7 @@ pub use self::fadein::FadeIn;
 pub use self::from_factory::{from_factory, FromFactory};
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
+pub use self::periodic::PeriodicAccess;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
@@ -19,7 +20,6 @@ pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
-pub use self::volume_filter::VolumeFilter;
 pub use self::zero::Zero;
 
 mod amplify;
@@ -30,6 +30,7 @@ mod fadein;
 mod from_factory;
 mod mix;
 mod pausable;
+mod periodic;
 mod repeat;
 mod samples_converter;
 mod sine;
@@ -37,7 +38,6 @@ mod speed;
 mod stoppable;
 mod take;
 mod uniform;
-mod volume_filter;
 mod zero;
 
 /// A source of samples.
@@ -193,6 +193,15 @@ pub trait Source: Iterator
         fadein::fadein(self, duration)
     }
 
+    /// Calls the `access` closure on `Self` every time `period` elapsed.
+    #[inline]
+    fn periodic_access<F>(self, period: Duration, access: F) -> PeriodicAccess<Self, F>
+        where Self: Sized,
+              F: FnMut(&mut Self)
+    {
+        periodic::periodic(self, period, access)
+    }
+
     /// Changes the play speed of the sound. Does not adjust the samples, only the play speed.
     #[inline]
     fn speed(self, ratio: f32) -> Speed<Self>
@@ -227,6 +236,24 @@ pub trait Source: Iterator
         where Self: Sized, D: Sample
     {
         SamplesConverter::new(self)
+    }
+
+    /// Makes the sound pausable.
+    // TODO: add example
+    #[inline]
+    fn pausable(self, initially_paused: bool) -> Pausable<Self>
+        where Self: Sized
+    {
+        pausable::pausable(self, initially_paused)
+    }
+
+    /// Makes the sound stoppable.
+    // TODO: add example
+    #[inline]
+    fn stoppable(self) -> Stoppable<Self>
+        where Self: Sized
+    {
+        stoppable::stoppable(self)
     }
 }
 

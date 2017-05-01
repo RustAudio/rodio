@@ -1,41 +1,45 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use Sample;
 use Source;
 
-/// Filter that allows another thread to pause the stream.
-#[derive(Clone, Debug)]
-pub struct Stoppable<I>
-    where I: Source,
-          I::Item: Sample
-{
-    input: I,
-
-    // The paused value which may be manipulated by another thread.
-    remote_stopped: Arc<AtomicBool>,
-
-    // The frequency with which remote_stopped is checked.
-    update_frequency: u32,
-
-    // How many samples remain until it is time to check remote_stopped.
-    samples_until_update: u32,
+/// Internal function that builds a `Stoppable` object.
+pub fn stoppable<I>(source: I) -> Stoppable<I> {
+    Stoppable {
+        input: source,
+        stopped: false,
+    }
 }
 
-impl<I> Stoppable<I>
-    where I: Source,
-          I::Item: Sample
-{
-    pub fn new(source: I, remote_stopped: Arc<AtomicBool>, update_ms: u32) -> Stoppable<I> {
-        // TODO: handle the fact that the samples rate can change
-        let update_frequency = (update_ms * source.samples_rate()) / 1000;
-        Stoppable {
-            input: source,
-            remote_stopped: remote_stopped,
-            update_frequency: update_frequency,
-            samples_until_update: update_frequency,
-        }
+#[derive(Clone, Debug)]
+pub struct Stoppable<I> {
+    input: I,
+    stopped: bool,
+}
+
+impl<I> Stoppable<I> {
+    /// Stops the sound.
+    #[inline]
+    pub fn stop(&mut self) {
+        self.stopped = true;
+    }
+
+    /// Returns a reference to the inner source.
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Returns a mutable reference to the inner source.
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
+
+    /// Returns the inner source.
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
     }
 }
 
@@ -47,17 +51,11 @@ impl<I> Iterator for Stoppable<I>
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        if self.samples_until_update == 0 {
-            if self.remote_stopped.load(Ordering::Relaxed) {
-                return None;
-            } else {
-                self.samples_until_update = self.update_frequency;
-            }
+        if self.stopped {
+            None
         } else {
-            self.samples_until_update -= 1;
+            self.input.next()
         }
-
-        self.input.next()
     }
 
     #[inline]

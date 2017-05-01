@@ -16,12 +16,35 @@ pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
 
 /// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
-pub struct Amplify<I>
-    where I: Source,
-          I::Item: Sample
-{
+pub struct Amplify<I> {
     input: I,
     factor: f32,
+}
+
+impl<I> Amplify<I> {
+    /// Modifies the amplification factor.
+    #[inline]
+    pub fn set_factor(&mut self, factor: f32) {
+        self.factor = factor;
+    }
+
+    /// Returns a reference to the inner source.
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Returns a mutable reference to the inner source.
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
+
+    /// Returns the inner source.
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
+    }
 }
 
 impl<I> Iterator for Amplify<I>

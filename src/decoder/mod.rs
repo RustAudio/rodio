@@ -81,38 +81,38 @@ impl<R> Source for Decoder<R>
     where R: Read + Seek
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         match self.0 {
-            DecoderImpl::Wav(ref source) => source.get_current_frame_len(),
-            DecoderImpl::Vorbis(ref source) => source.get_current_frame_len(),
-            DecoderImpl::Flac(ref source) => source.get_current_frame_len(),
+            DecoderImpl::Wav(ref source) => source.current_frame_len(),
+            DecoderImpl::Vorbis(ref source) => source.current_frame_len(),
+            DecoderImpl::Flac(ref source) => source.current_frame_len(),
         }
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
+    fn channels(&self) -> u16 {
         match self.0 {
-            DecoderImpl::Wav(ref source) => source.get_channels(),
-            DecoderImpl::Vorbis(ref source) => source.get_channels(),
-            DecoderImpl::Flac(ref source) => source.get_channels(),
+            DecoderImpl::Wav(ref source) => source.channels(),
+            DecoderImpl::Vorbis(ref source) => source.channels(),
+            DecoderImpl::Flac(ref source) => source.channels(),
         }
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
+    fn samples_rate(&self) -> u32 {
         match self.0 {
-            DecoderImpl::Wav(ref source) => source.get_samples_rate(),
-            DecoderImpl::Vorbis(ref source) => source.get_samples_rate(),
-            DecoderImpl::Flac(ref source) => source.get_samples_rate(),
+            DecoderImpl::Wav(ref source) => source.samples_rate(),
+            DecoderImpl::Vorbis(ref source) => source.samples_rate(),
+            DecoderImpl::Flac(ref source) => source.samples_rate(),
         }
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         match self.0 {
-            DecoderImpl::Wav(ref source) => source.get_total_duration(),
-            DecoderImpl::Vorbis(ref source) => source.get_total_duration(),
-            DecoderImpl::Flac(ref source) => source.get_total_duration(),
+            DecoderImpl::Wav(ref source) => source.total_duration(),
+            DecoderImpl::Vorbis(ref source) => source.total_duration(),
+            DecoderImpl::Flac(ref source) => source.total_duration(),
         }
     }
 }

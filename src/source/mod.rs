@@ -83,8 +83,8 @@ mod zero;
 ///
 /// The three characteristics that describe a sound are provided through this trait:
 ///
-/// - The number of channels can be retreived with `get_channels`.
-/// - The frequency can be retreived with `get_samples_rate`.
+/// - The number of channels can be retreived with `channels`.
+/// - The frequency can be retreived with `samples_rate`.
 /// - The list of values can be retreived by iterating on the source. The `Source` trait requires
 ///   that the `Iterator` trait be implemented as well.
 ///
@@ -98,10 +98,10 @@ mod zero;
 /// > transition between the two files.
 ///
 /// However, for optimization purposes rodio supposes that the number of channels and the frequency
-/// stay the same for long periods of time and avoids calling `get_channels()` and
-/// `get_samples_rate` too frequently.
+/// stay the same for long periods of time and avoids calling `channels()` and
+/// `samples_rate` too frequently.
 ///
-/// In order to properly handle this situation, the `get_current_frame_len()` method should return
+/// In order to properly handle this situation, the `current_frame_len()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
@@ -113,19 +113,19 @@ pub trait Source: Iterator
     /// Should never return 0 unless there's no more data.
     ///
     /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `get_channels()` and/or `get_samples_rate()` have changed.
-    fn get_current_frame_len(&self) -> Option<usize>;
+    /// whether the value of `channels()` and/or `samples_rate()` have changed.
+    fn current_frame_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
-    fn get_channels(&self) -> u16;
+    fn channels(&self) -> u16;
 
     /// Returns the rate at which the source should be played. In number of samples per second.
-    fn get_samples_rate(&self) -> u32;
+    fn samples_rate(&self) -> u32;
 
     /// Returns the total duration of this source, if known.
     ///
     /// `None` indicates at the same time "infinite" or "unknown".
-    fn get_total_duration(&self) -> Option<Duration>;
+    fn total_duration(&self) -> Option<Duration>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
     #[inline]

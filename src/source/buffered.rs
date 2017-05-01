@@ -11,7 +11,7 @@ pub fn buffered<I>(input: I) -> Buffered<I>
     where I: Source,
           I::Item: Sample
 {
-    let total_duration = input.get_total_duration();
+    let total_duration = input.total_duration();
     let first_frame = extract(input);
 
     Buffered {
@@ -67,14 +67,14 @@ fn extract<I>(mut input: I) -> Arc<Frame<I>>
     where I: Source,
           I::Item: Sample
 {
-    let frame_len = input.get_current_frame_len();
+    let frame_len = input.current_frame_len();
 
     if frame_len == Some(0) {
         return Arc::new(Frame::End);
     }
 
-    let channels = input.get_channels();
-    let rate = input.get_samples_rate();
+    let channels = input.channels();
+    let rate = input.samples_rate();
     let data = input.by_ref().take(cmp::min(frame_len.unwrap_or(32768), 32768)).collect();
 
     Arc::new(Frame::Data(FrameData {
@@ -165,7 +165,7 @@ impl<I> Source for Buffered<I>
           I::Item: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         match &*self.current_frame {
             &Frame::Data(FrameData { ref data, .. }) => Some(data.len() - self.position_in_frame),
             &Frame::End => Some(0),
@@ -174,7 +174,7 @@ impl<I> Source for Buffered<I>
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
+    fn channels(&self) -> u16 {
         match &*self.current_frame {
             &Frame::Data(FrameData { channels, .. }) => channels,
             &Frame::End => 1,
@@ -183,7 +183,7 @@ impl<I> Source for Buffered<I>
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
+    fn samples_rate(&self) -> u32 {
         match &*self.current_frame {
             &Frame::Data(FrameData { rate, .. }) => rate,
             &Frame::End => 44100,
@@ -192,7 +192,7 @@ impl<I> Source for Buffered<I>
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         self.total_duration
     }
 }

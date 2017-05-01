@@ -95,11 +95,11 @@ pub struct SourcesQueueOutput<S> {
 
 impl<S> Source for SourcesQueueOutput<S> where S: Sample + Send + 'static {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         // This function is non-trivial because the boundary between two sounds in the queue should
         // be a frame boundary as well.
         //
-        // The current sound is free to return `None` for `get_current_frame_len()`, in which case
+        // The current sound is free to return `None` for `current_frame_len()`, in which case
         // we *should* return the number of samples remaining the current sound.
         // This can be estimated with `size_hint()`.
         //
@@ -108,8 +108,8 @@ impl<S> Source for SourcesQueueOutput<S> where S: Sample + Send + 'static {
         // constant.
         const THRESHOLD: usize = 10240;
 
-        // Try the current `get_current_frame_len`.
-        if let Some(val) = self.current.get_current_frame_len() {
+        // Try the current `current_frame_len`.
+        if let Some(val) = self.current.current_frame_len() {
             if val != 0 {
                 return Some(val);
             }
@@ -127,17 +127,17 @@ impl<S> Source for SourcesQueueOutput<S> where S: Sample + Send + 'static {
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.current.get_channels()
+    fn channels(&self) -> u16 {
+        self.current.channels()
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        self.current.get_samples_rate()
+    fn samples_rate(&self) -> u32 {
+        self.current.samples_rate()
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         None
     }
 }
@@ -213,14 +213,14 @@ mod tests {
         tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
 
-        assert_eq!(rx.get_channels(), 1);
-        assert_eq!(rx.get_samples_rate(), 48000);
+        assert_eq!(rx.channels(), 1);
+        assert_eq!(rx.samples_rate(), 48000);
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.get_channels(), 2);
-        assert_eq!(rx.get_samples_rate(), 96000);
+        assert_eq!(rx.channels(), 2);
+        assert_eq!(rx.samples_rate(), 96000);
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));

@@ -66,22 +66,22 @@ pub struct DynamicMixer<S> {
 
 impl<S> Source for DynamicMixer<S> where S: Sample + Send + 'static {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
+    fn channels(&self) -> u16 {
         self.input.channels
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
+    fn samples_rate(&self) -> u32 {
         self.input.samples_rate
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         None
     }
 }
@@ -142,8 +142,8 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
-        assert_eq!(rx.get_channels(), 1);
-        assert_eq!(rx.get_samples_rate(), 48000);
+        assert_eq!(rx.channels(), 1);
+        assert_eq!(rx.samples_rate(), 48000);
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(-5));
         assert_eq!(rx.next(), Some(15));
@@ -158,8 +158,8 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
-        assert_eq!(rx.get_channels(), 2);
-        assert_eq!(rx.get_samples_rate(), 48000);
+        assert_eq!(rx.channels(), 2);
+        assert_eq!(rx.samples_rate(), 48000);
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(-5));
@@ -178,8 +178,8 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
-        assert_eq!(rx.get_channels(), 1);
-        assert_eq!(rx.get_samples_rate(), 96000);
+        assert_eq!(rx.channels(), 1);
+        assert_eq!(rx.samples_rate(), 96000);
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(-5));

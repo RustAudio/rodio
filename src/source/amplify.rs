@@ -52,22 +52,22 @@ impl<I> Source for Amplify<I>
           I::Item: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
-        self.input.get_current_frame_len()
+    fn current_frame_len(&self) -> Option<usize> {
+        self.input.current_frame_len()
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.input.get_channels()
+    fn channels(&self) -> u16 {
+        self.input.channels()
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        self.input.get_samples_rate()
+    fn samples_rate(&self) -> u32 {
+        self.input.samples_rate()
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
-        self.input.get_total_duration()
+    fn total_duration(&self) -> Option<Duration> {
+        self.input.total_duration()
     }
 }

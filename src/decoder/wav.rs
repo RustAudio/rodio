@@ -73,22 +73,22 @@ impl<R> Source for WavDecoder<R>
     where R: Read + Seek
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
+    fn channels(&self) -> u16 {
         self.channels
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
+    fn samples_rate(&self) -> u32 {
         self.samples_rate
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         let ms = self.len() * 1000 / (self.channels as usize * self.samples_rate as usize);
         Some(Duration::from_millis(ms as u64))
     }

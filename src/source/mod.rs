@@ -11,6 +11,7 @@ pub use self::empty::Empty;
 pub use self::fadein::FadeIn;
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
+pub use self::periodic::PeriodicAccess;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
@@ -28,6 +29,7 @@ mod empty;
 mod fadein;
 mod mix;
 mod pausable;
+mod periodic;
 mod repeat;
 mod samples_converter;
 mod sine;
@@ -189,6 +191,15 @@ pub trait Source: Iterator
         where Self: Sized
     {
         fadein::fadein(self, duration)
+    }
+
+    /// Calls the `access` closure on `Self` every time `period` elapsed.
+    #[inline]
+    fn periodic_access<F>(self, period: Duration, access: F) -> PeriodicAccess<Self, F>
+        where Self: Sized,
+              F: FnMut(&mut Self)
+    {
+        periodic::periodic(self, period, access)
     }
 
     /// Changes the play speed of the sound. Does not adjust the samples, only the play speed.

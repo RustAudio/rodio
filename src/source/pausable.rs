@@ -32,7 +32,7 @@ impl<I> Pausable<I>
 {
     pub fn new(source: I, remote_paused: Arc<AtomicBool>, update_ms: u32) -> Pausable<I> {
         // TODO: handle the fact that the samples rate can change
-        let update_frequency = (update_ms * source.get_samples_rate()) / 1000;
+        let update_frequency = (update_ms * source.samples_rate()) / 1000;
         Pausable {
             input: source,
             local_paused: remote_paused.load(Ordering::Relaxed),
@@ -73,22 +73,22 @@ impl<I> Source for Pausable<I>
           I::Item: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
-        self.input.get_current_frame_len()
+    fn current_frame_len(&self) -> Option<usize> {
+        self.input.current_frame_len()
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.input.get_channels()
+    fn channels(&self) -> u16 {
+        self.input.channels()
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        self.input.get_samples_rate()
+    fn samples_rate(&self) -> u32 {
+        self.input.samples_rate()
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
-        self.input.get_total_duration()
+    fn total_duration(&self) -> Option<Duration> {
+        self.input.total_duration()
     }
 }

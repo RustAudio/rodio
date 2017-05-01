@@ -52,24 +52,24 @@ impl<I> Source for Speed<I>
           I::Item: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
-        self.input.get_current_frame_len()
+    fn current_frame_len(&self) -> Option<usize> {
+        self.input.current_frame_len()
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.input.get_channels()
+    fn channels(&self) -> u16 {
+        self.input.channels()
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        (self.input.get_samples_rate() as f32 * self.factor) as u32
+    fn samples_rate(&self) -> u32 {
+        (self.input.samples_rate() as f32 * self.factor) as u32
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         // TODO: the crappy API of duration makes this code difficult to write
-        if let Some(duration) = self.input.get_total_duration() {
+        if let Some(duration) = self.input.total_duration() {
             let as_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
             let new_val = (as_ns as f32 / self.factor) as u64;
             Some(Duration::new(new_val / 1000000000, (new_val % 1000000000) as u32))

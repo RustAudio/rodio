@@ -37,7 +37,7 @@ impl<I, D> UniformSourceIterator<I, D>
                target_channels: u16,
                target_samples_rate: u32)
                -> UniformSourceIterator<I, D> {
-        let total_duration = input.get_total_duration();
+        let total_duration = input.total_duration();
         let input = UniformSourceIterator::bootstrap(input, target_channels, target_samples_rate);
 
         UniformSourceIterator {
@@ -53,10 +53,10 @@ impl<I, D> UniformSourceIterator<I, D>
                  target_channels: u16,
                  target_samples_rate: u32)
                  -> DataConverter<ChannelsCountConverter<SamplesRateConverter<Take<I>>>, D> {
-        let frame_len = input.get_current_frame_len();
+        let frame_len = input.current_frame_len();
 
-        let from_channels = input.get_channels();
-        let from_samples_rate = input.get_samples_rate();
+        let from_channels = input.channels();
+        let from_samples_rate = input.samples_rate();
 
         let input = Take {
             iter: input,
@@ -107,22 +107,22 @@ impl<I, D> Source for UniformSourceIterator<I, D>
           D: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
+    fn channels(&self) -> u16 {
         self.target_channels
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
+    fn samples_rate(&self) -> u32 {
         self.target_samples_rate
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         self.total_duration
     }
 }

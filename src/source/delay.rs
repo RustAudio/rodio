@@ -9,7 +9,7 @@ pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
           I::Item: Sample
 {
     let duration_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-    let samples = duration_ns * input.get_samples_rate() as u64 * input.get_channels() as u64 /
+    let samples = duration_ns * input.samples_rate() as u64 * input.channels() as u64 /
                   1000000000;
 
     Delay {
@@ -59,22 +59,22 @@ impl<I> Source for Delay<I>
           I::Item: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
-        self.input.get_current_frame_len().map(|val| val + self.remaining_samples)
+    fn current_frame_len(&self) -> Option<usize> {
+        self.input.current_frame_len().map(|val| val + self.remaining_samples)
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.input.get_channels()
+    fn channels(&self) -> u16 {
+        self.input.channels()
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        self.input.get_samples_rate()
+    fn samples_rate(&self) -> u32 {
+        self.input.samples_rate()
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
-        self.input.get_total_duration().map(|val| val + self.requested_duration)
+    fn total_duration(&self) -> Option<Duration> {
+        self.input.total_duration().map(|val| val + self.requested_duration)
     }
 }

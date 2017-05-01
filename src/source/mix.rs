@@ -13,8 +13,8 @@ pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
           I2: Source,
           I2::Item: Sample
 {
-    let channels = input1.get_channels();
-    let rate = input1.get_samples_rate();
+    let channels = input1.channels();
+    let rate = input1.samples_rate();
 
     Mix {
         input1: UniformSourceIterator::new(input1, channels, rate),
@@ -85,9 +85,9 @@ impl<I1, I2> Source for Mix<I1, I2>
           I2::Item: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
-        let f1 = self.input1.get_current_frame_len();
-        let f2 = self.input2.get_current_frame_len();
+    fn current_frame_len(&self) -> Option<usize> {
+        let f1 = self.input1.current_frame_len();
+        let f2 = self.input2.current_frame_len();
 
         match (f1, f2) {
             (Some(f1), Some(f2)) => Some(cmp::min(f1, f2)),
@@ -96,19 +96,19 @@ impl<I1, I2> Source for Mix<I1, I2>
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.input1.get_channels()
+    fn channels(&self) -> u16 {
+        self.input1.channels()
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        self.input1.get_samples_rate()
+    fn samples_rate(&self) -> u32 {
+        self.input1.samples_rate()
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
-        let f1 = self.input1.get_total_duration();
-        let f2 = self.input2.get_total_duration();
+    fn total_duration(&self) -> Option<Duration> {
+        let f1 = self.input1.total_duration();
+        let f2 = self.input2.total_duration();
 
         match (f1, f2) {
             (Some(f1), Some(f2)) => Some(cmp::max(f1, f2)),

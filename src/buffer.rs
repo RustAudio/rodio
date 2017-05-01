@@ -56,22 +56,22 @@ impl<S> SamplesBuffer<S> where S: Sample {
 
 impl<S> Source for SamplesBuffer<S> where S: Sample {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
+    fn channels(&self) -> u16 {
         self.channels
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
+    fn samples_rate(&self) -> u32 {
         self.samples_rate
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         Some(self.duration)
     }
 }
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn duration_basic() {
         let buf = SamplesBuffer::new(2, 2, vec![0i16, 0, 0, 0, 0, 0]);
-        let dur = buf.get_total_duration().unwrap();
+        let dur = buf.total_duration().unwrap();
         assert_eq!(dur.as_secs(), 1);
         assert_eq!(dur.subsec_nanos(), 500_000_000);
     }

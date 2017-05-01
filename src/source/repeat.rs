@@ -55,31 +55,31 @@ impl<I> Source for Repeat<I>
           I::Item: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
-        match self.inner.get_current_frame_len() {
-            Some(0) => self.next.get_current_frame_len(),
+    fn current_frame_len(&self) -> Option<usize> {
+        match self.inner.current_frame_len() {
+            Some(0) => self.next.current_frame_len(),
             a => a,
         }
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        match self.inner.get_current_frame_len() {
-            Some(0) => self.next.get_channels(),
-            _ => self.inner.get_channels(),
+    fn channels(&self) -> u16 {
+        match self.inner.current_frame_len() {
+            Some(0) => self.next.channels(),
+            _ => self.inner.channels(),
         }
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        match self.inner.get_current_frame_len() {
-            Some(0) => self.next.get_samples_rate(),
-            _ => self.inner.get_samples_rate(),
+    fn samples_rate(&self) -> u32 {
+        match self.inner.current_frame_len() {
+            Some(0) => self.next.samples_rate(),
+            _ => self.inner.samples_rate(),
         }
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         None
     }
 }

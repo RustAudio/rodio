@@ -64,22 +64,22 @@ impl<I, D> Source for SamplesConverter<I, D>
           D: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
-        self.inner.get_current_frame_len()
+    fn current_frame_len(&self) -> Option<usize> {
+        self.inner.current_frame_len()
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.inner.get_channels()
+    fn channels(&self) -> u16 {
+        self.inner.channels()
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        self.inner.get_samples_rate()
+    fn samples_rate(&self) -> u32 {
+        self.inner.samples_rate()
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
-        self.inner.get_total_duration()
+    fn total_duration(&self) -> Option<Duration> {
+        self.inner.total_duration()
     }
 }

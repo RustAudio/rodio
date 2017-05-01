@@ -33,7 +33,7 @@ impl<I> TakeDuration<I>
     /// Returns the duration elapsed for each sample extracted.
     #[inline]
     fn get_duration_per_sample(&self) -> Duration {
-        let ns = 1000000000 / (self.input.get_samples_rate() as u64 * self.get_channels() as u64);
+        let ns = 1000000000 / (self.input.samples_rate() as u64 * self.channels() as u64);
         // \|/ the maximum value of `ns` is one billion, so this can't fail
         Duration::new(0, ns as u32)
     }
@@ -70,12 +70,12 @@ impl<I> Source for TakeDuration<I>
           I::Item: Sample
 {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
-        if let Some(value) = self.input.get_current_frame_len() {
+    fn current_frame_len(&self) -> Option<usize> {
+        if let Some(value) = self.input.current_frame_len() {
             let remaining_nanosecs = self.remaining_duration.as_secs() * 1000000000 +
                                      self.remaining_duration.subsec_nanos() as u64;
-            let remaining_samples = remaining_nanosecs * self.input.get_samples_rate() as u64 *
-                                    self.get_channels() as u64 /
+            let remaining_samples = remaining_nanosecs * self.input.samples_rate() as u64 *
+                                    self.channels() as u64 /
                                     1000000000;
 
             if (value as u64) < remaining_samples {
@@ -90,18 +90,18 @@ impl<I> Source for TakeDuration<I>
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.input.get_channels()
+    fn channels(&self) -> u16 {
+        self.input.channels()
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        self.input.get_samples_rate()
+    fn samples_rate(&self) -> u32 {
+        self.input.samples_rate()
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
-        if let Some(duration) = self.input.get_total_duration() {
+    fn total_duration(&self) -> Option<Duration> {
+        if let Some(duration) = self.input.total_duration() {
             if duration < self.requested_duration {
                 Some(duration)
             } else {

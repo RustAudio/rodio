@@ -5,7 +5,6 @@ use std::fmt;
 use std::io::{Read, Seek};
 use std::time::Duration;
 
-use Sample;
 use Source;
 
 mod flac;
@@ -57,14 +56,14 @@ impl<R> Decoder<R>
 impl<R> Iterator for Decoder<R>
     where R: Read + Seek
 {
-    type Item = f32;
+    type Item = i16;
 
     #[inline]
-    fn next(&mut self) -> Option<f32> {
+    fn next(&mut self) -> Option<i16> {
         match self.0 {
-            DecoderImpl::Wav(ref mut source) => source.next().map(|s| s.to_f32()),
-            DecoderImpl::Vorbis(ref mut source) => source.next().map(|s| s.to_f32()),
-            DecoderImpl::Flac(ref mut source) => source.next().map(|s| s.to_f32()),
+            DecoderImpl::Wav(ref mut source) => source.next(),
+            DecoderImpl::Vorbis(ref mut source) => source.next(),
+            DecoderImpl::Flac(ref mut source) => source.next(),
         }
     }
 

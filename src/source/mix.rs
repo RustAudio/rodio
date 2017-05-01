@@ -47,11 +47,10 @@ impl<I1, I2> Iterator for Mix<I1, I2>
         let s1 = self.input1.next();
         let s2 = self.input2.next();
 
-        // FIXME: shouldn't lerp, this is wrong
         match (s1, s2) {
-            (Some(s1), Some(s2)) => Some(Sample::lerp(s1, s2, 1, 2)),
-            (Some(s1), None) => Some(Sample::lerp(s1, Sample::zero_value(), 1, 2)),
-            (None, Some(s2)) => Some(Sample::lerp(s2, Sample::zero_value(), 1, 2)),
+            (Some(s1), Some(s2)) => Some(s1.saturating_add(s2)),
+            (Some(s1), None) => Some(s1),
+            (None, Some(s2)) => Some(s2),
             (None, None) => None,
         }
     }

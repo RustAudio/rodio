@@ -1,6 +1,4 @@
 use std::marker::PhantomData;
-use std::ops::Add;
-use std::ops::AddAssign;
 use cpal;
 
 /// Converts the samples data type to `O`.
@@ -65,15 +63,17 @@ impl<I, O> ExactSizeIterator for DataConverter<I, O>
 ///
 /// You can implement this trait on your own type as well if you wish so.
 ///
-pub trait Sample: cpal::Sample + Add + AddAssign {
+pub trait Sample: cpal::Sample {
     /// Linear interpolation between two samples.
     ///
     /// The result should be equal to
     /// `first * numerator / denominator + second * (1 - numerator / denominator)`.
-    // TODO: remove ; not necessary
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
+
+    /// Calls `saturating_add` on the sample.
+    fn saturating_add(self, other: Self) -> Self;
 
     /// Returns the value corresponding to the absence of sound.
     fn zero_value() -> Self;
@@ -98,6 +98,11 @@ impl Sample for u16 {
     #[inline]
     fn amplify(self, value: f32) -> u16 {
         self.to_i16().amplify(value).to_u16()
+    }
+
+    #[inline]
+    fn saturating_add(self, other: u16) -> u16 {
+        self.saturating_add(other)
     }
 
     #[inline]
@@ -145,6 +150,11 @@ impl Sample for i16 {
     }
 
     #[inline]
+    fn saturating_add(self, other: i16) -> i16 {
+        self.saturating_add(other)
+    }
+
+    #[inline]
     fn zero_value() -> i16 {
         0
     }
@@ -189,6 +199,11 @@ impl Sample for f32 {
     #[inline]
     fn amplify(self, value: f32) -> f32 {
         self * value
+    }
+
+    #[inline]
+    fn saturating_add(self, other: f32) -> f32 {
+        self + other
     }
 
     #[inline]

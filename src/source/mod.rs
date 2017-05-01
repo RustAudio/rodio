@@ -227,3 +227,69 @@ pub trait Source: Iterator
         SamplesConverter::new(self)
     }
 }
+
+impl<S> Source for Box<Source<Item = S>> where S: Sample {
+    #[inline]
+    fn current_frame_len(&self) -> Option<usize> {
+        (**self).current_frame_len()
+    }
+
+    #[inline]
+    fn channels(&self) -> u16 {
+        (**self).channels()
+    }
+
+    #[inline]
+    fn samples_rate(&self) -> u32 {
+        (**self).samples_rate()
+    }
+
+    #[inline]
+    fn total_duration(&self) -> Option<Duration> {
+        (**self).total_duration()
+    }
+}
+
+impl<S> Source for Box<Source<Item = S> + Send> where S: Sample {
+    #[inline]
+    fn current_frame_len(&self) -> Option<usize> {
+        (**self).current_frame_len()
+    }
+
+    #[inline]
+    fn channels(&self) -> u16 {
+        (**self).channels()
+    }
+
+    #[inline]
+    fn samples_rate(&self) -> u32 {
+        (**self).samples_rate()
+    }
+
+    #[inline]
+    fn total_duration(&self) -> Option<Duration> {
+        (**self).total_duration()
+    }
+}
+
+impl<S> Source for Box<Source<Item = S> + Send + Sync> where S: Sample {
+    #[inline]
+    fn current_frame_len(&self) -> Option<usize> {
+        (**self).current_frame_len()
+    }
+
+    #[inline]
+    fn channels(&self) -> u16 {
+        (**self).channels()
+    }
+
+    #[inline]
+    fn samples_rate(&self) -> u32 {
+        (**self).samples_rate()
+    }
+
+    #[inline]
+    fn total_duration(&self) -> Option<Duration> {
+        (**self).total_duration()
+    }
+}

@@ -10,17 +10,21 @@
 //!   [`get_default_endpoint`](fn.get_default_endpoint.html) functions.
 //! - Call [`play_raw(output, source)`](fn.play_raw.html).
 //!
+//! The `play_raw` function expects the source to produce `f32`s, which may not be the case. If you
+//! get a compilation error, try calling `.convert_samples()` on the source to fix it.
+//!
 //! For example, here is how you would play an audio file:
 //!
 //! ```no_run
 //! use std::fs::File;
 //! use std::io::BufReader;
+//! use rodio::Source;
 //!
 //! let endpoint = rodio::get_default_endpoint().unwrap();
 //!
 //! let file = File::open("sound.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-//! rodio::play_raw(&endpoint, source);
+//! rodio::play_raw(&endpoint, source.convert_samples());
 //! ```
 //!
 //! ## Sink

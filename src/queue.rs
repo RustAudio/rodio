@@ -44,6 +44,8 @@ pub fn queue<S>(keep_alive_if_empty: bool)
     (input, output)
 }
 
+// TODO: consider reimplementing this with `from_factory`
+
 /// The input of the queue.
 pub struct SourcesQueueInput<S> {
     next_sounds: Mutex<Vec<(Box<Source<Item = S> + Send>, Option<Sender<()>>)>>,

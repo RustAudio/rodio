@@ -50,6 +50,7 @@ impl Sink {
               S::Item: Sample,
               S::Item: Send
     {
+        self.stopped.store(false, Ordering::SeqCst);
         let source = source::Pausable::new(source, self.pause.clone(), 5);
         let source = source::Stoppable::new(source, self.stopped.clone(), 5);
         let source = source::VolumeFilter::new(source, self.volume.clone(), 5);
@@ -79,7 +80,7 @@ impl Sink {
     ///
     /// No effect if not paused.
     #[inline]
-    pub fn play(&self) {
+    pub fn resume(&self) {
         self.pause.store(false, Ordering::SeqCst);
     }
 
@@ -97,6 +98,18 @@ impl Sink {
     /// Sounds can be paused and resumed using pause() and play(). This gets if a sound is paused.
     pub fn is_paused(&self) -> bool {
         self.pause.load(Ordering::SeqCst)
+    }
+
+    /// Stops playback.  To resume, a new sound must be added with `append()`
+    pub fn stop(&self) {
+        self.stopped.store(true, Ordering::Relaxed);
+    }
+
+    /// Gets whether a sound is stopped.
+    ///
+    /// A stopped sound cannot be resumed, a new one must be started with `append()`.
+    pub fn is_stopped(&self) -> bool {
+        self.stopped.load(Ordering::SeqCst)
     }
 
     /// Destroys the sink without stopping the sounds that are still playing.

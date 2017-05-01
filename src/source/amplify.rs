@@ -4,13 +4,21 @@ use Sample;
 use Source;
 
 /// Internal function that builds a `Amplify` object.
-pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
+///
+/// # Panic
+///
+/// Panics if `denominator` is 0.
+///
+pub fn amplify<I>(input: I, numerator: u32, denominator: u32) -> Amplify<I>
     where I: Source,
           I::Item: Sample
 {
+    assert_ne!(denominator, 0);
+
     Amplify {
         input: input,
-        factor: factor,
+        numerator: numerator,
+        denominator: denominator,
     }
 }
 
@@ -21,7 +29,8 @@ pub struct Amplify<I>
           I::Item: Sample
 {
     input: I,
-    factor: f32,
+    numerator: u32,
+    denominator: u32,
 }
 
 impl<I> Iterator for Amplify<I>
@@ -32,7 +41,9 @@ impl<I> Iterator for Amplify<I>
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        self.input.next().map(|value| value.amplify(self.factor))
+        self.input.next().map(|value| {
+            Sample::lerp(value, Sample::zero_value(), self.numerator, self.denominator)
+        })
     }
 
     #[inline]

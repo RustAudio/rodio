@@ -176,11 +176,16 @@ pub trait Source: Iterator
     }
 
     /// Amplifies the sound by the given value.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `denominator` is 0.
+    ///
     #[inline]
-    fn amplify(self, value: f32) -> Amplify<Self>
+    fn amplify(self, numerator: u32, denominator: u32) -> Amplify<Self>
         where Self: Sized
     {
-        amplify::amplify(self, value)
+        amplify::amplify(self, numerator, denominator)
     }
 
     /// Fades in the sound.
@@ -215,7 +220,8 @@ pub trait Source: Iterator
     fn reverb(self, duration: Duration, amplitude: f32) -> Mix<Self, Delay<Amplify<Self>>>
         where Self: Sized + Clone
     {
-        let echo = self.clone().amplify(amplitude).delay(duration);
+        // TODO: amplitude thingy is bad
+        let echo = self.clone().amplify((amplitude * 1_000_000.0) as u32, 1_000_000).delay(duration);
         self.mix(echo)
     }
 }

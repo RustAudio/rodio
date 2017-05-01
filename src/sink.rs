@@ -3,10 +3,10 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use play_raw;
 use queue;
-use source;
 use Endpoint;
 use Source;
 use Sample;
@@ -50,10 +50,24 @@ impl Sink {
               S::Item: Sample,
               S::Item: Send
     {
-        let source = source::Pausable::new(source, self.pause.clone(), 5);
-        let source = source::Stoppable::new(source, self.stopped.clone(), 5);
-        let source = source::VolumeFilter::new(source, self.volume.clone(), 5);
-        let source = source::SamplesConverter::new(source);
+        let volume = self.volume.clone();
+        let pause = self.pause.clone();
+        let stopped = self.stopped.clone();
+
+        let source = source
+            .pausable(false)
+            .amplify(1.0)
+            .stoppable()
+            .periodic_access(Duration::from_millis(5), move |src| {
+                if stopped.load(Ordering::SeqCst) {
+                    src.stop();
+                } else {
+                    src.inner_mut().set_factor(*volume.lock().unwrap());
+                    src.inner_mut().inner_mut().set_paused(pause.load(Ordering::SeqCst));
+                }
+            })
+            .convert_samples();
+
         *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
     }
 

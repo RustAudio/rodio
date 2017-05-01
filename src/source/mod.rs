@@ -19,7 +19,6 @@ pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
-pub use self::volume_filter::VolumeFilter;
 pub use self::zero::Zero;
 
 mod amplify;
@@ -37,7 +36,6 @@ mod speed;
 mod stoppable;
 mod take;
 mod uniform;
-mod volume_filter;
 mod zero;
 
 /// A source of samples.
@@ -236,5 +234,23 @@ pub trait Source: Iterator
         where Self: Sized, D: Sample
     {
         SamplesConverter::new(self)
+    }
+
+    /// Makes the sound pausable.
+    // TODO: add example
+    #[inline]
+    fn pausable(self, initially_paused: bool) -> Pausable<Self>
+        where Self: Sized
+    {
+        pausable::pausable(self, initially_paused)
+    }
+
+    /// Makes the sound stoppable.
+    // TODO: add example
+    #[inline]
+    fn stoppable(self) -> Stoppable<Self>
+        where Self: Sized
+    {
+        stoppable::stoppable(self)
     }
 }

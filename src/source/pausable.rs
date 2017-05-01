@@ -1,45 +1,47 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use Sample;
 use Source;
 
-/// Filter that allows another thread to pause the stream.
-#[derive(Clone, Debug)]
-pub struct Pausable<I>
-    where I: Source,
-          I::Item: Sample
-{
-    input: I,
-
-    // Local storage of the paused value.  Allows us to only check the remote occasionally.
-    local_paused: bool,
-
-    // The paused value which may be manipulated by another thread.
-    remote_paused: Arc<AtomicBool>,
-
-    // The frequency with which local_paused should be updated by remote_paused
-    update_frequency: u32,
-
-    // How many samples remain until it is time to update local_paused with remote_paused.
-    samples_until_update: u32,
+/// Internal function that builds a `Pausable` object.
+pub fn pausable<I>(source: I, paused: bool) -> Pausable<I> {
+    Pausable {
+        input: source,
+        paused: paused,
+    }
 }
 
-impl<I> Pausable<I>
-    where I: Source,
-          I::Item: Sample
-{
-    pub fn new(source: I, remote_paused: Arc<AtomicBool>, update_ms: u32) -> Pausable<I> {
-        // TODO: handle the fact that the samples rate can change
-        let update_frequency = (update_ms * source.samples_rate()) / 1000;
-        Pausable {
-            input: source,
-            local_paused: remote_paused.load(Ordering::Relaxed),
-            remote_paused: remote_paused,
-            update_frequency: update_frequency,
-            samples_until_update: update_frequency,
-        }
+#[derive(Clone, Debug)]
+pub struct Pausable<I> {
+    input: I,
+    paused: bool,
+}
+
+impl<I> Pausable<I> {
+    /// Sets whether the filter applies.
+    ///
+    /// If set to true, the inner sound stops playing and no samples are processed from it.
+    #[inline]
+    pub fn set_paused(&mut self, paused: bool) {
+        self.paused = paused;
+    }
+
+    /// Returns a reference to the inner source.
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Returns a mutable reference to the inner source.
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
+
+    /// Returns the inner source.
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
     }
 }
 
@@ -51,14 +53,10 @@ impl<I> Iterator for Pausable<I>
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        self.samples_until_update -= 1;
-        if self.samples_until_update == 0 {
-            self.local_paused = self.remote_paused.load(Ordering::Relaxed);
-            self.samples_until_update = self.update_frequency;
-        }
-        if self.local_paused {
+        if self.paused {
             return Some(I::Item::zero_value());
         }
+
         self.input.next()
     }
 

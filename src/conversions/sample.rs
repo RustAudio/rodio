@@ -92,7 +92,7 @@ pub trait Sample: cpal::Sample {
 impl Sample for u16 {
     #[inline]
     fn lerp(first: u16, second: u16, numerator: u32, denominator: u32) -> u16 {
-        (first as u32 + (second as u32 - first as u32) * numerator / denominator) as u16
+        (second as u32 + (first as u32 - second as u32) * numerator / denominator) as u16
     }
 
     #[inline]
@@ -140,7 +140,7 @@ impl Sample for u16 {
 impl Sample for i16 {
     #[inline]
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
-        (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32) as
+        (second as i32 + (first as i32 - second as i32) * numerator as i32 / denominator as i32) as
         i16
     }
 
@@ -193,7 +193,7 @@ impl Sample for i16 {
 impl Sample for f32 {
     #[inline]
     fn lerp(first: f32, second: f32, numerator: u32, denominator: u32) -> f32 {
-        first + (second - first) * numerator as f32 / denominator as f32
+        second + (first - second) * numerator as f32 / denominator as f32
     }
 
     #[inline]

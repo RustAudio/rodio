@@ -75,14 +75,17 @@ fn extract<I>(mut input: I) -> Arc<Frame<I>>
 
     let channels = input.channels();
     let rate = input.samples_rate();
-    let data = input.by_ref().take(cmp::min(frame_len.unwrap_or(32768), 32768)).collect();
+    let data = input
+        .by_ref()
+        .take(cmp::min(frame_len.unwrap_or(32768), 32768))
+        .collect();
 
     Arc::new(Frame::Data(FrameData {
-        data: data,
-        channels: channels,
-        rate: rate,
-        next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
-    }))
+                             data: data,
+                             channels: channels,
+                             rate: rate,
+                             next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
+                         }))
 }
 
 impl<I> Buffered<I>

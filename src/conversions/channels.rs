@@ -84,8 +84,9 @@ impl<I> Iterator for ChannelsCountConverter<I>
         let min = (min / self.from as usize) * self.to as usize +
                   self.next_output_sample_pos as usize;
         let max = max.map(|max| {
-            (max / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize
-        });
+                              (max / self.from as usize) * self.to as usize +
+                              self.next_output_sample_pos as usize
+                          });
 
         (min, max)
     }

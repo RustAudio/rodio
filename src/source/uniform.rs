@@ -86,7 +86,14 @@ impl<I, D> Iterator for UniformSourceIterator<I, D>
             return Some(value);
         }
 
-        let input = self.inner.take().unwrap().into_inner().into_inner().into_inner().iter;
+        let input = self.inner
+            .take()
+            .unwrap()
+            .into_inner()
+            .into_inner()
+            .into_inner()
+            .iter;
+
         let mut input =
             UniformSourceIterator::bootstrap(input, self.target_channels, self.target_samples_rate);
 

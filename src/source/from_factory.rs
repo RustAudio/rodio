@@ -11,9 +11,7 @@ use source::FromIter;
 pub fn from_factory<F, S>(factory: F) -> FromIter<FromFactoryIter<F>>
     where F: FnMut() -> Option<S>
 {
-    from_iter(FromFactoryIter {
-        factory: factory,
-    })
+    from_iter(FromFactoryIter { factory: factory })
 }
 
 /// Internal type used by `from_factory`.

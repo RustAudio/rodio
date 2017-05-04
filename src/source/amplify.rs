@@ -55,7 +55,9 @@ impl<I> Iterator for Amplify<I>
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        self.input.next().map(|value| value.amplify(self.factor))
+        self.input
+            .next()
+            .map(|value| value.amplify(self.factor))
     }
 
     #[inline]

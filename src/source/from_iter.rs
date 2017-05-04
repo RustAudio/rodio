@@ -24,7 +24,9 @@ pub fn from_iter<I>(iterator: I) -> FromIter<I::IntoIter>
 
 /// A source that chains sources provided by an iterator.
 #[derive(Clone)]
-pub struct FromIter<I> where I: Iterator {
+pub struct FromIter<I>
+    where I: Iterator
+{
     // The iterator that provides sources.
     iterator: I,
     // Is only ever `None` if the first element of the iterator is `None`.
@@ -140,15 +142,14 @@ mod tests {
 
     #[test]
     fn basic() {
-        let mut rx = from_iter((0..2).map(|n| {
-            if n == 0 {
-                SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10])
-            } else if n == 1 {
+        let mut rx =
+            from_iter((0..2).map(|n| if n == 0 {
+                                     SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10])
+                                 } else if n == 1 {
                 SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5])
             } else {
                 unreachable!()
-            }
-        }));
+            }));
 
         assert_eq!(rx.channels(), 1);
         assert_eq!(rx.samples_rate(), 48000);
@@ -157,7 +158,8 @@ mod tests {
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
         /*assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.samples_rate(), 96000);*/     // FIXME: not working
+        assert_eq!(rx.samples_rate(), 96000);*/
+ // FIXME: not working
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));

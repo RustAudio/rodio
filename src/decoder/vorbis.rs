@@ -37,9 +37,9 @@ impl<R> VorbisDecoder<R>
         };
 
         Ok(VorbisDecoder {
-            stream_reader: stream_reader,
-            current_data: data.into_iter(),
-        })
+               stream_reader: stream_reader,
+               current_data: data.into_iter(),
+           })
     }
 }
 
@@ -76,13 +76,19 @@ impl<R> Iterator for VorbisDecoder<R>
     fn next(&mut self) -> Option<i16> {
         if let Some(sample) = self.current_data.next() {
             if self.current_data.len() == 0 {
-                if let Some(data) = self.stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
+                if let Some(data) = self.stream_reader
+                       .read_dec_packet_itl()
+                       .ok()
+                       .and_then(|v| v) {
                     self.current_data = data.into_iter();
                 }
             }
             return Some(sample);
         } else {
-            if let Some(data) = self.stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
+            if let Some(data) = self.stream_reader
+                   .read_dec_packet_itl()
+                   .ok()
+                   .and_then(|v| v) {
                 self.current_data = data.into_iter();
             }
             return self.current_data.next();

@@ -77,7 +77,7 @@ impl Engine {
                     e.insert(Arc::downgrade(&mixer));
                     voice_to_start = Some(voice);
                     mixer
-                },
+                }
                 Entry::Occupied(mut e) => {
                     if let Some(m) = e.get().upgrade() {
                         m.clone()
@@ -87,7 +87,7 @@ impl Engine {
                         voice_to_start = Some(voice);
                         mixer
                     }
-                },
+                }
             }
         };
 
@@ -100,10 +100,12 @@ impl Engine {
 }
 
 // TODO: handle possible errors here
-fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>)
+fn new_voice(endpoint: &Endpoint,
+             events_loop: &Arc<EventLoop>)
              -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, Voice) {
     // Determine the format to use for the new voice.
-    let format = endpoint.get_supported_formats_list()
+    let format = endpoint
+        .get_supported_formats_list()
         .unwrap()
         .fold(None, |f1, f2| {
             if f1.is_none() {
@@ -113,8 +115,7 @@ fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>)
             let f1 = f1.unwrap();
 
             // We privilege f32 formats to avoid a conversion.
-            if f2.data_type == cpal::SampleFormat::F32 &&
-                f1.data_type != cpal::SampleFormat::F32 {
+            if f2.data_type == cpal::SampleFormat::F32 && f1.data_type != cpal::SampleFormat::F32 {
                 return Some(f2);
             }
 
@@ -132,8 +133,7 @@ fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>)
         })
         .expect("The endpoint doesn't support any format!?");
 
-    let (voice, stream) = Voice::new(&endpoint, &format, events_loop)
-        .unwrap();
+    let (voice, stream) = Voice::new(&endpoint, &format, events_loop).unwrap();
 
     let (mixer_tx, mut mixer_rx) = {
         dynamic_mixer::mixer::<f32>(format.channels.len() as u16, format.samples_rate.0)

@@ -22,7 +22,9 @@ impl<S> Zero<S> {
     }
 }
 
-impl<S> Iterator for Zero<S> where S: Sample {
+impl<S> Iterator for Zero<S>
+    where S: Sample
+{
     type Item = S;
 
     #[inline]
@@ -31,7 +33,9 @@ impl<S> Iterator for Zero<S> where S: Sample {
     }
 }
 
-impl<S> Source for Zero<S> where S: Sample {
+impl<S> Source for Zero<S>
+    where S: Sample
+{
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         None

@@ -64,8 +64,14 @@ impl<I> SamplesRateConverter<I>
             debug_assert_eq!(from, gcd);
             (Vec::new(), Vec::new())
         } else {
-            let first = input.by_ref().take(num_channels as usize).collect::<Vec<_>>();
-            let next = input.by_ref().take(num_channels as usize).collect::<Vec<_>>();
+            let first = input
+                .by_ref()
+                .take(num_channels as usize)
+                .collect::<Vec<_>>();
+            let next = input
+                .by_ref()
+                .take(num_channels as usize)
+                .collect::<Vec<_>>();
             (first, next)
         };
 
@@ -153,7 +159,10 @@ impl<I> Iterator for SamplesRateConverter<I>
         let mut result = None;
         let numerator = (self.from * self.next_output_frame_pos_in_chunk) % self.to;
         for (off, (cur, next)) in
-            self.current_frame.iter().zip(self.next_frame.iter()).enumerate() {
+            self.current_frame
+                .iter()
+                .zip(self.next_frame.iter())
+                .enumerate() {
             let sample = Sample::lerp(cur.clone(), next.clone(), numerator, self.to);
 
             if off == 0 {
@@ -197,10 +206,11 @@ impl<I> Iterator for SamplesRateConverter<I>
                 samples_after_chunk
             };
             // removing the samples of the current chunk that have not yet been read
-            let samples_after_chunk = samples_after_chunk.saturating_sub(
-                self.from.saturating_sub(self.current_frame_pos_in_chunk + 2) as usize *
-                    self.current_frame.capacity()
-            );
+            let samples_after_chunk = samples_after_chunk
+                .saturating_sub(self.from
+                                    .saturating_sub(self.current_frame_pos_in_chunk + 2) as
+                                usize *
+                                self.current_frame.capacity());
             // calculating the number of samples after the transformation
             // TODO: this is wrong here \|/
             let samples_after_chunk = samples_after_chunk * self.to as usize / self.from as usize;

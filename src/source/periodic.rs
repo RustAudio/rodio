@@ -6,7 +6,7 @@ use Source;
 /// Internal function that builds a `PeriodicAccess` object.
 pub fn periodic<I, F>(source: I, period: Duration, modifier: F) -> PeriodicAccess<I, F>
     where I: Source,
-          I::Item: Sample,
+          I::Item: Sample
 {
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong

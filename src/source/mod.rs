@@ -235,7 +235,8 @@ pub trait Source: Iterator
     /// Converts the samples of this source to another type.
     #[inline]
     fn convert_samples<D>(self) -> SamplesConverter<Self, D>
-        where Self: Sized, D: Sample
+        where Self: Sized,
+              D: Sample
     {
         SamplesConverter::new(self)
     }
@@ -259,7 +260,9 @@ pub trait Source: Iterator
     }
 }
 
-impl<S> Source for Box<Source<Item = S>> where S: Sample {
+impl<S> Source for Box<Source<Item = S>>
+    where S: Sample
+{
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         (**self).current_frame_len()
@@ -281,7 +284,9 @@ impl<S> Source for Box<Source<Item = S>> where S: Sample {
     }
 }
 
-impl<S> Source for Box<Source<Item = S> + Send> where S: Sample {
+impl<S> Source for Box<Source<Item = S> + Send>
+    where S: Sample
+{
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         (**self).current_frame_len()
@@ -303,7 +308,9 @@ impl<S> Source for Box<Source<Item = S> + Send> where S: Sample {
     }
 }
 
-impl<S> Source for Box<Source<Item = S> + Send + Sync> where S: Sample {
+impl<S> Source for Box<Source<Item = S> + Send + Sync>
+    where S: Sample
+{
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         (**self).current_frame_len()

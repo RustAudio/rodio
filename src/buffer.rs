@@ -3,7 +3,7 @@
 //! The `SamplesBuffer` struct can be used to treat a list of values as a `Source`.
 //!
 //! # Example
-//! 
+//!
 //! ```
 //! use rodio::buffer::SamplesBuffer;
 //! let _ = SamplesBuffer::new(1, 44100, vec![1i16, 2, 3, 4, 5, 6]);
@@ -25,7 +25,9 @@ pub struct SamplesBuffer<S> {
     duration: Duration,
 }
 
-impl<S> SamplesBuffer<S> where S: Sample {
+impl<S> SamplesBuffer<S>
+    where S: Sample
+{
     /// Builds a new `SamplesBuffer`.
     ///
     /// # Panic
@@ -42,8 +44,10 @@ impl<S> SamplesBuffer<S> where S: Sample {
         assert!(samples_rate != 0);
 
         let data = data.into();
-        let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap() / samples_rate as u64 / channels as u64;
-        let duration = Duration::new(duration_ns / 1_000_000_000, (duration_ns % 1_000_000_000) as u32);
+        let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap() /
+                          samples_rate as u64 / channels as u64;
+        let duration = Duration::new(duration_ns / 1_000_000_000,
+                                     (duration_ns % 1_000_000_000) as u32);
 
         SamplesBuffer {
             data: data.into_iter(),
@@ -54,7 +58,9 @@ impl<S> SamplesBuffer<S> where S: Sample {
     }
 }
 
-impl<S> Source for SamplesBuffer<S> where S: Sample {
+impl<S> Source for SamplesBuffer<S>
+    where S: Sample
+{
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         None
@@ -76,7 +82,9 @@ impl<S> Source for SamplesBuffer<S> where S: Sample {
     }
 }
 
-impl<S> Iterator for SamplesBuffer<S> where S: Sample {
+impl<S> Iterator for SamplesBuffer<S>
+    where S: Sample
+{
     type Item = S;
 
     #[inline]

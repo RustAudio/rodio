@@ -9,8 +9,7 @@ pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
           I::Item: Sample
 {
     let duration_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-    let samples = duration_ns * input.samples_rate() as u64 * input.channels() as u64 /
-                  1000000000;
+    let samples = duration_ns * input.samples_rate() as u64 * input.channels() as u64 / 1000000000;
 
     Delay {
         input: input,
@@ -60,7 +59,9 @@ impl<I> Source for Delay<I>
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len().map(|val| val + self.remaining_samples)
+        self.input
+            .current_frame_len()
+            .map(|val| val + self.remaining_samples)
     }
 
     #[inline]
@@ -75,6 +76,8 @@ impl<I> Source for Delay<I>
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.input.total_duration().map(|val| val + self.requested_duration)
+        self.input
+            .total_duration()
+            .map(|val| val + self.requested_duration)
     }
 }

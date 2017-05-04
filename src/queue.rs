@@ -26,14 +26,13 @@ use Sample;
 ///   a new sound.
 /// - If you pass `false`, then the queue will report that it has finished playing.
 ///
-pub fn queue<S>(keep_alive_if_empty: bool)
-                -> (Arc<SourcesQueueInput<S>>, SourcesQueueOutput<S>)
+pub fn queue<S>(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput<S>>, SourcesQueueOutput<S>)
     where S: Sample + Send + 'static
 {
     let input = Arc::new(SourcesQueueInput {
-        next_sounds: Mutex::new(Vec::new()),
-        keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
-    });
+                             next_sounds: Mutex::new(Vec::new()),
+                             keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
+                         });
 
     let output = SourcesQueueOutput {
         current: Box::new(Empty::<S>::new()) as Box<_>,
@@ -54,13 +53,18 @@ pub struct SourcesQueueInput<S> {
     keep_alive_if_empty: AtomicBool,
 }
 
-impl<S> SourcesQueueInput<S> where S: Sample + Send + 'static {
+impl<S> SourcesQueueInput<S>
+    where S: Sample + Send + 'static
+{
     /// Adds a new source to the end of the queue.
     #[inline]
     pub fn append<T>(&self, source: T)
         where T: Source<Item = S> + Send + 'static
     {
-        self.next_sounds.lock().unwrap().push((Box::new(source) as Box<_>, None));
+        self.next_sounds
+            .lock()
+            .unwrap()
+            .push((Box::new(source) as Box<_>, None));
     }
 
     /// Adds a new source to the end of the queue.
@@ -71,7 +75,10 @@ impl<S> SourcesQueueInput<S> where S: Sample + Send + 'static {
         where T: Source<Item = S> + Send + 'static
     {
         let (tx, rx) = mpsc::channel();
-        self.next_sounds.lock().unwrap().push((Box::new(source) as Box<_>, Some(tx)));
+        self.next_sounds
+            .lock()
+            .unwrap()
+            .push((Box::new(source) as Box<_>, Some(tx)));
         rx
     }
 
@@ -79,7 +86,8 @@ impl<S> SourcesQueueInput<S> where S: Sample + Send + 'static {
     ///
     /// See also the constructor.
     pub fn set_keep_alive_if_empty(&self, keep_alive_if_empty: bool) {
-        self.keep_alive_if_empty.store(keep_alive_if_empty, Ordering::Release);
+        self.keep_alive_if_empty
+            .store(keep_alive_if_empty, Ordering::Release);
     }
 }
 
@@ -95,7 +103,9 @@ pub struct SourcesQueueOutput<S> {
     input: Arc<SourcesQueueInput<S>>,
 }
 
-impl<S> Source for SourcesQueueOutput<S> where S: Sample + Send + 'static {
+impl<S> Source for SourcesQueueOutput<S>
+    where S: Sample + Send + 'static
+{
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         // This function is non-trivial because the boundary between two sounds in the queue should
@@ -144,7 +154,9 @@ impl<S> Source for SourcesQueueOutput<S> where S: Sample + Send + 'static {
     }
 }
 
-impl<S> Iterator for SourcesQueueOutput<S> where S: Sample + Send + 'static {
+impl<S> Iterator for SourcesQueueOutput<S>
+    where S: Sample + Send + 'static
+{
     type Item = S;
 
     #[inline]
@@ -169,7 +181,9 @@ impl<S> Iterator for SourcesQueueOutput<S> where S: Sample + Send + 'static {
     }
 }
 
-impl<S> SourcesQueueOutput<S> where S: Sample + Send + 'static {
+impl<S> SourcesQueueOutput<S>
+    where S: Sample + Send + 'static
+{
     // Called when `current` is empty and we must jump to the next element.
     // Returns `Ok` if the sound should continue playing, or an error if it should stop.
     //
@@ -185,7 +199,7 @@ impl<S> SourcesQueueOutput<S> where S: Sample + Send + 'static {
             if next.len() == 0 {
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
-                    let silence = Zero::<S>::new(1, 44000);          // TODO: meh
+                    let silence = Zero::<S>::new(1, 44000); // TODO: meh
                     (Box::new(silence.take_duration(Duration::from_millis(10))) as Box<_>, None)
                 } else {
                     return Err(());
@@ -208,7 +222,7 @@ mod tests {
     use source::Source;
 
     #[test]
-    #[ignore]       // FIXME: samples rate and channel not updated immediately after transition
+    #[ignore] // FIXME: samples rate and channel not updated immediately after transition
     fn basic() {
         let (tx, mut rx) = queue::queue(false);
 
@@ -252,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]           // TODO: not yet implemented
+    #[ignore] // TODO: not yet implemented
     fn no_delay_when_added() {
         let (tx, mut rx) = queue::queue(true);
 

@@ -15,7 +15,9 @@ fn main() {
     thread::sleep(Duration::from_millis(1500));
 
     let file = std::fs::File::open("examples/beep2.wav").unwrap();
-    rodio::play_once(&endpoint, BufReader::new(file)).unwrap().detach();
+    rodio::play_once(&endpoint, BufReader::new(file))
+        .unwrap()
+        .detach();
     println!("Started beep2");
 
     thread::sleep(Duration::from_millis(1500));

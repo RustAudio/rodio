@@ -31,10 +31,10 @@ impl<R> WavDecoder<R>
         };
 
         Ok(WavDecoder {
-            reader: reader,
-            samples_rate: spec.sample_rate,
-            channels: spec.channels,
-        })
+               reader: reader,
+               samples_rate: spec.sample_rate,
+               channels: spec.channels,
+           })
     }
 }
 

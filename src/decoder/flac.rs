@@ -32,15 +32,15 @@ impl<R> FlacDecoder<R>
         let spec = reader.streaminfo();
 
         Ok(FlacDecoder {
-            reader: reader,
-            current_block: Vec::with_capacity(spec.max_block_size as usize *
-                                              spec.channels as usize),
-            current_block_channel_len: 1,
-            current_block_off: 0,
-            bits_per_sample: spec.bits_per_sample,
-            samples_rate: spec.sample_rate,
-            channels: spec.channels as u16,
-        })
+               reader: reader,
+               current_block: Vec::with_capacity(spec.max_block_size as usize *
+                                                 spec.channels as usize),
+               current_block_channel_len: 1,
+               current_block_off: 0,
+               bits_per_sample: spec.bits_per_sample,
+               samples_rate: spec.sample_rate,
+               channels: spec.channels as u16,
+           })
     }
 }
 
@@ -78,7 +78,9 @@ impl<R> Iterator for FlacDecoder<R>
         loop {
             if self.current_block_off < self.current_block.len() {
                 // Read from current block.
-                let real_offset = (self.current_block_off % self.channels as usize) * self.current_block_channel_len + self.current_block_off / self.channels as usize;
+                let real_offset = (self.current_block_off % self.channels as usize) *
+                                  self.current_block_channel_len +
+                                  self.current_block_off / self.channels as usize;
                 let raw_val = self.current_block[real_offset];
                 self.current_block_off += 1;
                 let real_val = if self.bits_per_sample == 16 {
@@ -98,7 +100,7 @@ impl<R> Iterator for FlacDecoder<R>
                 Ok(Some(block)) => {
                     self.current_block_channel_len = (block.len() / block.channels()) as usize;
                     self.current_block = block.into_buffer();
-                },
+                }
                 _ => return None,
             }
         }

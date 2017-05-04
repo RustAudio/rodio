@@ -23,7 +23,9 @@ impl<S> Iterator for Empty<S> {
     }
 }
 
-impl<S> Source for Empty<S> where S: Sample {
+impl<S> Source for Empty<S>
+    where S: Sample
+{
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         None

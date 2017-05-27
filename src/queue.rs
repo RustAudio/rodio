@@ -118,7 +118,7 @@ impl<S> Source for SourcesQueueOutput<S>
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
         // situation we force a frame to have a maximum number of samples indicate by this
         // constant.
-        const THRESHOLD: usize = 10240;
+        const THRESHOLD: usize = 512;
 
         // Try the current `current_frame_len`.
         if let Some(val) = self.current.current_frame_len() {

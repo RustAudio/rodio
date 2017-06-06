@@ -6,7 +6,7 @@
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [decoder](decoder/index.html), etc. or even your own type that implements
 //!   [the `Source` trait](source/trait.Source.html).
-//! - Choose an output which the [`get_endpoints_list`](fn.get_endpoints_list.html) or
+//! - Choose an output with the [`get_endpoints_list`](fn.get_endpoints_list.html) or
 //!   [`get_default_endpoint`](fn.get_default_endpoint.html) functions.
 //! - Call [`play_raw(output, source)`](fn.play_raw.html).
 //!

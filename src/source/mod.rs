@@ -5,6 +5,7 @@ use std::time::Duration;
 use Sample;
 
 pub use self::amplify::Amplify;
+pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
 pub use self::delay::Delay;
 pub use self::empty::Empty;
@@ -24,6 +25,7 @@ pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
 
 mod amplify;
+mod blt;
 mod buffered;
 mod delay;
 mod empty;
@@ -257,6 +259,15 @@ pub trait Source: Iterator
         where Self: Sized
     {
         stoppable::stoppable(self)
+    }
+
+    /// Applies a low-pass filter to the source.
+    /// **Warning**: Probably buggy.
+    #[inline]
+    fn low_pass(self, freq: u32) -> BltFilter<Self>
+        where Self: Sized, Self: Source<Item = f32>
+    {
+        blt::low_pass(self, freq)
     }
 }
 

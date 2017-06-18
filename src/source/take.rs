@@ -71,21 +71,20 @@ impl<I> Source for TakeDuration<I>
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        if let Some(value) = self.input.current_frame_len() {
-            let remaining_nanosecs = self.remaining_duration.as_secs() * 1000000000 +
-                                     self.remaining_duration.subsec_nanos() as u64;
-            let remaining_samples = remaining_nanosecs * self.input.samples_rate() as u64 *
-                                    self.channels() as u64 /
-                                    1000000000;
+        let remaining_nanosecs = self.remaining_duration.as_secs() * 1000000000 +
+                                 self.remaining_duration.subsec_nanos() as u64;
+        let remaining_samples = remaining_nanosecs * self.input.samples_rate() as u64 *
+                                self.channels() as u64 /
+                                1000000000;
 
+        if let Some(value) = self.input.current_frame_len() {
             if (value as u64) < remaining_samples {
                 Some(value)
             } else {
                 Some(remaining_samples as usize)
             }
-
         } else {
-            None
+            Some(remaining_samples as usize)
         }
     }
 

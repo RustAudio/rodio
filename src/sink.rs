@@ -80,6 +80,16 @@ impl Sink {
     ///
     /// No effect if not paused.
     #[inline]
+    #[deprecated]
+    pub fn play(&self) {
+        self.pause.store(false, Ordering::SeqCst);
+    }
+
+
+    /// Resumes playback of a paused sound.
+    ///
+    /// No effect if not paused.
+    #[inline]
     pub fn resume(&self) {
         self.pause.store(false, Ordering::SeqCst);
     }
@@ -103,13 +113,6 @@ impl Sink {
     /// Stops playback.  To resume, a new sound must be added with `append()`
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::Relaxed);
-    }
-
-    /// Gets whether a sound is stopped.
-    ///
-    /// A stopped sound cannot be resumed, a new one must be started with `append()`.
-    pub fn is_stopped(&self) -> bool {
-        self.stopped.load(Ordering::SeqCst)
     }
 
     /// Destroys the sink without stopping the sounds that are still playing.

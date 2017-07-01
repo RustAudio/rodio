@@ -90,6 +90,7 @@ extern crate hound;
 #[macro_use]
 extern crate lazy_static;
 extern crate lewton;
+extern crate cgmath;
 
 pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};
 
@@ -97,6 +98,7 @@ pub use conversions::Sample;
 pub use decoder::Decoder;
 pub use engine::play_raw;
 pub use sink::Sink;
+pub use spatial_sink::SpatialSink;
 pub use source::Source;
 
 use std::io::{Read, Seek};
@@ -104,6 +106,7 @@ use std::io::{Read, Seek};
 mod conversions;
 mod engine;
 mod sink;
+mod spatial_sink;
 
 pub mod buffer;
 pub mod decoder;

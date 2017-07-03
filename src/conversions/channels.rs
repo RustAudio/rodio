@@ -22,9 +22,7 @@ impl<I> ChannelsCountConverter<I>
     /// Panicks if `from` or `to` are equal to 0.
     ///
     #[inline]
-    pub fn new(input: I,
-               from: cpal::ChannelsCount,
-               to: cpal::ChannelsCount)
+    pub fn new(input: I, from: cpal::ChannelsCount, to: cpal::ChannelsCount)
                -> ChannelsCountConverter<I> {
         assert!(from >= 1);
         assert!(to >= 1);
@@ -68,7 +66,7 @@ impl<I> Iterator for ChannelsCountConverter<I>
             self.next_output_sample_pos -= self.to;
 
             if self.from > self.to {
-                for _ in self.to..self.from {
+                for _ in self.to .. self.from {
                     self.input.next(); // discarding extra input
                 }
             }
@@ -82,10 +80,10 @@ impl<I> Iterator for ChannelsCountConverter<I>
         let (min, max) = self.input.size_hint();
 
         let min = (min / self.from as usize) * self.to as usize +
-                  self.next_output_sample_pos as usize;
+            self.next_output_sample_pos as usize;
         let max = max.map(|max| {
                               (max / self.from as usize) * self.to as usize +
-                              self.next_output_sample_pos as usize
+                                  self.next_output_sample_pos as usize
                           });
 
         (min, max)

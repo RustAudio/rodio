@@ -14,16 +14,18 @@ fn main() {
     let file = std::fs::File::open("examples/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
     sink.append(source);
+
     // A sound emitter playing the music starting at the left gradually moves to the right
-    // eventually passing through the listener, then it continues on to the right for a distance until it
-    // stops and begins traveling to the left, it will eventually pass through the listener again.
+    // eventually passing through the listener, then it continues on to the right for a distance
+    // until it stops and begins traveling to the left, it will eventually pass through the
+    // listener again.
     // This is repeated 5 times.
-    for _ in 0..5 {
-        for i in 1..1001 {
+    for _ in 0 .. 5 {
+        for i in 1 .. 1001 {
             thread::sleep(Duration::from_millis(5));
             sink.set_emitter_position([(i - 500) as f32 / 50.0, 0.0, 0.0]);
         }
-        for i in 1..1001 {
+        for i in 1 .. 1001 {
             thread::sleep(Duration::from_millis(5));
             sink.set_emitter_position([-(i - 500) as f32 / 50.0, 0.0, 0.0]);
         }

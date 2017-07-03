@@ -77,18 +77,20 @@ impl<R> Iterator for VorbisDecoder<R>
         if let Some(sample) = self.current_data.next() {
             if self.current_data.len() == 0 {
                 if let Some(data) = self.stream_reader
-                       .read_dec_packet_itl()
-                       .ok()
-                       .and_then(|v| v) {
+                    .read_dec_packet_itl()
+                    .ok()
+                    .and_then(|v| v)
+                {
                     self.current_data = data.into_iter();
                 }
             }
             return Some(sample);
         } else {
             if let Some(data) = self.stream_reader
-                   .read_dec_packet_itl()
-                   .ok()
-                   .and_then(|v| v) {
+                .read_dec_packet_itl()
+                .ok()
+                .and_then(|v| v)
+            {
                 self.current_data = data.into_iter();
             }
             return self.current_data.next();

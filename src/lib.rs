@@ -92,14 +92,14 @@ extern crate lazy_static;
 extern crate lewton;
 extern crate cgmath;
 
-pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};
+pub use cpal::{Endpoint, get_default_endpoint, get_endpoints_list};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
 pub use engine::play_raw;
 pub use sink::Sink;
-pub use spatial_sink::SpatialSink;
 pub use source::Source;
+pub use spatial_sink::SpatialSink;
 
 use std::io::{Read, Seek};
 
@@ -119,7 +119,7 @@ pub mod source;
 pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Result<Sink, decoder::DecoderError>
     where R: Read + Seek + Send + 'static
 {
-    let input = try!(decoder::Decoder::new(input));
+    let input = decoder::Decoder::new(input)?;
     let sink = Sink::new(endpoint);
     sink.append(input);
     Ok(sink)

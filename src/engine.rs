@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::thread::Builder;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
+use std::thread::Builder;
 
 use futures::stream::Stream;
 use futures::task;
 use futures::task::Executor;
 use futures::task::Run;
 
-use cpal;
-use cpal::UnknownTypeBuffer;
-use cpal::EventLoop;
-use cpal::Voice;
-use cpal::Endpoint;
 use conversions::Sample;
+use cpal;
+use cpal::Endpoint;
+use cpal::EventLoop;
+use cpal::UnknownTypeBuffer;
+use cpal::Voice;
 use dynamic_mixer;
 use source::Source;
 
@@ -77,7 +77,7 @@ impl Engine {
                     e.insert(Arc::downgrade(&mixer));
                     voice_to_start = Some(voice);
                     mixer
-                }
+                },
                 Entry::Occupied(mut e) => {
                     if let Some(m) = e.get().upgrade() {
                         m.clone()
@@ -87,7 +87,7 @@ impl Engine {
                         voice_to_start = Some(voice);
                         mixer
                     }
-                }
+                },
             }
         };
 
@@ -100,8 +100,7 @@ impl Engine {
 }
 
 // TODO: handle possible errors here
-fn new_voice(endpoint: &Endpoint,
-             events_loop: &Arc<EventLoop>)
+fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>)
              -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, Voice) {
     // Determine the format to use for the new voice.
     let format = endpoint
@@ -145,17 +144,17 @@ fn new_voice(endpoint: &Endpoint,
                 for (o, i) in buffer.iter_mut().zip(mixer_rx.by_ref()) {
                     *o = i.to_u16();
                 }
-            }
+            },
             UnknownTypeBuffer::I16(ref mut buffer) => {
                 for (o, i) in buffer.iter_mut().zip(mixer_rx.by_ref()) {
                     *o = i.to_i16();
                 }
-            }
+            },
             UnknownTypeBuffer::F32(ref mut buffer) => {
                 for (o, i) in buffer.iter_mut().zip(mixer_rx.by_ref()) {
                     *o = i;
                 }
-            }
+            },
         };
 
         Ok(())

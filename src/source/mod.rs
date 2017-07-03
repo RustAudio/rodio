@@ -7,18 +7,18 @@ use Sample;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
+pub use self::channel_volume::ChannelVolume;
 pub use self::delay::Delay;
 pub use self::empty::Empty;
 pub use self::fadein::FadeIn;
-pub use self::from_factory::{from_factory, FromFactoryIter};
-pub use self::from_iter::{from_iter, FromIter};
+pub use self::from_factory::{FromFactoryIter, from_factory};
+pub use self::from_iter::{FromIter, from_iter};
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
-pub use self::channel_volume::ChannelVolume;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
@@ -269,7 +269,8 @@ pub trait Source: Iterator
     /// **Warning**: Probably buggy.
     #[inline]
     fn low_pass(self, freq: u32) -> BltFilter<Self>
-        where Self: Sized, Self: Source<Item = f32>
+        where Self: Sized,
+              Self: Source<Item = f32>
     {
         blt::low_pass(self, freq)
     }

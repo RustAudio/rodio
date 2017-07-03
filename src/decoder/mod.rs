@@ -35,14 +35,14 @@ impl<R> Decoder<R>
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Wav(decoder)));
-            }
+            },
         };
 
         let data = match flac::FlacDecoder::new(data) {
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Flac(decoder)));
-            }
+            },
         };
 
         if let Ok(decoder) = vorbis::VorbisDecoder::new(data) {

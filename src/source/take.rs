@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Source;
 use Sample;
+use Source;
 
 /// Internal function that builds a `Repeat` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -72,10 +72,9 @@ impl<I> Source for TakeDuration<I>
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         let remaining_nanosecs = self.remaining_duration.as_secs() * 1000000000 +
-                                 self.remaining_duration.subsec_nanos() as u64;
+            self.remaining_duration.subsec_nanos() as u64;
         let remaining_samples = remaining_nanosecs * self.input.samples_rate() as u64 *
-                                self.channels() as u64 /
-                                1000000000;
+            self.channels() as u64 / 1000000000;
 
         if let Some(value) = self.input.current_frame_len() {
             if (value as u64) < remaining_samples {

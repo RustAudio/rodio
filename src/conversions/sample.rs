@@ -1,5 +1,6 @@
-use std::marker::PhantomData;
+
 use cpal;
+use std::marker::PhantomData;
 
 /// Converts the samples data type to `O`.
 #[derive(Clone, Debug)]
@@ -86,7 +87,8 @@ pub trait Sample: cpal::Sample {
     fn to_f32(&self) -> f32;
 
     /// Converts any sample type to this one by calling `to_i16`, `to_u16` or `to_f32`.
-    fn from<S>(&S) -> Self where S: Sample;
+    fn from<S>(&S) -> Self
+        where S: Sample;
 }
 
 impl Sample for u16 {
@@ -141,7 +143,7 @@ impl Sample for i16 {
     #[inline]
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
         (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32) as
-        i16
+            i16
     }
 
     #[inline]

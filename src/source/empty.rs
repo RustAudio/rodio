@@ -1,7 +1,8 @@
-use std::marker::PhantomData;
-use std::time::Duration;
+
 use Sample;
 use Source;
+use std::marker::PhantomData;
+use std::time::Duration;
 
 /// An empty source.
 #[derive(Debug, Copy, Clone)]

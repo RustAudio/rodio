@@ -26,7 +26,7 @@ impl<I> ChannelVolume<I>
               I::Item: Sample
     {
         let mut sample = I::Item::zero_value();
-        for _ in 0..input.channels() {
+        for _ in 0 .. input.channels() {
             if let Some(s) = input.next() {
                 sample = sample.saturating_add(s);
             }
@@ -61,7 +61,7 @@ impl<I> Iterator for ChannelVolume<I>
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             let mut sample = I::Item::zero_value();
-            for _ in 0..self.input.channels() {
+            for _ in 0 .. self.input.channels() {
                 if let Some(s) = self.input.next() {
                     sample = sample.saturating_add(s);
                 } else {

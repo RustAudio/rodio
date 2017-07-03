@@ -67,7 +67,10 @@ impl<R> Iterator for SamplesIterator<R>
     }
 }
 
-impl<R> ExactSizeIterator for SamplesIterator<R> where R: Read + Seek {}
+impl<R> ExactSizeIterator for SamplesIterator<R>
+    where R: Read + Seek
+{
+}
 
 impl<R> Source for WavDecoder<R>
     where R: Read + Seek
@@ -110,7 +113,10 @@ impl<R> Iterator for WavDecoder<R>
     }
 }
 
-impl<R> ExactSizeIterator for WavDecoder<R> where R: Read + Seek {}
+impl<R> ExactSizeIterator for WavDecoder<R>
+    where R: Read + Seek
+{
+}
 
 /// Returns true if the stream contains WAV data, then resets it to where it was.
 fn is_wave<R>(mut data: R) -> bool

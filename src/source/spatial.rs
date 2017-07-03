@@ -1,9 +1,9 @@
 use Sample;
 use Source;
-use source::ChannelVolume;
-use std::time::Duration;
-use std::fmt::Debug;
 use cgmath::{InnerSpace, Point3};
+use source::ChannelVolume;
+use std::fmt::Debug;
+use std::time::Duration;
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -19,19 +19,19 @@ impl<I> Spatial<I>
     where I: Source,
           I::Item: Sample + Debug
 {
-    pub fn new(input: I, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3]) -> Spatial<I>
+    pub fn new(input: I, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3])
+               -> Spatial<I>
         where I: Source,
               I::Item: Sample
     {
-        let mut ret = Spatial {
-            input: ChannelVolume::new(input, vec![0.0, 0.0]),
-        };
+        let mut ret = Spatial { input: ChannelVolume::new(input, vec![0.0, 0.0]) };
         ret.set_positions(emitter_position, left_ear, right_ear);
         ret
     }
 
     /// Sets the position of the emitter and ears in the 3D world.
-    pub fn set_positions(&mut self, emitter_pos: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3]) {
+    pub fn set_positions(&mut self, emitter_pos: [f32; 3], left_ear: [f32; 3],
+                         right_ear: [f32; 3]) {
         let emitter_position = Point3::from(emitter_pos);
         let left_ear = Point3::from(left_ear);
         let right_ear = Point3::from(right_ear);
@@ -42,8 +42,10 @@ impl<I> Spatial<I>
         let right_diff_modifier = ((right_distance - left_distance) / max_diff + 1.0) / 4.0 + 0.5;
         let left_dist_modifier = (1.0 / left_distance.powi(2)).min(1.0);
         let right_dist_modifier = (1.0 / right_distance.powi(2)).min(1.0);
-        self.input.set_volume(0, left_diff_modifier * left_dist_modifier);
-        self.input.set_volume(1, right_diff_modifier * right_dist_modifier);
+        self.input
+            .set_volume(0, left_diff_modifier * left_dist_modifier);
+        self.input
+            .set_volume(1, right_diff_modifier * right_dist_modifier);
     }
 }
 

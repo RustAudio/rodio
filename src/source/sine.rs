@@ -1,5 +1,6 @@
-use std::time::Duration;
+
 use Source;
+use std::time::Duration;
 
 /// An infinite source that produces a sine.
 ///

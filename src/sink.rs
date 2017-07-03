@@ -1,15 +1,16 @@
+
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
 
+use Endpoint;
+use Sample;
+use Source;
 use play_raw;
 use queue;
-use Endpoint;
-use Source;
-use Sample;
 
 /// Handle to an endpoint that outputs sounds.
 ///
@@ -58,15 +59,16 @@ impl Sink {
             .pausable(false)
             .amplify(1.0)
             .stoppable()
-            .periodic_access(Duration::from_millis(5),
-                             move |src| if stopped.load(Ordering::SeqCst) {
-                                 src.stop();
-                             } else {
-                                 src.inner_mut().set_factor(*volume.lock().unwrap());
-                                 src.inner_mut()
-                                     .inner_mut()
-                                     .set_paused(pause.load(Ordering::SeqCst));
-                             })
+            .periodic_access(Duration::from_millis(5), move |src| {
+                if stopped.load(Ordering::SeqCst) {
+                    src.stop();
+                } else {
+                    src.inner_mut().set_factor(*volume.lock().unwrap());
+                    src.inner_mut()
+                        .inner_mut()
+                        .set_paused(pause.load(Ordering::SeqCst));
+                }
+            })
             .convert_samples();
 
         *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));

@@ -1,12 +1,13 @@
-use std::f32;
-use std::sync::{Arc, Mutex};
-use Sink;
+
 use Endpoint;
-use Source;
 use Sample;
+use Sink;
+use Source;
 use source::Spatial;
-use std::time::Duration;
+use std::f32;
 use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub struct SpatialSink {
     sink: Sink,
@@ -22,18 +23,16 @@ struct SoundPositions {
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
     #[inline]
-    pub fn new(endpoint: &Endpoint,
-               emitter_position: [f32; 3],
-               left_ear: [f32; 3],
+    pub fn new(endpoint: &Endpoint, emitter_position: [f32; 3], left_ear: [f32; 3],
                right_ear: [f32; 3])
                -> SpatialSink {
         SpatialSink {
             sink: Sink::new(endpoint),
             positions: Arc::new(Mutex::new(SoundPositions {
-                emitter_position,
-                left_ear,
-                right_ear,
-            })),
+                                               emitter_position,
+                                               left_ear,
+                                               right_ear,
+                                           })),
         }
     }
 
@@ -56,19 +55,18 @@ impl SpatialSink {
     #[inline]
     pub fn append<S>(&self, source: S)
         where S: Source + Send + 'static,
-              S::Item: Sample + Send + Debug,
+              S::Item: Sample + Send + Debug
     {
         let positions = self.positions.clone();
         let pos_lock = self.positions.lock().unwrap();
-        let source = Spatial::new(
-            source,
-            pos_lock.emitter_position,
-            pos_lock.left_ear,
-            pos_lock.right_ear
-        ).periodic_access(Duration::from_millis(10), move |i| {
-            let pos = positions.lock().unwrap();
-            i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
-        });
+        let source = Spatial::new(source,
+                                  pos_lock.emitter_position,
+                                  pos_lock.left_ear,
+                                  pos_lock.right_ear)
+            .periodic_access(Duration::from_millis(10), move |i| {
+                let pos = positions.lock().unwrap();
+                i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
+            });
         self.sink.append(source);
     }
 

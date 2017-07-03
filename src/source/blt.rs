@@ -75,8 +75,10 @@ impl<I> Iterator for BltFilter<I>
             Some(s) => s,
         };
 
-        let result = self.applier.as_ref().unwrap().apply(sample, self.x_n1, self.x_n2,
-                                                          self.y_n1, self.y_n2);
+        let result = self.applier
+            .as_ref()
+            .unwrap()
+            .apply(sample, self.x_n1, self.x_n2, self.y_n1, self.y_n2);
 
         self.y_n2 = self.y_n1;
         self.x_n2 = self.x_n1;
@@ -151,7 +153,7 @@ impl BltFormula {
                     a1: a1 / a0,
                     a2: a2 / a0,
                 }
-            }
+            },
         }
     }
 }

@@ -217,8 +217,8 @@ impl<S> SourcesQueueOutput<S>
 
 #[cfg(test)]
 mod tests {
-    use queue;
     use buffer::SamplesBuffer;
+    use queue;
     use source::Source;
 
     #[test]
@@ -260,7 +260,7 @@ mod tests {
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
 
-        for _ in 0..100000 {
+        for _ in 0 .. 100000 {
             assert_eq!(rx.next(), Some(0));
         }
     }
@@ -270,7 +270,7 @@ mod tests {
     fn no_delay_when_added() {
         let (tx, mut rx) = queue::queue(true);
 
-        for _ in 0..500 {
+        for _ in 0 .. 500 {
             assert_eq!(rx.next(), Some(0));
         }
 

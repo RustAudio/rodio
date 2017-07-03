@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use cpal;
 
+use conversions::ChannelsCountConverter;
 use conversions::DataConverter;
 use conversions::SamplesRateConverter;
-use conversions::ChannelsCountConverter;
 
 use Sample;
 use Source;
@@ -33,9 +33,7 @@ impl<I, D> UniformSourceIterator<I, D>
           D: Sample
 {
     #[inline]
-    pub fn new(input: I,
-               target_channels: u16,
-               target_samples_rate: u32)
+    pub fn new(input: I, target_channels: u16, target_samples_rate: u32)
                -> UniformSourceIterator<I, D> {
         let total_duration = input.total_duration();
         let input = UniformSourceIterator::bootstrap(input, target_channels, target_samples_rate);
@@ -49,9 +47,7 @@ impl<I, D> UniformSourceIterator<I, D>
     }
 
     #[inline]
-    fn bootstrap(input: I,
-                 target_channels: u16,
-                 target_samples_rate: u32)
+    fn bootstrap(input: I, target_channels: u16, target_samples_rate: u32)
                  -> DataConverter<ChannelsCountConverter<SamplesRateConverter<Take<I>>>, D> {
         let frame_len = input.current_frame_len();
 
@@ -180,4 +176,7 @@ impl<I> Iterator for Take<I>
     }
 }
 
-impl<I> ExactSizeIterator for Take<I> where I: ExactSizeIterator {}
+impl<I> ExactSizeIterator for Take<I>
+    where I: ExactSizeIterator
+{
+}

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Source;
 use Sample;
+use Source;
 
 /// Internal function that builds a `Delay` object.
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>

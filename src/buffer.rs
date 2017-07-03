@@ -45,7 +45,7 @@ impl<S> SamplesBuffer<S>
 
         let data = data.into();
         let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap() /
-                          samples_rate as u64 / channels as u64;
+            samples_rate as u64 / channels as u64;
         let duration = Duration::new(duration_ns / 1_000_000_000,
                                      (duration_ns % 1_000_000_000) as u32);
 

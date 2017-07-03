@@ -42,7 +42,7 @@ impl<I> Iterator for FadeIn<I>
 
         let factor = 1.0 - self.remaining_ns / self.total_ns;
         self.remaining_ns -= 1000000000.0 /
-                             (self.input.samples_rate() as f32 * self.channels() as f32);
+            (self.input.samples_rate() as f32 * self.channels() as f32);
         self.input.next().map(|value| value.amplify(factor))
     }
 

@@ -17,8 +17,7 @@ use Sample;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
-pub fn mixer<S>(channels: u16,
-                samples_rate: u32)
+pub fn mixer<S>(channels: u16, samples_rate: u32)
                 -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
     where S: Sample + Send + 'static
 {
@@ -143,8 +142,8 @@ impl<S> Iterator for DynamicMixer<S>
 
 #[cfg(test)]
 mod tests {
-    use dynamic_mixer;
     use buffer::SamplesBuffer;
+    use dynamic_mixer;
     use source::Source;
 
     #[test]

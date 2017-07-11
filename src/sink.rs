@@ -116,6 +116,12 @@ impl Sink {
         self.pause.load(Ordering::SeqCst)
     }
 
+    /// Stops the sink by emptying the queue.
+    #[inline]
+    pub fn stop(&self) {
+        self.stopped.store(true, Ordering::SeqCst);
+    }
+
     /// Destroys the sink without stopping the sounds that are still playing.
     #[inline]
     pub fn detach(mut self) {

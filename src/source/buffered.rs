@@ -75,10 +75,14 @@ fn extract<I>(mut input: I) -> Arc<Frame<I>>
 
     let channels = input.channels();
     let rate = input.samples_rate();
-    let data = input
+    let data : Vec<I::Item> = input
         .by_ref()
         .take(cmp::min(frame_len.unwrap_or(32768), 32768))
         .collect();
+
+    if data.is_empty() {
+        return Arc::new(Frame::End);
+    }
 
     Arc::new(Frame::Data(FrameData {
                              data: data,

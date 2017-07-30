@@ -200,4 +200,30 @@ mod tests {
         assert_eq!(rx.next(), Some(-5));
         assert_eq!(rx.next(), None);
     }
+
+    #[test]
+    fn start_afterwards() {
+        let (tx, mut rx) = dynamic_mixer::mixer(1, 48000);
+
+        tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+
+        assert_eq!(rx.next(), Some(10));
+        assert_eq!(rx.next(), Some(-10));
+
+        tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 6, 6, 7, 7, 7]));
+
+        assert_eq!(rx.next(), Some(15));
+        assert_eq!(rx.next(), Some(-5));
+
+        assert_eq!(rx.next(), Some(6));
+        assert_eq!(rx.next(), Some(6));
+
+        tx.add(SamplesBuffer::new(1, 48000, vec![2i16]));
+
+        assert_eq!(rx.next(), Some(9));
+        assert_eq!(rx.next(), Some(7));
+        assert_eq!(rx.next(), Some(7));
+
+        assert_eq!(rx.next(), None);
+    }
 }

@@ -1,7 +1,7 @@
 
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
@@ -9,6 +9,7 @@ use std::time::Duration;
 use Endpoint;
 use Sample;
 use Source;
+use source::Done;
 use play_raw;
 use queue;
 
@@ -23,6 +24,7 @@ pub struct Sink {
     pause: Arc<AtomicBool>,
     volume: Arc<Mutex<f32>>,
     stopped: Arc<AtomicBool>,
+    sound_count: Arc<AtomicUsize>,
 
     detached: bool,
 }
@@ -40,6 +42,7 @@ impl Sink {
             pause: Arc::new(AtomicBool::new(false)),
             volume: Arc::new(Mutex::new(1.0)),
             stopped: Arc::new(AtomicBool::new(false)),
+            sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
         }
     }
@@ -70,7 +73,8 @@ impl Sink {
                 }
             })
             .convert_samples();
-
+        self.sound_count.fetch_add(1, Ordering::Relaxed);
+        let source = Done::new(source, self.sound_count.clone());
         *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
     }
 
@@ -134,6 +138,12 @@ impl Sink {
         if let Some(sleep_until_end) = self.sleep_until_end.lock().unwrap().take() {
             let _ = sleep_until_end.recv();
         }
+    }
+
+    /// Returns true if this sink has no more sounds to play.
+    #[inline]
+    pub fn empty(&self) -> bool {
+        self.sound_count.load(Ordering::Relaxed) == 0
     }
 }
 

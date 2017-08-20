@@ -123,4 +123,10 @@ impl SpatialSink {
     pub fn sleep_until_end(&self) {
         self.sink.sleep_until_end();
     }
+
+    /// Returns true if this sink has no more sounds to play.
+    #[inline]
+    pub fn empty(&self) -> bool {
+        self.sink.empty()
+    }
 }

@@ -141,18 +141,18 @@ fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>)
     let future_to_exec = stream.for_each(move |mut buffer| -> Result<_, ()> {
         match buffer {
             UnknownTypeBuffer::U16(ref mut buffer) => {
-                for (o, i) in buffer.iter_mut().zip(mixer_rx.by_ref()) {
-                    *o = i.to_u16();
+                for d in buffer.iter_mut() {
+                    *d = mixer_rx.next().map(|s| s.to_u16()).unwrap_or(0u16);
                 }
             },
             UnknownTypeBuffer::I16(ref mut buffer) => {
-                for (o, i) in buffer.iter_mut().zip(mixer_rx.by_ref()) {
-                    *o = i.to_i16();
+                for d in buffer.iter_mut() {
+                    *d = mixer_rx.next().map(|s| s.to_i16()).unwrap_or(0i16);
                 }
             },
             UnknownTypeBuffer::F32(ref mut buffer) => {
-                for (o, i) in buffer.iter_mut().zip(mixer_rx.by_ref()) {
-                    *o = i;
+                for d in buffer.iter_mut() {
+                    *d = mixer_rx.next().unwrap_or(0f32);
                 }
             },
         };

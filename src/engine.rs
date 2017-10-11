@@ -71,7 +71,7 @@ impl Engine {
         let mixer = {
             let mut end_points = self.end_points.lock().unwrap();
 
-            match end_points.entry(endpoint.get_name()) {
+            match end_points.entry(endpoint.name()) {
                 Entry::Vacant(e) => {
                     let (mixer, voice) = new_voice(endpoint, &self.events_loop);
                     e.insert(Arc::downgrade(&mixer));
@@ -104,7 +104,7 @@ fn new_voice(endpoint: &Endpoint, events_loop: &Arc<EventLoop>)
              -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, Voice) {
     // Determine the format to use for the new voice.
     let format = endpoint
-        .get_supported_formats_list()
+        .supported_formats()
         .unwrap()
         .fold(None, |f1, f2| {
             if f1.is_none() {

@@ -83,8 +83,6 @@ pub trait Sample: cpal::Sample {
     fn to_i16(&self) -> i16;
     /// Converts this sample into a standard u16 sample.
     fn to_u16(&self) -> u16;
-    /// Converts this sample into a standard f32 sample.
-    fn to_f32(&self) -> f32;
 
     /// Converts any sample type to this one by calling `to_i16`, `to_u16` or `to_f32`.
     fn from<S>(&S) -> Self
@@ -124,11 +122,6 @@ impl Sample for u16 {
     #[inline]
     fn to_u16(&self) -> u16 {
         *self
-    }
-
-    #[inline]
-    fn to_f32(&self) -> f32 {
-        self.to_i16().to_f32()
     }
 
     #[inline]
@@ -176,15 +169,6 @@ impl Sample for i16 {
     }
 
     #[inline]
-    fn to_f32(&self) -> f32 {
-        if *self < 0 {
-            *self as f32 / -(::std::i16::MIN as f32)
-        } else {
-            *self as f32 / ::std::i16::MAX as f32
-        }
-    }
-
-    #[inline]
     fn from<S>(sample: &S) -> Self
         where S: Sample
     {
@@ -225,11 +209,6 @@ impl Sample for f32 {
     #[inline]
     fn to_u16(&self) -> u16 {
         (((*self + 1.0) * 0.5) * ::std::u16::MAX as f32).round() as u16
-    }
-
-    #[inline]
-    fn to_f32(&self) -> f32 {
-        *self
     }
 
     #[inline]

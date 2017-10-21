@@ -146,7 +146,7 @@ fn new_voice(engine: &Arc<Engine>, endpoint: &Endpoint) -> (Arc<dynamic_mixer::D
             }
 
             // Do not go below 44100 if possible.
-            if f1.samples_rate.0 < 44100 {
+            if f1.min_samples_rate.0 < 44100 {
                 return Some(f2);
             }
 
@@ -157,7 +157,8 @@ fn new_voice(engine: &Arc<Engine>, endpoint: &Endpoint) -> (Arc<dynamic_mixer::D
 
             Some(f1)
         })
-        .expect("The endpoint doesn't support any format!?");
+        .expect("The endpoint doesn't support any format!?")
+        .with_max_samples_rate();
 
     let voice_id = engine.events_loop.build_voice(endpoint, &format).unwrap();
     let (mixer_tx, mixer_rx) = {

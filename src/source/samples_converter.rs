@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::time::Duration;
 
+use cpal::Sample as CpalSample;
 use Sample;
 use Source;
 
@@ -42,7 +43,7 @@ impl<I, D> Iterator for SamplesConverter<I, D>
 
     #[inline]
     fn next(&mut self) -> Option<D> {
-        self.inner.next().map(|s| Sample::from(&s))
+        self.inner.next().map(|s| CpalSample::from(&s))
     }
 
     #[inline]

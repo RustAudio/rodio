@@ -5,10 +5,10 @@ use std::sync::Mutex;
 use std::sync::Weak;
 use std::thread::Builder;
 
-use conversions::Sample;
 use cpal;
 use cpal::Endpoint;
 use cpal::EventLoop;
+use cpal::Sample as CpalSample;
 use cpal::UnknownTypeBuffer;
 use cpal::VoiceId;
 use dynamic_mixer;

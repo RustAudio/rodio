@@ -85,7 +85,6 @@
 
 extern crate claxon;
 extern crate cpal;
-extern crate futures;
 extern crate hound;
 #[macro_use]
 extern crate lazy_static;

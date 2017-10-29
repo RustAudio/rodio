@@ -36,26 +36,27 @@ impl<R> Decoder<R>
     /// Builds a new decoder.
     ///
     /// Attempts to automatically detect the format of the source of data.
-    pub fn new(_data: R) -> Result<Decoder<R>, DecoderError> {
+    #[allow(unused_variables)]
+    pub fn new(data: R) -> Result<Decoder<R>, DecoderError> {
         #[cfg(feature = "wav")]
-        let _data = match wav::WavDecoder::new(_data) {
-            Err(_data) => _data,
+        let data = match wav::WavDecoder::new(data) {
+            Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Wav(decoder)));
             },
         };
 
         #[cfg(feature = "flac")]
-        let _data = match flac::FlacDecoder::new(_data) {
-            Err(_data) => _data,
+        let data = match flac::FlacDecoder::new(data) {
+            Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Flac(decoder)));
             },
         };
 
         #[cfg(feature = "vorbis")]
-        let _data = match vorbis::VorbisDecoder::new(_data) {
-            Err(_data) => _data,
+        let data = match vorbis::VorbisDecoder::new(data) {
+            Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Vorbis(decoder)));
             },

@@ -83,24 +83,29 @@
 
 #![cfg_attr(test, deny(missing_docs))]
 
+#[cfg(feature = "flac")]
 extern crate claxon;
 extern crate cpal;
 extern crate futures;
+#[cfg(feature = "wav")]
 extern crate hound;
 #[macro_use]
 extern crate lazy_static;
+#[cfg(feature = "vorbis")]
 extern crate lewton;
 extern crate cgmath;
 
 pub use cpal::{Endpoint, get_default_endpoint, get_endpoints_list};
 
 pub use conversions::Sample;
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 pub use decoder::Decoder;
 pub use engine::play_raw;
 pub use sink::Sink;
 pub use source::Source;
 pub use spatial_sink::SpatialSink;
 
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 use std::io::{Read, Seek};
 
 mod conversions;
@@ -109,6 +114,7 @@ mod sink;
 mod spatial_sink;
 
 pub mod buffer;
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 pub mod decoder;
 pub mod dynamic_mixer;
 pub mod queue;
@@ -116,6 +122,7 @@ pub mod source;
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Result<Sink, decoder::DecoderError>
     where R: Read + Seek + Send + 'static
 {

@@ -17,8 +17,13 @@ mod wav;
 /// Source of audio samples from decoding a file.
 ///
 /// Supports WAV, Vorbis and Flac.
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
 
+#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
+pub struct Decoder<R>(::std::marker::PhantomData<R>);
+
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 enum DecoderImpl<R>
     where R: Read + Seek
 {
@@ -66,7 +71,16 @@ impl<R> Decoder<R>
     }
 }
 
+#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
+impl<R> Iterator for Decoder<R>
+    where R: Read + Seek
+{
+    type Item = i16;
 
+    fn next(&mut self) -> Option<i16> { None }
+}
+
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 impl<R> Iterator for Decoder<R>
     where R: Read + Seek
 {
@@ -97,6 +111,17 @@ impl<R> Iterator for Decoder<R>
     }
 }
 
+#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
+impl<R> Source for Decoder<R>
+    where R: Read + Seek
+{
+    fn current_frame_len(&self) -> Option<usize> { Some(0) }
+    fn channels(&self) -> u16 { 0 }
+    fn samples_rate(&self) -> u32 { 1 }
+    fn total_duration(&self) -> Option<Duration> { Some(Duration::default()) }
+}
+
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 impl<R> Source for Decoder<R>
     where R: Read + Seek
 {

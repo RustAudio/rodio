@@ -6,8 +6,8 @@
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [decoder](decoder/index.html), etc. or even your own type that implements
 //!   [the `Source` trait](source/trait.Source.html).
-//! - Choose an output with the [`get_endpoints_list`](fn.get_endpoints_list.html) or
-//!   [`get_default_endpoint`](fn.get_default_endpoint.html) functions.
+//! - Choose an output with the [`endpoints`](fn.endpoints.html) or
+//!   [`default_endpoint`](fn.default_endpoint.html) functions.
 //! - Call [`play_raw(output, source)`](fn.play_raw.html).
 //!
 //! The `play_raw` function expects the source to produce `f32`s, which may not be the case. If you
@@ -20,7 +20,7 @@
 //! use std::io::BufReader;
 //! use rodio::Source;
 //!
-//! let endpoint = rodio::get_default_endpoint().unwrap();
+//! let endpoint = rodio::default_endpoint().unwrap();
 //!
 //! let file = File::open("sound.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
@@ -38,7 +38,7 @@
 //! ```no_run
 //! use rodio::Sink;
 //!
-//! let endpoint = rodio::get_default_endpoint().unwrap();
+//! let endpoint = rodio::default_endpoint().unwrap();
 //! let sink = Sink::new(&endpoint);
 //!
 //! // Add a dummy source of the sake of the example.
@@ -86,7 +86,6 @@
 #[cfg(feature = "flac")]
 extern crate claxon;
 extern crate cpal;
-extern crate futures;
 #[cfg(feature = "wav")]
 extern crate hound;
 #[macro_use]
@@ -95,7 +94,7 @@ extern crate lazy_static;
 extern crate lewton;
 extern crate cgmath;
 
-pub use cpal::{Endpoint, get_default_endpoint, get_endpoints_list};
+pub use cpal::{Endpoint, default_endpoint, endpoints, get_default_endpoint, get_endpoints_list};
 
 pub use conversions::Sample;
 #[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]

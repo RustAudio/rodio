@@ -21,12 +21,16 @@ pub struct Sink {
     queue_tx: Arc<queue::SourcesQueueInput<f32>>,
     sleep_until_end: Mutex<Option<Receiver<()>>>,
 
-    pause: Arc<AtomicBool>,
-    volume: Arc<Mutex<f32>>,
-    stopped: Arc<AtomicBool>,
+    controls: Arc<Controls>,
     sound_count: Arc<AtomicUsize>,
 
     detached: bool,
+}
+
+struct Controls {
+    pause: AtomicBool,
+    volume: Mutex<f32>,
+    stopped: AtomicBool,
 }
 
 impl Sink {
@@ -39,9 +43,11 @@ impl Sink {
         Sink {
             queue_tx: queue_tx,
             sleep_until_end: Mutex::new(None),
-            pause: Arc::new(AtomicBool::new(false)),
-            volume: Arc::new(Mutex::new(1.0)),
-            stopped: Arc::new(AtomicBool::new(false)),
+            controls: Arc::new(Controls {
+                pause: AtomicBool::new(false),
+                volume: Mutex::new(1.0),
+                stopped: AtomicBool::new(false),
+            }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
         }
@@ -54,22 +60,20 @@ impl Sink {
               S::Item: Sample,
               S::Item: Send
     {
-        let volume = self.volume.clone();
-        let pause = self.pause.clone();
-        let stopped = self.stopped.clone();
+        let controls = self.controls.clone();
 
         let source = source
             .pausable(false)
             .amplify(1.0)
             .stoppable()
             .periodic_access(Duration::from_millis(5), move |src| {
-                if stopped.load(Ordering::SeqCst) {
+                if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
                 } else {
-                    src.inner_mut().set_factor(*volume.lock().unwrap());
+                    src.inner_mut().set_factor(*controls.volume.lock().unwrap());
                     src.inner_mut()
                         .inner_mut()
-                        .set_paused(pause.load(Ordering::SeqCst));
+                        .set_paused(controls.pause.load(Ordering::SeqCst));
                 }
             })
             .convert_samples();
@@ -84,7 +88,7 @@ impl Sink {
     /// multiply each sample by this value.
     #[inline]
     pub fn volume(&self) -> f32 {
-        *self.volume.lock().unwrap()
+        *self.controls.volume.lock().unwrap()
     }
 
     /// Changes the volume of the sound.
@@ -93,7 +97,7 @@ impl Sink {
     /// multiply each sample by this value.
     #[inline]
     pub fn set_volume(&mut self, value: f32) {
-        *self.volume.lock().unwrap() = value;
+        *self.controls.volume.lock().unwrap() = value;
     }
 
     /// Resumes playback of a paused sound.
@@ -101,7 +105,7 @@ impl Sink {
     /// No effect if not paused.
     #[inline]
     pub fn play(&self) {
-        self.pause.store(false, Ordering::SeqCst);
+        self.controls.pause.store(false, Ordering::SeqCst);
     }
 
     /// Pauses playback of this sink.
@@ -110,20 +114,20 @@ impl Sink {
     ///
     /// A paused sound can be resumed with `play()`.
     pub fn pause(&self) {
-        self.pause.store(true, Ordering::SeqCst);
+        self.controls.pause.store(true, Ordering::SeqCst);
     }
 
     /// Gets if a sound is paused
     ///
     /// Sounds can be paused and resumed using pause() and play(). This gets if a sound is paused.
     pub fn is_paused(&self) -> bool {
-        self.pause.load(Ordering::SeqCst)
+        self.controls.pause.load(Ordering::SeqCst)
     }
 
     /// Stops the sink by emptying the queue.
     #[inline]
     pub fn stop(&self) {
-        self.stopped.store(true, Ordering::SeqCst);
+        self.controls.stopped.store(true, Ordering::SeqCst);
     }
 
     /// Destroys the sink without stopping the sounds that are still playing.
@@ -153,7 +157,7 @@ impl Drop for Sink {
         self.queue_tx.set_keep_alive_if_empty(false);
 
         if !self.detached {
-            self.stopped.store(true, Ordering::Relaxed);
+            self.controls.stopped.store(true, Ordering::Relaxed);
         }
     }
 }

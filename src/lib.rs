@@ -83,11 +83,14 @@
 
 #![cfg_attr(test, deny(missing_docs))]
 
+#[cfg(feature = "flac")]
 extern crate claxon;
 extern crate cpal;
+#[cfg(feature = "wav")]
 extern crate hound;
 #[macro_use]
 extern crate lazy_static;
+#[cfg(feature = "vorbis")]
 extern crate lewton;
 extern crate cgmath;
 

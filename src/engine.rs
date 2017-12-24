@@ -101,7 +101,7 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Endpoint, source: S)
 
         match end_points.entry(endpoint.name()) {
             Entry::Vacant(e) => {
-                let (mixer, voice) = new_voice(engine, endpoint);
+                let (mixer, voice) = new_voice(engine, endpoint, &source);
                 e.insert(Arc::downgrade(&mixer));
                 voice_to_start = Some(voice);
                 mixer
@@ -110,7 +110,7 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Endpoint, source: S)
                 if let Some(m) = e.get().upgrade() {
                     m.clone()
                 } else {
-                    let (mixer, voice) = new_voice(engine, endpoint);
+                    let (mixer, voice) = new_voice(engine, endpoint, &source);
                     e.insert(Arc::downgrade(&mixer));
                     voice_to_start = Some(voice);
                     mixer
@@ -128,9 +128,12 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Endpoint, source: S)
 
 // Adds a new voice to the engine.
 // TODO: handle possible errors here
-fn new_voice(engine: &Arc<Engine>, endpoint: &Endpoint) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, VoiceId) {
+fn new_voice<S>(engine: &Arc<Engine>, endpoint: &Endpoint, source: &S)
+    -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, VoiceId)
+    where S: Source<Item = f32> + Send + 'static
+{
     // Determine the format to use for the new voice.
-    let format = endpoint
+    let mut format = endpoint
         .supported_formats()
         .unwrap()
         .fold(None, |f1, f2| {
@@ -159,6 +162,8 @@ fn new_voice(engine: &Arc<Engine>, endpoint: &Endpoint) -> (Arc<dynamic_mixer::D
         })
         .expect("The endpoint doesn't support any format!?")
         .with_max_samples_rate();
+
+    format.samples_rate = cpal::SamplesRate(source.samples_rate());
 
     let voice_id = engine.events_loop.build_voice(endpoint, &format).unwrap();
     let (mixer_tx, mixer_rx) = {

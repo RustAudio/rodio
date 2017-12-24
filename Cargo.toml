@@ -10,7 +10,7 @@ documentation = "http://docs.rs/rodio"
 
 [dependencies]
 claxon = { version = "0.3.0", optional = true }
-cpal = "0.5.1"
+cpal = "0.6.0"
 hound = { version = "1.0.0", optional = true }
 lazy_static = "0.1.12"
 lewton = { version = "0.5", optional = true }

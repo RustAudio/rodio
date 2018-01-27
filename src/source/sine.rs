@@ -1,9 +1,11 @@
-use std::time::Duration;
+
 use Source;
+use std::time::Duration;
 
 /// An infinite source that produces a sine.
 ///
 /// Always has a rate of 48kHz and one channel.
+#[derive(Clone, Debug)]
 pub struct SineWave {
     freq: f32,
     num_sample: usize,
@@ -34,22 +36,22 @@ impl Iterator for SineWave {
 
 impl Source for SineWave {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
+    fn channels(&self) -> u16 {
         1
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
+    fn samples_rate(&self) -> u32 {
         48000
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         None
     }
 }

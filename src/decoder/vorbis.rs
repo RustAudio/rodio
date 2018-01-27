@@ -4,85 +4,96 @@ use std::vec;
 
 use Source;
 
-use vorbis;
+use lewton::inside_ogg::OggStreamReader;
 
-pub struct VorbisDecoder<R> where R: Read + Seek {
-    decoder: vorbis::Decoder<R>,
+/// Decoder for an OGG file that contains Vorbis sound format.
+pub struct VorbisDecoder<R>
+    where R: Read + Seek
+{
+    stream_reader: OggStreamReader<R>,
     current_data: vec::IntoIter<i16>,
-    current_samples_rate: u32,
-    current_channels: u16,
 }
 
-impl<R> VorbisDecoder<R> where R: Read + Seek {
-    pub fn new(mut data: R) -> Result<VorbisDecoder<R>, R> {
-        if !is_vorbis(data.by_ref()) {
-            return Err(data);
-        }
+impl<R> VorbisDecoder<R>
+    where R: Read + Seek
+{
+    /// Attempts to decode the data as ogg/vorbis.
+    pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
+        let mut stream_reader = match OggStreamReader::new(data) {
+            Err(_) => return Err(()),
+            Ok(r) => r,
+        };
 
-        let mut decoder = vorbis::Decoder::new(data).unwrap();
+        let mut data = match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
+            Some(d) => d,
+            None => Vec::new(),
+        };
 
-        let (data, rate, channels) = match decoder.packets().filter_map(Result::ok).next() {
-            Some(p) => (p.data, p.rate as u32, p.channels as u16),
-            None => (Vec::new(), 44100, 2),
+        // The first packet is always empty, therefore
+        // we need to read the second frame to get some data
+        match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
+            Some(mut d) => data.append(&mut d),
+            None => (),
         };
 
         Ok(VorbisDecoder {
-            decoder: decoder,
-            current_data: data.into_iter(),
-            current_samples_rate: rate,
-            current_channels: channels,
-        })
+               stream_reader: stream_reader,
+               current_data: data.into_iter(),
+           })
     }
 }
 
-impl<R> Source for VorbisDecoder<R> where R: Read + Seek {
+impl<R> Source for VorbisDecoder<R>
+    where R: Read + Seek
+{
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         Some(self.current_data.len())
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
-        self.current_channels
+    fn channels(&self) -> u16 {
+        self.stream_reader.ident_hdr.audio_channels as u16
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
-        self.current_samples_rate
+    fn samples_rate(&self) -> u32 {
+        self.stream_reader.ident_hdr.audio_sample_rate
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         None
     }
 }
 
-impl<R> Iterator for VorbisDecoder<R> where R: Read + Seek {
+impl<R> Iterator for VorbisDecoder<R>
+    where R: Read + Seek
+{
     type Item = i16;
 
     #[inline]
     fn next(&mut self) -> Option<i16> {
-        // TODO: do better
         if let Some(sample) = self.current_data.next() {
             if self.current_data.len() == 0 {
-                if let Some(packet) = self.decoder.packets().filter_map(Result::ok).next() {
-                    self.current_data = packet.data.into_iter();
-                    self.current_samples_rate = packet.rate as u32;
-                    self.current_channels = packet.channels;
+                if let Some(data) = self.stream_reader
+                    .read_dec_packet_itl()
+                    .ok()
+                    .and_then(|v| v)
+                {
+                    self.current_data = data.into_iter();
                 }
             }
-
             return Some(sample);
-        }
-
-        if let Some(packet) = self.decoder.packets().filter_map(Result::ok).next() {
-            self.current_data = packet.data.into_iter();
-            self.current_samples_rate = packet.rate as u32;
-            self.current_channels = packet.channels;
-            Some(self.current_data.next().unwrap())
-
         } else {
-            None
+            if let Some(data) = self.stream_reader
+                .read_dec_packet_itl()
+                .ok()
+                .and_then(|v| v)
+            {
+                self.current_data = data.into_iter();
+            }
+            return self.current_data.next();
         }
     }
 
@@ -96,7 +107,7 @@ impl<R> Iterator for VorbisDecoder<R> where R: Read + Seek {
 fn is_vorbis<R>(mut data: R) -> bool where R: Read + Seek {
     let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
 
-    if vorbis::Decoder::new(data.by_ref()).is_err() {
+    if VorbisDecoder::new(data.by_ref()).is_err() {
         data.seek(SeekFrom::Start(stream_pos)).unwrap();
         return false;
     }

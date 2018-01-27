@@ -3,29 +3,25 @@ use std::time::Duration;
 use Sample;
 use Source;
 
-/// Internal function that builds a `Amplify` object.
-pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
-    where I: Source,
-          I::Item: Sample
-{
-    Amplify {
-        input: input,
-        factor: factor,
+/// Internal function that builds a `Stoppable` object.
+pub fn stoppable<I>(source: I) -> Stoppable<I> {
+    Stoppable {
+        input: source,
+        stopped: false,
     }
 }
 
-/// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
-pub struct Amplify<I> {
+pub struct Stoppable<I> {
     input: I,
-    factor: f32,
+    stopped: bool,
 }
 
-impl<I> Amplify<I> {
-    /// Modifies the amplification factor.
+impl<I> Stoppable<I> {
+    /// Stops the sound.
     #[inline]
-    pub fn set_factor(&mut self, factor: f32) {
-        self.factor = factor;
+    pub fn stop(&mut self) {
+        self.stopped = true;
     }
 
     /// Returns a reference to the inner source.
@@ -47,7 +43,7 @@ impl<I> Amplify<I> {
     }
 }
 
-impl<I> Iterator for Amplify<I>
+impl<I> Iterator for Stoppable<I>
     where I: Source,
           I::Item: Sample
 {
@@ -55,7 +51,11 @@ impl<I> Iterator for Amplify<I>
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        self.input.next().map(|value| value.amplify(self.factor))
+        if self.stopped {
+            None
+        } else {
+            self.input.next()
+        }
     }
 
     #[inline]
@@ -64,13 +64,7 @@ impl<I> Iterator for Amplify<I>
     }
 }
 
-impl<I> ExactSizeIterator for Amplify<I>
-    where I: Source + ExactSizeIterator,
-          I::Item: Sample
-{
-}
-
-impl<I> Source for Amplify<I>
+impl<I> Source for Stoppable<I>
     where I: Source,
           I::Item: Sample
 {

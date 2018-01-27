@@ -3,12 +3,12 @@ use std::time::Duration;
 use Sample;
 use Source;
 
-/// Internal function that builds a `Amplify` object.
-pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
+/// Internal function that builds a `Speed` object.
+pub fn speed<I>(input: I, factor: f32) -> Speed<I>
     where I: Source,
           I::Item: Sample
 {
-    Amplify {
+    Speed {
         input: input,
         factor: factor,
     }
@@ -16,38 +16,15 @@ pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
 
 /// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
-pub struct Amplify<I> {
+pub struct Speed<I>
+    where I: Source,
+          I::Item: Sample
+{
     input: I,
     factor: f32,
 }
 
-impl<I> Amplify<I> {
-    /// Modifies the amplification factor.
-    #[inline]
-    pub fn set_factor(&mut self, factor: f32) {
-        self.factor = factor;
-    }
-
-    /// Returns a reference to the inner source.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Returns a mutable reference to the inner source.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
-
-    /// Returns the inner source.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
-}
-
-impl<I> Iterator for Amplify<I>
+impl<I> Iterator for Speed<I>
     where I: Source,
           I::Item: Sample
 {
@@ -55,7 +32,7 @@ impl<I> Iterator for Amplify<I>
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        self.input.next().map(|value| value.amplify(self.factor))
+        self.input.next()
     }
 
     #[inline]
@@ -64,13 +41,13 @@ impl<I> Iterator for Amplify<I>
     }
 }
 
-impl<I> ExactSizeIterator for Amplify<I>
+impl<I> ExactSizeIterator for Speed<I>
     where I: Source + ExactSizeIterator,
           I::Item: Sample
 {
 }
 
-impl<I> Source for Amplify<I>
+impl<I> Source for Speed<I>
     where I: Source,
           I::Item: Sample
 {
@@ -86,11 +63,19 @@ impl<I> Source for Amplify<I>
 
     #[inline]
     fn samples_rate(&self) -> u32 {
-        self.input.samples_rate()
+        (self.input.samples_rate() as f32 * self.factor) as u32
     }
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.input.total_duration()
+        // TODO: the crappy API of duration makes this code difficult to write
+        if let Some(duration) = self.input.total_duration() {
+            let as_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
+            let new_val = (as_ns as f32 / self.factor) as u64;
+            Some(Duration::new(new_val / 1000000000, (new_val % 1000000000) as u32))
+
+        } else {
+            None
+        }
     }
 }

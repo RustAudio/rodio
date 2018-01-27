@@ -3,29 +3,27 @@ use std::time::Duration;
 use Sample;
 use Source;
 
-/// Internal function that builds a `Amplify` object.
-pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
-    where I: Source,
-          I::Item: Sample
-{
-    Amplify {
-        input: input,
-        factor: factor,
+/// Internal function that builds a `Pausable` object.
+pub fn pausable<I>(source: I, paused: bool) -> Pausable<I> {
+    Pausable {
+        input: source,
+        paused: paused,
     }
 }
 
-/// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
-pub struct Amplify<I> {
+pub struct Pausable<I> {
     input: I,
-    factor: f32,
+    paused: bool,
 }
 
-impl<I> Amplify<I> {
-    /// Modifies the amplification factor.
+impl<I> Pausable<I> {
+    /// Sets whether the filter applies.
+    ///
+    /// If set to true, the inner sound stops playing and no samples are processed from it.
     #[inline]
-    pub fn set_factor(&mut self, factor: f32) {
-        self.factor = factor;
+    pub fn set_paused(&mut self, paused: bool) {
+        self.paused = paused;
     }
 
     /// Returns a reference to the inner source.
@@ -47,7 +45,7 @@ impl<I> Amplify<I> {
     }
 }
 
-impl<I> Iterator for Amplify<I>
+impl<I> Iterator for Pausable<I>
     where I: Source,
           I::Item: Sample
 {
@@ -55,7 +53,11 @@ impl<I> Iterator for Amplify<I>
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        self.input.next().map(|value| value.amplify(self.factor))
+        if self.paused {
+            return Some(I::Item::zero_value());
+        }
+
+        self.input.next()
     }
 
     #[inline]
@@ -64,13 +66,7 @@ impl<I> Iterator for Amplify<I>
     }
 }
 
-impl<I> ExactSizeIterator for Amplify<I>
-    where I: Source + ExactSizeIterator,
-          I::Item: Sample
-{
-}
-
-impl<I> Source for Amplify<I>
+impl<I> Source for Pausable<I>
     where I: Source,
           I::Item: Sample
 {

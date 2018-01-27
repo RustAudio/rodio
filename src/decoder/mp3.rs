@@ -33,22 +33,22 @@ impl<R> Mp3Decoder<R> where R: Read + Seek {
 
 impl<R> Source for Mp3Decoder<R> where R: Read {
     #[inline]
-    fn get_current_frame_len(&self) -> Option<usize> {
+    fn current_frame_len(&self) -> Option<usize> {
         Some(self.current_frame.samples[0].len())
     }
 
     #[inline]
-    fn get_channels(&self) -> u16 {
+    fn channels(&self) -> u16 {
         self.current_frame.samples.len() as u16
     }
 
     #[inline]
-    fn get_samples_rate(&self) -> u32 {
+    fn samples_rate(&self) -> u32 {
         self.current_frame.sample_rate
     }
 
     #[inline]
-    fn get_total_duration(&self) -> Option<Duration> {
+    fn total_duration(&self) -> Option<Duration> {
         None        // TODO: not supported
     }
 }

@@ -1,158 +1,130 @@
-//! # Usage
+//! Audio playback library.
 //!
-//! There are two main concepts in this library:
+//! The main concept of this library is [the `Source` trait](source/trait.Source.html), which
+//! represents a sound (streaming or not). In order to play a sound, there are three steps:
 //!
-//! - Sources, represented with the `Source` trait, that provide sound data.
-//! - Sinks, which accept sound data.
+//! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
+//!   [decoder](decoder/index.html), etc. or even your own type that implements
+//!   [the `Source` trait](source/trait.Source.html).
+//! - Choose an output with the [`endpoints`](fn.endpoints.html) or
+//!   [`default_endpoint`](fn.default_endpoint.html) functions.
+//! - Call [`play_raw(output, source)`](fn.play_raw.html).
 //!
-//! In order to play a sound, you need to create a source, a sink, and connect the two. For example
-//! here is how you play a sound file:
+//! The `play_raw` function expects the source to produce `f32`s, which may not be the case. If you
+//! get a compilation error, try calling `.convert_samples()` on the source to fix it.
+//!
+//! For example, here is how you would play an audio file:
 //!
 //! ```no_run
+//! use std::fs::File;
 //! use std::io::BufReader;
-//! 
-//! let endpoint = rodio::get_default_endpoint().unwrap();
-//! let sink = rodio::Sink::new(&endpoint);
-//! 
-//! let file = std::fs::File::open("music.ogg").unwrap();
-//! let source = rodio::Decoder::new(BufReader::new(file));
+//! use rodio::Source;
+//!
+//! let endpoint = rodio::default_endpoint().unwrap();
+//!
+//! let file = File::open("sound.ogg").unwrap();
+//! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+//! rodio::play_raw(&endpoint, source.convert_samples());
+//! ```
+//!
+//! ## Sink
+//!
+//! In order to make it easier to control the playback, the rodio library also provides a type
+//! named [`Sink`](struct.Sink.html) which represents an audio track.
+//!
+//! Instead of playing the sound with [`play_raw`](fn.play_raw.html), you can add it to a
+//! [`Sink`](struct.Sink.html) instead.
+//!
+//! ```no_run
+//! use rodio::Sink;
+//!
+//! let endpoint = rodio::default_endpoint().unwrap();
+//! let sink = Sink::new(&endpoint);
+//!
+//! // Add a dummy source of the sake of the example.
+//! let source = rodio::source::SineWave::new(440);
 //! sink.append(source);
 //! ```
 //!
-//! The `append` method takes ownership of the source and starts playing it. If a sink is already
-//! playing a sound when you call `append`, the sound is added to a queue and will start playing
-//! when the existing source is over.
+//! The [`append` method](struct.Sink.html#method.append) will add the sound at the end of the
+//! sink. It will be played when all the previous sounds have been played. If you want multiple
+//! sounds to play simultaneously, you should create multiple [`Sink`](struct.Sink.html)s.
 //!
-//! If you want to play multiple sounds simultaneously, you should create multiple sinks.
+//! The [`Sink`](struct.Sink.html) type also provides utilities such as playing/pausing or
+//! controlling the volume.
 //!
-//! # How it works
-//! 
-//! Rodio spawns a background thread that is dedicated to reading from the sources and sending
-//! the output to the endpoint.
-//! 
-//! All the sounds are mixed together by rodio before being sent. Since this is handled by the
-//! software, there is no restriction for the number of sinks that can be created.
-//! 
-//! # Adding effects
-//! 
-//! The `Source` trait provides various filters, similarly to the standard `Iterator` trait.
-//! 
+//! ## Filters
+//!
+//! [The `Source` trait](source/trait.Source.html) provides various filters, similarly to the
+//! standard `Iterator` trait.
+//!
 //! Example:
-//! 
-//! ```ignore
+//!
+//! ```
 //! use rodio::Source;
 //! use std::time::Duration;
-//! 
-//! // repeats the first five seconds of this sound forever
+//!
+//! // Repeats the first five seconds of the sound forever.
+//! # let source = rodio::source::SineWave::new(440);
 //! let source = source.take_duration(Duration::from_secs(5)).repeat_infinite();
 //! ```
+//!
+//! ## How it works under the hood
+//!
+//! Rodio spawns a background thread that is dedicated to reading from the sources and sending
+//! the output to the endpoint. Whenever you give up ownership of a `Source` in order to play it,
+//! it is sent to this background thread where it will be read by rodio.
+//!
+//! All the sounds are mixed together by rodio before being sent to the operating system or the
+//! hardware. Therefore there is no restriction on the number of sounds that play simultaneously or
+//! the number of sinks that can be created (except for the fact that creating too many will slow
+//! down your program).
+//!
 
 #![cfg_attr(test, deny(missing_docs))]
-#![cfg_attr(test, deny(warnings))]
 
+#[cfg(feature = "flac")]
+extern crate claxon;
 extern crate cpal;
+#[cfg(feature = "wav")]
 extern crate hound;
 #[macro_use]
 extern crate lazy_static;
+#[cfg(feature = "mp3")]
 extern crate simplemad;
-extern crate time;
-extern crate vorbis;
+#[cfg(feature = "vorbis")]
+extern crate lewton;
+extern crate cgmath;
 
-pub use cpal::{Endpoint, get_endpoints_list, get_default_endpoint};
+pub use cpal::{Endpoint, default_endpoint, endpoints, get_default_endpoint, get_endpoints_list};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
+pub use engine::play_raw;
+pub use sink::Sink;
 pub use source::Source;
+pub use spatial_sink::SpatialSink;
 
 use std::io::{Read, Seek};
-use std::time::Duration;
-use std::thread;
 
 mod conversions;
 mod engine;
+mod sink;
+mod spatial_sink;
 
+pub mod buffer;
 pub mod decoder;
+pub mod dynamic_mixer;
+pub mod queue;
 pub mod source;
-
-lazy_static! {
-    static ref ENGINE: engine::Engine = engine::Engine::new();
-}
-
-/// Handle to an endpoint that outputs sounds.
-///
-/// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
-/// playing.
-pub struct Sink {
-    handle: engine::Handle<'static>,
-    // if true, then the sound will stop playing at the end
-    stop: bool,
-}
-
-impl Sink {
-    /// Builds a new `Sink`.
-    #[inline]
-    pub fn new(endpoint: &Endpoint) -> Sink {
-        Sink {
-            handle: ENGINE.start(&endpoint),
-            stop: true,
-        }
-    }
-
-    /// Appends a sound to the queue of sounds to play.
-    #[inline]
-    pub fn append<S>(&self, source: S) where S: Source + Send + 'static,
-                                             S::Item: Sample, S::Item: Send
-    {
-        self.handle.append(source);
-    }
-
-    /// Changes the volume of the sound.
-    ///
-    /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
-    /// multiply each sample by this value.
-    #[inline]
-    pub fn set_volume(&mut self, value: f32) {
-        self.handle.set_volume(value);
-    }
-
-    /// Destroys the sink without stopping the sounds that are still playing.
-    #[inline]
-    pub fn detach(mut self) {
-        self.stop = false;
-    }
-
-    /// Returns the minimum duration before the end of the sounds submitted to this sink.
-    ///
-    /// Note that this is a minimum value, and the sound can last longer.
-    #[inline]
-    pub fn get_min_remaining_duration(&self) -> Duration {
-        self.handle.get_min_remaining_duration()
-    }
-
-    /// Sleeps the current thread until the sound ends.
-    #[inline]
-    pub fn sleep_until_end(&self) {
-        // TODO: sleep repeatidely until the sound is finished (see the docs of `get_remaining_duration`)
-        thread::sleep(self.get_min_remaining_duration());
-    }
-}
-
-impl Drop for Sink {
-    #[inline]
-    fn drop(&mut self) {
-        if self.stop {
-            self.handle.stop();
-        }
-    }
-}
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]
-pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Sink
-                    where R: Read + Seek + Send + 'static
+pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Result<Sink, decoder::DecoderError>
+    where R: Read + Seek + Send + 'static
 {
-    let input = decoder::Decoder::new(input);
+    let input = decoder::Decoder::new(input)?;
     let sink = Sink::new(endpoint);
     sink.append(input);
-    sink
+    Ok(sink)
 }

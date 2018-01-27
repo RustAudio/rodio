@@ -106,6 +106,9 @@ impl Sink {
     #[inline]
     pub fn play(&self) {
         self.controls.pause.store(false, Ordering::SeqCst);
+        if !self.empty() && self.controls.stopped.load(Ordering::SeqCst) == true {
+            self.controls.stopped.store(false, Ordering::SeqCst);
+        }
     }
 
     /// Pauses playback of this sink.

@@ -1,4 +1,4 @@
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Seek};
 use std::time::Duration;
 use std::vec;
 
@@ -101,17 +101,4 @@ impl<R> Iterator for VorbisDecoder<R>
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.current_data.size_hint().0, None)
     }
-}
-
-/// Returns true if the stream contains Vorbis data, then resets it to where it was.
-fn is_vorbis<R>(mut data: R) -> bool where R: Read + Seek {
-    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
-
-    if VorbisDecoder::new(data.by_ref()).is_err() {
-        data.seek(SeekFrom::Start(stream_pos)).unwrap();
-        return false;
-    }
-
-    data.seek(SeekFrom::Start(stream_pos)).unwrap();
-    true
 }

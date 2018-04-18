@@ -5,7 +5,6 @@ use std::sync::Mutex;
 use std::sync::Weak;
 use std::thread::Builder;
 
-use cpal;
 use cpal::Device;
 use cpal::EventLoop;
 use cpal::Sample as CpalSample;
@@ -134,35 +133,8 @@ fn start<S>(engine: &Arc<Engine>, device: &Device, source: S)
 // TODO: handle possible errors here
 fn new_output_stream(engine: &Arc<Engine>, device: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
     // Determine the format to use for the new stream.
-    let format = device
-        .supported_output_formats()
-        .unwrap()
-        .fold(None, |f1, f2| {
-            if f1.is_none() {
-                return Some(f2);
-            }
-
-            let f1 = f1.unwrap();
-
-            // We privilege f32 formats to avoid a conversion.
-            if f2.data_type == cpal::SampleFormat::F32 && f1.data_type != cpal::SampleFormat::F32 {
-                return Some(f2);
-            }
-
-            // Do not go below 44100 if possible.
-            if f1.min_sample_rate.0 < 44100 {
-                return Some(f2);
-            }
-
-            // Privilege outputs with 2 channels for now.
-            if f2.channels == 2 && f1.channels != 2 {
-                return Some(f2);
-            }
-
-            Some(f1)
-        })
-        .expect("The device doesn't support any format!?")
-        .with_max_sample_rate();
+    let format = device.default_output_format()
+                       .expect("The device doesn't support any format!?");
 
     let stream_id = engine.events_loop.build_output_stream(device, &format).unwrap();
     let (mixer_tx, mixer_rx) = {

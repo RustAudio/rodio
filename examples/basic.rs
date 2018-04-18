@@ -5,7 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let endpoint = rodio::default_endpoint().unwrap();
+    let endpoint = rodio::default_output_device().unwrap();
 
     let file = std::fs::File::open("examples/beep.wav").unwrap();
     let mut beep1 = rodio::play_once(&endpoint, BufReader::new(file)).unwrap();

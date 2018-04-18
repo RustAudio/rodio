@@ -7,7 +7,7 @@
 //!   [decoder](decoder/index.html), etc. or even your own type that implements
 //!   [the `Source` trait](source/trait.Source.html).
 //! - Choose an output with the [`endpoints`](fn.endpoints.html) or
-//!   [`default_endpoint`](fn.default_endpoint.html) functions.
+//!   [`default_output_device`](fn.default_output_device.html) functions.
 //! - Call [`play_raw(output, source)`](fn.play_raw.html).
 //!
 //! The `play_raw` function expects the source to produce `f32`s, which may not be the case. If you
@@ -20,7 +20,7 @@
 //! use std::io::BufReader;
 //! use rodio::Source;
 //!
-//! let endpoint = rodio::default_endpoint().unwrap();
+//! let endpoint = rodio::default_output_device().unwrap();
 //!
 //! let file = File::open("sound.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
@@ -38,7 +38,7 @@
 //! ```no_run
 //! use rodio::Sink;
 //!
-//! let endpoint = rodio::default_endpoint().unwrap();
+//! let endpoint = rodio::default_output_device().unwrap();
 //! let sink = Sink::new(&endpoint);
 //!
 //! // Add a dummy source of the sake of the example.
@@ -94,7 +94,7 @@ extern crate lazy_static;
 extern crate lewton;
 extern crate cgmath;
 
-pub use cpal::{Device, default_endpoint, endpoints, get_default_endpoint, get_endpoints_list};
+pub use cpal::{Device, default_output_device, default_input_device, endpoints, get_default_endpoint, get_endpoints_list};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;

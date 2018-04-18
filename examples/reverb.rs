@@ -5,7 +5,7 @@ use std::io::BufReader;
 use std::time::Duration;
 
 fn main() {
-    let endpoint = rodio::default_endpoint().unwrap();
+    let endpoint = rodio::default_output_device().unwrap();
     let sink = rodio::Sink::new(&endpoint);
 
     let file = std::fs::File::open("examples/music.ogg").unwrap();

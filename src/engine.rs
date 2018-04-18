@@ -151,7 +151,7 @@ fn new_stream(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::Dy
                 return Some(f2);
             }
 
-            // Priviledge outputs with 2 channels for now.
+            // Privilege outputs with 2 channels for now.
             if f2.channels == 2 && f1.channels != 2 {
                 return Some(f2);
             }

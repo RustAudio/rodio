@@ -88,6 +88,9 @@ fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, mut buffer: StreamD
                 *d = mixer_rx.next().unwrap_or(0f32);
             }
         },
+        StreamData::Input { buffer: _ } => {
+            panic!("Can't play an input stream!");
+        }
     };
 }
 

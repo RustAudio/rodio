@@ -8,10 +8,10 @@ This includes conversion between samples formats, channels or sample rates.
 pub use self::channels::ChannelCountConverter;
 pub use self::sample::DataConverter;
 pub use self::sample::Sample;
-pub use self::samples_rate::SampleRateConverter;
+pub use self::sample_rate::SampleRateConverter;
 
 mod channels;
 // TODO: < shouldn't be public ; there's a bug in Rust 1.4 and below that makes This
 // `pub` mandatory
 pub mod sample;
-mod samples_rate;
+mod sample_rate;

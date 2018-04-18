@@ -13,7 +13,7 @@ use source::Done;
 use play_raw;
 use queue;
 
-/// Handle to an endpoint that outputs sounds.
+/// Handle to an device that outputs sounds.
 ///
 /// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
 /// playing.
@@ -36,9 +36,9 @@ struct Controls {
 impl Sink {
     /// Builds a new `Sink`.
     #[inline]
-    pub fn new(endpoint: &Device) -> Sink {
+    pub fn new(device: &Device) -> Sink {
         let (queue_tx, queue_rx) = queue::queue(true);
-        play_raw(endpoint, queue_rx);
+        play_raw(device, queue_rx);
 
         Sink {
             queue_tx: queue_tx,

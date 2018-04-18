@@ -5,8 +5,8 @@ use std::io::BufReader;
 use std::time::Duration;
 
 fn main() {
-    let endpoint = rodio::default_output_device().unwrap();
-    let sink = rodio::Sink::new(&endpoint);
+    let device = rodio::default_output_device().unwrap();
+    let sink = rodio::Sink::new(&device);
 
     let file = std::fs::File::open("examples/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();

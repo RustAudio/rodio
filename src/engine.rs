@@ -18,7 +18,7 @@ use source::Source;
 /// Plays a source to an end point until it ends.
 ///
 /// The playing uses a background thread.
-pub fn play_raw<S>(endpoint: &Device, source: S)
+pub fn play_raw<S>(device: &Device, source: S)
     where S: Source<Item = f32> + Send + 'static
 {
     lazy_static! {
@@ -48,7 +48,7 @@ pub fn play_raw<S>(endpoint: &Device, source: S)
         };
     }
 
-    start(&ENGINE, endpoint, source);
+    start(&ENGINE, device, source);
 }
 
 // The internal engine of this library.
@@ -60,7 +60,7 @@ struct Engine {
 
     dynamic_mixers: Mutex<HashMap<StreamId, dynamic_mixer::DynamicMixer<f32>>>,
 
-    // TODO: don't use the endpoint name, as it's slow
+    // TODO: don't use the device name, as it's slow
     end_points: Mutex<HashMap<String, Weak<dynamic_mixer::DynamicMixerController<f32>>>>,
 }
 
@@ -91,8 +91,8 @@ fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, mut buffer: StreamD
     };
 }
 
-// Builds a new sink that targets a given endpoint.
-fn start<S>(engine: &Arc<Engine>, endpoint: &Device, source: S)
+// Builds a new sink that targets a given device.
+fn start<S>(engine: &Arc<Engine>, device: &Device, source: S)
     where S: Source<Item = f32> + Send + 'static
 {
     let mut stream_to_start = None;
@@ -100,9 +100,9 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Device, source: S)
     let mixer = {
         let mut end_points = engine.end_points.lock().unwrap();
 
-        match end_points.entry(endpoint.name()) {
+        match end_points.entry(device.name()) {
             Entry::Vacant(e) => {
-                let (mixer, stream) = new_stream(engine, endpoint);
+                let (mixer, stream) = new_stream(engine, device);
                 e.insert(Arc::downgrade(&mixer));
                 stream_to_start = Some(stream);
                 mixer
@@ -111,7 +111,7 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Device, source: S)
                 if let Some(m) = e.get().upgrade() {
                     m.clone()
                 } else {
-                    let (mixer, stream) = new_stream(engine, endpoint);
+                    let (mixer, stream) = new_stream(engine, device);
                     e.insert(Arc::downgrade(&mixer));
                     stream_to_start = Some(stream);
                     mixer
@@ -129,9 +129,9 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Device, source: S)
 
 // Adds a new stream to the engine.
 // TODO: handle possible errors here
-fn new_stream(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
+fn new_stream(engine: &Arc<Engine>, device: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
     // Determine the format to use for the new stream.
-    let format = endpoint
+    let format = device
         .supported_formats()
         .unwrap()
         .fold(None, |f1, f2| {
@@ -158,10 +158,10 @@ fn new_stream(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::Dy
 
             Some(f1)
         })
-        .expect("The endpoint doesn't support any format!?")
+        .expect("The device doesn't support any format!?")
         .with_max_sample_rate();
 
-    let stream_id = engine.events_loop.build_stream(endpoint, &format).unwrap();
+    let stream_id = engine.events_loop.build_stream(device, &format).unwrap();
     let (mixer_tx, mixer_rx) = {
         dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0)
     };

@@ -6,7 +6,7 @@ use std::sync::Weak;
 use std::thread::Builder;
 
 use cpal;
-use cpal::Endpoint;
+use cpal::Device;
 use cpal::EventLoop;
 use cpal::Sample as CpalSample;
 use cpal::UnknownTypeOutputBuffer;
@@ -17,7 +17,7 @@ use source::Source;
 /// Plays a source to an end point until it ends.
 ///
 /// The playing uses a background thread.
-pub fn play_raw<S>(endpoint: &Endpoint, source: S)
+pub fn play_raw<S>(endpoint: &Device, source: S)
     where S: Source<Item = f32> + Send + 'static
 {
     lazy_static! {
@@ -91,7 +91,7 @@ fn audio_callback(engine: &Arc<Engine>, voice_id: VoiceId, mut buffer: UnknownTy
 }
 
 // Builds a new sink that targets a given endpoint.
-fn start<S>(engine: &Arc<Engine>, endpoint: &Endpoint, source: S)
+fn start<S>(engine: &Arc<Engine>, endpoint: &Device, source: S)
     where S: Source<Item = f32> + Send + 'static
 {
     let mut voice_to_start = None;
@@ -128,7 +128,7 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Endpoint, source: S)
 
 // Adds a new voice to the engine.
 // TODO: handle possible errors here
-fn new_voice(engine: &Arc<Engine>, endpoint: &Endpoint) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, VoiceId) {
+fn new_voice(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, VoiceId) {
     // Determine the format to use for the new voice.
     let format = endpoint
         .supported_formats()

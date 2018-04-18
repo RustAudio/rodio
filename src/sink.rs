@@ -6,7 +6,7 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
-use Endpoint;
+use Device;
 use Sample;
 use Source;
 use source::Done;
@@ -36,7 +36,7 @@ struct Controls {
 impl Sink {
     /// Builds a new `Sink`.
     #[inline]
-    pub fn new(endpoint: &Endpoint) -> Sink {
+    pub fn new(endpoint: &Device) -> Sink {
         let (queue_tx, queue_rx) = queue::queue(true);
         play_raw(endpoint, queue_rx);
 

@@ -94,7 +94,7 @@ extern crate lazy_static;
 extern crate lewton;
 extern crate cgmath;
 
-pub use cpal::{Endpoint, default_endpoint, endpoints, get_default_endpoint, get_endpoints_list};
+pub use cpal::{Device, default_endpoint, endpoints, get_default_endpoint, get_endpoints_list};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
@@ -118,7 +118,7 @@ pub mod source;
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]
-pub fn play_once<R>(endpoint: &Endpoint, input: R) -> Result<Sink, decoder::DecoderError>
+pub fn play_once<R>(endpoint: &Device, input: R) -> Result<Sink, decoder::DecoderError>
     where R: Read + Seek + Send + 'static
 {
     let input = decoder::Decoder::new(input)?;

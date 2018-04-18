@@ -10,7 +10,7 @@ use cpal::Device;
 use cpal::EventLoop;
 use cpal::Sample as CpalSample;
 use cpal::UnknownTypeOutputBuffer;
-use cpal::VoiceId;
+use cpal::StreamId;
 use dynamic_mixer;
 use source::Source;
 
@@ -57,13 +57,13 @@ struct Engine {
     // The events loop which the voices are created with.
     events_loop: EventLoop,
 
-    dynamic_mixers: Mutex<HashMap<VoiceId, dynamic_mixer::DynamicMixer<f32>>>,
+    dynamic_mixers: Mutex<HashMap<StreamId, dynamic_mixer::DynamicMixer<f32>>>,
 
     // TODO: don't use the endpoint name, as it's slow
     end_points: Mutex<HashMap<String, Weak<dynamic_mixer::DynamicMixerController<f32>>>>,
 }
 
-fn audio_callback(engine: &Arc<Engine>, voice_id: VoiceId, mut buffer: UnknownTypeOutputBuffer) {
+fn audio_callback(engine: &Arc<Engine>, voice_id: StreamId, mut buffer: UnknownTypeOutputBuffer) {
     let mut dynamic_mixers = engine.dynamic_mixers.lock().unwrap();
 
     let mixer_rx = match dynamic_mixers.get_mut(&voice_id) {
@@ -128,7 +128,7 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Device, source: S)
 
 // Adds a new voice to the engine.
 // TODO: handle possible errors here
-fn new_voice(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, VoiceId) {
+fn new_voice(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
     // Determine the format to use for the new voice.
     let format = endpoint
         .supported_formats()

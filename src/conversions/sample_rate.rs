@@ -4,7 +4,7 @@ use cpal;
 
 use std::mem;
 
-/// Iterator that converts from a certain samples rate to another.
+/// Iterator that converts from a certain sample rate to another.
 #[derive(Clone, Debug)]
 pub struct SampleRateConverter<I>
     where I: Iterator

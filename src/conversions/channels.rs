@@ -1,6 +1,6 @@
 use cpal;
 
-/// Iterator that converts from a certain channels count to another.
+/// Iterator that converts from a certain channel count to another.
 #[derive(Clone, Debug)]
 pub struct ChannelCountConverter<I>
     where I: Iterator

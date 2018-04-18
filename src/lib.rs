@@ -6,7 +6,7 @@
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [decoder](decoder/index.html), etc. or even your own type that implements
 //!   [the `Source` trait](source/trait.Source.html).
-//! - Choose an output with the [`endpoints`](fn.endpoints.html) or
+//! - Choose an output with the [`devices`](fn.devices.html) or
 //!   [`default_output_device`](fn.default_output_device.html) functions.
 //! - Call [`play_raw(output, source)`](fn.play_raw.html).
 //!
@@ -94,7 +94,7 @@ extern crate lazy_static;
 extern crate lewton;
 extern crate cgmath;
 
-pub use cpal::{Device, default_output_device, default_input_device, endpoints, get_default_endpoint, get_endpoints_list};
+pub use cpal::{Device, default_output_device, default_input_device, devices, output_devices, input_devices};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;

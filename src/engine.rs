@@ -75,7 +75,7 @@ fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, buffer: StreamData)
     match buffer {
         StreamData::Output { buffer: UnknownTypeOutputBuffer::U16(mut buffer) } => {
             for d in buffer.iter_mut() {
-                *d = mixer_rx.next().map(|s| s.to_u16()).unwrap_or(0u16);
+                *d = mixer_rx.next().map(|s| s.to_u16()).unwrap_or(u16::max_value() / 2);
             }
         },
         StreamData::Output { buffer: UnknownTypeOutputBuffer::I16(mut buffer) } => {

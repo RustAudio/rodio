@@ -55,7 +55,7 @@ pub fn play_raw<S>(endpoint: &Device, source: S)
 //
 // Each `Engine` owns a thread that runs in the background and plays the audio.
 struct Engine {
-    // The events loop which the voices are created with.
+    // The events loop which the streams are created with.
     events_loop: EventLoop,
 
     dynamic_mixers: Mutex<HashMap<StreamId, dynamic_mixer::DynamicMixer<f32>>>,
@@ -95,42 +95,42 @@ fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, mut buffer: StreamD
 fn start<S>(engine: &Arc<Engine>, endpoint: &Device, source: S)
     where S: Source<Item = f32> + Send + 'static
 {
-    let mut voice_to_start = None;
+    let mut stream_to_start = None;
 
     let mixer = {
         let mut end_points = engine.end_points.lock().unwrap();
 
         match end_points.entry(endpoint.name()) {
             Entry::Vacant(e) => {
-                let (mixer, voice) = new_voice(engine, endpoint);
+                let (mixer, stream) = new_stream(engine, endpoint);
                 e.insert(Arc::downgrade(&mixer));
-                voice_to_start = Some(voice);
+                stream_to_start = Some(stream);
                 mixer
             },
             Entry::Occupied(mut e) => {
                 if let Some(m) = e.get().upgrade() {
                     m.clone()
                 } else {
-                    let (mixer, voice) = new_voice(engine, endpoint);
+                    let (mixer, stream) = new_stream(engine, endpoint);
                     e.insert(Arc::downgrade(&mixer));
-                    voice_to_start = Some(voice);
+                    stream_to_start = Some(stream);
                     mixer
                 }
             },
         }
     };
 
-    if let Some(voice) = voice_to_start {
-        engine.events_loop.play(voice);
+    if let Some(stream) = stream_to_start {
+        engine.events_loop.play(stream);
     }
 
     mixer.add(source);
 }
 
-// Adds a new voice to the engine.
+// Adds a new stream to the engine.
 // TODO: handle possible errors here
-fn new_voice(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
-    // Determine the format to use for the new voice.
+fn new_stream(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
+    // Determine the format to use for the new stream.
     let format = endpoint
         .supported_formats()
         .unwrap()
@@ -161,7 +161,7 @@ fn new_voice(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::Dyn
         .expect("The endpoint doesn't support any format!?")
         .with_max_sample_rate();
 
-    let stream_id = engine.events_loop.build_voice(endpoint, &format).unwrap();
+    let stream_id = engine.events_loop.build_stream(endpoint, &format).unwrap();
     let (mixer_tx, mixer_rx) = {
         dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0)
     };

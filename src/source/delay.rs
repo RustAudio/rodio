@@ -9,7 +9,7 @@ pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
           I::Item: Sample
 {
     let duration_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-    let samples = duration_ns * input.samples_rate() as u64 * input.channels() as u64 / 1000000000;
+    let samples = duration_ns * input.sample_rate() as u64 * input.channels() as u64 / 1000000000;
 
     Delay {
         input: input,
@@ -70,8 +70,8 @@ impl<I> Source for Delay<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.input.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.input.sample_rate()
     }
 
     #[inline]

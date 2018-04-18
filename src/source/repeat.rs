@@ -71,10 +71,10 @@ impl<I> Source for Repeat<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
+    fn sample_rate(&self) -> u32 {
         match self.inner.current_frame_len() {
-            Some(0) => self.next.samples_rate(),
-            _ => self.inner.samples_rate(),
+            Some(0) => self.next.sample_rate(),
+            _ => self.inner.sample_rate(),
         }
     }
 

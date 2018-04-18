@@ -75,8 +75,8 @@ impl<I, D> Source for SamplesConverter<I, D>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.inner.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.inner.sample_rate()
     }
 
     #[inline]

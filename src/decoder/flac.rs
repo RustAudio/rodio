@@ -16,7 +16,7 @@ pub struct FlacDecoder<R>
     current_block_channel_len: usize,
     current_block_off: usize,
     bits_per_sample: u32,
-    samples_rate: u32,
+    sample_rate: u32,
     channels: u16,
 }
 
@@ -39,7 +39,7 @@ impl<R> FlacDecoder<R>
                current_block_channel_len: 1,
                current_block_off: 0,
                bits_per_sample: spec.bits_per_sample,
-               samples_rate: spec.sample_rate,
+               sample_rate: spec.sample_rate,
                channels: spec.channels as u16,
            })
     }
@@ -59,8 +59,8 @@ impl<R> Source for FlacDecoder<R>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.samples_rate
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 
     #[inline]

@@ -8,16 +8,16 @@ use std::time::Duration;
 #[derive(Clone, Debug)]
 pub struct Zero<S> {
     channels: u16,
-    samples_rate: u32,
+    sample_rate: u32,
     marker: PhantomData<S>,
 }
 
 impl<S> Zero<S> {
     #[inline]
-    pub fn new(channels: u16, samples_rate: u32) -> Zero<S> {
+    pub fn new(channels: u16, sample_rate: u32) -> Zero<S> {
         Zero {
             channels: channels,
-            samples_rate: samples_rate,
+            sample_rate: sample_rate,
             marker: PhantomData,
         }
     }
@@ -48,8 +48,8 @@ impl<S> Source for Zero<S>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.samples_rate
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 
     #[inline]

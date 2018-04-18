@@ -4,9 +4,9 @@ use cpal;
 
 use std::mem;
 
-/// Iterator that converts from a certain samples rate to another.
+/// Iterator that converts from a certain sample rate to another.
 #[derive(Clone, Debug)]
-pub struct SamplesRateConverter<I>
+pub struct SampleRateConverter<I>
     where I: Iterator
 {
     /// The iterator that gives us samples.
@@ -28,7 +28,7 @@ pub struct SamplesRateConverter<I>
     output_buffer: Vec<I::Item>,
 }
 
-impl<I> SamplesRateConverter<I>
+impl<I> SampleRateConverter<I>
     where I: Iterator,
           I::Item: Sample
 {
@@ -39,9 +39,9 @@ impl<I> SamplesRateConverter<I>
     /// Panicks if `from` or `to` are equal to 0.
     ///
     #[inline]
-    pub fn new(mut input: I, from: cpal::SamplesRate, to: cpal::SamplesRate,
-               num_channels: cpal::ChannelsCount)
-               -> SamplesRateConverter<I> {
+    pub fn new(mut input: I, from: cpal::SampleRate, to: cpal::SampleRate,
+               num_channels: cpal::ChannelCount)
+               -> SampleRateConverter<I> {
         let from = from.0;
         let to = to.0;
 
@@ -74,7 +74,7 @@ impl<I> SamplesRateConverter<I>
             (first, next)
         };
 
-        SamplesRateConverter {
+        SampleRateConverter {
             input: input,
             from: from / gcd,
             to: to / gcd,
@@ -107,7 +107,7 @@ impl<I> SamplesRateConverter<I>
     }
 }
 
-impl<I> Iterator for SamplesRateConverter<I>
+impl<I> Iterator for SampleRateConverter<I>
     where I: Iterator,
           I::Item: Sample + Clone
 {
@@ -232,7 +232,7 @@ impl<I> Iterator for SamplesRateConverter<I>
     }
 }
 
-impl<I> ExactSizeIterator for SamplesRateConverter<I>
+impl<I> ExactSizeIterator for SampleRateConverter<I>
     where I: ExactSizeIterator,
           I::Item: Sample + Clone
 {
@@ -240,14 +240,14 @@ impl<I> ExactSizeIterator for SamplesRateConverter<I>
 
 #[cfg(test)]
 mod test {
-    use super::SamplesRateConverter;
-    use cpal::SamplesRate;
+    use super::SampleRateConverter;
+    use cpal::SampleRate;
 
     #[test]
     fn zero() {
         let input: Vec<u16> = Vec::new();
         let output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(1278), SamplesRate(78923), 1);
+            SampleRateConverter::new(input.into_iter(), SampleRate(1278), SampleRate(78923), 1);
         //assert_eq!(output.len(), 0);
 
         let output = output.collect::<Vec<_>>();
@@ -258,7 +258,7 @@ mod test {
     fn identity_1channel() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(12345), SamplesRate(12345), 1);
+            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 1);
         assert_eq!(output.len(), 8);
 
         let output = output.collect::<Vec<_>>();
@@ -269,7 +269,7 @@ mod test {
     fn identity_2channels() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(12345), SamplesRate(12345), 2);
+            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 2);
         assert_eq!(output.len(), 8);
 
         let output = output.collect::<Vec<_>>();
@@ -280,7 +280,7 @@ mod test {
     fn identity_2channels_misalign() {
         let input = vec![2u16, 16, 4, 18, 6];
         let output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(12345), SamplesRate(12345), 2);
+            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 2);
         assert_eq!(output.len(), 5);
 
         let output = output.collect::<Vec<_>>();
@@ -291,7 +291,7 @@ mod test {
     fn identity_5channels() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24];
         let output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(12345), SamplesRate(12345), 5);
+            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 5);
         assert_eq!(output.len(), 10);
 
         let output = output.collect::<Vec<_>>();
@@ -299,10 +299,10 @@ mod test {
     }
 
     #[test]
-    fn half_samples_rate() {
+    fn half_sample_rate() {
         let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
         let output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(44100), SamplesRate(22050), 2);
+            SampleRateConverter::new(input.into_iter(), SampleRate(44100), SampleRate(22050), 2);
         assert_eq!(output.len(), 6);
 
         let output = output.collect::<Vec<_>>();
@@ -310,10 +310,10 @@ mod test {
     }
 
     #[test]
-    fn double_samples_rate() {
+    fn double_sample_rate() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(22050), SamplesRate(44100), 2);
+            SampleRateConverter::new(input.into_iter(), SampleRate(22050), SampleRate(44100), 2);
         //assert_eq!(output.len(), 14);
 
         let output = output.collect::<Vec<_>>();
@@ -324,7 +324,7 @@ mod test {
     fn upsample() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(2000), SamplesRate(3000), 2);
+            SampleRateConverter::new(input.into_iter(), SampleRate(2000), SampleRate(3000), 2);
         assert_eq!(output.len(), 12);
 
         let output = output.collect::<Vec<_>>();
@@ -336,7 +336,7 @@ mod test {
     fn upsample_lengths() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let mut output =
-            SamplesRateConverter::new(input.into_iter(), SamplesRate(2000), SamplesRate(3000), 2);
+            SampleRateConverter::new(input.into_iter(), SampleRate(2000), SampleRate(3000), 2);
 
         assert_eq!(output.len(), 12);
         assert_eq!(output.next(), Some(2));

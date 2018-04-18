@@ -57,8 +57,8 @@ impl<I> Source for Done<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.input.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.input.sample_rate()
     }
 
     #[inline]

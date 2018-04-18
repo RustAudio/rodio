@@ -46,7 +46,7 @@ impl Source for SineWave {
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
+    fn sample_rate(&self) -> u32 {
         48000
     }
 

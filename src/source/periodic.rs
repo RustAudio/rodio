@@ -11,7 +11,7 @@ pub fn periodic<I, F>(source: I, period: Duration, modifier: F) -> PeriodicAcces
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong
     let update_ms = period.as_secs() as u32 * 1_000 + period.subsec_nanos() / 1_000_000;
-    let update_frequency = (update_ms * source.samples_rate()) / 1000;
+    let update_frequency = (update_ms * source.sample_rate()) / 1000;
 
     PeriodicAccess {
         input: source,
@@ -77,8 +77,8 @@ impl<I, F> Source for PeriodicAccess<I, F>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.input.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.input.sample_rate()
     }
 
     #[inline]

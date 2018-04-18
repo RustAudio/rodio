@@ -117,7 +117,7 @@ impl<R> Source for Decoder<R>
 {
     fn current_frame_len(&self) -> Option<usize> { Some(0) }
     fn channels(&self) -> u16 { 0 }
-    fn samples_rate(&self) -> u32 { 1 }
+    fn sample_rate(&self) -> u32 { 1 }
     fn total_duration(&self) -> Option<Duration> { Some(Duration::default()) }
 }
 
@@ -150,14 +150,14 @@ impl<R> Source for Decoder<R>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
+    fn sample_rate(&self) -> u32 {
         match self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.samples_rate(),
+            DecoderImpl::Wav(ref source) => source.sample_rate(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.samples_rate(),
+            DecoderImpl::Vorbis(ref source) => source.sample_rate(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.samples_rate(),
+            DecoderImpl::Flac(ref source) => source.sample_rate(),
         }
     }
 

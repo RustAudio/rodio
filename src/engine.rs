@@ -146,23 +146,23 @@ fn new_voice(engine: &Arc<Engine>, endpoint: &Endpoint) -> (Arc<dynamic_mixer::D
             }
 
             // Do not go below 44100 if possible.
-            if f1.min_samples_rate.0 < 44100 {
+            if f1.min_sample_rate.0 < 44100 {
                 return Some(f2);
             }
 
             // Priviledge outputs with 2 channels for now.
-            if f2.channels.len() == 2 && f1.channels.len() != 2 {
+            if f2.channels == 2 && f1.channels != 2 {
                 return Some(f2);
             }
 
             Some(f1)
         })
         .expect("The endpoint doesn't support any format!?")
-        .with_max_samples_rate();
+        .with_max_sample_rate();
 
     let voice_id = engine.events_loop.build_voice(endpoint, &format).unwrap();
     let (mixer_tx, mixer_rx) = {
-        dynamic_mixer::mixer::<f32>(format.channels.len() as u16, format.samples_rate.0)
+        dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0)
     };
 
     engine.dynamic_mixers.lock().unwrap().insert(voice_id.clone(), mixer_rx);

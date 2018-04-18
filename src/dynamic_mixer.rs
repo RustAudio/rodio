@@ -17,7 +17,7 @@ use Sample;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
-pub fn mixer<S>(channels: u16, samples_rate: u32)
+pub fn mixer<S>(channels: u16, sample_rate: u32)
                 -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
     where S: Sample + Send + 'static
 {
@@ -25,7 +25,7 @@ pub fn mixer<S>(channels: u16, samples_rate: u32)
                              has_pending: AtomicBool::new(false),
                              pending_sources: Mutex::new(Vec::new()),
                              channels: channels,
-                             samples_rate: samples_rate,
+                             sample_rate: sample_rate,
                          });
 
     let output = DynamicMixer {
@@ -41,7 +41,7 @@ pub struct DynamicMixerController<S> {
     has_pending: AtomicBool,
     pending_sources: Mutex<Vec<Box<Source<Item = S> + Send>>>,
     channels: u16,
-    samples_rate: u32,
+    sample_rate: u32,
 }
 
 impl<S> DynamicMixerController<S>
@@ -52,7 +52,7 @@ impl<S> DynamicMixerController<S>
     pub fn add<T>(&self, source: T)
         where T: Source<Item = S> + Send + 'static
     {
-        let uniform_source = UniformSourceIterator::new(source, self.channels, self.samples_rate);
+        let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
         self.pending_sources
             .lock()
             .unwrap()
@@ -84,8 +84,8 @@ impl<S> Source for DynamicMixer<S>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.input.samples_rate
+    fn sample_rate(&self) -> u32 {
+        self.input.sample_rate
     }
 
     #[inline]
@@ -154,7 +154,7 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
         assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.samples_rate(), 48000);
+        assert_eq!(rx.sample_rate(), 48000);
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(-5));
         assert_eq!(rx.next(), Some(15));
@@ -170,7 +170,7 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
         assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.samples_rate(), 48000);
+        assert_eq!(rx.sample_rate(), 48000);
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(-5));
@@ -190,7 +190,7 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
         assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.samples_rate(), 96000);
+        assert_eq!(rx.sample_rate(), 96000);
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(-5));

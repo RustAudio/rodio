@@ -64,7 +64,7 @@ struct Engine {
     end_points: Mutex<HashMap<String, Weak<dynamic_mixer::DynamicMixerController<f32>>>>,
 }
 
-fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, mut buffer: StreamData) {
+fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, buffer: StreamData) {
     let mut dynamic_mixers = engine.dynamic_mixers.lock().unwrap();
 
     let mixer_rx = match dynamic_mixers.get_mut(&stream_id) {

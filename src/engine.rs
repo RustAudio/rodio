@@ -15,7 +15,7 @@ use cpal::StreamData;
 use dynamic_mixer;
 use source::Source;
 
-/// Plays a source to an end point until it ends.
+/// Plays a source with a device until it ends.
 ///
 /// The playing uses a background thread.
 pub fn play_raw<S>(device: &Device, source: S)

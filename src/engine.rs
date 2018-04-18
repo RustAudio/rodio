@@ -105,7 +105,7 @@ fn start<S>(engine: &Arc<Engine>, device: &Device, source: S)
 
         match end_points.entry(device.name()) {
             Entry::Vacant(e) => {
-                let (mixer, stream) = new_stream(engine, device);
+                let (mixer, stream) = new_output_stream(engine, device);
                 e.insert(Arc::downgrade(&mixer));
                 stream_to_start = Some(stream);
                 mixer
@@ -114,7 +114,7 @@ fn start<S>(engine: &Arc<Engine>, device: &Device, source: S)
                 if let Some(m) = e.get().upgrade() {
                     m.clone()
                 } else {
-                    let (mixer, stream) = new_stream(engine, device);
+                    let (mixer, stream) = new_output_stream(engine, device);
                     e.insert(Arc::downgrade(&mixer));
                     stream_to_start = Some(stream);
                     mixer
@@ -132,10 +132,10 @@ fn start<S>(engine: &Arc<Engine>, device: &Device, source: S)
 
 // Adds a new stream to the engine.
 // TODO: handle possible errors here
-fn new_stream(engine: &Arc<Engine>, device: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
+fn new_output_stream(engine: &Arc<Engine>, device: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
     // Determine the format to use for the new stream.
     let format = device
-        .supported_formats()
+        .supported_output_formats()
         .unwrap()
         .fold(None, |f1, f2| {
             if f1.is_none() {
@@ -164,7 +164,7 @@ fn new_stream(engine: &Arc<Engine>, device: &Device) -> (Arc<dynamic_mixer::Dyna
         .expect("The device doesn't support any format!?")
         .with_max_sample_rate();
 
-    let stream_id = engine.events_loop.build_stream(device, &format).unwrap();
+    let stream_id = engine.events_loop.build_output_stream(device, &format).unwrap();
     let (mixer_tx, mixer_rx) = {
         dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0)
     };

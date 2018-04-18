@@ -119,9 +119,9 @@ impl<I> Source for FromIter<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
+    fn sample_rate(&self) -> u32 {
         if let Some(ref src) = self.current_source {
-            src.samples_rate()
+            src.sample_rate()
         } else {
             // Dummy value that only happens if the iterator was empty.
             44100
@@ -152,13 +152,13 @@ mod tests {
                                    }));
 
         assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.samples_rate(), 48000);
+        assert_eq!(rx.sample_rate(), 48000);
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
         /*assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.samples_rate(), 96000);*/
+        assert_eq!(rx.sample_rate(), 96000);*/
         // FIXME: not working
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));

@@ -74,7 +74,7 @@ fn extract<I>(mut input: I) -> Arc<Frame<I>>
     }
 
     let channels = input.channels();
-    let rate = input.samples_rate();
+    let rate = input.sample_rate();
     let data : Vec<I::Item> = input
         .by_ref()
         .take(cmp::min(frame_len.unwrap_or(32768), 32768))
@@ -190,7 +190,7 @@ impl<I> Source for Buffered<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
+    fn sample_rate(&self) -> u32 {
         match &*self.current_frame {
             &Frame::Data(FrameData { rate, .. }) => rate,
             &Frame::End => 44100,

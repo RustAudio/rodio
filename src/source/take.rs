@@ -33,7 +33,7 @@ impl<I> TakeDuration<I>
     /// Returns the duration elapsed for each sample extracted.
     #[inline]
     fn get_duration_per_sample(&self) -> Duration {
-        let ns = 1000000000 / (self.input.samples_rate() as u64 * self.channels() as u64);
+        let ns = 1000000000 / (self.input.sample_rate() as u64 * self.channels() as u64);
         // \|/ the maximum value of `ns` is one billion, so this can't fail
         Duration::new(0, ns as u32)
     }
@@ -73,7 +73,7 @@ impl<I> Source for TakeDuration<I>
     fn current_frame_len(&self) -> Option<usize> {
         let remaining_nanosecs = self.remaining_duration.as_secs() * 1000000000 +
             self.remaining_duration.subsec_nanos() as u64;
-        let remaining_samples = remaining_nanosecs * self.input.samples_rate() as u64 *
+        let remaining_samples = remaining_nanosecs * self.input.sample_rate() as u64 *
             self.channels() as u64 / 1000000000;
 
         if let Some(value) = self.input.current_frame_len() {
@@ -93,8 +93,8 @@ impl<I> Source for TakeDuration<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.input.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.input.sample_rate()
     }
 
     #[inline]

@@ -5,10 +5,10 @@ This includes conversion between samples formats, channels or sample rates.
 
 */
 
-pub use self::channels::ChannelsCountConverter;
+pub use self::channels::ChannelCountConverter;
 pub use self::sample::DataConverter;
 pub use self::sample::Sample;
-pub use self::samples_rate::SamplesRateConverter;
+pub use self::samples_rate::SampleRateConverter;
 
 mod channels;
 // TODO: < shouldn't be public ; there's a bug in Rust 1.4 and below that makes This

@@ -96,7 +96,7 @@ mod zero;
 /// The three characteristics that describe a sound are provided through this trait:
 ///
 /// - The number of channels can be retreived with `channels`.
-/// - The frequency can be retreived with `samples_rate`.
+/// - The frequency can be retreived with `sample_rate`.
 /// - The list of values can be retreived by iterating on the source. The `Source` trait requires
 ///   that the `Iterator` trait be implemented as well.
 ///
@@ -111,7 +111,7 @@ mod zero;
 ///
 /// However, for optimization purposes rodio supposes that the number of channels and the frequency
 /// stay the same for long periods of time and avoids calling `channels()` and
-/// `samples_rate` too frequently.
+/// `sample_rate` too frequently.
 ///
 /// In order to properly handle this situation, the `current_frame_len()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
@@ -125,14 +125,14 @@ pub trait Source: Iterator
     /// Should never return 0 unless there's no more data.
     ///
     /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `samples_rate()` have changed.
+    /// whether the value of `channels()` and/or `sample_rate()` have changed.
     fn current_frame_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
     fn channels(&self) -> u16;
 
     /// Returns the rate at which the source should be played. In number of samples per second.
-    fn samples_rate(&self) -> u32;
+    fn sample_rate(&self) -> u32;
 
     /// Returns the total duration of this source, if known.
     ///
@@ -292,8 +292,8 @@ impl<S> Source for Box<Source<Item = S>>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        (**self).samples_rate()
+    fn sample_rate(&self) -> u32 {
+        (**self).sample_rate()
     }
 
     #[inline]
@@ -316,8 +316,8 @@ impl<S> Source for Box<Source<Item = S> + Send>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        (**self).samples_rate()
+    fn sample_rate(&self) -> u32 {
+        (**self).sample_rate()
     }
 
     #[inline]
@@ -340,8 +340,8 @@ impl<S> Source for Box<Source<Item = S> + Send + Sync>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        (**self).samples_rate()
+    fn sample_rate(&self) -> u32 {
+        (**self).sample_rate()
     }
 
     #[inline]

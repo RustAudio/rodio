@@ -57,7 +57,7 @@ impl<R> Source for VorbisDecoder<R>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
+    fn sample_rate(&self) -> u32 {
         self.stream_reader.ident_hdr.audio_sample_rate
     }
 

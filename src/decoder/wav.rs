@@ -10,7 +10,7 @@ pub struct WavDecoder<R>
     where R: Read + Seek
 {
     reader: SamplesIterator<R>,
-    samples_rate: u32,
+    sample_rate: u32,
     channels: u16,
 }
 
@@ -32,7 +32,7 @@ impl<R> WavDecoder<R>
 
         Ok(WavDecoder {
                reader: reader,
-               samples_rate: spec.sample_rate,
+               sample_rate: spec.sample_rate,
                channels: spec.channels,
            })
     }
@@ -86,13 +86,13 @@ impl<R> Source for WavDecoder<R>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.samples_rate
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        let ms = self.len() * 1000 / (self.channels as usize * self.samples_rate as usize);
+        let ms = self.len() * 1000 / (self.channels as usize * self.sample_rate as usize);
         Some(Duration::from_millis(ms as u64))
     }
 }

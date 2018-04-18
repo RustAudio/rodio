@@ -62,8 +62,8 @@ impl<I> Source for Speed<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        (self.input.samples_rate() as f32 * self.factor) as u32
+    fn sample_rate(&self) -> u32 {
+        (self.input.sample_rate() as f32 * self.factor) as u32
     }
 
     #[inline]

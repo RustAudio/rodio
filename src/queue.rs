@@ -144,8 +144,8 @@ impl<S> Source for SourcesQueueOutput<S>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.current.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.current.sample_rate()
     }
 
     #[inline]
@@ -230,13 +230,13 @@ mod tests {
         tx.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
 
         assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.samples_rate(), 48000);
+        assert_eq!(rx.sample_rate(), 48000);
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
         assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.samples_rate(), 96000);
+        assert_eq!(rx.sample_rate(), 96000);
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));

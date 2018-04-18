@@ -14,7 +14,7 @@ pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
           I2::Item: Sample
 {
     let channels = input1.channels();
-    let rate = input1.samples_rate();
+    let rate = input1.sample_rate();
 
     Mix {
         input1: UniformSourceIterator::new(input1, channels, rate),
@@ -101,8 +101,8 @@ impl<I1, I2> Source for Mix<I1, I2>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.input1.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.input1.sample_rate()
     }
 
     #[inline]

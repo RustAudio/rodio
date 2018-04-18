@@ -85,8 +85,8 @@ impl<I> Source for Amplify<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.input.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.input.sample_rate()
     }
 
     #[inline]

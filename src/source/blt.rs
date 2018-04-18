@@ -67,7 +67,7 @@ impl<I> Iterator for BltFilter<I>
         let last_in_frame = self.input.current_frame_len() == Some(1);
 
         if self.applier.is_none() {
-            self.applier = Some(self.formula.to_applier(self.input.samples_rate()));
+            self.applier = Some(self.formula.to_applier(self.input.sample_rate()));
         }
 
         let sample = match self.input.next() {
@@ -117,8 +117,8 @@ impl<I> Source for BltFilter<I>
     }
 
     #[inline]
-    fn samples_rate(&self) -> u32 {
-        self.input.samples_rate()
+    fn sample_rate(&self) -> u32 {
+        self.input.sample_rate()
     }
 
     #[inline]

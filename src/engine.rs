@@ -121,7 +121,7 @@ fn start<S>(engine: &Arc<Engine>, endpoint: &Device, source: S)
     };
 
     if let Some(stream) = stream_to_start {
-        engine.events_loop.play(stream);
+        engine.events_loop.play_stream(stream);
     }
 
     mixer.add(source);

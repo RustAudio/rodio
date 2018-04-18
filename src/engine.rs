@@ -9,7 +9,7 @@ use cpal;
 use cpal::Endpoint;
 use cpal::EventLoop;
 use cpal::Sample as CpalSample;
-use cpal::UnknownTypeBuffer;
+use cpal::UnknownTypeOutputBuffer;
 use cpal::VoiceId;
 use dynamic_mixer;
 use source::Source;
@@ -63,7 +63,7 @@ struct Engine {
     end_points: Mutex<HashMap<String, Weak<dynamic_mixer::DynamicMixerController<f32>>>>,
 }
 
-fn audio_callback(engine: &Arc<Engine>, voice_id: VoiceId, mut buffer: UnknownTypeBuffer) {
+fn audio_callback(engine: &Arc<Engine>, voice_id: VoiceId, mut buffer: UnknownTypeOutputBuffer) {
     let mut dynamic_mixers = engine.dynamic_mixers.lock().unwrap();
 
     let mixer_rx = match dynamic_mixers.get_mut(&voice_id) {
@@ -72,17 +72,17 @@ fn audio_callback(engine: &Arc<Engine>, voice_id: VoiceId, mut buffer: UnknownTy
     };
 
     match buffer {
-        UnknownTypeBuffer::U16(ref mut buffer) => {
+        UnknownTypeOutputBuffer::U16(ref mut buffer) => {
             for d in buffer.iter_mut() {
                 *d = mixer_rx.next().map(|s| s.to_u16()).unwrap_or(0u16);
             }
         },
-        UnknownTypeBuffer::I16(ref mut buffer) => {
+        UnknownTypeOutputBuffer::I16(ref mut buffer) => {
             for d in buffer.iter_mut() {
                 *d = mixer_rx.next().map(|s| s.to_i16()).unwrap_or(0i16);
             }
         },
-        UnknownTypeBuffer::F32(ref mut buffer) => {
+        UnknownTypeOutputBuffer::F32(ref mut buffer) => {
             for d in buffer.iter_mut() {
                 *d = mixer_rx.next().unwrap_or(0f32);
             }

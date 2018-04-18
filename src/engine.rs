@@ -35,8 +35,8 @@ pub fn play_raw<S>(endpoint: &Device, source: S)
                 .spawn({
                     let engine = engine.clone();
                     move || {
-                        engine.events_loop.run(|voice_id, buffer| {
-                            audio_callback(&engine, voice_id, buffer);
+                        engine.events_loop.run(|stream_id, buffer| {
+                            audio_callback(&engine, stream_id, buffer);
                         })
                     }
                 })
@@ -63,10 +63,10 @@ struct Engine {
     end_points: Mutex<HashMap<String, Weak<dynamic_mixer::DynamicMixerController<f32>>>>,
 }
 
-fn audio_callback(engine: &Arc<Engine>, voice_id: StreamId, mut buffer: UnknownTypeOutputBuffer) {
+fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, mut buffer: UnknownTypeOutputBuffer) {
     let mut dynamic_mixers = engine.dynamic_mixers.lock().unwrap();
 
-    let mixer_rx = match dynamic_mixers.get_mut(&voice_id) {
+    let mixer_rx = match dynamic_mixers.get_mut(&stream_id) {
         Some(m) => m,
         None => return,
     };
@@ -160,12 +160,12 @@ fn new_voice(engine: &Arc<Engine>, endpoint: &Device) -> (Arc<dynamic_mixer::Dyn
         .expect("The endpoint doesn't support any format!?")
         .with_max_sample_rate();
 
-    let voice_id = engine.events_loop.build_voice(endpoint, &format).unwrap();
+    let stream_id = engine.events_loop.build_voice(endpoint, &format).unwrap();
     let (mixer_tx, mixer_rx) = {
         dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0)
     };
 
-    engine.dynamic_mixers.lock().unwrap().insert(voice_id.clone(), mixer_rx);
+    engine.dynamic_mixers.lock().unwrap().insert(stream_id.clone(), mixer_rx);
 
-    (mixer_tx, voice_id)
+    (mixer_tx, stream_id)
 }

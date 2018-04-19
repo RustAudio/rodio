@@ -6,10 +6,12 @@ use std::time::Duration;
 
 fn main() {
     let device = rodio::default_output_device().unwrap();
-    let mut sink = rodio::SpatialSink::new(&device,
-                                           [-10.0, 0.0, 0.0],
-                                           [1.0, 0.0, 0.0],
-                                           [-1.0, 0.0, 0.0]);
+    let mut sink = rodio::SpatialSink::new(
+        &device,
+        [-10.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [-1.0, 0.0, 0.0],
+    );
 
     let file = std::fs::File::open("examples/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();

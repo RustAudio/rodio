@@ -1,4 +1,3 @@
-
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::time::Duration;
@@ -9,7 +8,8 @@ use claxon::FlacReader;
 
 /// Decoder for the Flac format.
 pub struct FlacDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     reader: FlacReader<R>,
     current_block: Vec<i32>,
@@ -21,7 +21,8 @@ pub struct FlacDecoder<R>
 }
 
 impl<R> FlacDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     /// Attempts to decode the data as Flac.
     pub fn new(mut data: R) -> Result<FlacDecoder<R>, R> {
@@ -33,20 +34,22 @@ impl<R> FlacDecoder<R>
         let spec = reader.streaminfo();
 
         Ok(FlacDecoder {
-               reader: reader,
-               current_block: Vec::with_capacity(spec.max_block_size as usize *
-                                                     spec.channels as usize),
-               current_block_channel_len: 1,
-               current_block_off: 0,
-               bits_per_sample: spec.bits_per_sample,
-               sample_rate: spec.sample_rate,
-               channels: spec.channels as u16,
-           })
+            reader: reader,
+            current_block: Vec::with_capacity(
+                spec.max_block_size as usize * spec.channels as usize,
+            ),
+            current_block_channel_len: 1,
+            current_block_off: 0,
+            bits_per_sample: spec.bits_per_sample,
+            sample_rate: spec.sample_rate,
+            channels: spec.channels as u16,
+        })
     }
 }
 
 impl<R> Source for FlacDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -70,7 +73,8 @@ impl<R> Source for FlacDecoder<R>
 }
 
 impl<R> Iterator for FlacDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     type Item = i16;
 
@@ -79,9 +83,9 @@ impl<R> Iterator for FlacDecoder<R>
         loop {
             if self.current_block_off < self.current_block.len() {
                 // Read from current block.
-                let real_offset = (self.current_block_off % self.channels as usize) *
-                    self.current_block_channel_len +
-                    self.current_block_off / self.channels as usize;
+                let real_offset = (self.current_block_off % self.channels as usize)
+                    * self.current_block_channel_len
+                    + self.current_block_off / self.channels as usize;
                 let raw_val = self.current_block[real_offset];
                 self.current_block_off += 1;
                 let real_val = if self.bits_per_sample == 16 {
@@ -110,7 +114,8 @@ impl<R> Iterator for FlacDecoder<R>
 
 /// Returns true if the stream contains Flac data, then resets it to where it was.
 fn is_flac<R>(mut data: R) -> bool
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
 

@@ -1,13 +1,14 @@
+use std::time::Duration;
 use Sample;
 use Source;
-use std::time::Duration;
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
 #[derive(Clone, Debug)]
 pub struct ChannelVolume<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     input: I,
     // Channel number is used as index for amplification value.
@@ -18,12 +19,14 @@ pub struct ChannelVolume<I>
 }
 
 impl<I> ChannelVolume<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     pub fn new(mut input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I>
-        where I: Source,
-              I::Item: Sample
+    where
+        I: Source,
+        I::Item: Sample,
     {
         let mut sample = I::Item::zero_value();
         for _ in 0 .. input.channels() {
@@ -47,8 +50,9 @@ impl<I> ChannelVolume<I>
 }
 
 impl<I> Iterator for ChannelVolume<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -80,14 +84,16 @@ impl<I> Iterator for ChannelVolume<I>
 }
 
 impl<I> ExactSizeIterator for ChannelVolume<I>
-    where I: Source + ExactSizeIterator,
-          I::Item: Sample
+where
+    I: Source + ExactSizeIterator,
+    I::Item: Sample,
 {
 }
 
 impl<I> Source for ChannelVolume<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

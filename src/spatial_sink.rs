@@ -1,13 +1,12 @@
-
-use Device;
-use Sample;
-use Sink;
-use Source;
 use source::Spatial;
 use std::f32;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use Device;
+use Sample;
+use Sink;
+use Source;
 
 pub struct SpatialSink {
     sink: Sink,
@@ -23,16 +22,16 @@ struct SoundPositions {
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
     #[inline]
-    pub fn new(device: &Device, emitter_position: [f32; 3], left_ear: [f32; 3],
-               right_ear: [f32; 3])
-               -> SpatialSink {
+    pub fn new(
+        device: &Device, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
+    ) -> SpatialSink {
         SpatialSink {
             sink: Sink::new(device),
             positions: Arc::new(Mutex::new(SoundPositions {
-                                               emitter_position,
-                                               left_ear,
-                                               right_ear,
-                                           })),
+                emitter_position,
+                left_ear,
+                right_ear,
+            })),
         }
     }
 
@@ -54,19 +53,21 @@ impl SpatialSink {
     /// Appends a sound to the queue of sounds to play.
     #[inline]
     pub fn append<S>(&self, source: S)
-        where S: Source + Send + 'static,
-              S::Item: Sample + Send + Debug
+    where
+        S: Source + Send + 'static,
+        S::Item: Sample + Send + Debug,
     {
         let positions = self.positions.clone();
         let pos_lock = self.positions.lock().unwrap();
-        let source = Spatial::new(source,
-                                  pos_lock.emitter_position,
-                                  pos_lock.left_ear,
-                                  pos_lock.right_ear)
-            .periodic_access(Duration::from_millis(10), move |i| {
-                let pos = positions.lock().unwrap();
-                i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
-            });
+        let source = Spatial::new(
+            source,
+            pos_lock.emitter_position,
+            pos_lock.left_ear,
+            pos_lock.right_ear,
+        ).periodic_access(Duration::from_millis(10), move |i| {
+            let pos = positions.lock().unwrap();
+            i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
+        });
         self.sink.append(source);
     }
 

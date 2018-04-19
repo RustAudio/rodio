@@ -1,6 +1,5 @@
-
-use source::FromIter;
 use source::from_iter;
+use source::FromIter;
 
 /// Builds a source that chains sources built from a factory.
 ///
@@ -10,7 +9,8 @@ use source::from_iter;
 ///
 /// If the `factory` closure returns `None`, then the sound ends.
 pub fn from_factory<F, S>(factory: F) -> FromIter<FromFactoryIter<F>>
-    where F: FnMut() -> Option<S>
+where
+    F: FnMut() -> Option<S>,
 {
     from_iter(FromFactoryIter { factory: factory })
 }
@@ -21,7 +21,8 @@ pub struct FromFactoryIter<F> {
 }
 
 impl<F, S> Iterator for FromFactoryIter<F>
-    where F: FnMut() -> Option<S>
+where
+    F: FnMut() -> Option<S>,
 {
     type Item = S;
 

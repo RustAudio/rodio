@@ -12,8 +12,8 @@ pub use self::delay::Delay;
 pub use self::done::Done;
 pub use self::empty::Empty;
 pub use self::fadein::FadeIn;
-pub use self::from_factory::{FromFactoryIter, from_factory};
-pub use self::from_iter::{FromIter, from_iter};
+pub use self::from_factory::{from_factory, FromFactoryIter};
+pub use self::from_iter::{from_iter, FromIter};
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
@@ -30,6 +30,7 @@ pub use self::zero::Zero;
 mod amplify;
 mod blt;
 mod buffered;
+mod channel_volume;
 mod delay;
 mod done;
 mod empty;
@@ -42,7 +43,6 @@ mod periodic;
 mod repeat;
 mod samples_converter;
 mod sine;
-mod channel_volume;
 mod spatial;
 mod speed;
 mod stoppable;
@@ -118,7 +118,8 @@ mod zero;
 /// channels can potentially change.
 ///
 pub trait Source: Iterator
-    where Self::Item: Sample
+where
+    Self::Item: Sample,
 {
     /// Returns the number of samples before the current frame ends. `None` means "infinite" or
     /// "until the sound ends".
@@ -142,7 +143,8 @@ pub trait Source: Iterator
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
     #[inline]
     fn buffered(self) -> Buffered<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         buffered::buffered(self)
     }
@@ -150,9 +152,10 @@ pub trait Source: Iterator
     /// Mixes this source with another one.
     #[inline]
     fn mix<S>(self, other: S) -> Mix<Self, S>
-        where Self: Sized,
-              S: Source,
-              S::Item: Sample
+    where
+        Self: Sized,
+        S: Source,
+        S::Item: Sample,
     {
         mix::mix(self, other)
     }
@@ -163,7 +166,8 @@ pub trait Source: Iterator
     /// proportional to the size of the sound.
     #[inline]
     fn repeat_infinite(self) -> Repeat<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         repeat::repeat(self)
     }
@@ -171,7 +175,8 @@ pub trait Source: Iterator
     /// Takes a certain duration of this source and then stops.
     #[inline]
     fn take_duration(self, duration: Duration) -> TakeDuration<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         take::take_duration(self, duration)
     }
@@ -182,7 +187,8 @@ pub trait Source: Iterator
     /// source.
     #[inline]
     fn delay(self, duration: Duration) -> Delay<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         delay::delay(self, duration)
     }
@@ -190,7 +196,8 @@ pub trait Source: Iterator
     /// Amplifies the sound by the given value.
     #[inline]
     fn amplify(self, value: f32) -> Amplify<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         amplify::amplify(self, value)
     }
@@ -198,7 +205,8 @@ pub trait Source: Iterator
     /// Fades in the sound.
     #[inline]
     fn fade_in(self, duration: Duration) -> FadeIn<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         fadein::fadein(self, duration)
     }
@@ -206,8 +214,9 @@ pub trait Source: Iterator
     /// Calls the `access` closure on `Self` every time `period` elapsed.
     #[inline]
     fn periodic_access<F>(self, period: Duration, access: F) -> PeriodicAccess<Self, F>
-        where Self: Sized,
-              F: FnMut(&mut Self)
+    where
+        Self: Sized,
+        F: FnMut(&mut Self),
     {
         periodic::periodic(self, period, access)
     }
@@ -215,7 +224,8 @@ pub trait Source: Iterator
     /// Changes the play speed of the sound. Does not adjust the samples, only the play speed.
     #[inline]
     fn speed(self, ratio: f32) -> Speed<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         speed::speed(self, ratio)
     }
@@ -234,7 +244,8 @@ pub trait Source: Iterator
     /// ```
     #[inline]
     fn reverb(self, duration: Duration, amplitude: f32) -> Mix<Self, Delay<Amplify<Self>>>
-        where Self: Sized + Clone
+    where
+        Self: Sized + Clone,
     {
         let echo = self.clone().amplify(amplitude).delay(duration);
         self.mix(echo)
@@ -243,8 +254,9 @@ pub trait Source: Iterator
     /// Converts the samples of this source to another type.
     #[inline]
     fn convert_samples<D>(self) -> SamplesConverter<Self, D>
-        where Self: Sized,
-              D: Sample
+    where
+        Self: Sized,
+        D: Sample,
     {
         SamplesConverter::new(self)
     }
@@ -253,7 +265,8 @@ pub trait Source: Iterator
     // TODO: add example
     #[inline]
     fn pausable(self, initially_paused: bool) -> Pausable<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         pausable::pausable(self, initially_paused)
     }
@@ -262,7 +275,8 @@ pub trait Source: Iterator
     // TODO: add example
     #[inline]
     fn stoppable(self) -> Stoppable<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         stoppable::stoppable(self)
     }
@@ -271,15 +285,17 @@ pub trait Source: Iterator
     /// **Warning**: Probably buggy.
     #[inline]
     fn low_pass(self, freq: u32) -> BltFilter<Self>
-        where Self: Sized,
-              Self: Source<Item = f32>
+    where
+        Self: Sized,
+        Self: Source<Item = f32>,
     {
         blt::low_pass(self, freq)
     }
 }
 
 impl<S> Source for Box<Source<Item = S>>
-    where S: Sample
+where
+    S: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -303,7 +319,8 @@ impl<S> Source for Box<Source<Item = S>>
 }
 
 impl<S> Source for Box<Source<Item = S> + Send>
-    where S: Sample
+where
+    S: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -327,7 +344,8 @@ impl<S> Source for Box<Source<Item = S> + Send>
 }
 
 impl<S> Source for Box<Source<Item = S> + Send + Sync>
-    where S: Sample
+where
+    S: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

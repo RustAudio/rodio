@@ -12,18 +12,20 @@ use Source;
 /// channels and samples rate have been passed to `new`.
 #[derive(Clone)]
 pub struct SamplesConverter<I, D>
-    where I: Source,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Source,
+    I::Item: Sample,
+    D: Sample,
 {
     inner: I,
     dest: PhantomData<D>,
 }
 
 impl<I, D> SamplesConverter<I, D>
-    where I: Source,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Source,
+    I::Item: Sample,
+    D: Sample,
 {
     #[inline]
     pub fn new(input: I) -> SamplesConverter<I, D> {
@@ -35,9 +37,10 @@ impl<I, D> SamplesConverter<I, D>
 }
 
 impl<I, D> Iterator for SamplesConverter<I, D>
-    where I: Source,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Source,
+    I::Item: Sample,
+    D: Sample,
 {
     type Item = D;
 
@@ -53,16 +56,18 @@ impl<I, D> Iterator for SamplesConverter<I, D>
 }
 
 impl<I, D> ExactSizeIterator for SamplesConverter<I, D>
-    where I: Source + ExactSizeIterator,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Source + ExactSizeIterator,
+    I::Item: Sample,
+    D: Sample,
 {
 }
 
 impl<I, D> Source for SamplesConverter<I, D>
-    where I: Source,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Source,
+    I::Item: Sample,
+    D: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

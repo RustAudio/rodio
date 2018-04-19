@@ -5,8 +5,9 @@ use Source;
 
 /// Internal function that builds a `Amplify` object.
 pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     Amplify {
         input: input,
@@ -48,8 +49,9 @@ impl<I> Amplify<I> {
 }
 
 impl<I> Iterator for Amplify<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -65,14 +67,16 @@ impl<I> Iterator for Amplify<I>
 }
 
 impl<I> ExactSizeIterator for Amplify<I>
-    where I: Source + ExactSizeIterator,
-          I::Item: Sample
+where
+    I: Source + ExactSizeIterator,
+    I::Item: Sample,
 {
 }
 
 impl<I> Source for Amplify<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

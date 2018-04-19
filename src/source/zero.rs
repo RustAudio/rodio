@@ -1,8 +1,7 @@
-
-use Sample;
-use Source;
 use std::marker::PhantomData;
 use std::time::Duration;
+use Sample;
+use Source;
 
 /// An infinite source that produces zero.
 #[derive(Clone, Debug)]
@@ -24,7 +23,8 @@ impl<S> Zero<S> {
 }
 
 impl<S> Iterator for Zero<S>
-    where S: Sample
+where
+    S: Sample,
 {
     type Item = S;
 
@@ -35,7 +35,8 @@ impl<S> Iterator for Zero<S>
 }
 
 impl<S> Source for Zero<S>
-    where S: Sample
+where
+    S: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

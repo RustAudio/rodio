@@ -5,8 +5,9 @@ use Source;
 
 /// Internal function that builds a `PeriodicAccess` object.
 pub fn periodic<I, F>(source: I, period: Duration, modifier: F) -> PeriodicAccess<I, F>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong
@@ -38,9 +39,10 @@ pub struct PeriodicAccess<I, F> {
 }
 
 impl<I, F> Iterator for PeriodicAccess<I, F>
-    where I: Source,
-          I::Item: Sample,
-          F: FnMut(&mut I)
+where
+    I: Source,
+    I::Item: Sample,
+    F: FnMut(&mut I),
 {
     type Item = I::Item;
 
@@ -62,9 +64,10 @@ impl<I, F> Iterator for PeriodicAccess<I, F>
 }
 
 impl<I, F> Source for PeriodicAccess<I, F>
-    where I: Source,
-          I::Item: Sample,
-          F: FnMut(&mut I)
+where
+    I: Source,
+    I::Item: Sample,
+    F: FnMut(&mut I),
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

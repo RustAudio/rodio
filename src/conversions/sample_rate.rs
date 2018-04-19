@@ -1,4 +1,3 @@
-
 use conversions::Sample;
 use cpal;
 
@@ -7,7 +6,8 @@ use std::mem;
 /// Iterator that converts from a certain sample rate to another.
 #[derive(Clone, Debug)]
 pub struct SampleRateConverter<I>
-    where I: Iterator
+where
+    I: Iterator,
 {
     /// The iterator that gives us samples.
     input: I,
@@ -29,8 +29,9 @@ pub struct SampleRateConverter<I>
 }
 
 impl<I> SampleRateConverter<I>
-    where I: Iterator,
-          I::Item: Sample
+where
+    I: Iterator,
+    I::Item: Sample,
 {
     ///
     ///
@@ -39,9 +40,10 @@ impl<I> SampleRateConverter<I>
     /// Panicks if `from` or `to` are equal to 0.
     ///
     #[inline]
-    pub fn new(mut input: I, from: cpal::SampleRate, to: cpal::SampleRate,
-               num_channels: cpal::ChannelCount)
-               -> SampleRateConverter<I> {
+    pub fn new(
+        mut input: I, from: cpal::SampleRate, to: cpal::SampleRate,
+        num_channels: cpal::ChannelCount,
+    ) -> SampleRateConverter<I> {
         let from = from.0;
         let to = to.0;
 
@@ -52,7 +54,11 @@ impl<I> SampleRateConverter<I>
         let gcd = {
             #[inline]
             fn gcd(a: u32, b: u32) -> u32 {
-                if b == 0 { a } else { gcd(b, a % b) }
+                if b == 0 {
+                    a
+                } else {
+                    gcd(b, a % b)
+                }
             }
 
             gcd(from, to)
@@ -108,8 +114,9 @@ impl<I> SampleRateConverter<I>
 }
 
 impl<I> Iterator for SampleRateConverter<I>
-    where I: Iterator,
-          I::Item: Sample + Clone
+where
+    I: Iterator,
+    I::Item: Sample + Clone,
 {
     type Item = I::Item;
 
@@ -137,11 +144,10 @@ impl<I> Iterator for SampleRateConverter<I>
                 self.next_input_frame();
             }
             self.current_frame_pos_in_chunk = 0;
-
         } else {
             // Finding the position of the first sample of the linear interpolation.
-            let req_left_sample = (self.from * self.next_output_frame_pos_in_chunk / self.to) %
-                self.from;
+            let req_left_sample =
+                (self.from * self.next_output_frame_pos_in_chunk / self.to) % self.from;
 
             // Advancing `self.current_frame`, `self.next_frame` and
             // `self.current_frame_pos_in_chunk` until the latter variable
@@ -157,11 +163,10 @@ impl<I> Iterator for SampleRateConverter<I>
         // `self.next_frame`.
         let mut result = None;
         let numerator = (self.from * self.next_output_frame_pos_in_chunk) % self.to;
-        for (off, (cur, next)) in
-            self.current_frame
-                .iter()
-                .zip(self.next_frame.iter())
-                .enumerate()
+        for (off, (cur, next)) in self.current_frame
+            .iter()
+            .zip(self.next_frame.iter())
+            .enumerate()
         {
             let sample = Sample::lerp(cur.clone(), next.clone(), numerator, self.to);
 
@@ -174,7 +179,6 @@ impl<I> Iterator for SampleRateConverter<I>
 
         // Incrementing the counter for the next iteration.
         self.next_output_frame_pos_in_chunk += 1;
-
 
         if result.is_some() {
             result
@@ -206,19 +210,19 @@ impl<I> Iterator for SampleRateConverter<I>
                 samples_after_chunk
             };
             // removing the samples of the current chunk that have not yet been read
-            let samples_after_chunk = samples_after_chunk
-                .saturating_sub(self.from
-                                    .saturating_sub(self.current_frame_pos_in_chunk + 2) as
-                                    usize *
-                                    self.current_frame.capacity());
+            let samples_after_chunk = samples_after_chunk.saturating_sub(
+                self.from
+                    .saturating_sub(self.current_frame_pos_in_chunk + 2) as usize
+                    * self.current_frame.capacity(),
+            );
             // calculating the number of samples after the transformation
             // TODO: this is wrong here \|/
             let samples_after_chunk = samples_after_chunk * self.to as usize / self.from as usize;
 
             // `samples_current_chunk` will contain the number of samples remaining to be output
             // for the chunk currently being processed
-            let samples_current_chunk = (self.to - self.next_output_frame_pos_in_chunk) as usize *
-                self.current_frame.capacity();
+            let samples_current_chunk = (self.to - self.next_output_frame_pos_in_chunk) as usize
+                * self.current_frame.capacity();
 
             samples_current_chunk + samples_after_chunk + self.output_buffer.len()
         };
@@ -233,8 +237,9 @@ impl<I> Iterator for SampleRateConverter<I>
 }
 
 impl<I> ExactSizeIterator for SampleRateConverter<I>
-    where I: ExactSizeIterator,
-          I::Item: Sample + Clone
+where
+    I: ExactSizeIterator,
+    I::Item: Sample + Clone,
 {
 }
 

@@ -18,14 +18,17 @@ mod wav;
 ///
 /// Supports WAV, Vorbis and Flac.
 #[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
-pub struct Decoder<R>(DecoderImpl<R>) where R: Read + Seek;
+pub struct Decoder<R>(DecoderImpl<R>)
+where
+    R: Read + Seek;
 
 #[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
 pub struct Decoder<R>(::std::marker::PhantomData<R>);
 
 #[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 enum DecoderImpl<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     #[cfg(feature = "wav")]
     Wav(wav::WavDecoder<R>),
@@ -36,7 +39,8 @@ enum DecoderImpl<R>
 }
 
 impl<R> Decoder<R>
-    where R: Read + Seek + Send + 'static
+where
+    R: Read + Seek + Send + 'static,
 {
     /// Builds a new decoder.
     ///
@@ -73,16 +77,20 @@ impl<R> Decoder<R>
 
 #[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
 impl<R> Iterator for Decoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     type Item = i16;
 
-    fn next(&mut self) -> Option<i16> { None }
+    fn next(&mut self) -> Option<i16> {
+        None
+    }
 }
 
 #[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 impl<R> Iterator for Decoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     type Item = i16;
 
@@ -113,17 +121,27 @@ impl<R> Iterator for Decoder<R>
 
 #[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
 impl<R> Source for Decoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
-    fn current_frame_len(&self) -> Option<usize> { Some(0) }
-    fn channels(&self) -> u16 { 0 }
-    fn sample_rate(&self) -> u32 { 1 }
-    fn total_duration(&self) -> Option<Duration> { Some(Duration::default()) }
+    fn current_frame_len(&self) -> Option<usize> {
+        Some(0)
+    }
+    fn channels(&self) -> u16 {
+        0
+    }
+    fn sample_rate(&self) -> u32 {
+        1
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        Some(Duration::default())
+    }
 }
 
 #[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
 impl<R> Source for Decoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

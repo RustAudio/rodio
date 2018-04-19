@@ -5,8 +5,9 @@ use Source;
 
 /// Internal function that builds a `Delay` object.
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     let duration_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
     let samples = duration_ns * input.sample_rate() as u64 * input.channels() as u64 / 1000000000;
@@ -21,8 +22,9 @@ pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
 /// A source that delays the given source by a certain amount.
 #[derive(Clone, Debug)]
 pub struct Delay<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     input: I,
     remaining_samples: usize,
@@ -30,8 +32,9 @@ pub struct Delay<I>
 }
 
 impl<I> Iterator for Delay<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = <I as Iterator>::Item;
 
@@ -40,7 +43,6 @@ impl<I> Iterator for Delay<I>
         if self.remaining_samples >= 1 {
             self.remaining_samples -= 1;
             Some(Sample::zero_value())
-
         } else {
             self.input.next()
         }
@@ -49,13 +51,17 @@ impl<I> Iterator for Delay<I>
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
-        (min + self.remaining_samples, max.map(|v| v + self.remaining_samples))
+        (
+            min + self.remaining_samples,
+            max.map(|v| v + self.remaining_samples),
+        )
     }
 }
 
 impl<I> Source for Delay<I>
-    where I: Iterator + Source,
-          I::Item: Sample
+where
+    I: Iterator + Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

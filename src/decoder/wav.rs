@@ -7,7 +7,8 @@ use hound::WavReader;
 
 /// Decoder for the WAV format.
 pub struct WavDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     reader: SamplesIterator<R>,
     sample_rate: u32,
@@ -15,7 +16,8 @@ pub struct WavDecoder<R>
 }
 
 impl<R> WavDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     /// Attempts to decode the data as WAV.
     pub fn new(mut data: R) -> Result<WavDecoder<R>, R> {
@@ -31,22 +33,24 @@ impl<R> WavDecoder<R>
         };
 
         Ok(WavDecoder {
-               reader: reader,
-               sample_rate: spec.sample_rate,
-               channels: spec.channels,
-           })
+            reader: reader,
+            sample_rate: spec.sample_rate,
+            channels: spec.channels,
+        })
     }
 }
 
 struct SamplesIterator<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     reader: WavReader<R>,
     samples_read: u32,
 }
 
 impl<R> Iterator for SamplesIterator<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     type Item = i16;
 
@@ -68,12 +72,14 @@ impl<R> Iterator for SamplesIterator<R>
 }
 
 impl<R> ExactSizeIterator for SamplesIterator<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
 }
 
 impl<R> Source for WavDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -98,7 +104,8 @@ impl<R> Source for WavDecoder<R>
 }
 
 impl<R> Iterator for WavDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     type Item = i16;
 
@@ -114,13 +121,15 @@ impl<R> Iterator for WavDecoder<R>
 }
 
 impl<R> ExactSizeIterator for WavDecoder<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
 }
 
 /// Returns true if the stream contains WAV data, then resets it to where it was.
 fn is_wave<R>(mut data: R) -> bool
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
 

@@ -26,7 +26,8 @@ pub struct SamplesBuffer<S> {
 }
 
 impl<S> SamplesBuffer<S>
-    where S: Sample
+where
+    S: Sample,
 {
     /// Builds a new `SamplesBuffer`.
     ///
@@ -38,16 +39,19 @@ impl<S> SamplesBuffer<S>
     ///   This is because the calculation of the duration would overflow.
     ///
     pub fn new<D>(channels: u16, sample_rate: u32, data: D) -> SamplesBuffer<S>
-        where D: Into<Vec<S>>
+    where
+        D: Into<Vec<S>>,
     {
         assert!(channels != 0);
         assert!(sample_rate != 0);
 
         let data = data.into();
-        let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap() /
-            sample_rate as u64 / channels as u64;
-        let duration = Duration::new(duration_ns / 1_000_000_000,
-                                     (duration_ns % 1_000_000_000) as u32);
+        let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
+            / sample_rate as u64 / channels as u64;
+        let duration = Duration::new(
+            duration_ns / 1_000_000_000,
+            (duration_ns % 1_000_000_000) as u32,
+        );
 
         SamplesBuffer {
             data: data.into_iter(),
@@ -59,7 +63,8 @@ impl<S> SamplesBuffer<S>
 }
 
 impl<S> Source for SamplesBuffer<S>
-    where S: Sample
+where
+    S: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -83,7 +88,8 @@ impl<S> Source for SamplesBuffer<S>
 }
 
 impl<S> Iterator for SamplesBuffer<S>
-    where S: Sample
+where
+    S: Sample,
 {
     type Item = S;
 

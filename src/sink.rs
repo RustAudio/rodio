@@ -1,17 +1,16 @@
-
+use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicUsize};
-use std::sync::atomic::Ordering;
-use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
+use play_raw;
+use queue;
+use source::Done;
 use Device;
 use Sample;
 use Source;
-use source::Done;
-use play_raw;
-use queue;
 
 /// Handle to an device that outputs sounds.
 ///
@@ -56,9 +55,10 @@ impl Sink {
     /// Appends a sound to the queue of sounds to play.
     #[inline]
     pub fn append<S>(&self, source: S)
-        where S: Source + Send + 'static,
-              S::Item: Sample,
-              S::Item: Send
+    where
+        S: Source + Send + 'static,
+        S::Item: Sample,
+        S::Item: Send,
     {
         let controls = self.controls.clone();
 

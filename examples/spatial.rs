@@ -5,8 +5,8 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let endpoint = rodio::default_endpoint().unwrap();
-    let mut sink = rodio::SpatialSink::new(&endpoint,
+    let device = rodio::default_output_device().unwrap();
+    let mut sink = rodio::SpatialSink::new(&device,
                                            [-10.0, 0.0, 0.0],
                                            [1.0, 0.0, 0.0],
                                            [-1.0, 0.0, 0.0]);

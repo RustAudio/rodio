@@ -1,5 +1,5 @@
 
-use Endpoint;
+use Device;
 use Sample;
 use Sink;
 use Source;
@@ -23,11 +23,11 @@ struct SoundPositions {
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
     #[inline]
-    pub fn new(endpoint: &Endpoint, emitter_position: [f32; 3], left_ear: [f32; 3],
+    pub fn new(device: &Device, emitter_position: [f32; 3], left_ear: [f32; 3],
                right_ear: [f32; 3])
                -> SpatialSink {
         SpatialSink {
-            sink: Sink::new(endpoint),
+            sink: Sink::new(device),
             positions: Arc::new(Mutex::new(SoundPositions {
                                                emitter_position,
                                                left_ear,

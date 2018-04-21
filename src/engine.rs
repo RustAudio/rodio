@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
@@ -8,9 +8,9 @@ use std::thread::Builder;
 use cpal::Device;
 use cpal::EventLoop;
 use cpal::Sample as CpalSample;
-use cpal::UnknownTypeOutputBuffer;
-use cpal::StreamId;
 use cpal::StreamData;
+use cpal::StreamId;
+use cpal::UnknownTypeOutputBuffer;
 use dynamic_mixer;
 use source::Source;
 
@@ -18,7 +18,8 @@ use source::Source;
 ///
 /// The playing uses a background thread.
 pub fn play_raw<S>(device: &Device, source: S)
-    where S: Source<Item = f32> + Send + 'static
+where
+    S: Source<Item = f32> + Send + 'static,
 {
     lazy_static! {
         static ref ENGINE: Arc<Engine> = {
@@ -72,30 +73,34 @@ fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, buffer: StreamData)
     };
 
     match buffer {
-        StreamData::Output { buffer: UnknownTypeOutputBuffer::U16(mut buffer) } => {
-            for d in buffer.iter_mut() {
-                *d = mixer_rx.next().map(|s| s.to_u16()).unwrap_or(u16::max_value() / 2);
-            }
+        StreamData::Output {
+            buffer: UnknownTypeOutputBuffer::U16(mut buffer),
+        } => for d in buffer.iter_mut() {
+            *d = mixer_rx
+                .next()
+                .map(|s| s.to_u16())
+                .unwrap_or(u16::max_value() / 2);
         },
-        StreamData::Output { buffer: UnknownTypeOutputBuffer::I16(mut buffer) } => {
-            for d in buffer.iter_mut() {
-                *d = mixer_rx.next().map(|s| s.to_i16()).unwrap_or(0i16);
-            }
+        StreamData::Output {
+            buffer: UnknownTypeOutputBuffer::I16(mut buffer),
+        } => for d in buffer.iter_mut() {
+            *d = mixer_rx.next().map(|s| s.to_i16()).unwrap_or(0i16);
         },
-        StreamData::Output { buffer: UnknownTypeOutputBuffer::F32(mut buffer) } => {
-            for d in buffer.iter_mut() {
-                *d = mixer_rx.next().unwrap_or(0f32);
-            }
+        StreamData::Output {
+            buffer: UnknownTypeOutputBuffer::F32(mut buffer),
+        } => for d in buffer.iter_mut() {
+            *d = mixer_rx.next().unwrap_or(0f32);
         },
         StreamData::Input { buffer: _ } => {
             panic!("Can't play an input stream!");
-        }
+        },
     };
 }
 
 // Builds a new sink that targets a given device.
 fn start<S>(engine: &Arc<Engine>, device: &Device, source: S)
-    where S: Source<Item = f32> + Send + 'static
+where
+    S: Source<Item = f32> + Send + 'static,
 {
     let mut stream_to_start = None;
 
@@ -131,17 +136,26 @@ fn start<S>(engine: &Arc<Engine>, device: &Device, source: S)
 
 // Adds a new stream to the engine.
 // TODO: handle possible errors here
-fn new_output_stream(engine: &Arc<Engine>, device: &Device) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
+fn new_output_stream(
+    engine: &Arc<Engine>, device: &Device,
+) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
     // Determine the format to use for the new stream.
-    let format = device.default_output_format()
-                       .expect("The device doesn't support any format!?");
+    let format = device
+        .default_output_format()
+        .expect("The device doesn't support any format!?");
 
-    let stream_id = engine.events_loop.build_output_stream(device, &format).unwrap();
-    let (mixer_tx, mixer_rx) = {
-        dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0)
-    };
+    let stream_id = engine
+        .events_loop
+        .build_output_stream(device, &format)
+        .unwrap();
+    let (mixer_tx, mixer_rx) =
+        { dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0) };
 
-    engine.dynamic_mixers.lock().unwrap().insert(stream_id.clone(), mixer_rx);
+    engine
+        .dynamic_mixers
+        .lock()
+        .unwrap()
+        .insert(stream_id.clone(), mixer_rx);
 
     (mixer_tx, stream_id)
 }

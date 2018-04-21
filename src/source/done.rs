@@ -1,14 +1,15 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
 use Sample;
 use Source;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
 
 /// WHen the inner source is empty this decrements an AtomicUsize
 #[derive(Debug, Clone)]
 pub struct Done<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     input: I,
     signal: Arc<AtomicUsize>,
@@ -16,18 +17,24 @@ pub struct Done<I>
 }
 
 impl<I> Done<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     pub fn new(input: I, signal: Arc<AtomicUsize>) -> Done<I> {
-        Done { input, signal, signal_sent: false }
+        Done {
+            input,
+            signal,
+            signal_sent: false,
+        }
     }
 }
 
 impl<I: Source> Iterator for Done<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -43,8 +50,9 @@ impl<I: Source> Iterator for Done<I>
 }
 
 impl<I> Source for Done<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

@@ -8,10 +8,11 @@ use Source;
 
 /// Internal function that builds a `Mix` object.
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
-    where I1: Source,
-          I1::Item: Sample,
-          I2: Source,
-          I2::Item: Sample
+where
+    I1: Source,
+    I1::Item: Sample,
+    I2: Source,
+    I2::Item: Sample,
 {
     let channels = input1.channels();
     let rate = input1.sample_rate();
@@ -25,20 +26,22 @@ pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
 /// Filter that modifies each sample by a given value.
 #[derive(Clone)]
 pub struct Mix<I1, I2>
-    where I1: Source,
-          I1::Item: Sample,
-          I2: Source,
-          I2::Item: Sample
+where
+    I1: Source,
+    I1::Item: Sample,
+    I2: Source,
+    I2::Item: Sample,
 {
     input1: UniformSourceIterator<I1, I1::Item>,
     input2: UniformSourceIterator<I2, I1::Item>,
 }
 
 impl<I1, I2> Iterator for Mix<I1, I2>
-    where I1: Source,
-          I1::Item: Sample,
-          I2: Source,
-          I2::Item: Sample
+where
+    I1: Source,
+    I1::Item: Sample,
+    I2: Source,
+    I2::Item: Sample,
 {
     type Item = I1::Item;
 
@@ -71,18 +74,20 @@ impl<I1, I2> Iterator for Mix<I1, I2>
 }
 
 impl<I1, I2> ExactSizeIterator for Mix<I1, I2>
-    where I1: Source + ExactSizeIterator,
-          I1::Item: Sample,
-          I2: Source + ExactSizeIterator,
-          I2::Item: Sample
+where
+    I1: Source + ExactSizeIterator,
+    I1::Item: Sample,
+    I2: Source + ExactSizeIterator,
+    I2::Item: Sample,
 {
 }
 
 impl<I1, I2> Source for Mix<I1, I2>
-    where I1: Source,
-          I1::Item: Sample,
-          I2: Source,
-          I2::Item: Sample
+where
+    I1: Source,
+    I1::Item: Sample,
+    I2: Source,
+    I2::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

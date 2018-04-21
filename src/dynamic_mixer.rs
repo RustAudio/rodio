@@ -1,9 +1,9 @@
 //! Queue that plays sounds one after the other.
 
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
 use source::Source;
@@ -17,16 +17,18 @@ use Sample;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
-pub fn mixer<S>(channels: u16, sample_rate: u32)
-                -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
-    where S: Sample + Send + 'static
+pub fn mixer<S>(
+    channels: u16, sample_rate: u32,
+) -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
+where
+    S: Sample + Send + 'static,
 {
     let input = Arc::new(DynamicMixerController {
-                             has_pending: AtomicBool::new(false),
-                             pending_sources: Mutex::new(Vec::new()),
-                             channels: channels,
-                             sample_rate: sample_rate,
-                         });
+        has_pending: AtomicBool::new(false),
+        pending_sources: Mutex::new(Vec::new()),
+        channels: channels,
+        sample_rate: sample_rate,
+    });
 
     let output = DynamicMixer {
         current_sources: Vec::with_capacity(16),
@@ -45,12 +47,14 @@ pub struct DynamicMixerController<S> {
 }
 
 impl<S> DynamicMixerController<S>
-    where S: Sample + Send + 'static
+where
+    S: Sample + Send + 'static,
 {
     /// Adds a new source to mix to the existing ones.
     #[inline]
     pub fn add<T>(&self, source: T)
-        where T: Source<Item = S> + Send + 'static
+    where
+        T: Source<Item = S> + Send + 'static,
     {
         let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
         self.pending_sources
@@ -71,7 +75,8 @@ pub struct DynamicMixer<S> {
 }
 
 impl<S> Source for DynamicMixer<S>
-    where S: Sample + Send + 'static
+where
+    S: Sample + Send + 'static,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -95,7 +100,8 @@ impl<S> Source for DynamicMixer<S>
 }
 
 impl<S> Iterator for DynamicMixer<S>
-    where S: Sample + Send + 'static
+where
+    S: Sample + Send + 'static,
 {
     type Item = S;
 

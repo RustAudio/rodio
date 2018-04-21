@@ -1,37 +1,44 @@
-use Sample;
-use Source;
 use cgmath::{InnerSpace, Point3};
 use source::ChannelVolume;
 use std::fmt::Debug;
 use std::time::Duration;
+use Sample;
+use Source;
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
 #[derive(Clone, Debug)]
 pub struct Spatial<I>
-    where I: Source,
-          I::Item: Sample + Debug
+where
+    I: Source,
+    I::Item: Sample + Debug,
 {
     input: ChannelVolume<I>,
 }
 
 impl<I> Spatial<I>
-    where I: Source,
-          I::Item: Sample + Debug
+where
+    I: Source,
+    I::Item: Sample + Debug,
 {
-    pub fn new(input: I, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3])
-               -> Spatial<I>
-        where I: Source,
-              I::Item: Sample
+    pub fn new(
+        input: I, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
+    ) -> Spatial<I>
+    where
+        I: Source,
+        I::Item: Sample,
     {
-        let mut ret = Spatial { input: ChannelVolume::new(input, vec![0.0, 0.0]) };
+        let mut ret = Spatial {
+            input: ChannelVolume::new(input, vec![0.0, 0.0]),
+        };
         ret.set_positions(emitter_position, left_ear, right_ear);
         ret
     }
 
     /// Sets the position of the emitter and ears in the 3D world.
-    pub fn set_positions(&mut self, emitter_pos: [f32; 3], left_ear: [f32; 3],
-                         right_ear: [f32; 3]) {
+    pub fn set_positions(
+        &mut self, emitter_pos: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
+    ) {
         let emitter_position = Point3::from(emitter_pos);
         let left_ear = Point3::from(left_ear);
         let right_ear = Point3::from(right_ear);
@@ -50,8 +57,9 @@ impl<I> Spatial<I>
 }
 
 impl<I> Iterator for Spatial<I>
-    where I: Source,
-          I::Item: Sample + Debug
+where
+    I: Source,
+    I::Item: Sample + Debug,
 {
     type Item = I::Item;
 
@@ -67,14 +75,16 @@ impl<I> Iterator for Spatial<I>
 }
 
 impl<I> ExactSizeIterator for Spatial<I>
-    where I: Source + ExactSizeIterator,
-          I::Item: Sample + Debug
+where
+    I: Source + ExactSizeIterator,
+    I::Item: Sample + Debug,
 {
 }
 
 impl<I> Source for Spatial<I>
-    where I: Source,
-          I::Item: Sample + Debug
+where
+    I: Source,
+    I::Item: Sample + Debug,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

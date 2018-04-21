@@ -44,8 +44,9 @@ impl<I> Stoppable<I> {
 }
 
 impl<I> Iterator for Stoppable<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -65,8 +66,9 @@ impl<I> Iterator for Stoppable<I>
 }
 
 impl<I> Source for Stoppable<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

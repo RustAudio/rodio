@@ -5,8 +5,9 @@ use Source;
 
 /// Internal function that builds a `FadeIn` object.
 pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     let duration = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
 
@@ -20,8 +21,9 @@ pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
 /// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
 pub struct FadeIn<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     input: I,
     remaining_ns: f32,
@@ -29,8 +31,9 @@ pub struct FadeIn<I>
 }
 
 impl<I> Iterator for FadeIn<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -41,8 +44,8 @@ impl<I> Iterator for FadeIn<I>
         }
 
         let factor = 1.0 - self.remaining_ns / self.total_ns;
-        self.remaining_ns -= 1000000000.0 /
-            (self.input.sample_rate() as f32 * self.channels() as f32);
+        self.remaining_ns -=
+            1000000000.0 / (self.input.sample_rate() as f32 * self.channels() as f32);
         self.input.next().map(|value| value.amplify(factor))
     }
 
@@ -53,14 +56,16 @@ impl<I> Iterator for FadeIn<I>
 }
 
 impl<I> ExactSizeIterator for FadeIn<I>
-    where I: Source + ExactSizeIterator,
-          I::Item: Sample
+where
+    I: Source + ExactSizeIterator,
+    I::Item: Sample,
 {
 }
 
 impl<I> Source for FadeIn<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

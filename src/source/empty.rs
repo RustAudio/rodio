@@ -1,8 +1,7 @@
-
-use Sample;
-use Source;
 use std::marker::PhantomData;
 use std::time::Duration;
+use Sample;
+use Source;
 
 /// An empty source.
 #[derive(Debug, Copy, Clone)]
@@ -25,7 +24,8 @@ impl<S> Iterator for Empty<S> {
 }
 
 impl<S> Source for Empty<S>
-    where S: Sample
+where
+    S: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

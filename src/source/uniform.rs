@@ -17,9 +17,10 @@ use Source;
 /// channels and samples rate have been passed to `new`.
 #[derive(Clone)]
 pub struct UniformSourceIterator<I, D>
-    where I: Source,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Source,
+    I::Item: Sample,
+    D: Sample,
 {
     inner: Option<DataConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D>>,
     target_channels: u16,
@@ -28,13 +29,15 @@ pub struct UniformSourceIterator<I, D>
 }
 
 impl<I, D> UniformSourceIterator<I, D>
-    where I: Source,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Source,
+    I::Item: Sample,
+    D: Sample,
 {
     #[inline]
-    pub fn new(input: I, target_channels: u16, target_sample_rate: u32)
-               -> UniformSourceIterator<I, D> {
+    pub fn new(
+        input: I, target_channels: u16, target_sample_rate: u32,
+    ) -> UniformSourceIterator<I, D> {
         let total_duration = input.total_duration();
         let input = UniformSourceIterator::bootstrap(input, target_channels, target_sample_rate);
 
@@ -47,8 +50,9 @@ impl<I, D> UniformSourceIterator<I, D>
     }
 
     #[inline]
-    fn bootstrap(input: I, target_channels: u16, target_sample_rate: u32)
-                 -> DataConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D> {
+    fn bootstrap(
+        input: I, target_channels: u16, target_sample_rate: u32,
+    ) -> DataConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D> {
         let frame_len = input.current_frame_len();
 
         let from_channels = input.channels();
@@ -58,10 +62,12 @@ impl<I, D> UniformSourceIterator<I, D>
             iter: input,
             n: frame_len,
         };
-        let input = SampleRateConverter::new(input,
-                                              cpal::SampleRate(from_sample_rate),
-                                              cpal::SampleRate(target_sample_rate),
-                                              from_channels);
+        let input = SampleRateConverter::new(
+            input,
+            cpal::SampleRate(from_sample_rate),
+            cpal::SampleRate(target_sample_rate),
+            from_channels,
+        );
         let input = ChannelCountConverter::new(input, from_channels, target_channels);
         let input = DataConverter::new(input);
 
@@ -70,9 +76,10 @@ impl<I, D> UniformSourceIterator<I, D>
 }
 
 impl<I, D> Iterator for UniformSourceIterator<I, D>
-    where I: Source,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Source,
+    I::Item: Sample,
+    D: Sample,
 {
     type Item = D;
 
@@ -105,9 +112,10 @@ impl<I, D> Iterator for UniformSourceIterator<I, D>
 }
 
 impl<I, D> Source for UniformSourceIterator<I, D>
-    where I: Iterator + Source,
-          I::Item: Sample,
-          D: Sample
+where
+    I: Iterator + Source,
+    I::Item: Sample,
+    D: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -137,7 +145,8 @@ struct Take<I> {
 }
 
 impl<I> Iterator for Take<I>
-    where I: Iterator
+where
+    I: Iterator,
 {
     type Item = <I as Iterator>::Item;
 
@@ -150,7 +159,6 @@ impl<I> Iterator for Take<I>
             } else {
                 None
             }
-
         } else {
             self.iter.next()
         }
@@ -169,7 +177,6 @@ impl<I> Iterator for Take<I>
             };
 
             (lower, upper)
-
         } else {
             self.iter.size_hint()
         }
@@ -177,6 +184,7 @@ impl<I> Iterator for Take<I>
 }
 
 impl<I> ExactSizeIterator for Take<I>
-    where I: ExactSizeIterator
+where
+    I: ExactSizeIterator,
 {
 }

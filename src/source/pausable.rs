@@ -46,8 +46,9 @@ impl<I> Pausable<I> {
 }
 
 impl<I> Iterator for Pausable<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -67,8 +68,9 @@ impl<I> Iterator for Pausable<I>
 }
 
 impl<I> Source for Pausable<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

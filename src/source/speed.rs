@@ -5,8 +5,9 @@ use Source;
 
 /// Internal function that builds a `Speed` object.
 pub fn speed<I>(input: I, factor: f32) -> Speed<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     Speed {
         input: input,
@@ -17,16 +18,18 @@ pub fn speed<I>(input: I, factor: f32) -> Speed<I>
 /// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
 pub struct Speed<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     input: I,
     factor: f32,
 }
 
 impl<I> Iterator for Speed<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -42,14 +45,16 @@ impl<I> Iterator for Speed<I>
 }
 
 impl<I> ExactSizeIterator for Speed<I>
-    where I: Source + ExactSizeIterator,
-          I::Item: Sample
+where
+    I: Source + ExactSizeIterator,
+    I::Item: Sample,
 {
 }
 
 impl<I> Source for Speed<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -72,8 +77,10 @@ impl<I> Source for Speed<I>
         if let Some(duration) = self.input.total_duration() {
             let as_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
             let new_val = (as_ns as f32 / self.factor) as u64;
-            Some(Duration::new(new_val / 1000000000, (new_val % 1000000000) as u32))
-
+            Some(Duration::new(
+                new_val / 1000000000,
+                (new_val % 1000000000) as u32,
+            ))
         } else {
             None
         }

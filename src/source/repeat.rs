@@ -7,8 +7,9 @@ use Source;
 
 /// Internal function that builds a `Repeat` object.
 pub fn repeat<I>(input: I) -> Repeat<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     let input = input.buffered();
     Repeat {
@@ -20,16 +21,18 @@ pub fn repeat<I>(input: I) -> Repeat<I>
 /// A source that repeats the given source.
 #[derive(Clone)]
 pub struct Repeat<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     inner: Buffered<I>,
     next: Buffered<I>,
 }
 
 impl<I> Iterator for Repeat<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = <I as Iterator>::Item;
 
@@ -51,8 +54,9 @@ impl<I> Iterator for Repeat<I>
 }
 
 impl<I> Source for Repeat<I>
-    where I: Iterator + Source,
-          I::Item: Sample
+where
+    I: Iterator + Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

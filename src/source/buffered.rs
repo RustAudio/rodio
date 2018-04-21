@@ -8,8 +8,9 @@ use Source;
 /// Internal function that builds a `Buffered` object.
 #[inline]
 pub fn buffered<I>(input: I) -> Buffered<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     let total_duration = input.total_duration();
     let first_frame = extract(input);
@@ -23,8 +24,9 @@ pub fn buffered<I>(input: I) -> Buffered<I>
 
 /// Iterator that at the same time extracts data from the iterator and stores it in a buffer.
 pub struct Buffered<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     /// Immutable reference to the next frame of data. Cannot be `Frame::Input`.
     current_frame: Arc<Frame<I>>,
@@ -37,8 +39,9 @@ pub struct Buffered<I>
 }
 
 enum Frame<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     /// Data that has already been extracted from the iterator. Also contains a pointer to the
     /// next frame.
@@ -53,8 +56,9 @@ enum Frame<I>
 }
 
 struct FrameData<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     data: Vec<I::Item>,
     channels: u16,
@@ -64,8 +68,9 @@ struct FrameData<I>
 
 /// Builds a frame from the input iterator.
 fn extract<I>(mut input: I) -> Arc<Frame<I>>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     let frame_len = input.current_frame_len();
 
@@ -75,7 +80,7 @@ fn extract<I>(mut input: I) -> Arc<Frame<I>>
 
     let channels = input.channels();
     let rate = input.sample_rate();
-    let data : Vec<I::Item> = input
+    let data: Vec<I::Item> = input
         .by_ref()
         .take(cmp::min(frame_len.unwrap_or(32768), 32768))
         .collect();
@@ -85,16 +90,17 @@ fn extract<I>(mut input: I) -> Arc<Frame<I>>
     }
 
     Arc::new(Frame::Data(FrameData {
-                             data: data,
-                             channels: channels,
-                             rate: rate,
-                             next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
-                         }))
+        data: data,
+        channels: channels,
+        rate: rate,
+        next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
+    }))
 }
 
 impl<I> Buffered<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     /// Advances to the next frame.
     fn next_frame(&mut self) {
@@ -123,8 +129,9 @@ impl<I> Buffered<I>
 }
 
 impl<I> Iterator for Buffered<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -148,7 +155,6 @@ impl<I> Iterator for Buffered<I>
             &Frame::Input(_) => unreachable!(),
         };
 
-
         if advance_frame {
             self.next_frame();
         }
@@ -168,8 +174,9 @@ impl<I> Iterator for Buffered<I>
 }*/
 
 impl<I> Source for Buffered<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -205,8 +212,9 @@ impl<I> Source for Buffered<I>
 }
 
 impl<I> Clone for Buffered<I>
-    where I: Source,
-          I::Item: Sample
+where
+    I: Source,
+    I::Item: Sample,
 {
     #[inline]
     fn clone(&self) -> Buffered<I> {

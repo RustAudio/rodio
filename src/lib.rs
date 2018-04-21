@@ -83,6 +83,7 @@
 
 #![cfg_attr(test, deny(missing_docs))]
 
+extern crate cgmath;
 #[cfg(feature = "flac")]
 extern crate claxon;
 extern crate cpal;
@@ -92,9 +93,9 @@ extern crate hound;
 extern crate lazy_static;
 #[cfg(feature = "vorbis")]
 extern crate lewton;
-extern crate cgmath;
 
-pub use cpal::{Device, default_output_device, default_input_device, devices, output_devices, input_devices};
+pub use cpal::{default_input_device, default_output_device, devices, input_devices,
+               output_devices, Device};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
@@ -119,7 +120,8 @@ pub mod source;
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]
 pub fn play_once<R>(device: &Device, input: R) -> Result<Sink, decoder::DecoderError>
-    where R: Read + Seek + Send + 'static
+where
+    R: Read + Seek + Send + 'static,
 {
     let input = decoder::Decoder::new(input)?;
     let sink = Sink::new(device);

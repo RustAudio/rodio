@@ -7,7 +7,8 @@ use Source;
 
 /// Internal function that builds a `BltFilter` object.
 pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
-    where I: Source<Item = f32>
+where
+    I: Source<Item = f32>,
 {
     BltFilter {
         input: input,
@@ -58,7 +59,8 @@ impl<I> BltFilter<I> {
 }
 
 impl<I> Iterator for BltFilter<I>
-    where I: Source<Item = f32>
+where
+    I: Source<Item = f32>,
 {
     type Item = f32;
 
@@ -99,12 +101,14 @@ impl<I> Iterator for BltFilter<I>
 }
 
 impl<I> ExactSizeIterator for BltFilter<I>
-    where I: Source<Item = f32> + ExactSizeIterator
+where
+    I: Source<Item = f32> + ExactSizeIterator,
 {
 }
 
 impl<I> Source for BltFilter<I>
-    where I: Source<Item = f32>
+where
+    I: Source<Item = f32>,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

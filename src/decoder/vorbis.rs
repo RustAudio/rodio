@@ -1,4 +1,4 @@
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 use std::vec;
 
@@ -20,11 +20,12 @@ where
     R: Read + Seek,
 {
     /// Attempts to decode the data as ogg/vorbis.
-    pub fn new(data: R) -> Result<VorbisDecoder<R>, ()> {
-        let mut stream_reader = match OggStreamReader::new(data) {
-            Err(_) => return Err(()),
-            Ok(r) => r,
-        };
+    pub fn new(mut data: R) -> Result<VorbisDecoder<R>, R> {
+        if !is_vorbis(data.by_ref()) {
+            return Err(data);
+        }
+
+        let mut stream_reader = OggStreamReader::new(data).unwrap();
 
         let mut data = match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
             Some(d) => d,
@@ -80,7 +81,8 @@ where
     fn next(&mut self) -> Option<i16> {
         if let Some(sample) = self.current_data.next() {
             if self.current_data.len() == 0 {
-                if let Some(data) = self.stream_reader
+                if let Some(data) = self
+                    .stream_reader
                     .read_dec_packet_itl()
                     .ok()
                     .and_then(|v| v)
@@ -90,7 +92,8 @@ where
             }
             return Some(sample);
         } else {
-            if let Some(data) = self.stream_reader
+            if let Some(data) = self
+                .stream_reader
                 .read_dec_packet_itl()
                 .ok()
                 .and_then(|v| v)
@@ -105,4 +108,20 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.current_data.size_hint().0, None)
     }
+}
+
+/// Returns true if the stream contains Vorbis data, then resets it to where it was.
+fn is_vorbis<R>(mut data: R) -> bool
+where
+    R: Read + Seek,
+{
+    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+
+    if OggStreamReader::new(data.by_ref()).is_err() {
+        data.seek(SeekFrom::Start(stream_pos)).unwrap();
+        return false;
+    }
+
+    data.seek(SeekFrom::Start(stream_pos)).unwrap();
+    true
 }

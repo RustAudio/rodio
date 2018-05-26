@@ -93,9 +93,12 @@ extern crate hound;
 extern crate lazy_static;
 #[cfg(feature = "vorbis")]
 extern crate lewton;
+#[cfg(feature = "mp3")]
+extern crate minimp3;
 
-pub use cpal::{default_input_device, default_output_device, devices, input_devices,
-               output_devices, Device};
+pub use cpal::{
+    default_input_device, default_output_device, devices, input_devices, output_devices, Device,
+};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;

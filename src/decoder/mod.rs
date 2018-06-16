@@ -9,6 +9,8 @@ use Source;
 
 #[cfg(feature = "flac")]
 mod flac;
+#[cfg(feature = "mp3")]
+mod mp3;
 #[cfg(feature = "vorbis")]
 mod vorbis;
 #[cfg(feature = "wav")]
@@ -17,15 +19,15 @@ mod wav;
 /// Source of audio samples from decoding a file.
 ///
 /// Supports WAV, Vorbis and Flac.
-#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 pub struct Decoder<R>(DecoderImpl<R>)
 where
     R: Read + Seek;
 
-#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
+#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3")))]
 pub struct Decoder<R>(::std::marker::PhantomData<R>);
 
-#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 enum DecoderImpl<R>
 where
     R: Read + Seek,
@@ -36,6 +38,8 @@ where
     Vorbis(vorbis::VorbisDecoder<R>),
     #[cfg(feature = "flac")]
     Flac(flac::FlacDecoder<R>),
+    #[cfg(feature = "mp3")]
+    Mp3(mp3::Mp3Decoder<R>),
 }
 
 impl<R> Decoder<R>
@@ -71,11 +75,19 @@ where
             },
         };
 
+        #[cfg(feature = "mp3")]
+        let data = match mp3::Mp3Decoder::new(data) {
+            Err(data) => data,
+            Ok(decoder) => {
+                return Ok(Decoder(DecoderImpl::Mp3(decoder)));
+            },
+        };
+
         Err(DecoderError::UnrecognizedFormat)
     }
 }
 
-#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
+#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3")))]
 impl<R> Iterator for Decoder<R>
 where
     R: Read + Seek,
@@ -87,7 +99,7 @@ where
     }
 }
 
-#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 impl<R> Iterator for Decoder<R>
 where
     R: Read + Seek,
@@ -103,6 +115,8 @@ where
             DecoderImpl::Vorbis(ref mut source) => source.next(),
             #[cfg(feature = "flac")]
             DecoderImpl::Flac(ref mut source) => source.next(),
+            #[cfg(feature = "mp3")]
+            DecoderImpl::Mp3(ref mut source) => source.next(),
         }
     }
 
@@ -115,11 +129,13 @@ where
             DecoderImpl::Vorbis(ref source) => source.size_hint(),
             #[cfg(feature = "flac")]
             DecoderImpl::Flac(ref source) => source.size_hint(),
+            #[cfg(feature = "mp3")]
+            DecoderImpl::Mp3(ref source) => source.size_hint(),
         }
     }
 }
 
-#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis")))]
+#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3")))]
 impl<R> Source for Decoder<R>
 where
     R: Read + Seek,
@@ -138,7 +154,7 @@ where
     }
 }
 
-#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis"))]
+#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 impl<R> Source for Decoder<R>
 where
     R: Read + Seek,
@@ -152,6 +168,8 @@ where
             DecoderImpl::Vorbis(ref source) => source.current_frame_len(),
             #[cfg(feature = "flac")]
             DecoderImpl::Flac(ref source) => source.current_frame_len(),
+            #[cfg(feature = "mp3")]
+            DecoderImpl::Mp3(ref source) => source.current_frame_len(),
         }
     }
 
@@ -164,6 +182,8 @@ where
             DecoderImpl::Vorbis(ref source) => source.channels(),
             #[cfg(feature = "flac")]
             DecoderImpl::Flac(ref source) => source.channels(),
+            #[cfg(feature = "mp3")]
+            DecoderImpl::Mp3(ref source) => source.channels(),
         }
     }
 
@@ -176,6 +196,8 @@ where
             DecoderImpl::Vorbis(ref source) => source.sample_rate(),
             #[cfg(feature = "flac")]
             DecoderImpl::Flac(ref source) => source.sample_rate(),
+            #[cfg(feature = "mp3")]
+            DecoderImpl::Mp3(ref source) => source.sample_rate(),
         }
     }
 
@@ -188,6 +210,8 @@ where
             DecoderImpl::Vorbis(ref source) => source.total_duration(),
             #[cfg(feature = "flac")]
             DecoderImpl::Flac(ref source) => source.total_duration(),
+            #[cfg(feature = "mp3")]
+            DecoderImpl::Mp3(ref source) => source.total_duration(),
         }
     }
 }

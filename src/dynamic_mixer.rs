@@ -1,4 +1,4 @@
-//! Queue that plays sounds one after the other.
+//! Mixer that plays multiple sounds at the same time.
 
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;

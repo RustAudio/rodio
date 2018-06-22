@@ -18,7 +18,7 @@ mod wav;
 
 /// Source of audio samples from decoding a file.
 ///
-/// Supports WAV, Vorbis and Flac.
+/// Supports MP3, WAV, Vorbis and Flac.
 #[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 pub struct Decoder<R>(DecoderImpl<R>)
 where

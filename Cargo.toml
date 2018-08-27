@@ -2,7 +2,7 @@
 name = "rodio"
 version = "0.8.0"
 authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
-license = "Apache-2.0"
+license = "MIT/Apache-2.0"
 description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]
 repository = "https://github.com/tomaka/rodio"

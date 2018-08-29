@@ -119,6 +119,7 @@ pub mod decoder;
 pub mod dynamic_mixer;
 pub mod queue;
 pub mod source;
+pub mod static_buffer;
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]

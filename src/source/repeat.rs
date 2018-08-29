@@ -19,7 +19,6 @@ where
 }
 
 /// A source that repeats the given source.
-#[derive(Clone)]
 pub struct Repeat<I>
 where
     I: Source,
@@ -85,5 +84,19 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+}
+
+impl<I> Clone for Repeat<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    #[inline]
+    fn clone(&self) -> Repeat<I> {
+        Repeat {
+            inner: self.inner.clone(),
+            next: self.next.clone(),
+        }
     }
 }

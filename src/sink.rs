@@ -93,7 +93,7 @@ impl Sink {
 
     /// Changes the volume of the sound.
     ///
-    /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
+    /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than `1.0` will
     /// multiply each sample by this value.
     #[inline]
     pub fn set_volume(&mut self, value: f32) {
@@ -119,7 +119,7 @@ impl Sink {
 
     /// Gets if a sound is paused
     ///
-    /// Sounds can be paused and resumed using pause() and play(). This gets if a sound is paused.
+    /// Sounds can be paused and resumed using `pause()` and `play()`. This gets if a sound is paused.
     pub fn is_paused(&self) -> bool {
         self.controls.pause.load(Ordering::SeqCst)
     }

@@ -95,9 +95,9 @@ mod zero;
 ///
 /// The three characteristics that describe a sound are provided through this trait:
 ///
-/// - The number of channels can be retreived with `channels`.
-/// - The frequency can be retreived with `sample_rate`.
-/// - The list of values can be retreived by iterating on the source. The `Source` trait requires
+/// - The number of channels can be retrieved with `channels`.
+/// - The frequency can be retrieved with `sample_rate`.
+/// - The list of values can be retrieved by iterating on the source. The `Source` trait requires
 ///   that the `Iterator` trait be implemented as well.
 ///
 /// # Frames

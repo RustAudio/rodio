@@ -1,3 +1,12 @@
+# Version 0.8.1 (2018-09-18)
+
+- Update `lewton` dependency to 0.9
+- Change license from `Apache-2.0` only to `Apache-2.0 OR MIT`
+
+# Version 0.8.0 (2018-06-22)
+
+- Add mp3 decoding capabilities via `minimp3`
+
 # Version 0.7.0 (2018-04-19)
 
 - Update `cpal` dependency to 0.8, and adopt the new naming convention

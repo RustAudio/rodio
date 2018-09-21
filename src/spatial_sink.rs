@@ -113,6 +113,12 @@ impl SpatialSink {
         self.sink.is_paused()
     }
 
+    /// Stops the sink by emptying the queue.
+    #[inline]
+    pub fn stop(&self) {
+        self.sink.stop()
+    }
+
     /// Destroys the sink without stopping the sounds that are still playing.
     #[inline]
     pub fn detach(self) {

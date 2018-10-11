@@ -15,7 +15,7 @@ where
     channel_volumes: Vec<f32>,
     // Current listener being processed.
     current_channel: usize,
-    current_sample: I::Item,
+    current_sample: Option<I::Item>,
 }
 
 impl<I> ChannelVolume<I>
@@ -28,10 +28,12 @@ where
         I: Source,
         I::Item: Sample,
     {
-        let mut sample = I::Item::zero_value();
+        let mut sample = None;
         for _ in 0 .. input.channels() {
             if let Some(s) = input.next() {
-                sample = sample.saturating_add(s);
+                sample
+                    .get_or_insert_with(|| I::Item::zero_value())
+                    .saturating_add(s);
             }
         }
         ChannelVolume {
@@ -60,21 +62,20 @@ where
     fn next(&mut self) -> Option<I::Item> {
         // return value
         let ret = self.current_sample
-            .amplify(self.channel_volumes[self.current_channel]);
+            .map(|sample| sample.amplify(self.channel_volumes[self.current_channel]));
         self.current_channel += 1;
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
-            let mut sample = I::Item::zero_value();
+            self.current_sample = None;
             for _ in 0 .. self.input.channels() {
                 if let Some(s) = self.input.next() {
-                    sample = sample.saturating_add(s);
-                } else {
-                    return None;
+                    self.current_sample
+                        .get_or_insert_with(|| I::Item::zero_value())
+                        .saturating_add(s);
                 }
             }
-            self.current_sample = sample;
         }
-        return Some(ret);
+        return ret;
     }
 
     #[inline]

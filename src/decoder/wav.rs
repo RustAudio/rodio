@@ -27,7 +27,6 @@ where
 
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
-        println!("{:?}", spec);
         let reader = SamplesIterator {
             reader: reader,
             samples_read: 0,
@@ -59,25 +58,22 @@ where
     fn next(&mut self) -> Option<i16> {
         let spec = self.reader.spec();
         match (spec.sample_format, spec.bits_per_sample) {
-            (SampleFormat::Float, 32) => if let Some(value) = self.reader.samples::<f32>().next() {
+            (SampleFormat::Float, 32) => self.reader.samples().next().map(|value| {
                 self.samples_read += 1;
-                Some(f32_to_i16(value.unwrap_or(0.0)))
-            } else {
-                None
-            },
-            (SampleFormat::Int, 16) => if let Some(value) = self.reader.samples().next() {
+                f32_to_i16(value.unwrap_or(0.0))
+            }),
+            (SampleFormat::Int, 16) => self.reader.samples().next().map(|value| {
                 self.samples_read += 1;
-                Some(value.unwrap_or(0))
-            } else {
-                None
-            },
-            (SampleFormat::Int, 24) => if let Some(value) = self.reader.samples::<i32>().next() {
+                value.unwrap_or(0)
+            }),
+            (SampleFormat::Int, 24) => self.reader.samples().next().map(|value| {
                 self.samples_read += 1;
-                Some(i24_to_i16(value.unwrap_or(0)))
-            } else {
-                None
-            },
-            _ => unreachable!("Impossible wav spec"),
+                i24_to_i16(value.unwrap_or(0))
+            }),
+            (sample_format, bits_per_sample) => panic!(
+                "Unimplemented wav spec: {:?}, {}",
+                sample_format, bits_per_sample
+            ),
         }
     }
 

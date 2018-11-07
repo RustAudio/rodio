@@ -1,13 +1,15 @@
 use std::time::Duration;
 use Source;
 
+const PI_2: f32 = std::f32::consts::PI * 2.0f32;
+
 /// An infinite source that produces a sine.
 ///
 /// Always has a rate of 48kHz and one channel.
 #[derive(Clone, Debug)]
 pub struct SineWave {
     freq: f32,
-    num_sample: usize,
+    cur_val: f32,
 }
 
 impl SineWave {
@@ -16,7 +18,7 @@ impl SineWave {
     pub fn new(freq: u32) -> SineWave {
         SineWave {
             freq: freq as f32,
-            num_sample: 0,
+            cur_val: 0.0,
         }
     }
 }
@@ -26,10 +28,11 @@ impl Iterator for SineWave {
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        self.num_sample = self.num_sample.wrapping_add(1);
-
-        let value = 2.0 * 3.14159265 * self.freq * self.num_sample as f32 / 48000.0;
-        Some(value.sin())
+        self.cur_val += PI_2 * self.freq / 48000.0;
+        if self.cur_val > PI_2  {
+            self.cur_val -= PI_2;
+        }
+        Some(self.cur_val.sin())
     }
 }
 

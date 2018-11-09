@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use Source;
 
-use hound::WavReader;
+use hound::{SampleFormat, WavReader};
 
 /// Decoder for the WAV format.
 pub struct WavDecoder<R>
@@ -56,11 +56,24 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<i16> {
-        if let Some(value) = self.reader.samples().next() {
-            self.samples_read += 1;
-            Some(value.unwrap_or(0))
-        } else {
-            None
+        let spec = self.reader.spec();
+        match (spec.sample_format, spec.bits_per_sample) {
+            (SampleFormat::Float, 32) => self.reader.samples().next().map(|value| {
+                self.samples_read += 1;
+                f32_to_i16(value.unwrap_or(0.0))
+            }),
+            (SampleFormat::Int, 16) => self.reader.samples().next().map(|value| {
+                self.samples_read += 1;
+                value.unwrap_or(0)
+            }),
+            (SampleFormat::Int, 24) => self.reader.samples().next().map(|value| {
+                self.samples_read += 1;
+                i24_to_i16(value.unwrap_or(0))
+            }),
+            (sample_format, bits_per_sample) => panic!(
+                "Unimplemented wav spec: {:?}, {}",
+                sample_format, bits_per_sample
+            ),
         }
     }
 
@@ -140,4 +153,21 @@ where
 
     data.seek(SeekFrom::Start(stream_pos)).unwrap();
     true
+}
+
+/// Returns a 32 bit WAV float as an i16. WAV floats are typically in the range of
+/// [-1.0, 1.0] while i16s are in the range [-32768, 32767]. Note that this
+/// function definitely causes precision loss but hopefully this isn't too
+/// audiable when actually playing?
+fn f32_to_i16(f: f32) -> i16 {
+    // prefer to clip the input rather than be excessively loud.
+    (f.max(-1.0).min(1.0) * i16::max_value() as f32) as i16
+}
+
+/// Returns a 24 bit WAV int as an i16. Note that this is a 24 bit integer, not a
+/// 32 bit one. 24 bit ints are in the range [−8,388,608, 8,388,607] while i16s 
+/// are in the range [-32768, 32767]. Note that this function definitely causes
+/// precision loss but hopefully this isn't too audiable when actually playing?
+fn i24_to_i16(i: i32) -> i16 {
+    (i >> 8) as i16
 }

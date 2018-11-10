@@ -31,9 +31,9 @@ where
         let mut sample = None;
         for _ in 0 .. input.channels() {
             if let Some(s) = input.next() {
-                sample
+                sample = Some(sample
                     .get_or_insert_with(|| I::Item::zero_value())
-                    .saturating_add(s);
+                    .saturating_add(s));
             }
         }
         ChannelVolume {
@@ -69,9 +69,9 @@ where
             self.current_sample = None;
             for _ in 0 .. self.input.channels() {
                 if let Some(s) = self.input.next() {
-                    self.current_sample
+                    self.current_sample = Some(self.current_sample
                         .get_or_insert_with(|| I::Item::zero_value())
-                        .saturating_add(s);
+                        .saturating_add(s));
                 }
             }
         }

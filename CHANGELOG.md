@@ -1,3 +1,6 @@
+# Unreleased
+- Remove exclusive `&mut` borrow requirements in `Sink` & `SpatialSink` setters.
+
 # Version 0.8.1 (2018-09-18)
 
 - Update `lewton` dependency to 0.9

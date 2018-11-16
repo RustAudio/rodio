@@ -6,7 +6,7 @@ use std::time::Duration;
 
 fn main() {
     let device = rodio::default_output_device().unwrap();
-    let mut sink = rodio::SpatialSink::new(
+    let sink = rodio::SpatialSink::new(
         &device,
         [-10.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],

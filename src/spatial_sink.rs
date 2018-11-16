@@ -36,17 +36,17 @@ impl SpatialSink {
     }
 
     /// Sets the position of the sound emitter in 3 dimensional space.
-    pub fn set_emitter_position(&mut self, pos: [f32; 3]) {
+    pub fn set_emitter_position(&self, pos: [f32; 3]) {
         self.positions.lock().unwrap().emitter_position = pos;
     }
 
     /// Sets the position of the left ear in 3 dimensional space.
-    pub fn set_left_ear_position(&mut self, pos: [f32; 3]) {
+    pub fn set_left_ear_position(&self, pos: [f32; 3]) {
         self.positions.lock().unwrap().left_ear = pos;
     }
 
     /// Sets the position of the right ear in 3 dimensional space.
-    pub fn set_right_ear_position(&mut self, pos: [f32; 3]) {
+    pub fn set_right_ear_position(&self, pos: [f32; 3]) {
         self.positions.lock().unwrap().right_ear = pos;
     }
 
@@ -85,7 +85,7 @@ impl SpatialSink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
     /// multiply each sample by this value.
     #[inline]
-    pub fn set_volume(&mut self, value: f32) {
+    pub fn set_volume(&self, value: f32) {
         self.sink.set_volume(value);
     }
 

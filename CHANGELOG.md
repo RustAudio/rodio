@@ -1,5 +1,7 @@
 # Unreleased
-- Remove exclusive `&mut` borrow requirements in `Sink` & `SpatialSink` setters.
+- Remove exclusive `&mut` borrow requirements in `Sink` & `SpatialSink` setters
+- Update `claxon` dependency to 0.4
+- Update `cgmath` to 0.16
 
 # Version 0.8.1 (2018-09-18)
 

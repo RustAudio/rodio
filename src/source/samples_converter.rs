@@ -11,22 +11,12 @@ use Source;
 /// It implements `Source` as well, but all the data is guaranteed to be in a single frame whose
 /// channels and samples rate have been passed to `new`.
 #[derive(Clone)]
-pub struct SamplesConverter<I, D>
-where
-    I: Source,
-    I::Item: Sample,
-    D: Sample,
-{
+pub struct SamplesConverter<I, D> {
     inner: I,
     dest: PhantomData<D>,
 }
 
-impl<I, D> SamplesConverter<I, D>
-where
-    I: Source,
-    I::Item: Sample,
-    D: Sample,
-{
+impl<I, D> SamplesConverter<I, D> {
     #[inline]
     pub fn new(input: I) -> SamplesConverter<I, D> {
         SamplesConverter {

@@ -6,21 +6,13 @@ use Source;
 
 /// When the inner source is empty this decrements an `AtomicUsize`.
 #[derive(Debug, Clone)]
-pub struct Done<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
+pub struct Done<I> {
     input: I,
     signal: Arc<AtomicUsize>,
     signal_sent: bool,
 }
 
-impl<I> Done<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
+impl<I> Done<I> {
     #[inline]
     pub fn new(input: I, signal: Arc<AtomicUsize>) -> Done<I> {
         Done {

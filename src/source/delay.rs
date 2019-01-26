@@ -21,11 +21,7 @@ where
 
 /// A source that delays the given source by a certain amount.
 #[derive(Clone, Debug)]
-pub struct Delay<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
+pub struct Delay<I> {
     input: I,
     remaining_samples: usize,
     requested_duration: Duration,

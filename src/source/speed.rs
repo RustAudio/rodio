@@ -4,11 +4,7 @@ use Sample;
 use Source;
 
 /// Internal function that builds a `Speed` object.
-pub fn speed<I>(input: I, factor: f32) -> Speed<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
+pub fn speed<I>(input: I, factor: f32) -> Speed<I> {
     Speed {
         input: input,
         factor: factor,
@@ -17,11 +13,7 @@ where
 
 /// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
-pub struct Speed<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
+pub struct Speed<I> {
     input: I,
     factor: f32,
 }

@@ -3,7 +3,7 @@ use std::time::Duration;
 use Sample;
 use Source;
 
-/// Internal function that builds a `Repeat` object.
+/// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
 where
     I: Source,

@@ -18,7 +18,7 @@ where
     }
 }
 
-/// Filter that modifies each sample by a given value.
+/// Filter that modifies raises the volume from silence over a time period.
 #[derive(Clone, Debug)]
 pub struct FadeIn<I>
 where

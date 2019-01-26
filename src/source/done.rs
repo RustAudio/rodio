@@ -4,7 +4,7 @@ use std::time::Duration;
 use Sample;
 use Source;
 
-/// When the inner source is empty this decrements an AtomicUsize
+/// When the inner source is empty this decrements an `AtomicUsize`.
 #[derive(Debug, Clone)]
 pub struct Done<I>
 where

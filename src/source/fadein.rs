@@ -18,13 +18,9 @@ where
     }
 }
 
-/// Filter that modifies each sample by a given value.
+/// Filter that modifies raises the volume from silence over a time period.
 #[derive(Clone, Debug)]
-pub struct FadeIn<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
+pub struct FadeIn<I> {
     input: I,
     remaining_ns: f32,
     total_ns: f32,

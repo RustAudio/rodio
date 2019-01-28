@@ -3,12 +3,8 @@ use std::time::Duration;
 use Sample;
 use Source;
 
-/// Internal function that builds a `Repeat` object.
-pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
+/// Internal function that builds a `TakeDuration` object.
+pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I> {
     TakeDuration {
         input: input,
         remaining_duration: duration,
@@ -18,11 +14,7 @@ where
 
 /// A source that repeats the given source.
 #[derive(Clone, Debug)]
-pub struct TakeDuration<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
+pub struct TakeDuration<I> {
     input: I,
     remaining_duration: Duration,
     requested_duration: Duration,

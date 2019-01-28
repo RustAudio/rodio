@@ -82,7 +82,7 @@ impl Sink {
         *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
     }
 
-    // Gets the volume of the sound.
+    /// Gets the volume of the sound.
     ///
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
     /// multiply each sample by this value.

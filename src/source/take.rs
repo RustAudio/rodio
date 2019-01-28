@@ -40,6 +40,24 @@ where
         // \|/ the maximum value of `ns` is one billion, so this can't fail
         Duration::new(0, ns as u32)
     }
+
+    /// Returns a reference to the inner source.
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Returns a mutable reference to the inner source.
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
+
+    /// Returns the inner source.
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
+    }
 }
 
 impl<I> Iterator for TakeDuration<I>

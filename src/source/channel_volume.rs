@@ -49,6 +49,24 @@ where
     pub fn set_volume(&mut self, channel: usize, volume: f32) {
         self.channel_volumes[channel] = volume;
     }
+
+    /// Returns a reference to the inner source.
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Returns a mutable reference to the inner source.
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
+
+    /// Returns the inner source.
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
+    }
 }
 
 impl<I> Iterator for ChannelVolume<I>

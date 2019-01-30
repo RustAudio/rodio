@@ -1,6 +1,7 @@
 //! Sources of sound and various filters.
 
 use std::time::Duration;
+use std::sync::{Arc, Mutex};
 
 use Sample;
 
@@ -12,6 +13,7 @@ pub use self::delay::Delay;
 pub use self::done::Done;
 pub use self::empty::Empty;
 pub use self::fadein::FadeIn;
+pub use self::elapsed::Elapsed;
 pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
 pub use self::mix::Mix;
@@ -35,6 +37,7 @@ mod delay;
 mod done;
 mod empty;
 mod fadein;
+mod elapsed;
 mod from_factory;
 mod from_iter;
 mod mix;
@@ -209,6 +212,26 @@ where
         Self: Sized,
     {
         fadein::fadein(self, duration)
+    }
+
+    /// Updates the supplied `Duration` with the total elapsed time for the source
+    ///
+    /// This is handy when you need to precisely time stuff to a music track for instance.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use std::time::Duration;
+    ///
+    /// let duration = Arc::new(Mutex::new(Duration::from_secs(0)));
+    /// let source = source.buffered().elapsed(Arc::clone(&duration));
+    /// ```
+    #[inline]
+    fn elapsed(self, duration: Arc<Mutex<Duration>>) -> Elapsed<Self>
+    where
+        Self: Sized,
+    {
+        elapsed::elapsed(self, duration)
     }
 
     /// Calls the `access` closure on `Self` every time `period` elapsed.

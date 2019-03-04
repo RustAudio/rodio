@@ -148,7 +148,13 @@ impl Sink {
     /// Returns true if this sink has no more sounds to play.
     #[inline]
     pub fn empty(&self) -> bool {
-        self.sound_count.load(Ordering::Relaxed) == 0
+        self.len() == 0
+    }
+
+    /// Returns the number of sounds currently in the queue.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.sound_count.load(Ordering::Relaxed)
     }
 }
 

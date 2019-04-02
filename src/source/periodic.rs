@@ -18,7 +18,8 @@ where
     PeriodicAccess {
         input: source,
         modifier: modifier,
-        update_frequency: update_frequency,
+        // Can overflow when subtracting if this is 0
+        update_frequency: if update_frequency == 0 { 1 } else { update_frequency },
         samples_until_update: 1,
     }
 }
@@ -144,6 +145,16 @@ mod tests {
         assert_eq!(source.next(), Some(-10)); assert_eq!(*cnt.borrow(), 2);
         assert_eq!(source.next(), Some(20));  assert_eq!(*cnt.borrow(), 3);
         assert_eq!(source.next(), Some(-20)); assert_eq!(*cnt.borrow(), 3);
+    }
+
+    #[test]
+    fn fast_access_overflow() {
+        // 1hz is lower than 0.5 samples per 5ms
+        let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
+        let mut source = inner.periodic_access(Duration::from_millis(5), |_src| {});
+
+        source.next();
+        source.next(); // Would overflow here.
     }
 }
 

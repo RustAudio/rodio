@@ -12,13 +12,15 @@ where
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong
     let update_ms = period.as_secs() as u32 * 1_000 + period.subsec_nanos() / 1_000_000;
-    let update_frequency = (update_ms * source.sample_rate()) / 1000;
+    let sample_rate = source.sample_rate() * source.channels() as u32;
+    let update_frequency = (update_ms * sample_rate) / 1000;
 
     PeriodicAccess {
         input: source,
         modifier: modifier,
-        update_frequency: update_frequency,
-        samples_until_update: update_frequency,
+        // Can overflow when subtracting if this is 0
+        update_frequency: if update_frequency == 0 { 1 } else { update_frequency },
+        samples_until_update: 1,
     }
 }
 
@@ -115,3 +117,44 @@ where
         self.input.total_duration()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use buffer::SamplesBuffer;
+    use std::time::Duration;
+    use source::Source;
+    use std::cell::RefCell;
+
+    #[test]
+    fn stereo_access() {
+        // Stereo, 1Hz audio buffer
+        let inner = SamplesBuffer::new(2, 1, vec![10i16, -10, 10, -10, 20, -20]);
+
+        let cnt = RefCell::new(0);
+
+        let mut source = inner.periodic_access(Duration::from_millis(1000), |_src| {
+            *cnt.borrow_mut() += 1;
+        });
+
+        assert_eq!(*cnt.borrow(), 0);
+        // Always called on first access!
+        assert_eq!(source.next(), Some(10));  assert_eq!(*cnt.borrow(), 1);
+        // Called every 1 second afterwards
+        assert_eq!(source.next(), Some(-10)); assert_eq!(*cnt.borrow(), 1);
+        assert_eq!(source.next(), Some(10));  assert_eq!(*cnt.borrow(), 2);
+        assert_eq!(source.next(), Some(-10)); assert_eq!(*cnt.borrow(), 2);
+        assert_eq!(source.next(), Some(20));  assert_eq!(*cnt.borrow(), 3);
+        assert_eq!(source.next(), Some(-20)); assert_eq!(*cnt.borrow(), 3);
+    }
+
+    #[test]
+    fn fast_access_overflow() {
+        // 1hz is lower than 0.5 samples per 5ms
+        let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
+        let mut source = inner.periodic_access(Duration::from_millis(5), |_src| {});
+
+        source.next();
+        source.next(); // Would overflow here.
+    }
+}
+

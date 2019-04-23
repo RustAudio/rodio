@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Point3};
+use nalgebra::Point3;
 use source::ChannelVolume;
 use std::fmt::Debug;
 use std::time::Duration;

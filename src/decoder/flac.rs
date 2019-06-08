@@ -18,6 +18,7 @@ where
     bits_per_sample: u32,
     sample_rate: u32,
     channels: u16,
+    samples: Option<u64>,
 }
 
 impl<R> FlacDecoder<R>
@@ -43,6 +44,7 @@ where
             bits_per_sample: spec.bits_per_sample,
             sample_rate: spec.sample_rate,
             channels: spec.channels as u16,
+            samples: spec.samples,
         })
     }
 }
@@ -68,7 +70,9 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        None
+        // `samples` in FLAC means "inter-channel samples" aka frames
+        // so we do not divide by `self.channels` here.
+        self.samples.map(|s| Duration::from_micros(s * 1_000_000 / self.sample_rate as u64))
     }
 }
 

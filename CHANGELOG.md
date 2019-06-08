@@ -1,5 +1,7 @@
 # Unreleased
 
+# Version 0.9.0 (2019-06-08)
+
 - Remove exclusive `&mut` borrow requirements in `Sink` & `SpatialSink` setters.
 - Use `nalgebra` instead of `cgmath` for `Spatial` source.
 

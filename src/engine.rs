@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use std::sync::Weak;
 use std::thread::Builder;
 
+use cpal::traits::{DeviceTrait, EventLoopTrait, HostTrait};
 use cpal::Device;
 use cpal::EventLoop;
 use cpal::Sample as CpalSample;
@@ -24,7 +25,7 @@ where
     lazy_static! {
         static ref ENGINE: Arc<Engine> = {
             let engine = Arc::new(Engine {
-                events_loop: EventLoop::new(),
+                events_loop: cpal::default_host().event_loop(),
                 dynamic_mixers: Mutex::new(HashMap::with_capacity(1)),
                 end_points: Mutex::new(HashMap::with_capacity(1)),
             });
@@ -37,7 +38,9 @@ where
                     let engine = engine.clone();
                     move || {
                         engine.events_loop.run(|stream_id, buffer| {
-                            audio_callback(&engine, stream_id, buffer);
+                            if let Ok(buf) = buffer {
+                                audio_callback(&engine, stream_id, buf);
+                            }
                         })
                     }
                 })
@@ -91,7 +94,7 @@ fn audio_callback(engine: &Arc<Engine>, stream_id: StreamId, buffer: StreamData)
         } => for d in buffer.iter_mut() {
             *d = mixer_rx.next().unwrap_or(0f32);
         },
-        StreamData::Input { buffer: _ } => {
+        StreamData::Input { .. } => {
             panic!("Can't play an input stream!");
         },
     };
@@ -107,7 +110,7 @@ where
     let mixer = {
         let mut end_points = engine.end_points.lock().unwrap();
 
-        match end_points.entry(device.name()) {
+        match end_points.entry(device.name().expect("No device name")) {
             Entry::Vacant(e) => {
                 let (mixer, stream) = new_output_stream(engine, device);
                 e.insert(Arc::downgrade(&mixer));
@@ -128,7 +131,7 @@ where
     };
 
     if let Some(stream) = stream_to_start {
-        engine.events_loop.play_stream(stream);
+        engine.events_loop.play_stream(stream).expect("play_stream failed");
     }
 
     mixer.add(source);

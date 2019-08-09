@@ -88,7 +88,6 @@ extern crate claxon;
 extern crate cpal;
 #[cfg(feature = "wav")]
 extern crate hound;
-extern crate nalgebra;
 #[macro_use]
 extern crate lazy_static;
 #[cfg(feature = "vorbis")]

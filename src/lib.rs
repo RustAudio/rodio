@@ -96,9 +96,7 @@ extern crate lewton;
 #[cfg(feature = "mp3")]
 extern crate minimp3;
 
-pub use cpal::{
-    default_input_device, default_output_device, devices, input_devices, output_devices, Device,
-};
+pub use cpal::{traits::DeviceTrait, Device, Devices, DevicesError, InputDevices};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
@@ -107,6 +105,7 @@ pub use sink::Sink;
 pub use source::Source;
 pub use spatial_sink::SpatialSink;
 
+use cpal::traits::HostTrait;
 use std::io::{Read, Seek};
 
 mod conversions;
@@ -131,4 +130,46 @@ where
     let sink = Sink::new(device);
     sink.append(input);
     Ok(sink)
+}
+
+/// The default input audio device on the system.
+///
+/// Returns `None` if no input device is available.
+#[inline]
+pub fn default_input_device() -> Option<Device> {
+    cpal::default_host().default_input_device()
+}
+
+/// The default output audio device on the system.
+///
+/// Returns `None` if no output device is available.
+#[inline]
+pub fn default_output_device() -> Option<Device> {
+    cpal::default_host().default_output_device()
+}
+
+/// An iterator yielding all `Device`s currently available to the host on the system.
+///
+/// Can be empty if the system does not support audio in general.
+#[inline]
+pub fn devices() -> Result<Devices, DevicesError> {
+    cpal::default_host().devices()
+}
+
+/// An iterator yielding all `Device`s currently available to the system that support one or more
+/// input stream formats.
+///
+/// Can be empty if the system does not support audio input.
+#[inline]
+pub fn input_devices() -> Result<InputDevices<Devices>, DevicesError> {
+    cpal::default_host().input_devices()
+}
+
+/// An iterator yielding all `Device`s currently available to the system that support one or more
+/// output stream formats.
+///
+/// Can be empty if the system does not support audio output.
+#[inline]
+pub fn output_devices() -> Result<InputDevices<Devices>, DevicesError> {
+    cpal::default_host().output_devices()
 }

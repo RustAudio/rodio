@@ -15,11 +15,10 @@ where
     input: ChannelVolume<I>,
 }
 
-fn dist(a: [f32; 3], b: [f32; 3]) -> f32 {
+fn dist_sq(a: [f32; 3], b: [f32; 3]) -> f32 {
     a.iter().zip(b.iter())
         .map(|(a, b)| (a - b) * (a - b))
         .sum::<f32>()
-        .sqrt()
 }
 
 impl<I> Spatial<I>
@@ -45,13 +44,15 @@ where
     pub fn set_positions(
         &mut self, emitter_pos: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
     ) {
-        let left_distance = dist(left_ear, emitter_pos);
-        let right_distance = dist(right_ear, emitter_pos);
-        let max_diff = dist(left_ear, right_ear);
-        let left_diff_modifier = ((left_distance - right_distance) / max_diff + 1.0) / 4.0 + 0.5;
-        let right_diff_modifier = ((right_distance - left_distance) / max_diff + 1.0) / 4.0 + 0.5;
-        let left_dist_modifier = (1.0 / left_distance.powi(2)).min(1.0);
-        let right_dist_modifier = (1.0 / right_distance.powi(2)).min(1.0);
+        let left_dist_sq = dist_sq(left_ear, emitter_pos);
+        let right_dist_sq = dist_sq(right_ear, emitter_pos);
+        let max_diff = dist_sq(left_ear, right_ear).sqrt();
+        let left_dist = left_dist_sq.sqrt();
+        let right_dist = right_dist_sq.sqrt();
+        let left_diff_modifier = ((left_dist - right_dist) / max_diff + 1.0) / 4.0 + 0.5;
+        let right_diff_modifier = ((right_dist - left_dist) / max_diff + 1.0) / 4.0 + 0.5;
+        let left_dist_modifier = (1.0 / left_dist_sq).min(1.0);
+        let right_dist_modifier = (1.0 / right_dist_sq).min(1.0);
         self.input
             .set_volume(0, left_diff_modifier * left_dist_modifier);
         self.input

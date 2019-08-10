@@ -41,7 +41,7 @@ where
 /// The input of the mixer.
 pub struct DynamicMixerController<S> {
     has_pending: AtomicBool,
-    pending_sources: Mutex<Vec<Box<Source<Item = S> + Send>>>,
+    pending_sources: Mutex<Vec<Box<dyn Source<Item = S> + Send>>>,
     channels: u16,
     sample_rate: u32,
 }
@@ -68,7 +68,7 @@ where
 /// The output of the mixer. Implements `Source`.
 pub struct DynamicMixer<S> {
     // The current iterator that produces samples.
-    current_sources: Vec<Box<Source<Item = S> + Send>>,
+    current_sources: Vec<Box<dyn Source<Item = S> + Send>>,
 
     // The pending sounds.
     input: Arc<DynamicMixerController<S>>,

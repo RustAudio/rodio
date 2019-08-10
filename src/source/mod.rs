@@ -302,7 +302,7 @@ where
     }
 }
 
-impl<S> Source for Box<Source<Item = S>>
+impl<S> Source for Box<dyn Source<Item = S>>
 where
     S: Sample,
 {
@@ -327,7 +327,7 @@ where
     }
 }
 
-impl<S> Source for Box<Source<Item = S> + Send>
+impl<S> Source for Box<dyn Source<Item = S> + Send>
 where
     S: Sample,
 {
@@ -352,7 +352,7 @@ where
     }
 }
 
-impl<S> Source for Box<Source<Item = S> + Send + Sync>
+impl<S> Source for Box<dyn Source<Item = S> + Send + Sync>
 where
     S: Sample,
 {

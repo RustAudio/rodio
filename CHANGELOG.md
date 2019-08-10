@@ -1,4 +1,6 @@
 # Unreleased
+- Attempt all supported output formats if the default format fails in `Sink::new`.
+- Breaking: Update `cpal` to [0.10](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0100-2019-07-05).
 
 # Version 0.9.0 (2019-06-08)
 

@@ -138,21 +138,28 @@ where
 }
 
 // Adds a new stream to the engine.
-// TODO: handle possible errors here
 fn new_output_stream(
-    engine: &Arc<Engine>, device: &Device,
+    engine: &Arc<Engine>,
+    device: &Device,
 ) -> (Arc<dynamic_mixer::DynamicMixerController<f32>>, StreamId) {
-    // Determine the format to use for the new stream.
-    let format = device
-        .default_output_format()
-        .expect("The device doesn't support any format!?");
+    let (format, stream_id) = {
+        // Determine the format to use for the new stream.
+        let default_format = device
+            .default_output_format()
+            .expect("The device doesn't support any format!?");
 
-    let stream_id = engine
-        .events_loop
-        .build_output_stream(device, &format)
-        .unwrap();
-    let (mixer_tx, mixer_rx) =
-        { dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0) };
+        match engine
+            .events_loop
+            .build_output_stream(device, &default_format)
+        {
+            Ok(sid) => (default_format, sid),
+            Err(err) => find_working_output_stream(engine, device)
+                .ok_or(err)
+                .expect("build_output_stream failed with all supported formats"),
+        }
+    };
+
+    let (mixer_tx, mixer_rx) = dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0);
 
     engine
         .dynamic_mixers
@@ -161,4 +168,58 @@ fn new_output_stream(
         .insert(stream_id.clone(), mixer_rx);
 
     (mixer_tx, stream_id)
+}
+
+/// Search through all the supported formats trying to find one that
+/// will `build_output_stream` successfully.
+fn find_working_output_stream(
+    engine: &Arc<Engine>,
+    device: &Device,
+) -> Option<(cpal::Format, cpal::StreamId)> {
+    const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
+
+    let mut supported: Vec<_> = device
+        .supported_output_formats()
+        .expect("No supported output formats")
+        .collect();
+    supported.sort_by(|a, b| b.cmp_default_heuristics(a));
+
+    supported
+        .into_iter()
+        .flat_map(|sf| {
+            let max_rate = sf.max_sample_rate;
+            let min_rate = sf.min_sample_rate;
+            let mut formats = vec![sf.clone().with_max_sample_rate()];
+            if HZ_44100 < max_rate && HZ_44100 > min_rate {
+                formats.push(sf.clone().with_sample_rate(HZ_44100))
+            }
+            formats.push(sf.with_sample_rate(min_rate));
+            formats
+        })
+        .filter_map(|format| {
+            engine
+                .events_loop
+                .build_output_stream(device, &format)
+                .ok()
+                .map(|stream| (format, stream))
+        })
+        .next()
+}
+
+trait SupportedFormatExt {
+    fn with_sample_rate(self, sample_rate: cpal::SampleRate) -> cpal::Format;
+}
+impl SupportedFormatExt for cpal::SupportedFormat {
+    fn with_sample_rate(self, sample_rate: cpal::SampleRate) -> cpal::Format {
+        let Self {
+            channels,
+            data_type,
+            ..
+        } = self;
+        cpal::Format {
+            channels,
+            sample_rate,
+            data_type,
+        }
+    }
 }

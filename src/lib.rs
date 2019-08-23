@@ -101,18 +101,20 @@ pub use cpal::{
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
-pub use engine::play_raw;
 pub use sink::Sink;
 pub use source::Source;
 pub use spatial_sink::SpatialSink;
 
 use cpal::traits::HostTrait;
+use device_mixer::DeviceMixer;
 use std::io::{Read, Seek};
+use std::sync::Mutex;
 
 mod conversions;
-mod engine;
 mod sink;
 mod spatial_sink;
+mod device_mixer;
+mod device;
 
 pub mod buffer;
 pub mod decoder;
@@ -120,6 +122,17 @@ pub mod dynamic_mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;
+
+/// Plays a source with a device until it ends.
+pub fn play_raw<S>(device: &cpal::Device, source: S)
+where
+    S: Source<Item = f32> + Send + 'static,
+{
+    lazy_static! {
+        static ref GLOBAL_MIXER: Mutex<DeviceMixer> = <_>::default();
+    }
+    GLOBAL_MIXER.lock().unwrap().play(device, source)
+}
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
 #[inline]

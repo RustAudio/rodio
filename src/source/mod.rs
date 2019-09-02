@@ -8,6 +8,7 @@ pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
 pub use self::channel_volume::ChannelVolume;
+pub use self::crossfade::Crossfade;
 pub use self::delay::Delay;
 pub use self::done::Done;
 pub use self::empty::Empty;
@@ -31,6 +32,7 @@ mod amplify;
 mod blt;
 mod buffered;
 mod channel_volume;
+mod crossfade;
 mod delay;
 mod done;
 mod empty;
@@ -200,6 +202,18 @@ where
         Self: Sized,
     {
         amplify::amplify(self, value)
+    }
+
+    /// Mixes this sound fading out with another sound fading in for the given duration.
+    ///
+    /// Only the crossfaded portion (beginning of self, beginning of other) is returned.
+    #[inline]
+    fn take_crossfade_with<S: Source>(self, other: S, duration: Duration) -> Crossfade<Self, S>
+    where
+        Self: Sized,
+        <S as Iterator>::Item: Sample,
+    {
+        crossfade::crossfade(self, other, duration)
     }
 
     /// Fades in the sound.

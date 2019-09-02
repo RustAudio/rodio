@@ -9,6 +9,29 @@ pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I> {
         input: input,
         remaining_duration: duration,
         requested_duration: duration,
+        filter: None,
+    }
+}
+
+/// A filter that requires duration information
+#[derive(Clone,Debug)]
+enum DurationFilter {
+    FadeOut,
+}
+impl DurationFilter
+{
+    fn apply<I: Iterator>(&self, sample: <I as Iterator>::Item, parent: &TakeDuration<I>) -> <I as Iterator>::Item
+    where
+        I::Item: Sample,
+    {
+        use self::DurationFilter::*;
+        match self {
+            FadeOut => {
+                let remaining = parent.remaining_duration.as_millis() as f32;
+                let total = parent.requested_duration.as_millis() as f32;
+                sample.amplify(remaining / total)
+            },
+        }
     }
 }
 
@@ -18,6 +41,7 @@ pub struct TakeDuration<I> {
     input: I,
     remaining_duration: Duration,
     requested_duration: Duration,
+    filter: Option<DurationFilter>,
 }
 
 impl<I> TakeDuration<I>
@@ -50,6 +74,14 @@ where
     pub fn into_inner(self) -> I {
         self.input
     }
+
+    pub fn set_filter_fadeout(&mut self) {
+        self.filter = Some(DurationFilter::FadeOut);
+    }
+
+    pub fn clear_filter(&mut self) {
+        self.filter = None;
+    }
 }
 
 impl<I> Iterator for TakeDuration<I>
@@ -66,6 +98,10 @@ where
             None
         } else {
             if let Some(sample) = self.input.next() {
+                let sample = match &self.filter {
+                    Some(filter) => filter.apply(sample, &self),
+                    None => sample,
+                };
                 self.remaining_duration = self.remaining_duration - duration_per_sample;
                 Some(sample)
             } else {

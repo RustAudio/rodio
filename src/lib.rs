@@ -95,7 +95,7 @@ extern crate lewton;
 #[cfg(feature = "mp3")]
 extern crate minimp3;
 
-pub use cpal::{traits::DeviceTrait, Device, Devices, DevicesError, InputDevices};
+pub use cpal::{traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices};
 
 pub use conversions::Sample;
 pub use decoder::Decoder;
@@ -169,6 +169,6 @@ pub fn input_devices() -> Result<InputDevices<Devices>, DevicesError> {
 ///
 /// Can be empty if the system does not support audio output.
 #[inline]
-pub fn output_devices() -> Result<InputDevices<Devices>, DevicesError> {
+pub fn output_devices() -> Result<OutputDevices<Devices>, DevicesError> {
     cpal::default_host().output_devices()
 }

@@ -1,4 +1,6 @@
-# Unreleased
+# Version 0.10.0 (2019-11-16)
+- Removal of nalgebra in favour of own code.
+- Fix a bug that switched channels when resuming after having paused.
 - Attempt all supported output formats if the default format fails in `Sink::new`.
 - Breaking: Update `cpal` to [0.10](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0100-2019-07-05).
 

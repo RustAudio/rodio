@@ -5,7 +5,7 @@ authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
 license = "MIT/Apache-2.0"
 description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]
-repository = "https://github.com/tomaka/rodio"
+repository = "https://github.com/RustAudio/rodio"
 documentation = "http://docs.rs/rodio"
 
 [dependencies]

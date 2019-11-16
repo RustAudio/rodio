@@ -12,8 +12,7 @@ where
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong
     let update_ms = period.as_secs() as u32 * 1_000 + period.subsec_nanos() / 1_000_000;
-    let sample_rate = source.sample_rate() * source.channels() as u32;
-    let update_frequency = (update_ms * sample_rate) / 1000;
+    let update_frequency = (update_ms * source.sample_rate()) / 1000 * source.channels() as u32;
 
     PeriodicAccess {
         input: source,

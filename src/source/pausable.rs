@@ -4,26 +4,45 @@ use Sample;
 use Source;
 
 /// Internal function that builds a `Pausable` object.
-pub fn pausable<I>(source: I, paused: bool) -> Pausable<I> {
+pub fn pausable<I>(source: I, paused: bool) -> Pausable<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    let paused_channels = if paused {
+        Some(source.channels())
+    } else {
+        None
+    };
     Pausable {
         input: source,
-        paused: paused,
+        paused_channels,
+        remaining_paused_samples: 0,
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct Pausable<I> {
     input: I,
-    paused: bool,
+    paused_channels: Option<u16>,
+    remaining_paused_samples: u16,
 }
 
-impl<I> Pausable<I> {
+impl<I> Pausable<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
     /// Sets whether the filter applies.
     ///
     /// If set to true, the inner sound stops playing and no samples are processed from it.
     #[inline]
     pub fn set_paused(&mut self, paused: bool) {
-        self.paused = paused;
+        match (self.paused_channels, paused) {
+            (None, true) => self.paused_channels = Some(self.input.channels()),
+            (Some(_), false) => self.paused_channels = None,
+            _ => (),
+        }
     }
 
     /// Returns a reference to the inner source.
@@ -54,7 +73,13 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        if self.paused {
+        if self.remaining_paused_samples > 0 {
+            self.remaining_paused_samples -= 1;
+            return Some(I::Item::zero_value());
+        }
+
+        if let Some(paused_channels) = self.paused_channels {
+            self.remaining_paused_samples = paused_channels - 1;
             return Some(I::Item::zero_value());
         }
 

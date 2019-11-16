@@ -1,11 +1,11 @@
 # Audio playback library
 
-[![Build Status](https://travis-ci.org/tomaka/rodio.svg?branch=master)](https://travis-ci.org/tomaka/rodio)
+[![Build Status](https://travis-ci.org/RustAudio/rodio.svg?branch=master)](https://travis-ci.org/RustAudio/rodio)
 [![](http://meritbadge.herokuapp.com/rodio)](https://crates.io/crates/rodio)
 
 Rust playback library.
 
- - Playback is handled by [cpal](https://github.com/tomaka/cpal).
+ - Playback is handled by [cpal](https://github.com/RustAudio/cpal).
  - MP3 decoding is handled by [minimp3](https://github.com/lieff/minimp3).
  - WAV decoding is handled by [hound](https://github.com/ruud-v-a/hound).
  - Vorbis decoding is handled by [lewton](https://github.com/est31/lewton).

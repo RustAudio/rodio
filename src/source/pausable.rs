@@ -16,7 +16,7 @@ where
     };
     Pausable {
         input: source,
-        paused_channels: paused_channels,
+        paused_channels,
         remaining_paused_samples: 0,
     }
 }
@@ -38,7 +38,6 @@ where
     /// If set to true, the inner sound stops playing and no samples are processed from it.
     #[inline]
     pub fn set_paused(&mut self, paused: bool) {
-        // Minimize calls to channels by only calling on state change
         match (self.paused_channels, paused) {
             (None, true) => self.paused_channels = Some(self.input.channels()),
             (Some(_), false) => self.paused_channels = None,

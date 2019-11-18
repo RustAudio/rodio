@@ -9,17 +9,17 @@ repository = "https://github.com/RustAudio/rodio"
 documentation = "http://docs.rs/rodio"
 
 [dependencies]
-claxon = { version = "0.4.2", optional = true }
 cpal = "0.10"
-hound = { version = "3.3.1", optional = true }
-lazy_static = "1.0.0"
+lazy_static = "1.4.0"
+claxon = { version = "0.4.2", optional = true }
+hound = { version = "3.4.0", optional = true }
 lewton = { version = "0.9", optional = true }
-minimp3 = { version = "0.3.2", optional = true }
+minimp3 = { version = "0.3.3", optional = true }
 
 [features]
-default = ["flac", "vorbis", "wav", "mp3"]
+default = ["flac", "wav", "vorbis", "mp3"]
 
 flac = ["claxon"]
-vorbis = ["lewton"]
 wav = ["hound"]
+vorbis = ["lewton"]
 mp3 = ["minimp3"]

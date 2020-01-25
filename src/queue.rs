@@ -206,7 +206,7 @@ where
             if next.len() == 0 {
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
-                    let silence = Zero::<S>::new(1, 44000); // TODO: meh
+                    let silence = Zero::<S>::new(1, 44100); // TODO: meh
                     (
                         Box::new(silence.take_duration(Duration::from_millis(10))) as Box<_>,
                         None,

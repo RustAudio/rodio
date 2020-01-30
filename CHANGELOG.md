@@ -1,5 +1,6 @@
 # Unreleased
 - Update `lewton` to 0.10.
+- Update `cpal` to 0.11.
 
 # Version 0.10.0 (2019-11-16)
 - Removal of nalgebra in favour of own code.

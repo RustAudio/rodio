@@ -13,9 +13,8 @@
 use std::time::Duration;
 use std::vec::IntoIter as VecIntoIter;
 
-use source::Source;
-
-use Sample;
+use crate::source::Source;
+use crate::Sample;
 
 /// A buffer of samples treated as a source.
 pub struct SamplesBuffer<S> {
@@ -47,7 +46,8 @@ where
 
         let data = data.into();
         let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
-            / sample_rate as u64 / channels as u64;
+            / sample_rate as u64
+            / channels as u64;
         let duration = Duration::new(
             duration_ns / 1_000_000_000,
             (duration_ns % 1_000_000_000) as u32,
@@ -106,8 +106,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use source::Source;
+    use crate::buffer::SamplesBuffer;
+    use crate::source::Source;
 
     #[test]
     fn basic() {

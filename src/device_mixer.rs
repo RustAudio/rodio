@@ -1,7 +1,7 @@
+use crate::device::CpalDeviceExt;
+use crate::dynamic_mixer::DynamicMixerController;
+use crate::source::Source;
 use cpal::traits::{DeviceTrait, StreamTrait};
-use device::CpalDeviceExt;
-use dynamic_mixer::DynamicMixerController;
-use source::Source;
 use std::collections::HashMap;
 use std::sync::Arc;
 

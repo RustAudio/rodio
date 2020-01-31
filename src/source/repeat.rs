@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use source::buffered::Buffered;
+use crate::source::buffered::Buffered;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `Repeat` object.
 pub fn repeat<I>(input: I) -> Repeat<I>

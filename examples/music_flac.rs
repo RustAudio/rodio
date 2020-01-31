@@ -1,5 +1,3 @@
-extern crate rodio;
-
 use std::io::BufReader;
 
 fn main() {

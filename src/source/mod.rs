@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use Sample;
+use crate::Sample;
 
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;

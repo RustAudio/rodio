@@ -1,7 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 use hound::{SampleFormat, WavReader};
 
@@ -84,11 +84,7 @@ where
     }
 }
 
-impl<R> ExactSizeIterator for SamplesIterator<R>
-where
-    R: Read + Seek,
-{
-}
+impl<R> ExactSizeIterator for SamplesIterator<R> where R: Read + Seek {}
 
 impl<R> Source for WavDecoder<R>
 where
@@ -133,11 +129,7 @@ where
     }
 }
 
-impl<R> ExactSizeIterator for WavDecoder<R>
-where
-    R: Read + Seek,
-{
-}
+impl<R> ExactSizeIterator for WavDecoder<R> where R: Read + Seek {}
 
 /// Returns true if the stream contains WAV data, then resets it to where it was.
 fn is_wave<R>(mut data: R) -> bool
@@ -165,7 +157,7 @@ fn f32_to_i16(f: f32) -> i16 {
 }
 
 /// Returns a 24 bit WAV int as an i16. Note that this is a 24 bit integer, not a
-/// 32 bit one. 24 bit ints are in the range [−8,388,608, 8,388,607] while i16s 
+/// 32 bit one. 24 bit ints are in the range [−8,388,608, 8,388,607] while i16s
 /// are in the range [-32768, 32767]. Note that this function definitely causes
 /// precision loss but hopefully this isn't too audiable when actually playing?
 fn i24_to_i16(i: i32) -> i16 {

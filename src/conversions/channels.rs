@@ -25,7 +25,9 @@ where
     ///
     #[inline]
     pub fn new(
-        input: I, from: cpal::ChannelCount, to: cpal::ChannelCount,
+        input: I,
+        from: cpal::ChannelCount,
+        to: cpal::ChannelCount,
     ) -> ChannelCountConverter<I> {
         assert!(from >= 1);
         assert!(to >= 1);
@@ -70,7 +72,7 @@ where
             self.next_output_sample_pos -= self.to;
 
             if self.from > self.to {
-                for _ in self.to .. self.from {
+                for _ in self.to..self.from {
                     self.input.next(); // discarding extra input
                 }
             }

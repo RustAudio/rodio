@@ -5,7 +5,7 @@ use std::fmt;
 use std::io::{Read, Seek};
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 #[cfg(feature = "flac")]
 mod flac;
@@ -56,7 +56,7 @@ where
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Wav(decoder)));
-            },
+            }
         };
 
         #[cfg(feature = "flac")]
@@ -64,7 +64,7 @@ where
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Flac(decoder)));
-            },
+            }
         };
 
         #[cfg(feature = "vorbis")]
@@ -72,7 +72,7 @@ where
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Vorbis(decoder)));
-            },
+            }
         };
 
         #[cfg(feature = "mp3")]
@@ -80,7 +80,7 @@ where
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Mp3(decoder)));
-            },
+            }
         };
 
         Err(DecoderError::UnrecognizedFormat)
@@ -224,7 +224,7 @@ pub enum DecoderError {
 }
 
 impl fmt::Display for DecoderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             &DecoderError::UnrecognizedFormat => write!(f, "Unrecognized format"),
         }

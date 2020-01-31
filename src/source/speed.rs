@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `Speed` object.
 pub fn speed<I>(input: I, factor: f32) -> Speed<I> {
@@ -41,7 +41,6 @@ where
         self.input
     }
 }
-
 
 impl<I> Iterator for Speed<I>
 where

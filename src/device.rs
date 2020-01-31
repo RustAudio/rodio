@@ -1,12 +1,12 @@
+use crate::decoder;
+use crate::device_mixer::DeviceMixer;
+use crate::dynamic_mixer::{self, DynamicMixerController};
+use crate::sink::Sink;
+use crate::source::Source;
 use cpal::{
     traits::{DeviceTrait, HostTrait},
     Sample,
 };
-use decoder;
-use device_mixer::DeviceMixer;
-use dynamic_mixer::{self, DynamicMixerController};
-use sink::Sink;
-use source::Source;
 use std::cell::RefCell;
 use std::io::{Read, Seek};
 use std::sync::Arc;

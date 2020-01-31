@@ -1,4 +1,4 @@
-extern crate rodio;
+use rodio;
 
 use std::io::BufReader;
 
@@ -24,7 +24,7 @@ fn test_wav_encodings() {
     let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
     assert!(decoder.any(|x| x != 0));
 
-    // 32 bit wav file exported from LMMS (2 channels) 
+    // 32 bit wav file exported from LMMS (2 channels)
     let file = std::fs::File::open("tests/lmms32bit.wav").unwrap();
     let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
     assert!(decoder.any(|x| x != 0));

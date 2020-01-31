@@ -1,4 +1,4 @@
-use device::RodioDevice;
+use crate::device::RodioDevice;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::Receiver;
@@ -6,10 +6,10 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use queue;
-use source::Done;
-use Sample;
-use Source;
+use crate::queue;
+use crate::source::Done;
+use crate::Sample;
+use crate::Source;
 
 /// Handle to an device that outputs sounds.
 ///
@@ -176,12 +176,11 @@ impl Drop for Sink {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use source::Source;
-    use sink::Sink;
+    use crate::buffer::SamplesBuffer;
+    use crate::sink::Sink;
+    use crate::source::Source;
 
     #[test]
     fn test_pause_and_stop() {

@@ -1,4 +1,4 @@
-extern crate rodio;
+use rodio;
 
 use std::io::BufReader;
 use std::thread;
@@ -22,12 +22,12 @@ fn main() {
     // until it stops and begins traveling to the left, it will eventually pass through the
     // listener again.
     // This is repeated 5 times.
-    for _ in 0 .. 5 {
-        for i in 1 .. 1001 {
+    for _ in 0..5 {
+        for i in 1..1001 {
             thread::sleep(Duration::from_millis(5));
             sink.set_emitter_position([(i - 500) as f32 / 50.0, 0.0, 0.0]);
         }
-        for i in 1 .. 1001 {
+        for i in 1..1001 {
             thread::sleep(Duration::from_millis(5));
             sink.set_emitter_position([-(i - 500) as f32 / 50.0, 0.0, 0.0]);
         }

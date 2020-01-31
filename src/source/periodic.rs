@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `PeriodicAccess` object.
 pub fn periodic<I, F>(source: I, period: Duration, modifier: F) -> PeriodicAccess<I, F>
@@ -18,7 +18,11 @@ where
         input: source,
         modifier: modifier,
         // Can overflow when subtracting if this is 0
-        update_frequency: if update_frequency == 0 { 1 } else { update_frequency },
+        update_frequency: if update_frequency == 0 {
+            1
+        } else {
+            update_frequency
+        },
         samples_until_update: 1,
     }
 }
@@ -63,7 +67,6 @@ where
         self.input
     }
 }
-
 
 impl<I, F> Iterator for PeriodicAccess<I, F>
 where
@@ -119,10 +122,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use std::time::Duration;
-    use source::Source;
+    use crate::buffer::SamplesBuffer;
+    use crate::source::Source;
     use std::cell::RefCell;
+    use std::time::Duration;
 
     #[test]
     fn stereo_access() {
@@ -137,13 +140,19 @@ mod tests {
 
         assert_eq!(*cnt.borrow(), 0);
         // Always called on first access!
-        assert_eq!(source.next(), Some(10));  assert_eq!(*cnt.borrow(), 1);
+        assert_eq!(source.next(), Some(10));
+        assert_eq!(*cnt.borrow(), 1);
         // Called every 1 second afterwards
-        assert_eq!(source.next(), Some(-10)); assert_eq!(*cnt.borrow(), 1);
-        assert_eq!(source.next(), Some(10));  assert_eq!(*cnt.borrow(), 2);
-        assert_eq!(source.next(), Some(-10)); assert_eq!(*cnt.borrow(), 2);
-        assert_eq!(source.next(), Some(20));  assert_eq!(*cnt.borrow(), 3);
-        assert_eq!(source.next(), Some(-20)); assert_eq!(*cnt.borrow(), 3);
+        assert_eq!(source.next(), Some(-10));
+        assert_eq!(*cnt.borrow(), 1);
+        assert_eq!(source.next(), Some(10));
+        assert_eq!(*cnt.borrow(), 2);
+        assert_eq!(source.next(), Some(-10));
+        assert_eq!(*cnt.borrow(), 2);
+        assert_eq!(source.next(), Some(20));
+        assert_eq!(*cnt.borrow(), 3);
+        assert_eq!(source.next(), Some(-20));
+        assert_eq!(*cnt.borrow(), 3);
     }
 
     #[test]
@@ -156,4 +165,3 @@ mod tests {
         source.next(); // Would overflow here.
     }
 }
-

@@ -2,7 +2,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 use std::vec;
 
-use Source;
+use crate::Source;
 
 use lewton::inside_ogg::OggStreamReader;
 

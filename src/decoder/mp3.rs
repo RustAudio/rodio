@@ -1,7 +1,7 @@
 use std::io::{Read, Seek};
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 use minimp3::{Decoder, Frame};
 
@@ -32,7 +32,7 @@ where
 
 impl<R> Source for Mp3Decoder<R>
 where
-    R: Read + Seek
+    R: Read + Seek,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -57,7 +57,7 @@ where
 
 impl<R> Iterator for Mp3Decoder<R>
 where
-    R: Read + Seek
+    R: Read + Seek,
 {
     type Item = i16;
 

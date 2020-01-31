@@ -24,7 +24,7 @@
 //!
 //! let file = File::open("sound.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-//! rodio::play_raw(&device, source.convert_samples());
+//! device.play_raw(source.convert_samples());
 //! ```
 //!
 //! ## Sink
@@ -82,33 +82,22 @@
 //!
 
 #![cfg_attr(test, deny(missing_docs))]
-
-#[cfg(feature = "flac")]
-extern crate claxon;
-extern crate cpal;
-#[cfg(feature = "wav")]
-extern crate hound;
-#[cfg(feature = "vorbis")]
-extern crate lewton;
-#[cfg(feature = "mp3")]
-extern crate minimp3;
-
 pub use cpal::{
-    traits::DeviceTrait, Device, Devices, DevicesError, Format, InputDevices, OutputDevices
+    traits::DeviceTrait, Device, Devices, DevicesError, Format, InputDevices, OutputDevices,
 };
 
-pub use conversions::Sample;
-pub use decoder::Decoder;
-pub use sink::Sink;
-pub use source::Source;
-pub use spatial_sink::SpatialSink;
-pub use device::RodioDevice;
+pub use crate::conversions::Sample;
+pub use crate::decoder::Decoder;
+pub use crate::device::RodioDevice;
+pub use crate::sink::Sink;
+pub use crate::source::Source;
+pub use crate::spatial_sink::SpatialSink;
 
 mod conversions;
+mod device;
+mod device_mixer;
 mod sink;
 mod spatial_sink;
-mod device_mixer;
-mod device;
 
 pub mod buffer;
 pub mod decoder;

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -124,7 +124,7 @@ where
                 };
 
                 self.remaining_duration = self.remaining_duration - self.duration_per_sample;
-                
+
                 Some(sample)
             } else {
                 None

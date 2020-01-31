@@ -1,12 +1,12 @@
-use device::RodioDevice;
-use source::Spatial;
+use crate::device::RodioDevice;
+use crate::source::Spatial;
+use crate::Sample;
+use crate::Sink;
+use crate::Source;
 use std::f32;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use Sample;
-use Sink;
-use Source;
 
 pub struct SpatialSink {
     sink: Sink,
@@ -23,7 +23,10 @@ impl SpatialSink {
     /// Builds a new `SpatialSink`.
     #[inline]
     pub fn new(
-        device: &RodioDevice, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
+        device: &RodioDevice,
+        emitter_position: [f32; 3],
+        left_ear: [f32; 3],
+        right_ear: [f32; 3],
     ) -> SpatialSink {
         SpatialSink {
             sink: Sink::new(device),
@@ -64,7 +67,8 @@ impl SpatialSink {
             pos_lock.emitter_position,
             pos_lock.left_ear,
             pos_lock.right_ear,
-        ).periodic_access(Duration::from_millis(10), move |i| {
+        )
+        .periodic_access(Duration::from_millis(10), move |i| {
             let pos = positions.lock().unwrap();
             i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
         });

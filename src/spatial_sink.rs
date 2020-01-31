@@ -1,9 +1,9 @@
+use device::RodioDevice;
 use source::Spatial;
 use std::f32;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use Device;
 use Sample;
 use Sink;
 use Source;
@@ -23,7 +23,7 @@ impl SpatialSink {
     /// Builds a new `SpatialSink`.
     #[inline]
     pub fn new(
-        device: &Device, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
+        device: &RodioDevice, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
     ) -> SpatialSink {
         SpatialSink {
             sink: Sink::new(device),

@@ -20,7 +20,7 @@
 //! use std::io::BufReader;
 //! use rodio::Source;
 //!
-//! let device = rodio::default_output_device().unwrap();
+//! let device = rodio::RodioDevice::default_output().unwrap();
 //!
 //! let file = File::open("sound.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
@@ -38,7 +38,7 @@
 //! ```no_run
 //! use rodio::Sink;
 //!
-//! let device = rodio::default_output_device().unwrap();
+//! let device = rodio::RodioDevice::default_output().unwrap();
 //! let sink = Sink::new(&device);
 //!
 //! // Add a dummy source of the sake of the example.
@@ -88,8 +88,6 @@ extern crate claxon;
 extern crate cpal;
 #[cfg(feature = "wav")]
 extern crate hound;
-#[macro_use]
-extern crate lazy_static;
 #[cfg(feature = "vorbis")]
 extern crate lewton;
 #[cfg(feature = "mp3")]
@@ -104,11 +102,7 @@ pub use decoder::Decoder;
 pub use sink::Sink;
 pub use source::Source;
 pub use spatial_sink::SpatialSink;
-
-use cpal::traits::HostTrait;
-use device_mixer::DeviceMixer;
-use std::io::{Read, Seek};
-use std::sync::Mutex;
+pub use device::RodioDevice;
 
 mod conversions;
 mod sink;
@@ -122,68 +116,3 @@ pub mod dynamic_mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;
-
-/// Plays a source with a device until it ends.
-pub fn play_raw<S>(device: &cpal::Device, source: S)
-where
-    S: Source<Item = f32> + Send + 'static,
-{
-    lazy_static! {
-        static ref GLOBAL_MIXER: Mutex<DeviceMixer> = <_>::default();
-    }
-    GLOBAL_MIXER.lock().unwrap().play(device, source)
-}
-
-/// Plays a sound once. Returns a `Sink` that can be used to control the sound.
-#[inline]
-pub fn play_once<R>(device: &Device, input: R) -> Result<Sink, decoder::DecoderError>
-where
-    R: Read + Seek + Send + 'static,
-{
-    let input = decoder::Decoder::new(input)?;
-    let sink = Sink::new(device);
-    sink.append(input);
-    Ok(sink)
-}
-
-/// The default input audio device on the system.
-///
-/// Returns `None` if no input device is available.
-#[inline]
-pub fn default_input_device() -> Option<Device> {
-    cpal::default_host().default_input_device()
-}
-
-/// The default output audio device on the system.
-///
-/// Returns `None` if no output device is available.
-#[inline]
-pub fn default_output_device() -> Option<Device> {
-    cpal::default_host().default_output_device()
-}
-
-/// An iterator yielding all `Device`s currently available to the host on the system.
-///
-/// Can be empty if the system does not support audio in general.
-#[inline]
-pub fn devices() -> Result<Devices, DevicesError> {
-    cpal::default_host().devices()
-}
-
-/// An iterator yielding all `Device`s currently available to the system that support one or more
-/// input stream formats.
-///
-/// Can be empty if the system does not support audio input.
-#[inline]
-pub fn input_devices() -> Result<InputDevices<Devices>, DevicesError> {
-    cpal::default_host().input_devices()
-}
-
-/// An iterator yielding all `Device`s currently available to the system that support one or more
-/// output stream formats.
-///
-/// Can be empty if the system does not support audio output.
-#[inline]
-pub fn output_devices() -> Result<OutputDevices<Devices>, DevicesError> {
-    cpal::default_host().output_devices()
-}

@@ -1,3 +1,4 @@
+use device::RodioDevice;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::Receiver;
@@ -5,10 +6,8 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use play_raw;
 use queue;
 use source::Done;
-use Device;
 use Sample;
 use Source;
 
@@ -35,9 +34,9 @@ struct Controls {
 impl Sink {
     /// Builds a new `Sink`, beginning playback on a Device.
     #[inline]
-    pub fn new(device: &Device) -> Sink {
+    pub fn new(device: &RodioDevice) -> Sink {
         let (sink, queue_rx) = Sink::new_idle();
-        play_raw(device, queue_rx);
+        device.play_raw(queue_rx);
         sink
     }
 
@@ -47,7 +46,7 @@ impl Sink {
         let (queue_tx, queue_rx) = queue::queue(true);
 
         let sink = Sink {
-            queue_tx: queue_tx,
+            queue_tx,
             sleep_until_end: Mutex::new(None),
             controls: Arc::new(Controls {
                 pause: AtomicBool::new(false),

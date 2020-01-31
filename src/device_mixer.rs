@@ -1,5 +1,5 @@
 use cpal::traits::{DeviceTrait, StreamTrait};
-use device::RodioDevice;
+use device::CpalDeviceExt;
 use dynamic_mixer::DynamicMixerController;
 use source::Source;
 use std::collections::HashMap;

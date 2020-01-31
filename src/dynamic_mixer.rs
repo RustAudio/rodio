@@ -26,8 +26,8 @@ where
     let input = Arc::new(DynamicMixerController {
         has_pending: AtomicBool::new(false),
         pending_sources: Mutex::new(Vec::new()),
-        channels: channels,
-        sample_rate: sample_rate,
+        channels,
+        sample_rate,
     });
 
     let output = DynamicMixer {

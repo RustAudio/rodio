@@ -5,7 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let device = rodio::default_output_device().unwrap();
+    let device = rodio::RodioDevice::default_output().unwrap();
     let sink = rodio::SpatialSink::new(
         &device,
         [-10.0, 0.0, 0.0],

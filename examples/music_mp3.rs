@@ -3,7 +3,7 @@ extern crate rodio;
 use std::io::BufReader;
 
 fn main() {
-    let device = rodio::default_output_device().unwrap();
+    let device = rodio::RodioDevice::default_output().unwrap();
     let sink = rodio::Sink::new(&device);
 
     let file = std::fs::File::open("examples/music.mp3").unwrap();

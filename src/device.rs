@@ -1,9 +1,58 @@
-use cpal::{traits::DeviceTrait, Sample};
-use dynamic_mixer::{self, DynamicMixer, DynamicMixerController};
+use cpal::{
+    traits::{DeviceTrait, HostTrait},
+    Sample,
+};
+use decoder;
+use device_mixer::DeviceMixer;
+use dynamic_mixer::{self, DynamicMixerController};
+use sink::Sink;
+use source::Source;
+use std::cell::RefCell;
+use std::io::{Read, Seek};
 use std::sync::Arc;
 
+pub struct RodioDevice {
+    mixer: RefCell<DeviceMixer>,
+    inner: cpal::Device,
+}
+
+impl From<cpal::Device> for RodioDevice {
+    fn from(device: cpal::Device) -> Self {
+        Self {
+            inner: device,
+            mixer: <_>::default(),
+        }
+    }
+}
+
+impl RodioDevice {
+    pub fn default_output() -> Option<Self> {
+        Some(cpal::default_host().default_output_device()?.into())
+    }
+
+    /// Plays a source with a device until it ends.
+    pub fn play_raw<S>(&self, source: S)
+    where
+        S: Source<Item = f32> + Send + 'static,
+    {
+        self.mixer.borrow_mut().play(&self.inner, source)
+    }
+
+    /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
+    #[inline]
+    pub fn play_once<R>(&self, input: R) -> Result<Sink, decoder::DecoderError>
+    where
+        R: Read + Seek + Send + 'static,
+    {
+        let input = decoder::Decoder::new(input)?;
+        let sink = Sink::new(&self);
+        sink.append(input);
+        Ok(sink)
+    }
+}
+
 /// Extensions to `cpal::Device`
-pub(crate) trait RodioDevice {
+pub(crate) trait CpalDeviceExt {
     fn new_output_stream_with_format(
         &self,
         format: cpal::Format,
@@ -12,7 +61,7 @@ pub(crate) trait RodioDevice {
     fn new_output_stream(&self) -> (Arc<DynamicMixerController<f32>>, cpal::Stream);
 }
 
-impl RodioDevice for cpal::Device {
+impl CpalDeviceExt for cpal::Device {
     fn new_output_stream_with_format(
         &self,
         format: cpal::Format,
@@ -20,11 +69,38 @@ impl RodioDevice for cpal::Device {
         let (mixer_tx, mut mixer_rx) =
             dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0);
 
-        self.build_output_stream(
-            &format,
-            move |data| audio_callback(&mut mixer_rx, data),
-            move |err| eprintln!("an error occurred on output stream: {}", err),
-        )
+        let error_callback = |err| eprintln!("an error occurred on output stream: {}", err);
+
+        match format.data_type {
+            cpal::SampleFormat::F32 => self.build_output_stream::<f32, _, _>(
+                &format.shape(),
+                move |data| {
+                    data.iter_mut()
+                        .for_each(|d| *d = mixer_rx.next().unwrap_or(0f32))
+                },
+                error_callback,
+            ),
+            cpal::SampleFormat::I16 => self.build_output_stream::<i16, _, _>(
+                &format.shape(),
+                move |data| {
+                    data.iter_mut()
+                        .for_each(|d| *d = mixer_rx.next().map(|s| s.to_i16()).unwrap_or(0i16))
+                },
+                error_callback,
+            ),
+            cpal::SampleFormat::U16 => self.build_output_stream::<u16, _, _>(
+                &format.shape(),
+                move |data| {
+                    data.iter_mut().for_each(|d| {
+                        *d = mixer_rx
+                            .next()
+                            .map(|s| s.to_u16())
+                            .unwrap_or(u16::max_value() / 2)
+                    })
+                },
+                error_callback,
+            ),
+        }
         .map(|stream| (mixer_tx, stream))
     }
 
@@ -44,40 +120,6 @@ impl RodioDevice for cpal::Device {
                     .expect("build_output_stream failed with all supported formats")
             })
     }
-}
-
-fn audio_callback(mixer: &mut DynamicMixer<f32>, buffer: cpal::StreamData) {
-    use cpal::{StreamData, UnknownTypeOutputBuffer};
-
-    match buffer {
-        StreamData::Output {
-            buffer: UnknownTypeOutputBuffer::U16(mut buffer),
-        } => {
-            for d in buffer.iter_mut() {
-                *d = mixer
-                    .next()
-                    .map(|s| s.to_u16())
-                    .unwrap_or(u16::max_value() / 2);
-            }
-        }
-        StreamData::Output {
-            buffer: UnknownTypeOutputBuffer::I16(mut buffer),
-        } => {
-            for d in buffer.iter_mut() {
-                *d = mixer.next().map(|s| s.to_i16()).unwrap_or(0i16);
-            }
-        }
-        StreamData::Output {
-            buffer: UnknownTypeOutputBuffer::F32(mut buffer),
-        } => {
-            for d in buffer.iter_mut() {
-                *d = mixer.next().unwrap_or(0f32);
-            }
-        }
-        StreamData::Input { .. } => {
-            panic!("Can't play an input stream!");
-        }
-    };
 }
 
 /// All the supported output formats with sample rates

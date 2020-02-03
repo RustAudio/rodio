@@ -1,33 +1,37 @@
 use crate::decoder;
-use crate::device_mixer::DeviceMixer;
 use crate::dynamic_mixer::{self, DynamicMixerController};
 use crate::sink::Sink;
 use crate::source::Source;
 use cpal::{
-    traits::{DeviceTrait, HostTrait},
+    traits::{DeviceTrait, HostTrait, StreamTrait},
     Sample,
 };
-use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::io::{Read, Seek};
 use std::sync::Arc;
+use std::{error, fmt};
 
-pub struct RodioDevice {
-    mixer: RefCell<DeviceMixer>,
-    inner: cpal::Device,
+pub struct OutputStream {
+    mixer: Arc<DynamicMixerController<f32>>,
+    _stream: cpal::Stream,
 }
 
-impl From<cpal::Device> for RodioDevice {
-    fn from(device: cpal::Device) -> Self {
-        Self {
-            inner: device,
-            mixer: <_>::default(),
-        }
+impl TryFrom<&'_ cpal::Device> for OutputStream {
+    type Error = StreamError;
+
+    fn try_from(device: &cpal::Device) -> Result<Self, Self::Error> {
+        let (mixer, _stream) = device.new_output_stream();
+        _stream.play()?;
+        Ok(Self { mixer, _stream })
     }
 }
 
-impl RodioDevice {
-    pub fn default_output() -> Option<Self> {
-        Some(cpal::default_host().default_output_device()?.into())
+impl OutputStream {
+    pub fn try_default() -> Result<Self, StreamError> {
+        let device = cpal::default_host()
+            .default_output_device()
+            .ok_or(StreamError::NoDevice)?;
+        Self::try_from(&device)
     }
 
     /// Plays a source with a device until it ends.
@@ -35,7 +39,7 @@ impl RodioDevice {
     where
         S: Source<Item = f32> + Send + 'static,
     {
-        self.mixer.borrow_mut().play(&self.inner, source)
+        self.mixer.add(source);
     }
 
     /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
@@ -48,6 +52,36 @@ impl RodioDevice {
         let sink = Sink::new(&self);
         sink.append(input);
         Ok(sink)
+    }
+}
+
+#[derive(Debug)]
+pub enum StreamError {
+    PlayStreamError(cpal::PlayStreamError),
+    NoDevice,
+}
+
+impl From<cpal::PlayStreamError> for StreamError {
+    fn from(err: cpal::PlayStreamError) -> Self {
+        Self::PlayStreamError(err)
+    }
+}
+
+impl fmt::Display for StreamError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::PlayStreamError(e) => e.fmt(f),
+            Self::NoDevice => write!(f, "NoDevice"),
+        }
+    }
+}
+
+impl error::Error for StreamError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            Self::PlayStreamError(e) => Some(e),
+            Self::NoDevice => None,
+        }
     }
 }
 

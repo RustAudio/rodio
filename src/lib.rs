@@ -20,11 +20,11 @@
 //! use std::io::BufReader;
 //! use rodio::Source;
 //!
-//! let device = rodio::RodioDevice::default_output().unwrap();
+//! let stream = rodio::OutputStream::try_default().unwrap();
 //!
 //! let file = File::open("sound.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-//! device.play_raw(source.convert_samples());
+//! stream.play_raw(source.convert_samples());
 //! ```
 //!
 //! ## Sink
@@ -38,8 +38,8 @@
 //! ```no_run
 //! use rodio::Sink;
 //!
-//! let device = rodio::RodioDevice::default_output().unwrap();
-//! let sink = Sink::new(&device);
+//! let stream = rodio::OutputStream::try_default().unwrap();
+//! let sink = rodio::Sink::new(&stream);
 //!
 //! // Add a dummy source of the sake of the example.
 //! let source = rodio::source::SineWave::new(440);
@@ -86,16 +86,8 @@ pub use cpal::{
     traits::DeviceTrait, Device, Devices, DevicesError, Format, InputDevices, OutputDevices,
 };
 
-pub use crate::conversions::Sample;
-pub use crate::decoder::Decoder;
-pub use crate::device::RodioDevice;
-pub use crate::sink::Sink;
-pub use crate::source::Source;
-pub use crate::spatial_sink::SpatialSink;
-
 mod conversions;
-mod device;
-mod device_mixer;
+mod stream;
 mod sink;
 mod spatial_sink;
 
@@ -105,3 +97,10 @@ pub mod dynamic_mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;
+
+pub use crate::conversions::Sample;
+pub use crate::decoder::Decoder;
+pub use crate::stream::{OutputStream, StreamError};
+pub use crate::sink::Sink;
+pub use crate::source::Source;
+pub use crate::spatial_sink::SpatialSink;

@@ -1,13 +1,11 @@
-use rodio;
-
 use std::io::BufReader;
 use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let device = rodio::RodioDevice::default_output().unwrap();
+    let stream = rodio::OutputStream::try_default().unwrap();
     let sink = rodio::SpatialSink::new(
-        &device,
+        &stream,
         [-10.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],
         [-1.0, 0.0, 0.0],

@@ -1,4 +1,4 @@
-use crate::device::RodioDevice;
+use crate::stream::OutputStream;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::Receiver;
@@ -34,9 +34,9 @@ struct Controls {
 impl Sink {
     /// Builds a new `Sink`, beginning playback on a Device.
     #[inline]
-    pub fn new(device: &RodioDevice) -> Sink {
+    pub fn new(stream: &OutputStream) -> Sink {
         let (sink, queue_rx) = Sink::new_idle();
-        device.play_raw(queue_rx);
+        stream.play_raw(queue_rx);
         sink
     }
 

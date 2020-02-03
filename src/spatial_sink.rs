@@ -1,4 +1,4 @@
-use crate::device::RodioDevice;
+use crate::stream::OutputStream;
 use crate::source::Spatial;
 use crate::Sample;
 use crate::Sink;
@@ -23,13 +23,13 @@ impl SpatialSink {
     /// Builds a new `SpatialSink`.
     #[inline]
     pub fn new(
-        device: &RodioDevice,
+        stream: &OutputStream,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
         right_ear: [f32; 3],
     ) -> SpatialSink {
         SpatialSink {
-            sink: Sink::new(device),
+            sink: Sink::new(stream),
             positions: Arc::new(Mutex::new(SoundPositions {
                 emitter_position,
                 left_ear,

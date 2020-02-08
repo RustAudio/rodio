@@ -13,12 +13,15 @@ fn main() {
     thread::sleep(Duration::from_millis(1500));
 
     let file = std::fs::File::open("examples/beep2.wav").unwrap();
-    stream.play_once(BufReader::new(file)).unwrap().detach();
+    let beep2 = stream.play_once(BufReader::new(file)).unwrap();
+    beep2.set_volume(0.3);
+    beep2.detach();
     println!("Started beep2");
 
     thread::sleep(Duration::from_millis(1500));
     let file = std::fs::File::open("examples/beep3.ogg").unwrap();
     let beep3 = stream.play_once(file).unwrap();
+    beep3.set_volume(0.2);
     println!("Started beep3");
 
     thread::sleep(Duration::from_millis(1500));

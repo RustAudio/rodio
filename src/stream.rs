@@ -89,7 +89,7 @@ impl error::Error for StreamError {
 pub(crate) trait CpalDeviceExt {
     fn new_output_stream_with_format(
         &self,
-        format: cpal::Format,
+        format: cpal::SupportedStreamConfig,
     ) -> Result<(Arc<DynamicMixerController<f32>>, cpal::Stream), cpal::BuildStreamError>;
 
     fn new_output_stream(&self) -> (Arc<DynamicMixerController<f32>>, cpal::Stream);
@@ -98,16 +98,16 @@ pub(crate) trait CpalDeviceExt {
 impl CpalDeviceExt for cpal::Device {
     fn new_output_stream_with_format(
         &self,
-        format: cpal::Format,
+        format: cpal::SupportedStreamConfig,
     ) -> Result<(Arc<DynamicMixerController<f32>>, cpal::Stream), cpal::BuildStreamError> {
         let (mixer_tx, mut mixer_rx) =
-            dynamic_mixer::mixer::<f32>(format.channels, format.sample_rate.0);
+            dynamic_mixer::mixer::<f32>(format.channels(), format.sample_rate().0);
 
         let error_callback = |err| eprintln!("an error occurred on output stream: {}", err);
 
-        match format.data_type {
+        match format.sample_format() {
             cpal::SampleFormat::F32 => self.build_output_stream::<f32, _, _>(
-                &format.shape(),
+                &format.config(),
                 move |data| {
                     data.iter_mut()
                         .for_each(|d| *d = mixer_rx.next().unwrap_or(0f32))
@@ -115,7 +115,7 @@ impl CpalDeviceExt for cpal::Device {
                 error_callback,
             ),
             cpal::SampleFormat::I16 => self.build_output_stream::<i16, _, _>(
-                &format.shape(),
+                &format.config(),
                 move |data| {
                     data.iter_mut()
                         .for_each(|d| *d = mixer_rx.next().map(|s| s.to_i16()).unwrap_or(0i16))
@@ -123,7 +123,7 @@ impl CpalDeviceExt for cpal::Device {
                 error_callback,
             ),
             cpal::SampleFormat::U16 => self.build_output_stream::<u16, _, _>(
-                &format.shape(),
+                &format.config(),
                 move |data| {
                     data.iter_mut().for_each(|d| {
                         *d = mixer_rx
@@ -141,7 +141,7 @@ impl CpalDeviceExt for cpal::Device {
     fn new_output_stream(&self) -> (Arc<DynamicMixerController<f32>>, cpal::Stream) {
         // Determine the format to use for the new stream.
         let default_format = self
-            .default_output_format()
+            .default_output_config()
             .expect("The device doesn't support any format!?");
 
         self.new_output_stream_with_format(default_format)
@@ -157,18 +157,20 @@ impl CpalDeviceExt for cpal::Device {
 }
 
 /// All the supported output formats with sample rates
-fn supported_output_formats(device: &cpal::Device) -> impl Iterator<Item = cpal::Format> {
+fn supported_output_formats(
+    device: &cpal::Device,
+) -> impl Iterator<Item = cpal::SupportedStreamConfig> {
     const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 
     let mut supported: Vec<_> = device
-        .supported_output_formats()
+        .supported_output_configs()
         .expect("No supported output formats")
         .collect();
     supported.sort_by(|a, b| b.cmp_default_heuristics(a));
 
     supported.into_iter().flat_map(|sf| {
-        let max_rate = sf.max_sample_rate;
-        let min_rate = sf.min_sample_rate;
+        let max_rate = sf.max_sample_rate();
+        let min_rate = sf.min_sample_rate();
         let mut formats = vec![sf.clone().with_max_sample_rate()];
         if HZ_44100 < max_rate && HZ_44100 > min_rate {
             formats.push(sf.clone().with_sample_rate(HZ_44100))
@@ -176,22 +178,4 @@ fn supported_output_formats(device: &cpal::Device) -> impl Iterator<Item = cpal:
         formats.push(sf.with_sample_rate(min_rate));
         formats
     })
-}
-
-trait SupportedFormatExt {
-    fn with_sample_rate(self, sample_rate: cpal::SampleRate) -> cpal::Format;
-}
-impl SupportedFormatExt for cpal::SupportedFormat {
-    fn with_sample_rate(self, sample_rate: cpal::SampleRate) -> cpal::Format {
-        let Self {
-            channels,
-            data_type,
-            ..
-        } = self;
-        cpal::Format {
-            channels,
-            sample_rate,
-            data_type,
-        }
-    }
 }

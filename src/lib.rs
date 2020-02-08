@@ -83,13 +83,14 @@
 
 #![cfg_attr(test, deny(missing_docs))]
 pub use cpal::{
-    traits::DeviceTrait, Device, Devices, DevicesError, Format, InputDevices, OutputDevices,
+    traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,
+    SupportedStreamConfig,
 };
 
 mod conversions;
-mod stream;
 mod sink;
 mod spatial_sink;
+mod stream;
 
 pub mod buffer;
 pub mod decoder;
@@ -100,7 +101,7 @@ pub mod static_buffer;
 
 pub use crate::conversions::Sample;
 pub use crate::decoder::Decoder;
-pub use crate::stream::{OutputStream, StreamError};
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
+pub use crate::stream::{OutputStream, StreamError};

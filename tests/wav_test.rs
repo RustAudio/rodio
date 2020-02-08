@@ -1,5 +1,3 @@
-use rodio;
-
 use std::io::BufReader;
 
 #[test]

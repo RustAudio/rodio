@@ -1,5 +1,5 @@
-use crate::stream::OutputStream;
 use crate::source::Spatial;
+use crate::stream::OutputStream;
 use crate::Sample;
 use crate::Sink;
 use crate::Source;

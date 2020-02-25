@@ -20,11 +20,11 @@
 //! use std::io::BufReader;
 //! use rodio::Source;
 //!
-//! let stream = rodio::OutputStream::try_default().unwrap();
+//! let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
 //!
 //! let file = File::open("sound.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-//! stream.play_raw(source.convert_samples());
+//! stream_handle.play_raw(source.convert_samples());
 //! ```
 //!
 //! ## Sink
@@ -38,8 +38,8 @@
 //! ```no_run
 //! use rodio::Sink;
 //!
-//! let stream = rodio::OutputStream::try_default().unwrap();
-//! let sink = rodio::Sink::new(&stream);
+//! let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+//! let sink = rodio::Sink::try_new(&stream_handle).unwrap();
 //!
 //! // Add a dummy source of the sake of the example.
 //! let source = rodio::source::SineWave::new(440);

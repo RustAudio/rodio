@@ -1,5 +1,5 @@
 use crate::source::Spatial;
-use crate::stream::OutputStream;
+use crate::stream::{OutputStreamHandle, PlayError};
 use crate::Sample;
 use crate::Sink;
 use crate::Source;
@@ -21,21 +21,20 @@ struct SoundPositions {
 
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
-    #[inline]
-    pub fn new(
-        stream: &OutputStream,
+    pub fn try_new(
+        stream: &OutputStreamHandle,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
         right_ear: [f32; 3],
-    ) -> SpatialSink {
-        SpatialSink {
-            sink: Sink::new(stream),
+    ) -> Result<SpatialSink, PlayError> {
+        Ok(SpatialSink {
+            sink: Sink::try_new(stream)?,
             positions: Arc::new(Mutex::new(SoundPositions {
                 emitter_position,
                 left_ear,
                 right_ear,
             })),
-        }
+        })
     }
 
     /// Sets the position of the sound emitter in 3 dimensional space.

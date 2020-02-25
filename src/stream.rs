@@ -6,52 +6,76 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Sample,
 };
-use std::convert::TryFrom;
 use std::io::{Read, Seek};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::{error, fmt};
 
+/// Immovable `cpal::Stream` container.
+/// If this is dropped playback will end & attached `OutputStreamHandle`s will no longer work.
 pub struct OutputStream {
     mixer: Arc<DynamicMixerController<f32>>,
     _stream: cpal::Stream,
 }
 
-impl TryFrom<&'_ cpal::Device> for OutputStream {
-    type Error = StreamError;
-
-    fn try_from(device: &cpal::Device) -> Result<Self, Self::Error> {
-        let (mixer, _stream) = device.new_output_stream();
-        _stream.play()?;
-        Ok(Self { mixer, _stream })
-    }
+/// More flexible handle to a `OutputStream` that provides playback.
+#[derive(Clone)]
+pub struct OutputStreamHandle {
+    mixer: Weak<DynamicMixerController<f32>>,
 }
 
 impl OutputStream {
-    pub fn try_default() -> Result<Self, StreamError> {
+    pub fn try_from_device(
+        device: &cpal::Device,
+    ) -> Result<(Self, OutputStreamHandle), StreamError> {
+        let (mixer, _stream) = device.new_output_stream();
+        _stream.play()?;
+        let out = Self { mixer, _stream };
+        let handle = OutputStreamHandle {
+            mixer: Arc::downgrade(&out.mixer),
+        };
+        Ok((out, handle))
+    }
+
+    pub fn try_default() -> Result<(Self, OutputStreamHandle), StreamError> {
         let device = cpal::default_host()
             .default_output_device()
             .ok_or(StreamError::NoDevice)?;
-        Self::try_from(&device)
+        Self::try_from_device(&device)
     }
+}
 
+impl OutputStreamHandle {
     /// Plays a source with a device until it ends.
-    pub fn play_raw<S>(&self, source: S)
+    pub fn play_raw<S>(&self, source: S) -> Result<(), PlayError>
     where
         S: Source<Item = f32> + Send + 'static,
     {
-        self.mixer.add(source);
+        let mixer = self.mixer.upgrade().ok_or(PlayError::NoDevice)?;
+        mixer.add(source);
+        Ok(())
     }
 
     /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
-    #[inline]
-    pub fn play_once<R>(&self, input: R) -> Result<Sink, decoder::DecoderError>
+    pub fn play_once<R>(&self, input: R) -> Result<Sink, PlayError>
     where
         R: Read + Seek + Send + 'static,
     {
         let input = decoder::Decoder::new(input)?;
-        let sink = Sink::new(&self);
+        let sink = Sink::try_new(self)?;
         sink.append(input);
         Ok(sink)
+    }
+}
+
+#[derive(Debug)]
+pub enum PlayError {
+    DecoderError(decoder::DecoderError),
+    NoDevice,
+}
+
+impl From<decoder::DecoderError> for PlayError {
+    fn from(err: decoder::DecoderError) -> Self {
+        Self::DecoderError(err)
     }
 }
 

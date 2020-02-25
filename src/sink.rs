@@ -1,4 +1,4 @@
-use crate::stream::OutputStream;
+use crate::stream::{OutputStreamHandle, PlayError};
 use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::Receiver;
@@ -32,12 +32,12 @@ struct Controls {
 }
 
 impl Sink {
-    /// Builds a new `Sink`, beginning playback on a Device.
+    /// Builds a new `Sink`, beginning playback on a stream.
     #[inline]
-    pub fn new(stream: &OutputStream) -> Sink {
+    pub fn try_new(stream: &OutputStreamHandle) -> Result<Sink, PlayError> {
         let (sink, queue_rx) = Sink::new_idle();
-        stream.play_raw(queue_rx);
-        sink
+        stream.play_raw(queue_rx)?;
+        Ok(sink)
     }
 
     /// Builds a new `Sink`.

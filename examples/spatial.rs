@@ -3,13 +3,13 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let stream = rodio::OutputStream::try_default().unwrap();
-    let sink = rodio::SpatialSink::new(
-        &stream,
+    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+    let sink = rodio::SpatialSink::try_new(
+        &handle,
         [-10.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],
         [-1.0, 0.0, 0.0],
-    );
+    ).unwrap();
 
     let file = std::fs::File::open("examples/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();

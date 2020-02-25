@@ -10,7 +10,8 @@ use std::io::{Read, Seek};
 use std::sync::{Arc, Weak};
 use std::{error, fmt};
 
-/// Immovable `cpal::Stream` container.
+/// `cpal::Stream` container. Also see the more useful `OutputStreamHandle`.
+///
 /// If this is dropped playback will end & attached `OutputStreamHandle`s will no longer work.
 pub struct OutputStream {
     mixer: Arc<DynamicMixerController<f32>>,
@@ -24,6 +25,7 @@ pub struct OutputStreamHandle {
 }
 
 impl OutputStream {
+    /// Returns a new stream & handle using the given output device.
     pub fn try_from_device(
         device: &cpal::Device,
     ) -> Result<(Self, OutputStreamHandle), StreamError> {
@@ -36,6 +38,7 @@ impl OutputStream {
         Ok((out, handle))
     }
 
+    /// Return a new stream & handle using the default output device.
     pub fn try_default() -> Result<(Self, OutputStreamHandle), StreamError> {
         let device = cpal::default_host()
             .default_output_device()

@@ -9,7 +9,8 @@ fn main() {
         [-10.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],
         [-1.0, 0.0, 0.0],
-    ).unwrap();
+    )
+    .unwrap();
 
     let file = std::fs::File::open("examples/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();

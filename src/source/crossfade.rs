@@ -1,15 +1,17 @@
 use std::time::Duration;
 
-use Source;
-use Sample;
-use source::Mix;
-use source::TakeDuration;
-use source::FadeIn;
+use crate::source::{FadeIn, Mix, TakeDuration};
+use crate::Sample;
+use crate::Source;
 
 /// Mixes one sound fading out with another sound fading in for the given duration.
 ///
 /// Only the crossfaded portion (beginning of fadeout, beginning of fadein) is returned.
-pub fn crossfade<I1,I2>(input_fadeout: I1, input_fadein: I2, duration: Duration) -> Crossfade<I1,I2>
+pub fn crossfade<I1, I2>(
+    input_fadeout: I1,
+    input_fadein: I2,
+    duration: Duration,
+) -> Crossfade<I1, I2>
 where
     I1: Source,
     I2: Source,
@@ -22,15 +24,14 @@ where
     input_fadeout.mix(input_fadein)
 }
 
-pub type Crossfade<I1,I2> = Mix<TakeDuration<I1>,FadeIn<TakeDuration<I2>>>;
-
+pub type Crossfade<I1, I2> = Mix<TakeDuration<I1>, FadeIn<TakeDuration<I2>>>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use buffer::SamplesBuffer;
+    use crate::buffer::SamplesBuffer;
     fn dummysource(length: u8) -> SamplesBuffer<f32> {
-        let data: Vec<f32> = (1 ..= length).map(f32::from).collect();
+        let data: Vec<f32> = (1..=length).map(f32::from).collect();
         let source = SamplesBuffer::new(1, 1, data);
         source
     }
@@ -39,7 +40,11 @@ mod tests {
     fn test_crossfade() {
         let source1 = dummysource(10);
         let source2 = dummysource(10);
-        let mut mixed = crossfade(source1, source2, Duration::from_secs(5) + Duration::from_nanos(1));
+        let mut mixed = crossfade(
+            source1,
+            source2,
+            Duration::from_secs(5) + Duration::from_nanos(1),
+        );
         assert_eq!(mixed.next(), Some(1.0));
         assert_eq!(mixed.next(), Some(2.0));
         assert_eq!(mixed.next(), Some(3.0));
@@ -49,7 +54,11 @@ mod tests {
 
         let source1 = dummysource(10);
         let source2 = dummysource(10).amplify(0.0);
-        let mut mixed = crossfade(source1, source2, Duration::from_secs(5) + Duration::from_nanos(1));
+        let mut mixed = crossfade(
+            source1,
+            source2,
+            Duration::from_secs(5) + Duration::from_nanos(1),
+        );
         assert_eq!(mixed.next(), Some(1.0 * 1.0));
         assert_eq!(mixed.next(), Some(2.0 * 0.8));
         assert_eq!(mixed.next(), Some(3.0 * 0.6));

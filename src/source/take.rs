@@ -4,13 +4,44 @@ use Sample;
 use Source;
 
 /// Internal function that builds a `TakeDuration` object.
-pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I> {
+pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
     TakeDuration {
+        current_frame_len: input.current_frame_len(),
+        duration_per_sample: TakeDuration::get_duration_per_sample(&input),
         input: input,
         remaining_duration: duration,
         requested_duration: duration,
+        filter: None,
     }
 }
+
+/// A filter that requires duration information
+#[derive(Clone,Debug)]
+enum DurationFilter {
+    FadeOut,
+}
+impl DurationFilter
+{
+    fn apply<I: Iterator>(&self, sample: <I as Iterator>::Item, parent: &TakeDuration<I>) -> <I as Iterator>::Item
+    where
+        I::Item: Sample,
+    {
+        use self::DurationFilter::*;
+        match self {
+            FadeOut => {
+                let remaining = parent.remaining_duration.as_millis() as f32;
+                let total = parent.requested_duration.as_millis() as f32;
+                sample.amplify(remaining / total)
+            },
+        }
+    }
+}
+
+const NANOS_PER_SEC: u64 = 1_000_000_000;
 
 /// A source that repeats the given source.
 #[derive(Clone, Debug)]
@@ -18,6 +49,11 @@ pub struct TakeDuration<I> {
     input: I,
     remaining_duration: Duration,
     requested_duration: Duration,
+    filter: Option<DurationFilter>,
+    // Remaining samples in current frame.
+    current_frame_len: Option<usize>,
+    // Only updated when the current frame len is exausted.
+    duration_per_sample: Duration,
 }
 
 impl<I> TakeDuration<I>
@@ -27,8 +63,8 @@ where
 {
     /// Returns the duration elapsed for each sample extracted.
     #[inline]
-    fn get_duration_per_sample(&self) -> Duration {
-        let ns = 1000000000 / (self.input.sample_rate() as u64 * self.channels() as u64);
+    fn get_duration_per_sample(input: &I) -> Duration {
+        let ns = NANOS_PER_SEC / input.sample_rate() as u64 * input.channels() as u64;
         // \|/ the maximum value of `ns` is one billion, so this can't fail
         Duration::new(0, ns as u32)
     }
@@ -50,6 +86,14 @@ where
     pub fn into_inner(self) -> I {
         self.input
     }
+
+    pub fn set_filter_fadeout(&mut self) {
+        self.filter = Some(DurationFilter::FadeOut);
+    }
+
+    pub fn clear_filter(&mut self) {
+        self.filter = None;
+    }
 }
 
 impl<I> Iterator for TakeDuration<I>
@@ -60,13 +104,27 @@ where
     type Item = <I as Iterator>::Item;
 
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        let duration_per_sample = self.get_duration_per_sample();
+        if let Some(frame_len) = self.current_frame_len.take() {
+            if frame_len > 0 {
+                self.current_frame_len = Some(frame_len - 1);
+            } else {
+                self.current_frame_len = self.input.current_frame_len();
+                // Sample rate might have changed
+                self.duration_per_sample = Self::get_duration_per_sample(&self.input);
+            }
+        }
 
-        if self.remaining_duration <= duration_per_sample {
+        if self.remaining_duration <= self.duration_per_sample {
             None
         } else {
             if let Some(sample) = self.input.next() {
-                self.remaining_duration = self.remaining_duration - duration_per_sample;
+                let sample = match &self.filter {
+                    Some(filter) => filter.apply(sample, &self),
+                    None => sample,
+                };
+
+                self.remaining_duration = self.remaining_duration - self.duration_per_sample;
+                
                 Some(sample)
             } else {
                 None
@@ -84,20 +142,15 @@ where
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        let remaining_nanosecs = self.remaining_duration.as_secs() * 1000000000
+        let remaining_nanos = self.remaining_duration.as_secs() * NANOS_PER_SEC
             + self.remaining_duration.subsec_nanos() as u64;
-        let remaining_samples = remaining_nanosecs * self.input.sample_rate() as u64
-            * self.channels() as u64 / 1000000000;
+        let nanos_per_sample = self.duration_per_sample.as_secs() * NANOS_PER_SEC
+            + self.duration_per_sample.subsec_nanos() as u64;
+        let remaining_samples = (remaining_nanos / nanos_per_sample) as usize;
 
-        if let Some(value) = self.input.current_frame_len() {
-            if (value as u64) < remaining_samples {
-                Some(value)
-            } else {
-                Some(remaining_samples as usize)
-            }
-        } else {
-            Some(remaining_samples as usize)
-        }
+        self.input.current_frame_len()
+            .filter(|value| *value < remaining_samples)
+            .or(Some(remaining_samples))
     }
 
     #[inline]

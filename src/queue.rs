@@ -48,7 +48,7 @@ where
 
 /// The input of the queue.
 pub struct SourcesQueueInput<S> {
-    next_sounds: Mutex<Vec<(Box<Source<Item = S> + Send>, Option<Sender<()>>)>>,
+    next_sounds: Mutex<Vec<(Box<dyn Source<Item = S> + Send>, Option<Sender<()>>)>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
@@ -98,7 +98,7 @@ where
 /// The output of the queue. Implements `Source`.
 pub struct SourcesQueueOutput<S> {
     // The current iterator that produces samples.
-    current: Box<Source<Item = S> + Send>,
+    current: Box<dyn Source<Item = S> + Send>,
 
     // Signal this sender before picking from `next`.
     signal_after_end: Option<Sender<()>>,
@@ -206,7 +206,7 @@ where
             if next.len() == 0 {
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
-                    let silence = Zero::<S>::new(1, 44000); // TODO: meh
+                    let silence = Zero::<S>::new(1, 44100); // TODO: meh
                     (
                         Box::new(silence.take_duration(Duration::from_millis(10))) as Box<_>,
                         None,

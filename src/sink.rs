@@ -33,13 +33,20 @@ struct Controls {
 }
 
 impl Sink {
-    /// Builds a new `Sink`.
+    /// Builds a new `Sink`, beginning playback on a Device.
     #[inline]
     pub fn new(device: &Device) -> Sink {
-        let (queue_tx, queue_rx) = queue::queue(true);
+        let (sink, queue_rx) = Sink::new_idle();
         play_raw(device, queue_rx);
+        sink
+    }
 
-        Sink {
+    /// Builds a new `Sink`.
+    #[inline]
+    pub fn new_idle() -> (Sink, queue::SourcesQueueOutput<f32>) {
+        let (queue_tx, queue_rx) = queue::queue(true);
+
+        let sink = Sink {
             queue_tx: queue_tx,
             sleep_until_end: Mutex::new(None),
             controls: Arc::new(Controls {
@@ -49,7 +56,8 @@ impl Sink {
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
-        }
+        };
+        (sink, queue_rx)
     }
 
     /// Appends a sound to the queue of sounds to play.
@@ -148,7 +156,13 @@ impl Sink {
     /// Returns true if this sink has no more sounds to play.
     #[inline]
     pub fn empty(&self) -> bool {
-        self.sound_count.load(Ordering::Relaxed) == 0
+        self.len() == 0
+    }
+
+    /// Returns the number of sounds currently in the queue.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.sound_count.load(Ordering::Relaxed)
     }
 }
 
@@ -159,6 +173,63 @@ impl Drop for Sink {
 
         if !self.detached {
             self.controls.stopped.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use buffer::SamplesBuffer;
+    use source::Source;
+    use sink::Sink;
+
+    #[test]
+    fn test_pause_and_stop() {
+        let (sink, mut queue_rx) = Sink::new_idle();
+
+        // assert_eq!(queue_rx.next(), Some(0.0));
+
+        let v = vec![10i16, -10, 20, -20, 30, -30];
+
+        // Low rate to ensure immediate control.
+        sink.append(SamplesBuffer::new(1, 1, v.clone()));
+        let mut src = SamplesBuffer::new(1, 1, v.clone()).convert_samples();
+
+        assert_eq!(queue_rx.next(), src.next());
+        assert_eq!(queue_rx.next(), src.next());
+
+        sink.pause();
+
+        assert_eq!(queue_rx.next(), Some(0.0));
+
+        sink.play();
+
+        assert_eq!(queue_rx.next(), src.next());
+        assert_eq!(queue_rx.next(), src.next());
+
+        sink.stop();
+
+        assert_eq!(queue_rx.next(), Some(0.0));
+
+        assert_eq!(sink.empty(), true);
+    }
+
+    #[test]
+    fn test_volume() {
+        let (sink, mut queue_rx) = Sink::new_idle();
+
+        let v = vec![10i16, -10, 20, -20, 30, -30];
+
+        // High rate to avoid immediate control.
+        sink.append(SamplesBuffer::new(2, 44100, v.clone()));
+        let src = SamplesBuffer::new(2, 44100, v.clone()).convert_samples();
+
+        let mut src = src.amplify(0.5);
+        sink.set_volume(0.5);
+
+        for _ in 0..v.len() {
+            assert_eq!(queue_rx.next(), src.next());
         }
     }
 }

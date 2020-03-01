@@ -9,6 +9,7 @@ pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
 pub use self::channel_volume::ChannelVolume;
+pub use self::crossfade::Crossfade;
 pub use self::delay::Delay;
 pub use self::done::Done;
 pub use self::empty::Empty;
@@ -33,6 +34,7 @@ mod amplify;
 mod blt;
 mod buffered;
 mod channel_volume;
+mod crossfade;
 mod delay;
 mod done;
 mod empty;
@@ -205,6 +207,18 @@ where
         amplify::amplify(self, value)
     }
 
+    /// Mixes this sound fading out with another sound fading in for the given duration.
+    ///
+    /// Only the crossfaded portion (beginning of self, beginning of other) is returned.
+    #[inline]
+    fn take_crossfade_with<S: Source>(self, other: S, duration: Duration) -> Crossfade<Self, S>
+    where
+        Self: Sized,
+        <S as Iterator>::Item: Sample,
+    {
+        crossfade::crossfade(self, other, duration)
+    }
+
     /// Fades in the sound.
     #[inline]
     fn fade_in(self, duration: Duration) -> FadeIn<Self>
@@ -234,7 +248,16 @@ where
         elapsed::elapsed(self, duration)
     }
 
-    /// Calls the `access` closure on `Self` every time `period` elapsed.
+    /// Calls the `access` closure on `Self` the first time the source is iterated and every
+    /// time `period` elapses.
+    ///
+    /// Later changes in either `sample_rate()` or `channels_count()` won't be reflected in
+    /// the rate of access.
+    ///
+    /// The rate is based on playback speed, so both the following will call `access` when the
+    /// same samples are reached:
+    /// `periodic_access(Duration::from_secs(1), ...).speed(2.0)`
+    /// `speed(2.0).periodic_access(Duration::from_secs(2), ...)`
     #[inline]
     fn periodic_access<F>(self, period: Duration, access: F) -> PeriodicAccess<Self, F>
     where
@@ -316,7 +339,7 @@ where
     }
 }
 
-impl<S> Source for Box<Source<Item = S>>
+impl<S> Source for Box<dyn Source<Item = S>>
 where
     S: Sample,
 {
@@ -341,7 +364,7 @@ where
     }
 }
 
-impl<S> Source for Box<Source<Item = S> + Send>
+impl<S> Source for Box<dyn Source<Item = S> + Send>
 where
     S: Sample,
 {
@@ -366,7 +389,7 @@ where
     }
 }
 
-impl<S> Source for Box<Source<Item = S> + Send + Sync>
+impl<S> Source for Box<dyn Source<Item = S> + Send + Sync>
 where
     S: Sample,
 {

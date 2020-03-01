@@ -230,8 +230,6 @@ where
 
     /// Updates the supplied `Duration` with the total elapsed time for the source
     ///
-    /// This is handy when you need to precisely time stuff to a music track for instance.
-    ///
     /// # Example
     ///
     /// ```ignore

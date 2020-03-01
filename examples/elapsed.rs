@@ -20,7 +20,7 @@ fn main() {
     while !sink.empty() {
         let val = *timer.lock().unwrap();
 
-        println!("Music has played for {} seconds", val.as_secs());
+        println!("Music has played for {}.{} seconds", val.as_secs(), val.subsec_millis());
         thread::sleep(Duration::from_secs(1));
     }
 }

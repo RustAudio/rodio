@@ -37,7 +37,7 @@ where
         // Calculate sample_time in nanoseconds
         let sample_time = (1_000_000_000 / self.sample_rate()) / self.channels() as u32;
 
-        let time_elapsed = Duration::from_nanos(sample_time as u64);
+        let time_elapsed = Duration::from_nanos(sample_time.into());
         *duration += time_elapsed;
 
         self.input.next()

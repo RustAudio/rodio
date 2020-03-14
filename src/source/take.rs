@@ -19,7 +19,7 @@ where
     }
 }
 
-/// A filter that requires duration information
+/// A filter that can be applied to a `TakeDuration`.
 #[derive(Clone,Debug)]
 enum DurationFilter {
     FadeOut,
@@ -43,7 +43,7 @@ impl DurationFilter
 
 const NANOS_PER_SEC: u64 = 1_000_000_000;
 
-/// A source that repeats the given source.
+/// A source that truncates the given source to a certain duration.
 #[derive(Clone, Debug)]
 pub struct TakeDuration<I> {
     input: I,

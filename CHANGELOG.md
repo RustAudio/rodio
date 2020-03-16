@@ -1,8 +1,10 @@
-# Unreleased
-- Update `lewton` to 0.10.
-- Update `cpal` to 0.11.
+# Version 0.11.0 (2020-03-16)
+
+- Update `lewton` to [0.10](https://github.com/RustAudio/lewton/blob/master/CHANGELOG.md#release-0100---january-30-2020).
+- Breaking: Update `cpal` to [0.11](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0110-2019-12-11)
 
 # Version 0.10.0 (2019-11-16)
+
 - Removal of nalgebra in favour of own code.
 - Fix a bug that switched channels when resuming after having paused.
 - Attempt all supported output formats if the default format fails in `Sink::new`.
@@ -15,7 +17,7 @@
 
 # Version 0.8.1 (2018-09-18)
 
-- Update `lewton` dependency to 0.9
+- Update `lewton` dependency to [0.9](https://github.com/RustAudio/lewton/blob/master/CHANGELOG.md#release-090---august-16-2018)
 - Change license from `Apache-2.0` only to `Apache-2.0 OR MIT`
 
 # Version 0.8.0 (2018-06-22)

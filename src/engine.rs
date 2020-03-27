@@ -107,33 +107,31 @@ where
 {
     let mut stream_to_start = None;
 
-    let mixer = {
-        if let Ok(device_name) = device.name() {
-            let mut end_points = engine.end_points.lock().unwrap();
-    
-            match end_points.entry(device_name) {
-                Entry::Vacant(e) => {
+    let mixer = if let Ok(device_name) = device.name() {
+        let mut end_points = engine.end_points.lock().unwrap();
+
+        match end_points.entry(device_name) {
+            Entry::Vacant(e) => {
+                let (mixer, stream) = new_output_stream(engine, device);
+                e.insert(Arc::downgrade(&mixer));
+                stream_to_start = Some(stream);
+                mixer
+            },
+            Entry::Occupied(mut e) => {
+                if let Some(m) = e.get().upgrade() {
+                    m.clone()
+                } else {
                     let (mixer, stream) = new_output_stream(engine, device);
                     e.insert(Arc::downgrade(&mixer));
                     stream_to_start = Some(stream);
                     mixer
-                },
-                Entry::Occupied(mut e) => {
-                    if let Some(m) = e.get().upgrade() {
-                        m.clone()
-                    } else {
-                        let (mixer, stream) = new_output_stream(engine, device);
-                        e.insert(Arc::downgrade(&mixer));
-                        stream_to_start = Some(stream);
-                        mixer
-                    }
-                },
-            }
-        } else {
-            let (mixer, stream) = new_output_stream(engine, device);
-            stream_to_start = Some(stream);
-            mixer
+                }
+            },
         }
+    } else {
+        let (mixer, stream) = new_output_stream(engine, device);
+        stream_to_start = Some(stream);
+        mixer
     };
 
     if let Some(stream) = stream_to_start {

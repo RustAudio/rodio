@@ -1,13 +1,14 @@
-extern crate rodio;
-
-use std::io::BufReader;
+use std::{fs::File, io::BufReader};
 
 fn main() {
-    let device = rodio::default_output_device().unwrap();
-    let sink = rodio::Sink::new(&device);
+	let device = rodio::default_output_device().unwrap();
+	let sink = rodio::Sink::new(&device);
 
-    let file = std::fs::File::open("examples/music.ogg").unwrap();
-    sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
+	let path = "examples/music.ogg";
+	let file = File::open(path).unwrap();
+	let buffer = BufReader::new(file);
+	let source = rodio::Decoder::new(buffer).unwrap();
 
-    sink.sleep_until_end();
+	sink.append(source);
+	sink.sleep_until_end();
 }

@@ -7,6 +7,7 @@ description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]
 repository = "https://github.com/RustAudio/rodio"
 documentation = "http://docs.rs/rodio"
+autoexamples = true
 
 [dependencies]
 claxon = { version = "0.4.2", optional = true }
@@ -15,6 +16,7 @@ hound = { version = "3.3.1", optional = true }
 lazy_static = "1.0.0"
 lewton = { version = "0.10", optional = true }
 minimp3 = { version = "0.3.2", optional = true }
+reqwest = { version = "0.10.0", default-features = false, features = ["blocking"], optional = true }
 
 [features]
 default = ["flac", "vorbis", "wav", "mp3"]
@@ -23,3 +25,26 @@ flac = ["claxon"]
 vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["minimp3"]
+http = ["reqwest"]
+https-rustls = ["http", "reqwest/rustls-tls"]
+https-native = ["http", "reqwest/native-tls"]
+
+[[example]]
+name = "http_flac"
+path = "examples/http_flac.rs"
+required-features = ["https-rustls"]
+
+[[example]]
+name = "http_mp3"
+path = "examples/http_mp3.rs"
+required-features = ["https-rustls"]
+
+[[example]]
+name = "http_ogg"
+path = "examples/http_ogg.rs"
+required-features = ["https-rustls"]
+
+[[example]]
+name = "http_wav"
+path = "examples/http_wav.rs"
+required-features = ["https-rustls"]

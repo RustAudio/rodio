@@ -94,6 +94,8 @@ extern crate lazy_static;
 extern crate lewton;
 #[cfg(feature = "mp3")]
 extern crate minimp3;
+#[cfg(feature = "http")]
+extern crate reqwest;
 
 pub use cpal::{
     traits::DeviceTrait, Device, Devices, DevicesError, Format, InputDevices, OutputDevices
@@ -105,6 +107,11 @@ pub use engine::play_raw;
 pub use sink::Sink;
 pub use source::Source;
 pub use spatial_sink::SpatialSink;
+#[cfg(feature = "http")]
+pub use utils::{
+    buffer::seekable_bufreader::SeekableBufReader,
+    source::http::SeekableRequest,
+};
 
 use cpal::traits::HostTrait;
 use std::io::{Read, Seek};
@@ -117,6 +124,7 @@ mod spatial_sink;
 pub mod buffer;
 pub mod decoder;
 pub mod dynamic_mixer;
+pub mod utils;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;

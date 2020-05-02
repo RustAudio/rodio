@@ -1,3 +1,7 @@
+# Unreleased
+- Breaking: Update `cpal` to [...](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#unreleased).
+- Breaking: Rework API removing global "rodio audio processing" thread & adapting to the upstream cpal API changes.
+
 # Version 0.11.0 (2020-03-16)
 
 - Update `lewton` to [0.10](https://github.com/RustAudio/lewton/blob/master/CHANGELOG.md#release-0100---january-30-2020).

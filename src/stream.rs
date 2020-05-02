@@ -135,7 +135,7 @@ impl CpalDeviceExt for cpal::Device {
         match format.sample_format() {
             cpal::SampleFormat::F32 => self.build_output_stream::<f32, _, _>(
                 &format.config(),
-                move |data| {
+                move |data, _| {
                     data.iter_mut()
                         .for_each(|d| *d = mixer_rx.next().unwrap_or(0f32))
                 },
@@ -143,7 +143,7 @@ impl CpalDeviceExt for cpal::Device {
             ),
             cpal::SampleFormat::I16 => self.build_output_stream::<i16, _, _>(
                 &format.config(),
-                move |data| {
+                move |data, _| {
                     data.iter_mut()
                         .for_each(|d| *d = mixer_rx.next().map(|s| s.to_i16()).unwrap_or(0i16))
                 },
@@ -151,7 +151,7 @@ impl CpalDeviceExt for cpal::Device {
             ),
             cpal::SampleFormat::U16 => self.build_output_stream::<u16, _, _>(
                 &format.config(),
-                move |data| {
+                move |data, _| {
                     data.iter_mut().for_each(|d| {
                         *d = mixer_rx
                             .next()

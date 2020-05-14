@@ -25,6 +25,7 @@ pub use self::skip::SkipDuration;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
+pub use self::skippable::Skippable;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
@@ -49,6 +50,7 @@ mod sine;
 mod skip;
 mod spatial;
 mod speed;
+mod skippable;
 mod stoppable;
 mod take;
 mod uniform;
@@ -315,6 +317,13 @@ where
         Self: Sized,
     {
         stoppable::stoppable(self)
+    }
+
+    fn skippable(self) -> Skippable<Self>
+    where
+        Self: Sized
+    {
+        skippable::skippable(self)
     }
 
     /// Applies a low-pass filter to the source.

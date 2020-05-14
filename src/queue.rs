@@ -94,16 +94,15 @@ where
             .store(keep_alive_if_empty, Ordering::Release);
     }
 
-    pub fn clear(&self) {
+    /// Removes all the sounds from the queue. Returns the number of sounds cleared.
+    pub fn clear(&self) -> usize {
         let mut sounds = self.next_sounds.lock().unwrap();
+        let len = sounds.len();
         sounds.clear();
+        len
     }
 
-    pub fn len(&self) -> usize {
-        self.next_sounds.lock().unwrap().len()
-    }
 }
-
 /// The output of the queue. Implements `Source`.
 pub struct SourcesQueueOutput<S> {
     // The current iterator that produces samples.

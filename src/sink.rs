@@ -146,8 +146,8 @@ impl Sink {
     ///
     /// See `pause()` for information about pausing a `Sink`.
     pub fn clear(&self) {
-        self.sound_count.fetch_sub(self.queue_tx.len(), Ordering::SeqCst);
-        self.queue_tx.clear();
+        let len = self.queue_tx.clear();
+        self.sound_count.fetch_sub(len, Ordering::SeqCst);
         self.pause();
     }
     

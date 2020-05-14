@@ -93,6 +93,15 @@ where
         self.keep_alive_if_empty
             .store(keep_alive_if_empty, Ordering::Release);
     }
+
+    pub fn clear(&self) {
+        let mut sounds = self.next_sounds.lock().unwrap();
+        sounds.clear();
+    }
+
+    pub fn len(&self) -> usize {
+        self.next_sounds.lock().unwrap().len()
+    }
 }
 
 /// The output of the queue. Implements `Source`.

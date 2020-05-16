@@ -1,12 +1,12 @@
-use source::Spatial;
+use crate::source::Spatial;
 use std::f32;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use Device;
-use Sample;
-use Sink;
-use Source;
+use crate::Device;
+use crate::Sample;
+use crate::Sink;
+use crate::Source;
 
 pub struct SpatialSink {
     sink: Sink,

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>

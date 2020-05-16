@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `PeriodicAccess` object.
 pub fn periodic<I, F>(source: I, period: Duration, modifier: F) -> PeriodicAccess<I, F>
@@ -119,9 +119,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
+    use crate::buffer::SamplesBuffer;
     use std::time::Duration;
-    use source::Source;
+    use crate::source::Source;
     use std::cell::RefCell;
 
     #[test]

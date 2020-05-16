@@ -1,10 +1,10 @@
 use std::cmp;
 use std::time::Duration;
 
-use source::uniform::UniformSourceIterator;
+use crate::source::uniform::UniformSourceIterator;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `Mix` object.
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>

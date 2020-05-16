@@ -13,9 +13,9 @@
 use std::time::Duration;
 use std::slice::Iter as SliceIter;
 
-use source::Source;
+use crate::source::Source;
 
-use Sample;
+use crate::Sample;
 
 /// A buffer of samples treated as a source.
 #[derive(Clone)]
@@ -107,8 +107,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use static_buffer::StaticSamplesBuffer;
-    use source::Source;
+    use crate::static_buffer::StaticSamplesBuffer;
+    use crate::Source;
 
     #[test]
     fn basic() {

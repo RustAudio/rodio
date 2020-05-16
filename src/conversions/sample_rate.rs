@@ -1,4 +1,4 @@
-use conversions::Sample;
+use crate::conversions::Sample;
 use cpal;
 
 use std::mem;

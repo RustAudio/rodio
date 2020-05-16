@@ -2,7 +2,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 use claxon::FlacReader;
 

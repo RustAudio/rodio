@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 // Implemented following http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 

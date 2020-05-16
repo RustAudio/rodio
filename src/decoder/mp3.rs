@@ -1,7 +1,7 @@
 use std::io::{Read, Seek};
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 use minimp3::{Decoder, Frame};
 

@@ -13,9 +13,9 @@
 use std::time::Duration;
 use std::vec::IntoIter as VecIntoIter;
 
-use source::Source;
+use crate::source::Source;
 
-use Sample;
+use crate::Sample;
 
 /// A buffer of samples treated as a source.
 pub struct SamplesBuffer<S> {
@@ -106,8 +106,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use source::Source;
+    use crate::buffer::SamplesBuffer;
+    use crate::source::Source;
 
     #[test]
     fn basic() {

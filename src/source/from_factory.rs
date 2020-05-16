@@ -1,5 +1,5 @@
-use source::from_iter;
-use source::FromIter;
+use crate::source::from_iter;
+use crate::source::FromIter;
 
 /// Builds a source that chains sources built from a factory.
 ///

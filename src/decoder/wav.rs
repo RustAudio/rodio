@@ -1,7 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 use hound::{SampleFormat, WavReader};
 

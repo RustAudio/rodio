@@ -1,5 +1,5 @@
 use std::time::Duration;
-use Source;
+use crate::Source;
 
 /// An infinite source that produces a sine.
 ///

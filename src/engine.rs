@@ -12,8 +12,8 @@ use cpal::Sample as CpalSample;
 use cpal::StreamData;
 use cpal::StreamId;
 use cpal::UnknownTypeOutputBuffer;
-use dynamic_mixer;
-use source::Source;
+use crate::dynamic_mixer;
+use crate::source::Source;
 
 /// Plays a source with a device until it ends.
 ///

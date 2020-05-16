@@ -9,11 +9,11 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use source::Empty;
-use source::Source;
-use source::Zero;
+use crate::source::Empty;
+use crate::source::Source;
+use crate::source::Zero;
 
-use Sample;
+use crate::Sample;
 
 /// Builds a new queue. It consists of an input and an output.
 ///
@@ -227,9 +227,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use queue;
-    use source::Source;
+    use crate::buffer::SamplesBuffer;
+    use crate::queue;
+    use crate::source::Source;
 
     #[test]
     #[ignore] // FIXME: samples rate and channel not updated immediately after transition

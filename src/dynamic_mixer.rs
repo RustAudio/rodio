@@ -6,10 +6,10 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use source::Source;
-use source::UniformSourceIterator;
+use crate::source::Source;
+use crate::source::UniformSourceIterator;
 
-use Sample;
+use crate::Sample;
 
 /// Builds a new mixer.
 ///
@@ -148,9 +148,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use dynamic_mixer;
-    use source::Source;
+    use crate::buffer::SamplesBuffer;
+    use crate::dynamic_mixer;
+    use crate::source::Source;
 
     #[test]
     fn basic() {

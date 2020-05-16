@@ -5,7 +5,7 @@ use std::fmt;
 use std::io::{Read, Seek};
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 #[cfg(feature = "flac")]
 mod flac;

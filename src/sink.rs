@@ -5,12 +5,12 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use play_raw;
-use queue;
-use source::Done;
-use Device;
-use Sample;
-use Source;
+use crate::play_raw;
+use crate::queue;
+use crate::source::Done;
+use crate::Device;
+use crate::Sample;
+use crate::Source;
 
 /// Handle to an device that outputs sounds.
 ///
@@ -180,9 +180,9 @@ impl Drop for Sink {
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use source::Source;
-    use sink::Sink;
+    use crate::buffer::SamplesBuffer;
+    use crate::source::Source;
+    use crate::sink::Sink;
 
     #[test]
     fn test_pause_and_stop() {

@@ -64,11 +64,11 @@ where
     #[inline]
     fn next(&mut self) -> Option<i16> {
         if self.current_frame_offset == self.current_frame.data.len() {
-            self.current_frame_offset = 0;
             match self.decoder.next_frame() {
                 Ok(frame) => self.current_frame = frame,
                 _ => return None,
             }
+            self.current_frame_offset = 0;
         }
 
         let v = self.current_frame.data[self.current_frame_offset];

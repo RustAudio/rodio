@@ -20,11 +20,11 @@
 //! use std::io::BufReader;
 //! use rodio::Source;
 //!
-//! let device = rodio::default_output_device().unwrap();
+//! let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
 //!
 //! let file = File::open("sound.ogg").unwrap();
 //! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-//! rodio::play_raw(&device, source.convert_samples());
+//! stream_handle.play_raw(source.convert_samples());
 //! ```
 //!
 //! ## Sink
@@ -38,8 +38,8 @@
 //! ```no_run
 //! use rodio::Sink;
 //!
-//! let device = rodio::default_output_device().unwrap();
-//! let sink = Sink::new(&device);
+//! let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+//! let sink = rodio::Sink::try_new(&stream_handle).unwrap();
 //!
 //! // Add a dummy source of the sake of the example.
 //! let source = rodio::source::SineWave::new(440);
@@ -82,37 +82,15 @@
 //!
 
 #![cfg_attr(test, deny(missing_docs))]
-
-#[cfg(feature = "flac")]
-extern crate claxon;
-extern crate cpal;
-#[cfg(feature = "wav")]
-extern crate hound;
-#[macro_use]
-extern crate lazy_static;
-#[cfg(feature = "vorbis")]
-extern crate lewton;
-#[cfg(feature = "mp3")]
-extern crate minimp3;
-
 pub use cpal::{
-    traits::DeviceTrait, Device, Devices, DevicesError, Format, InputDevices, OutputDevices
+    traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,
+    SupportedStreamConfig,
 };
 
-pub use conversions::Sample;
-pub use decoder::Decoder;
-pub use engine::play_raw;
-pub use sink::Sink;
-pub use source::Source;
-pub use spatial_sink::SpatialSink;
-
-use cpal::traits::HostTrait;
-use std::io::{Read, Seek};
-
 mod conversions;
-mod engine;
 mod sink;
 mod spatial_sink;
+mod stream;
 
 pub mod buffer;
 pub mod decoder;
@@ -121,56 +99,9 @@ pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
-/// Plays a sound once. Returns a `Sink` that can be used to control the sound.
-#[inline]
-pub fn play_once<R>(device: &Device, input: R) -> Result<Sink, decoder::DecoderError>
-where
-    R: Read + Seek + Send + 'static,
-{
-    let input = decoder::Decoder::new(input)?;
-    let sink = Sink::new(device);
-    sink.append(input);
-    Ok(sink)
-}
-
-/// The default input audio device on the system.
-///
-/// Returns `None` if no input device is available.
-#[inline]
-pub fn default_input_device() -> Option<Device> {
-    cpal::default_host().default_input_device()
-}
-
-/// The default output audio device on the system.
-///
-/// Returns `None` if no output device is available.
-#[inline]
-pub fn default_output_device() -> Option<Device> {
-    cpal::default_host().default_output_device()
-}
-
-/// An iterator yielding all `Device`s currently available to the host on the system.
-///
-/// Can be empty if the system does not support audio in general.
-#[inline]
-pub fn devices() -> Result<Devices, DevicesError> {
-    cpal::default_host().devices()
-}
-
-/// An iterator yielding all `Device`s currently available to the system that support one or more
-/// input stream formats.
-///
-/// Can be empty if the system does not support audio input.
-#[inline]
-pub fn input_devices() -> Result<InputDevices<Devices>, DevicesError> {
-    cpal::default_host().input_devices()
-}
-
-/// An iterator yielding all `Device`s currently available to the system that support one or more
-/// output stream formats.
-///
-/// Can be empty if the system does not support audio output.
-#[inline]
-pub fn output_devices() -> Result<OutputDevices<Devices>, DevicesError> {
-    cpal::default_host().output_devices()
-}
+pub use crate::conversions::Sample;
+pub use crate::decoder::Decoder;
+pub use crate::sink::Sink;
+pub use crate::source::Source;
+pub use crate::spatial_sink::SpatialSink;
+pub use crate::stream::{OutputStream, OutputStreamHandle, StreamError};

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `Amplify` object.
 pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>

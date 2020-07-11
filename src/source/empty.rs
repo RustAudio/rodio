@@ -1,7 +1,7 @@
+use crate::Sample;
+use crate::Source;
 use std::marker::PhantomData;
 use std::time::Duration;
-use Sample;
-use Source;
 
 /// An empty source.
 #[derive(Debug, Copy, Clone)]

@@ -7,12 +7,12 @@ description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]
 repository = "https://github.com/RustAudio/rodio"
 documentation = "http://docs.rs/rodio"
+edition = "2018"
 
 [dependencies]
+cpal = "0.12"
 claxon = { version = "0.4.2", optional = true }
-cpal = "0.11"
 hound = { version = "3.3.1", optional = true }
-lazy_static = "1.0.0"
 lewton = { version = "0.10", optional = true }
 minimp3 = { version = "0.3.2", optional = true }
 

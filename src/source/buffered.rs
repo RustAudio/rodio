@@ -2,8 +2,8 @@ use std::cmp;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `Buffered` object.
 #[inline]
@@ -116,7 +116,7 @@ where
                 &Frame::Input(ref input) => {
                     let input = input.lock().unwrap().take().unwrap();
                     extract(input)
-                },
+                }
             };
 
             *next_frame_ptr = next_frame.clone();
@@ -145,12 +145,12 @@ where
                 current_sample = Some(data[self.position_in_frame].clone());
                 self.position_in_frame += 1;
                 advance_frame = self.position_in_frame >= data.len();
-            },
+            }
 
             &Frame::End => {
                 current_sample = None;
                 advance_frame = false;
-            },
+            }
 
             &Frame::Input(_) => unreachable!(),
         };

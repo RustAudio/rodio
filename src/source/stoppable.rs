@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `Stoppable` object.
 pub fn stoppable<I>(source: I) -> Stoppable<I> {

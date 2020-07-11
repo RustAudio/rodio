@@ -1,3 +1,4 @@
+use crate::stream::{OutputStreamHandle, PlayError};
 use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::Receiver;
@@ -5,12 +6,10 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use play_raw;
-use queue;
-use source::Done;
-use Device;
-use Sample;
-use Source;
+use crate::queue;
+use crate::source::Done;
+use crate::Sample;
+use crate::Source;
 
 /// Handle to an device that outputs sounds.
 ///
@@ -33,12 +32,12 @@ struct Controls {
 }
 
 impl Sink {
-    /// Builds a new `Sink`, beginning playback on a Device.
+    /// Builds a new `Sink`, beginning playback on a stream.
     #[inline]
-    pub fn new(device: &Device) -> Sink {
+    pub fn try_new(stream: &OutputStreamHandle) -> Result<Sink, PlayError> {
         let (sink, queue_rx) = Sink::new_idle();
-        play_raw(device, queue_rx);
-        sink
+        stream.play_raw(queue_rx)?;
+        Ok(sink)
     }
 
     /// Builds a new `Sink`.
@@ -47,7 +46,7 @@ impl Sink {
         let (queue_tx, queue_rx) = queue::queue(true);
 
         let sink = Sink {
-            queue_tx: queue_tx,
+            queue_tx,
             sleep_until_end: Mutex::new(None),
             controls: Arc::new(Controls {
                 pause: AtomicBool::new(false),
@@ -177,12 +176,11 @@ impl Drop for Sink {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use source::Source;
-    use sink::Sink;
+    use crate::buffer::SamplesBuffer;
+    use crate::sink::Sink;
+    use crate::source::Source;
 
     #[test]
     fn test_pause_and_stop() {

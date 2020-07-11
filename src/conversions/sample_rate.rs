@@ -1,4 +1,4 @@
-use conversions::Sample;
+use crate::conversions::Sample;
 use cpal;
 
 use std::mem;
@@ -41,7 +41,9 @@ where
     ///
     #[inline]
     pub fn new(
-        mut input: I, from: cpal::SampleRate, to: cpal::SampleRate,
+        mut input: I,
+        from: cpal::SampleRate,
+        to: cpal::SampleRate,
         num_channels: cpal::ChannelCount,
     ) -> SampleRateConverter<I> {
         let from = from.0;
@@ -103,7 +105,7 @@ where
 
         mem::swap(&mut self.current_frame, &mut self.next_frame);
         self.next_frame.clear();
-        for _ in 0 .. self.next_frame.capacity() {
+        for _ in 0..self.next_frame.capacity() {
             if let Some(i) = self.input.next() {
                 self.next_frame.push(i);
             } else {
@@ -163,7 +165,8 @@ where
         // `self.next_frame`.
         let mut result = None;
         let numerator = (self.from * self.next_output_frame_pos_in_chunk) % self.to;
-        for (off, (cur, next)) in self.current_frame
+        for (off, (cur, next)) in self
+            .current_frame
             .iter()
             .zip(self.next_frame.iter())
             .enumerate()

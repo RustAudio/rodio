@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -20,13 +20,16 @@ where
 }
 
 /// A filter that can be applied to a `TakeDuration`.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 enum DurationFilter {
     FadeOut,
 }
-impl DurationFilter
-{
-    fn apply<I: Iterator>(&self, sample: <I as Iterator>::Item, parent: &TakeDuration<I>) -> <I as Iterator>::Item
+impl DurationFilter {
+    fn apply<I: Iterator>(
+        &self,
+        sample: <I as Iterator>::Item,
+        parent: &TakeDuration<I>,
+    ) -> <I as Iterator>::Item
     where
         I::Item: Sample,
     {
@@ -36,7 +39,7 @@ impl DurationFilter
                 let remaining = parent.remaining_duration.as_millis() as f32;
                 let total = parent.requested_duration.as_millis() as f32;
                 sample.amplify(remaining / total)
-            },
+            }
         }
     }
 }
@@ -124,7 +127,7 @@ where
                 };
 
                 self.remaining_duration = self.remaining_duration - self.duration_per_sample;
-                
+
                 Some(sample)
             } else {
                 None
@@ -148,7 +151,8 @@ where
             + self.duration_per_sample.subsec_nanos() as u64;
         let remaining_samples = (remaining_nanos / nanos_per_sample) as usize;
 
-        self.input.current_frame_len()
+        self.input
+            .current_frame_len()
             .filter(|value| *value < remaining_samples)
             .or(Some(remaining_samples))
     }

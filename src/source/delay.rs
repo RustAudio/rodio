@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Internal function that builds a `Delay` object.
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
@@ -10,7 +10,7 @@ where
     I::Item: Sample,
 {
     let duration_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-    let samples = duration_ns * input.sample_rate() as u64 / 1000000000 * input.channels() as u64; 
+    let samples = duration_ns * input.sample_rate() as u64 / 1000000000 * input.channels() as u64;
 
     Delay {
         input: input,

@@ -9,11 +9,10 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use source::Empty;
-use source::Source;
-use source::Zero;
-
-use Sample;
+use crate::source::Empty;
+use crate::source::Source;
+use crate::source::Zero;
+use crate::Sample;
 
 /// Builds a new queue. It consists of an input and an output.
 ///
@@ -227,9 +226,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use queue;
-    use source::Source;
+    use crate::buffer::SamplesBuffer;
+    use crate::queue;
+    use crate::source::Source;
 
     #[test]
     #[ignore] // FIXME: samples rate and channel not updated immediately after transition
@@ -270,7 +269,7 @@ mod tests {
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
 
-        for _ in 0 .. 100000 {
+        for _ in 0..100000 {
             assert_eq!(rx.next(), Some(0));
         }
     }
@@ -280,7 +279,7 @@ mod tests {
     fn no_delay_when_added() {
         let (tx, mut rx) = queue::queue(true);
 
-        for _ in 0 .. 500 {
+        for _ in 0..500 {
             assert_eq!(rx.next(), Some(0));
         }
 

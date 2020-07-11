@@ -1,17 +1,16 @@
-extern crate rodio;
-
 use std::io::BufReader;
 use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let device = rodio::default_output_device().unwrap();
-    let sink = rodio::SpatialSink::new(
-        &device,
+    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+    let sink = rodio::SpatialSink::try_new(
+        &handle,
         [-10.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],
         [-1.0, 0.0, 0.0],
-    );
+    )
+    .unwrap();
 
     let file = std::fs::File::open("examples/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
@@ -22,12 +21,12 @@ fn main() {
     // until it stops and begins traveling to the left, it will eventually pass through the
     // listener again.
     // This is repeated 5 times.
-    for _ in 0 .. 5 {
-        for i in 1 .. 1001 {
+    for _ in 0..5 {
+        for i in 1..1001 {
             thread::sleep(Duration::from_millis(5));
             sink.set_emitter_position([(i - 500) as f32 / 50.0, 0.0, 0.0]);
         }
-        for i in 1 .. 1001 {
+        for i in 1..1001 {
             thread::sleep(Duration::from_millis(5));
             sink.set_emitter_position([-(i - 500) as f32 / 50.0, 0.0, 0.0]);
         }

@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 use std::time::Duration;
 
-use Source;
+use crate::Source;
 
 // Implemented following http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 
@@ -77,7 +77,8 @@ where
             Some(s) => s,
         };
 
-        let result = self.applier
+        let result = self
+            .applier
             .as_ref()
             .unwrap()
             .apply(sample, self.x_n1, self.x_n2, self.y_n1, self.y_n2);
@@ -100,11 +101,7 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for BltFilter<I>
-where
-    I: Source<Item = f32> + ExactSizeIterator,
-{
-}
+impl<I> ExactSizeIterator for BltFilter<I> where I: Source<Item = f32> + ExactSizeIterator {}
 
 impl<I> Source for BltFilter<I>
 where
@@ -157,7 +154,7 @@ impl BltFormula {
                     a1: a1 / a0,
                     a2: a2 / a0,
                 }
-            },
+            }
         }
     }
 }

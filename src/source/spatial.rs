@@ -1,8 +1,8 @@
-use source::ChannelVolume;
+use crate::source::ChannelVolume;
+use crate::Sample;
+use crate::Source;
 use std::fmt::Debug;
 use std::time::Duration;
-use Sample;
-use Source;
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -16,7 +16,8 @@ where
 }
 
 fn dist_sq(a: [f32; 3], b: [f32; 3]) -> f32 {
-    a.iter().zip(b.iter())
+    a.iter()
+        .zip(b.iter())
         .map(|(a, b)| (a - b) * (a - b))
         .sum::<f32>()
 }
@@ -27,7 +28,10 @@ where
     I::Item: Sample + Debug,
 {
     pub fn new(
-        input: I, emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
+        input: I,
+        emitter_position: [f32; 3],
+        left_ear: [f32; 3],
+        right_ear: [f32; 3],
     ) -> Spatial<I>
     where
         I: Source,
@@ -42,7 +46,10 @@ where
 
     /// Sets the position of the emitter and ears in the 3D world.
     pub fn set_positions(
-        &mut self, emitter_pos: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3],
+        &mut self,
+        emitter_pos: [f32; 3],
+        left_ear: [f32; 3],
+        right_ear: [f32; 3],
     ) {
         let left_dist_sq = dist_sq(left_ear, emitter_pos);
         let right_dist_sq = dist_sq(right_ear, emitter_pos);

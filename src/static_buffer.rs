@@ -10,12 +10,11 @@
 //! ```
 //!
 
-use std::time::Duration;
 use std::slice::Iter as SliceIter;
+use std::time::Duration;
 
-use source::Source;
-
-use Sample;
+use crate::source::Source;
+use crate::Sample;
 
 /// A buffer of samples treated as a source.
 #[derive(Clone)]
@@ -42,13 +41,13 @@ where
     /// - Panicks if the length of the buffer is larger than approximatively 16 billion elements.
     ///   This is because the calculation of the duration would overflow.
     ///
-    pub fn new(channels: u16, sample_rate: u32, data: &'static [S]) -> StaticSamplesBuffer<S>
-    {
+    pub fn new(channels: u16, sample_rate: u32, data: &'static [S]) -> StaticSamplesBuffer<S> {
         assert!(channels != 0);
         assert!(sample_rate != 0);
 
         let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
-            / sample_rate as u64 / channels as u64;
+            / sample_rate as u64
+            / channels as u64;
         let duration = Duration::new(
             duration_ns / 1_000_000_000,
             (duration_ns % 1_000_000_000) as u32,
@@ -107,8 +106,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use static_buffer::StaticSamplesBuffer;
-    use source::Source;
+    use crate::source::Source;
+    use crate::static_buffer::StaticSamplesBuffer;
 
     #[test]
     fn basic() {

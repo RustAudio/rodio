@@ -1,6 +1,6 @@
+use crate::Sample;
+use crate::Source;
 use std::time::Duration;
-use Sample;
-use Source;
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -29,11 +29,13 @@ where
         I::Item: Sample,
     {
         let mut sample = None;
-        for _ in 0 .. input.channels() {
+        for _ in 0..input.channels() {
             if let Some(s) = input.next() {
-                sample = Some(sample
-                    .get_or_insert_with(|| I::Item::zero_value())
-                    .saturating_add(s));
+                sample = Some(
+                    sample
+                        .get_or_insert_with(|| I::Item::zero_value())
+                        .saturating_add(s),
+                );
             }
         }
         ChannelVolume {
@@ -79,17 +81,20 @@ where
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
         // return value
-        let ret = self.current_sample
+        let ret = self
+            .current_sample
             .map(|sample| sample.amplify(self.channel_volumes[self.current_channel]));
         self.current_channel += 1;
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             self.current_sample = None;
-            for _ in 0 .. self.input.channels() {
+            for _ in 0..self.input.channels() {
                 if let Some(s) = self.input.next() {
-                    self.current_sample = Some(self.current_sample
-                        .get_or_insert_with(|| I::Item::zero_value())
-                        .saturating_add(s));
+                    self.current_sample = Some(
+                        self.current_sample
+                            .get_or_insert_with(|| I::Item::zero_value())
+                            .saturating_add(s),
+                    );
                 }
             }
         }

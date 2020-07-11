@@ -6,10 +6,9 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use source::Source;
-use source::UniformSourceIterator;
-
-use Sample;
+use crate::source::Source;
+use crate::source::UniformSourceIterator;
+use crate::Sample;
 
 /// Builds a new mixer.
 ///
@@ -18,7 +17,8 @@ use Sample;
 ///
 /// After creating a mixer, you can add new sounds with the controller.
 pub fn mixer<S>(
-    channels: u16, sample_rate: u32,
+    channels: u16,
+    sample_rate: u32,
 ) -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
 where
     S: Sample + Send + 'static,
@@ -26,8 +26,8 @@ where
     let input = Arc::new(DynamicMixerController {
         has_pending: AtomicBool::new(false),
         pending_sources: Mutex::new(Vec::new()),
-        channels: channels,
-        sample_rate: sample_rate,
+        channels,
+        sample_rate,
     });
 
     let output = DynamicMixer {
@@ -148,9 +148,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use dynamic_mixer;
-    use source::Source;
+    use crate::buffer::SamplesBuffer;
+    use crate::dynamic_mixer;
+    use crate::source::Source;
 
     #[test]
     fn basic() {

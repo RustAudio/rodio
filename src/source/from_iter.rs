@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::Sample;
+use crate::Source;
 
 /// Builds a source that chains sources provided by an iterator.
 ///
@@ -140,13 +140,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use buffer::SamplesBuffer;
-    use source::from_iter;
-    use source::Source;
+    use crate::buffer::SamplesBuffer;
+    use crate::source::from_iter;
+    use crate::source::Source;
 
     #[test]
     fn basic() {
-        let mut rx = from_iter((0 .. 2).map(|n| {
+        let mut rx = from_iter((0..2).map(|n| {
             if n == 0 {
                 SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10])
             } else if n == 1 {

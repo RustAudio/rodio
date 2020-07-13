@@ -15,6 +15,9 @@ use crate::Source;
 ///
 /// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
 /// playing.
+///
+/// Once the sink has finished playing all sounds in its queue, the handle stops looking for more sounds, and so the 
+/// `Sink` will stop working. Create a new `Sink` to continue playing sounds.
 pub struct Sink {
     queue_tx: Arc<queue::SourcesQueueInput<f32>>,
     sleep_until_end: Mutex<Option<Receiver<()>>>,

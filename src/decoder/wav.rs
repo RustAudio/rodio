@@ -70,6 +70,10 @@ where
                 self.samples_read += 1;
                 i24_to_i16(value.unwrap_or(0))
             }),
+            (SampleFormat::Int, 8) => self.reader.samples().next().map(|value| {
+                self.samples_read += 1;
+                i8_to_i16(value.unwrap_or(0))
+            }),
             (sample_format, bits_per_sample) => panic!(
                 "Unimplemented wav spec: {:?}, {}",
                 sample_format, bits_per_sample
@@ -162,4 +166,10 @@ fn f32_to_i16(f: f32) -> i16 {
 /// precision loss but hopefully this isn't too audiable when actually playing?
 fn i24_to_i16(i: i32) -> i16 {
     (i >> 8) as i16
+}
+
+/// Returns an 8-bit WAV int as an i16. This scales the sample value by a factor
+/// of 256.
+fn i8_to_i16(i: i8) -> i16 {
+    i as i16 * 256
 }

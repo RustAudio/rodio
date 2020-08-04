@@ -70,9 +70,12 @@ impl OutputStreamHandle {
     }
 }
 
+/// An error occurred while attemping to play a sound.
 #[derive(Debug)]
 pub enum PlayError {
+    /// Attempting to decode the audio failed.
     DecoderError(decoder::DecoderError),
+    /// The output device was lost.
     NoDevice,
 }
 

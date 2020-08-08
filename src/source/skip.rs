@@ -30,6 +30,30 @@ pub struct SkipDuration<I> {
     skipped_duration: Duration,
 }
 
+impl<I> SkipDuration<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    /// Returns a reference to the inner source.
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Returns a mutable reference to the inner source.
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
+
+    /// Returns the inner source.
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
+    }
+}
+
 impl<I> Iterator for SkipDuration<I>
 where
     I: Source,

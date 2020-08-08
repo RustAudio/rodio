@@ -231,14 +231,14 @@ mod tests {
     #[test]
     fn skip_duration_equal_to_source_length() {
         skip_duration_test_block! {
-            channels: 1, sample rate: 44100, seconds: 1, seconds to skip: 5;
-            channels: 1, sample rate: 96000, seconds: 10, seconds to skip: 11;
+            channels: 1, sample rate: 44100, seconds: 1, seconds to skip: 1;
+            channels: 1, sample rate: 96000, seconds: 10, seconds to skip: 10;
 
-            channels: 2, sample rate: 44100, seconds: 1, seconds to skip: 5;
-            channels: 2, sample rate: 96000, seconds: 10, seconds to skip: 11;
+            channels: 2, sample rate: 44100, seconds: 1, seconds to skip: 1;
+            channels: 2, sample rate: 96000, seconds: 10, seconds to skip: 10;
 
-            channels: 4, sample rate: 44100, seconds: 1, seconds to skip: 5;
-            channels: 4, sample rate: 96000, seconds: 10, seconds to skip: 11;
+            channels: 4, sample rate: 44100, seconds: 1, seconds to skip: 1;
+            channels: 4, sample rate: 96000, seconds: 10, seconds to skip: 10;
         }
     }
 }

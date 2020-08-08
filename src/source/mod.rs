@@ -197,6 +197,9 @@ where
         delay::delay(self, duration)
     }
 
+    /// Immediately skips a certain duration of this source.
+    ///
+    /// If the specified duration is longer than the source itself, `skip_duration` will skip to the end of the source.
     #[inline]
     fn skip_duration(self, duration: Duration) -> SkipDuration<Self>
     where

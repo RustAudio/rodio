@@ -1,6 +1,7 @@
 use crate::{Sample, Source};
 use std::time::Duration;
 
+/// Internal function that builds a `SkipDuration` object.
 pub fn skip_duration<I>(mut input: I, duration: Duration) -> SkipDuration<I>
 where
     I: Source,
@@ -22,6 +23,7 @@ where
     }
 }
 
+/// A source that skips specified duration of the given source from it's current position.
 #[derive(Clone, Debug)]
 pub struct SkipDuration<I> {
     input: I,

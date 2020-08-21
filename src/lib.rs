@@ -23,7 +23,7 @@
 //! fn main() {
 //!    let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
 //!
-//!    // Load a sound from a file, using a path relative to cargo.toml
+//!    // Load a sound from a file, using a path relative to Cargo.toml
 //!    let file = File::open("sound.ogg").unwrap();
 //!    let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
 //!    stream_handle.play_raw(source.convert_samples());

@@ -20,11 +20,19 @@
 //! use std::io::BufReader;
 //! use rodio::Source;
 //!
-//! let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+//! fn main() {
+//!    let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
 //!
-//! let file = File::open("sound.ogg").unwrap();
-//! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-//! stream_handle.play_raw(source.convert_samples());
+//!    // Load a sound from a file, using a path relative to Cargo.toml
+//!    let file = File::open("sound.ogg").unwrap();
+//!    let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+//!    stream_handle.play_raw(source.convert_samples());
+//!
+//!    // The sound plays in a separate audio thread,
+//!    // so we need to keep the main thread alive while it's playing.
+//!    // Press ctrl + C to stop the process once you're done.
+//!    loop {}
+//! }
 //! ```
 //!
 //! ## Sink
@@ -80,7 +88,6 @@
 //! the number of sinks that can be created (except for the fact that creating too many will slow
 //! down your program).
 //!
-
 #![cfg_attr(test, deny(missing_docs))]
 pub use cpal::{
     traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,

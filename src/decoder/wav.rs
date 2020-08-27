@@ -38,6 +38,9 @@ where
             channels: spec.channels,
         })
     }
+    pub fn into_inner(self) -> R {
+        self.reader.reader.into_inner()
+    }
 }
 
 struct SamplesIterator<R>

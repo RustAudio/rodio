@@ -14,7 +14,7 @@ cpal = "0.12"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.3.1", optional = true }
 lewton = { version = "0.10", optional = true }
-minimp3 = { version = "0.3.2", optional = true }
+minimp3 = { version = "0.5.0", optional = true }
 
 [features]
 default = ["flac", "vorbis", "wav", "mp3"]

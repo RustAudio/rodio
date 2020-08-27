@@ -3,6 +3,8 @@
 use std::error::Error;
 use std::fmt;
 use std::io::{Read, Seek};
+#[allow(unused_imports)]
+use std::io::SeekFrom;
 use std::time::Duration;
 
 use crate::Source;
@@ -19,15 +21,10 @@ mod wav;
 /// Source of audio samples from decoding a file.
 ///
 /// Supports MP3, WAV, Vorbis and Flac.
-#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 pub struct Decoder<R>(DecoderImpl<R>)
 where
     R: Read + Seek;
 
-#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3")))]
-pub struct Decoder<R>(::std::marker::PhantomData<R>);
-
-#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 enum DecoderImpl<R>
 where
     R: Read + Seek,
@@ -40,6 +37,7 @@ where
     Flac(flac::FlacDecoder<R>),
     #[cfg(feature = "mp3")]
     Mp3(mp3::Mp3Decoder<R>),
+    None(::std::marker::PhantomData<R>)
 }
 
 impl<R> Decoder<R>
@@ -87,19 +85,6 @@ where
     }
 }
 
-#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3")))]
-impl<R> Iterator for Decoder<R>
-where
-    R: Read + Seek,
-{
-    type Item = i16;
-
-    fn next(&mut self) -> Option<i16> {
-        None
-    }
-}
-
-#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 impl<R> Iterator for Decoder<R>
 where
     R: Read + Seek,
@@ -117,6 +102,7 @@ where
             DecoderImpl::Flac(ref mut source) => source.next(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(ref mut source) => source.next(),
+            DecoderImpl::None(_) => None,
         }
     }
 
@@ -131,30 +117,11 @@ where
             DecoderImpl::Flac(ref source) => source.size_hint(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(ref source) => source.size_hint(),
+            DecoderImpl::None(_) => (0, None),
         }
     }
 }
 
-#[cfg(not(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3")))]
-impl<R> Source for Decoder<R>
-where
-    R: Read + Seek,
-{
-    fn current_frame_len(&self) -> Option<usize> {
-        Some(0)
-    }
-    fn channels(&self) -> u16 {
-        0
-    }
-    fn sample_rate(&self) -> u32 {
-        1
-    }
-    fn total_duration(&self) -> Option<Duration> {
-        Some(Duration::default())
-    }
-}
-
-#[cfg(any(feature = "wav", feature = "flac", feature = "vorbis", feature = "mp3"))]
 impl<R> Source for Decoder<R>
 where
     R: Read + Seek,
@@ -170,6 +137,7 @@ where
             DecoderImpl::Flac(ref source) => source.current_frame_len(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(ref source) => source.current_frame_len(),
+            DecoderImpl::None(_) => Some(0),
         }
     }
 
@@ -184,6 +152,7 @@ where
             DecoderImpl::Flac(ref source) => source.channels(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(ref source) => source.channels(),
+            DecoderImpl::None(_) => 0,
         }
     }
 
@@ -198,6 +167,7 @@ where
             DecoderImpl::Flac(ref source) => source.sample_rate(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(ref source) => source.sample_rate(),
+            DecoderImpl::None(_) => 1,
         }
     }
 
@@ -212,6 +182,7 @@ where
             DecoderImpl::Flac(ref source) => source.total_duration(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(ref source) => source.total_duration(),
+            DecoderImpl::None(_) => Some(Duration::default()),
         }
     }
 }

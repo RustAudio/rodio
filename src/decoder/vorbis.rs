@@ -25,8 +25,10 @@ where
             return Err(data);
         }
 
-        let mut stream_reader = OggStreamReader::new(data).unwrap();
-
+        let stream_reader = OggStreamReader::new(data).unwrap();
+        Ok(Self::from_stream_reader(stream_reader))
+    }
+    pub fn from_stream_reader(mut stream_reader: OggStreamReader<R>) -> Self {
         let mut data = match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
             Some(d) => d,
             None => Vec::new(),
@@ -39,10 +41,13 @@ where
             None => (),
         };
 
-        Ok(VorbisDecoder {
+        VorbisDecoder {
             stream_reader: stream_reader,
             current_data: data.into_iter(),
-        })
+        }
+    }
+    pub fn into_inner(self) -> OggStreamReader<R> {
+        self.stream_reader
     }
 }
 

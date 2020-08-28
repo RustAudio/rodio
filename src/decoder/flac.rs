@@ -47,6 +47,9 @@ where
             samples: spec.samples,
         })
     }
+    pub fn into_inner(self) -> R {
+        self.reader.into_inner()
+    }
 }
 
 impl<R> Source for FlacDecoder<R>

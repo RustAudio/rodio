@@ -28,6 +28,9 @@ where
             current_frame_offset: 0,
         })
     }
+    pub fn into_inner(self) -> R {
+        self.decoder.into_inner()
+    }
 }
 
 impl<R> Source for Mp3Decoder<R>

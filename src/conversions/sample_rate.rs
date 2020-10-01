@@ -285,28 +285,46 @@ mod test {
             assert_eq!(input, output);
         }
 
-        fn half_sample_rate(to: u32) -> () {
+        fn half_sample_rate(to: u32, input: Vec<u16>) -> () {
             let to = if to == 0 { return; } else { SampleRate(to) };
             let from = multiply_rate(to, 2);
+            let n = 2u16;
 
-            let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
+            // Truncate the input, so it contains an integer number of frames.
+            let input = {
+                let ns = n as usize;
+                let mut i = input;
+                i.truncate(ns * (i.len() / ns));
+                i
+            };
+
             let output =
                 SampleRateConverter::new(input.clone().into_iter(), from, to, n)
                   .collect::<Vec<_>>();
 
-            assert_eq!(output, [1, 16, 3, 18, 5, 20]);
+            assert_eq!(input.chunks_exact(n.into()).step_by(2).collect::<Vec<_>>().concat(),
+                       output)
         }
 
-        fn double_sample_rate(from: u32) -> () {
+        fn double_sample_rate(from: u32, input: Vec<u16>) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
             let to = multiply_rate(from, 2);
+            let n = 2u16;
 
-            let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+            // Truncate the input, so it contains an integer number of frames.
+            let input = {
+                let ns = n as usize;
+                let mut i = input;
+                i.truncate(ns * (i.len() / ns));
+                i
+            };
+
             let output =
-                SampleRateConverter::new(input.into_iter(), from, to, 2)
+                SampleRateConverter::new(input.clone().into_iter(), from, to, n)
                   .collect::<Vec<_>>();
 
-            assert_eq!(output, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
+            assert_eq!(input,
+                       output.chunks_exact(n.into()).step_by(2).collect::<Vec<_>>().concat())
         }
     }
 

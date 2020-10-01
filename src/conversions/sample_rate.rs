@@ -252,6 +252,7 @@ where
 #[cfg(test)]
 mod test {
     use super::SampleRateConverter;
+    use core::time::Duration;
     use cpal::SampleRate;
     use quickcheck::quickcheck;
 
@@ -328,6 +329,25 @@ mod test {
                        output.chunks_exact(n.into())
                          .step_by(k as usize).collect::<Vec<_>>().concat()
             )
+        }
+
+        #[ignore]
+        fn equal_durations(d: Duration, freq: u32, to: u32) -> () {
+            use crate::source::{SineWave, Source};
+
+            let to = if to == 0 { return; } else { SampleRate(to) };
+            let source = SineWave::new(freq).take_duration(d);
+            let from = SampleRate(source.sample_rate());
+
+            let resampled =
+                SampleRateConverter::new(source, from, to, 1);
+            let duration =
+                Duration::from_secs_f32(resampled.count() as f32 / to.0 as f32);
+
+            let delta = if d < duration { duration - d } else { d - duration };
+            assert!(delta < Duration::from_millis(1),
+                    "Resampled duration ({:?}) is not close to original ({:?}); Δ = {:?}",
+                    duration, d, delta);
         }
     }
 

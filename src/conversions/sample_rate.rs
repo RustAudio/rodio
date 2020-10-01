@@ -253,82 +253,95 @@ where
 mod test {
     use super::SampleRateConverter;
     use cpal::SampleRate;
+    use quickcheck::quickcheck;
 
-    #[test]
-    fn zero() {
-        let input: Vec<u16> = Vec::new();
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(1278), SampleRate(78923), 1);
-        //assert_eq!(output.len(), 0);
-
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, []);
+    // TODO: Remove once cpal::SampleRate implements ops::Mul
+    const fn multiply_rate(r: SampleRate, k: u32) -> SampleRate {
+        SampleRate(k * r.0)
     }
 
-    #[test]
-    fn identity_1channel() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 1);
-        assert_eq!(output.len(), 8);
+    quickcheck! {
+        fn zero(from: u32, to: u32) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
+            let to   = if   to == 0 { return; } else { SampleRate(to)   };
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
-    }
+            let input: Vec<u16> = Vec::new();
+            let output =
+                SampleRateConverter::new(input.into_iter(), from, to, 1);
 
-    #[test]
-    fn identity_2channels() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 2);
-        assert_eq!(output.len(), 8);
+            let output = output.collect::<Vec<_>>();
+            assert_eq!(output, []);
+        }
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
-    }
+        fn identity_1channel(from: u32) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
 
-    #[test]
-    fn identity_2channels_misalign() {
-        let input = vec![2u16, 16, 4, 18, 6];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 2);
-        assert_eq!(output.len(), 5);
+            let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+            let output =
+                SampleRateConverter::new(input.into_iter(), from, from, 1);
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2u16, 16, 4, 18, 6]);
-    }
+            let output = output.collect::<Vec<_>>();
+            assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
+        }
 
-    #[test]
-    fn identity_5channels() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 5);
-        assert_eq!(output.len(), 10);
+        fn identity_2channels(from: u32) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24]);
-    }
+            let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+            let output =
+                SampleRateConverter::new(input.into_iter(), from, from, 2);
+            assert_eq!(output.len(), 8);
 
-    #[test]
-    fn half_sample_rate() {
-        let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(44100), SampleRate(22050), 2);
-        assert_eq!(output.len(), 6);
+            let output = output.collect::<Vec<_>>();
+            assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
+        }
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [1, 16, 3, 18, 5, 20]);
-    }
+        fn identity_2channels_misalign(from: u32) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
 
-    #[test]
-    fn double_sample_rate() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(22050), SampleRate(44100), 2);
-        //assert_eq!(output.len(), 14);
+            let input = vec![2u16, 16, 4, 18, 6];
+            let output =
+                SampleRateConverter::new(input.into_iter(), from, from, 2);
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
+            let output = output.collect::<Vec<_>>();
+            assert_eq!(output, [2u16, 16, 4, 18, 6]);
+        }
+
+        fn identity_5channels(from: u32) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
+
+            let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24];
+            let output =
+                SampleRateConverter::new(input.into_iter(), from, from, 5);
+            assert_eq!(output.len(), 10);
+
+            let output = output.collect::<Vec<_>>();
+            assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24]);
+        }
+
+        fn half_sample_rate(to: u32) -> () {
+            let to = if to == 0 { return; } else { SampleRate(to) };
+            let from = multiply_rate(to, 2);
+
+            let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
+            let output =
+                SampleRateConverter::new(input.into_iter(), from, to, 2);
+
+            let output = output.collect::<Vec<_>>();
+            assert_eq!(output, [1, 16, 3, 18, 5, 20]);
+        }
+
+        fn double_sample_rate(from: u32) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
+            let to = multiply_rate(from, 2);
+
+            let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+            let output =
+                SampleRateConverter::new(input.into_iter(), from, to, 2);
+
+            let output = output.collect::<Vec<_>>();
+            assert_eq!(output, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
+        }
     }
 
     #[test]

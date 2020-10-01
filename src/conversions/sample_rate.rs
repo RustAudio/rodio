@@ -261,36 +261,26 @@ mod test {
     }
 
     quickcheck! {
-        fn zero(from: u32, to: u32) -> () {
+        fn zero(from: u32, to: u32, n: u16) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
             let to   = if   to == 0 { return; } else { SampleRate(to)   };
+            if n == 0 { return; }
 
             let input: Vec<u16> = Vec::new();
             let output =
-                SampleRateConverter::new(input.into_iter(), from, to, 1);
+                SampleRateConverter::new(input.into_iter(), from, to, n);
 
             let output = output.collect::<Vec<_>>();
             assert_eq!(output, []);
         }
 
-        fn identity_1channel(from: u32) -> () {
+        fn identity(from: u32, n: u16) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
+            if n == 0 { return; }
 
             let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
             let output =
-                SampleRateConverter::new(input.into_iter(), from, from, 1);
-
-            let output = output.collect::<Vec<_>>();
-            assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
-        }
-
-        fn identity_2channels(from: u32) -> () {
-            let from = if from == 0 { return; } else { SampleRate(from) };
-
-            let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-            let output =
-                SampleRateConverter::new(input.into_iter(), from, from, 2);
-            assert_eq!(output.len(), 8);
+                SampleRateConverter::new(input.into_iter(), from, from, n);
 
             let output = output.collect::<Vec<_>>();
             assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
@@ -305,18 +295,6 @@ mod test {
 
             let output = output.collect::<Vec<_>>();
             assert_eq!(output, [2u16, 16, 4, 18, 6]);
-        }
-
-        fn identity_5channels(from: u32) -> () {
-            let from = if from == 0 { return; } else { SampleRate(from) };
-
-            let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24];
-            let output =
-                SampleRateConverter::new(input.into_iter(), from, from, 5);
-            assert_eq!(output.len(), 10);
-
-            let output = output.collect::<Vec<_>>();
-            assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24]);
         }
 
         fn half_sample_rate(to: u32) -> () {

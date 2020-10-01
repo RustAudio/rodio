@@ -91,6 +91,42 @@ where
     pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
         Self::new(data).map(LoopedDecoder::new)
     }
+
+    /// Builds a new decoder from wav data.
+    #[cfg(feature = "wav")]
+    pub fn new_wav(data: R) -> Result<Decoder<R>, DecoderError> {
+        match wav::WavDecoder::new(data) {
+            Err(_) => Err(DecoderError::UnrecognizedFormat),
+            Ok(decoder) => Ok(Decoder(DecoderImpl::Wav(decoder))),
+        }
+    }
+
+    /// Builds a new decoder from flac data.
+    #[cfg(feature = "flac")]
+    pub fn new_flac(data: R) -> Result<Decoder<R>, DecoderError> {
+        match flac::FlacDecoder::new(data) {
+            Err(_) => Err(DecoderError::UnrecognizedFormat),
+            Ok(decoder) => Ok(Decoder(DecoderImpl::Flac(decoder))),
+        }
+    }
+
+    /// Builds a new decoder from vorbis data.
+    #[cfg(feature = "vorbis")]
+    pub fn new_vorbis(data: R) -> Result<Decoder<R>, DecoderError> {
+        match vorbis::VorbisDecoder::new(data) {
+            Err(_) => Err(DecoderError::UnrecognizedFormat),
+            Ok(decoder) => Ok(Decoder(DecoderImpl::Vorbis(decoder))),
+        }
+    }
+
+    /// Builds a new decoder from mp3 data.
+    #[cfg(feature = "mp3")]
+    pub fn new_mp3(data: R) -> Result<Decoder<R>, DecoderError> {
+        match mp3::Mp3Decoder::new(data) {
+            Err(_) => Err(DecoderError::UnrecognizedFormat),
+            Ok(decoder) => Ok(Decoder(DecoderImpl::Mp3(decoder))),
+        }
+    }
 }
 
 impl<R> LoopedDecoder<R>

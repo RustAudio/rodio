@@ -268,9 +268,9 @@ mod test {
 
             let input: Vec<u16> = Vec::new();
             let output =
-                SampleRateConverter::new(input.into_iter(), from, to, n);
+                SampleRateConverter::new(input.into_iter(), from, to, n)
+                  .collect::<Vec<_>>();
 
-            let output = output.collect::<Vec<_>>();
             assert_eq!(output, []);
         }
 
@@ -279,9 +279,9 @@ mod test {
             if n == 0 { return; }
 
             let output =
-                SampleRateConverter::new(input.clone().into_iter(), from, from, n);
+                SampleRateConverter::new(input.clone().into_iter(), from, from, n)
+                  .collect::<Vec<_>>();
 
-            let output = output.collect::<Vec<_>>();
             assert_eq!(input, output);
         }
 
@@ -291,9 +291,9 @@ mod test {
 
             let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
             let output =
-                SampleRateConverter::new(input.into_iter(), from, to, 2);
+                SampleRateConverter::new(input.clone().into_iter(), from, to, n)
+                  .collect::<Vec<_>>();
 
-            let output = output.collect::<Vec<_>>();
             assert_eq!(output, [1, 16, 3, 18, 5, 20]);
         }
 
@@ -303,9 +303,9 @@ mod test {
 
             let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
             let output =
-                SampleRateConverter::new(input.into_iter(), from, to, 2);
+                SampleRateConverter::new(input.into_iter(), from, to, 2)
+                  .collect::<Vec<_>>();
 
-            let output = output.collect::<Vec<_>>();
             assert_eq!(output, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
         }
     }

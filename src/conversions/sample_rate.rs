@@ -285,10 +285,10 @@ mod test {
             assert_eq!(input, output);
         }
 
-        fn half_sample_rate(to: u32, input: Vec<u16>, n: u16) -> () {
+        fn divide_sample_rate(to: u32, k: u32, input: Vec<u16>, n: u16) -> () {
             let to = if to == 0 { return; } else { SampleRate(to) };
-            let from = multiply_rate(to, 2);
-            if n == 0 { return; }
+            let from = multiply_rate(to, k);
+            if k == 0 || n == 0 { return; }
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {
@@ -302,14 +302,15 @@ mod test {
                 SampleRateConverter::new(input.clone().into_iter(), from, to, n)
                   .collect::<Vec<_>>();
 
-            assert_eq!(input.chunks_exact(n.into()).step_by(2).collect::<Vec<_>>().concat(),
+            assert_eq!(input.chunks_exact(n.into())
+                         .step_by(k as usize).collect::<Vec<_>>().concat(),
                        output)
         }
 
-        fn double_sample_rate(from: u32, input: Vec<u16>, n: u16) -> () {
+        fn multiply_sample_rate(from: u32, k: u32, input: Vec<u16>, n: u16) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
-            let to = multiply_rate(from, 2);
-            if n == 0 { return; }
+            let to = multiply_rate(from, k);
+            if k == 0 || n == 0 { return; }
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {
@@ -324,7 +325,9 @@ mod test {
                   .collect::<Vec<_>>();
 
             assert_eq!(input,
-                       output.chunks_exact(n.into()).step_by(2).collect::<Vec<_>>().concat())
+                       output.chunks_exact(n.into())
+                         .step_by(k as usize).collect::<Vec<_>>().concat()
+            )
         }
     }
 

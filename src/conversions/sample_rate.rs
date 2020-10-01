@@ -15,6 +15,8 @@ where
     from: u32,
     /// We convert chunks of `from` samples into chunks of `to` samples.
     to: u32,
+    /// Number of channels in the stream
+    channels: cpal::ChannelCount,
     /// One sample per channel, extracted from `input`.
     current_frame: Vec<I::Item>,
     /// Position of `current_sample` modulo `from`.
@@ -86,6 +88,7 @@ where
             input: input,
             from: from / gcd,
             to: to / gcd,
+            channels: num_channels,
             current_frame_pos_in_chunk: 0,
             next_output_frame_pos_in_chunk: 0,
             current_frame: first_samples,
@@ -105,7 +108,7 @@ where
 
         mem::swap(&mut self.current_frame, &mut self.next_frame);
         self.next_frame.clear();
-        for _ in 0..self.next_frame.capacity() {
+        for _ in 0..self.channels {
             if let Some(i) = self.input.next() {
                 self.next_frame.push(i);
             } else {
@@ -216,7 +219,7 @@ where
             let samples_after_chunk = samples_after_chunk.saturating_sub(
                 self.from
                     .saturating_sub(self.current_frame_pos_in_chunk + 2) as usize
-                    * self.current_frame.capacity(),
+                    * usize::from(self.channels),
             );
             // calculating the number of samples after the transformation
             // TODO: this is wrong here \|/
@@ -225,7 +228,7 @@ where
             // `samples_current_chunk` will contain the number of samples remaining to be output
             // for the chunk currently being processed
             let samples_current_chunk = (self.to - self.next_output_frame_pos_in_chunk) as usize
-                * self.current_frame.capacity();
+                * usize::from(self.channels);
 
             samples_current_chunk + samples_after_chunk + self.output_buffer.len()
         };

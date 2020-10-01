@@ -285,10 +285,10 @@ mod test {
             assert_eq!(input, output);
         }
 
-        fn half_sample_rate(to: u32, input: Vec<u16>) -> () {
+        fn half_sample_rate(to: u32, input: Vec<u16>, n: u16) -> () {
             let to = if to == 0 { return; } else { SampleRate(to) };
             let from = multiply_rate(to, 2);
-            let n = 2u16;
+            if n == 0 { return; }
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {
@@ -306,10 +306,10 @@ mod test {
                        output)
         }
 
-        fn double_sample_rate(from: u32, input: Vec<u16>) -> () {
+        fn double_sample_rate(from: u32, input: Vec<u16>, n: u16) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
             let to = multiply_rate(from, 2);
-            let n = 2u16;
+            if n == 0 { return; }
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {

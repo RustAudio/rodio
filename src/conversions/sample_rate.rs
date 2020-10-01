@@ -274,27 +274,15 @@ mod test {
             assert_eq!(output, []);
         }
 
-        fn identity(from: u32, n: u16) -> () {
+        fn identity(from: u32, n: u16, input: Vec<u16>) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
             if n == 0 { return; }
 
-            let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
             let output =
-                SampleRateConverter::new(input.into_iter(), from, from, n);
+                SampleRateConverter::new(input.clone().into_iter(), from, from, n);
 
             let output = output.collect::<Vec<_>>();
-            assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
-        }
-
-        fn identity_2channels_misalign(from: u32) -> () {
-            let from = if from == 0 { return; } else { SampleRate(from) };
-
-            let input = vec![2u16, 16, 4, 18, 6];
-            let output =
-                SampleRateConverter::new(input.into_iter(), from, from, 2);
-
-            let output = output.collect::<Vec<_>>();
-            assert_eq!(output, [2u16, 16, 4, 18, 6]);
+            assert_eq!(input, output);
         }
 
         fn half_sample_rate(to: u32) -> () {

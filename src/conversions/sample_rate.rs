@@ -341,39 +341,4 @@ mod test {
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [2, 16, 3, 17, 4, 18, 6, 20, 7, 21, 8, 22]);
     }
-
-    #[test]
-    #[ignore]
-    fn upsample_lengths() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let mut output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(2000), SampleRate(3000), 2);
-
-        assert_eq!(output.len(), 12);
-        assert_eq!(output.next(), Some(2));
-        assert_eq!(output.len(), 11);
-        assert_eq!(output.next(), Some(16));
-        assert_eq!(output.len(), 10);
-        assert_eq!(output.next(), Some(3));
-        assert_eq!(output.len(), 9);
-        assert_eq!(output.next(), Some(17));
-        assert_eq!(output.len(), 8);
-        assert_eq!(output.next(), Some(4));
-        assert_eq!(output.len(), 7);
-        assert_eq!(output.next(), Some(18));
-        assert_eq!(output.len(), 6);
-        assert_eq!(output.next(), Some(6));
-        assert_eq!(output.len(), 5);
-        assert_eq!(output.next(), Some(20));
-        assert_eq!(output.len(), 4);
-        assert_eq!(output.next(), Some(7));
-        assert_eq!(output.len(), 3);
-        assert_eq!(output.next(), Some(21));
-        assert_eq!(output.len(), 2);
-        assert_eq!(output.next(), Some(8));
-        assert_eq!(output.len(), 1);
-        assert_eq!(output.next(), Some(22));
-        assert_eq!(output.len(), 0);
-        assert_eq!(output.next(), None);
-    }
 }

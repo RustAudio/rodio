@@ -84,7 +84,11 @@ pub trait Sample: CpalSample {
 impl Sample for u16 {
     #[inline]
     fn lerp(first: u16, second: u16, numerator: u32, denominator: u32) -> u16 {
-        (first as u32 + (second as u32 - first as u32) * numerator / denominator) as u16
+        let a = first as i32;
+        let b = second as i32;
+        let n = numerator as i32;
+        let d = denominator as i32;
+        (a + (b - a) * n / d) as u16
     }
 
     #[inline]

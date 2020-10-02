@@ -21,6 +21,7 @@ pub use self::periodic::PeriodicAccess;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
+pub use self::skip::SkipDuration;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
@@ -45,6 +46,7 @@ mod periodic;
 mod repeat;
 mod samples_converter;
 mod sine;
+mod skip;
 mod spatial;
 mod speed;
 mod stoppable;
@@ -193,6 +195,17 @@ where
         Self: Sized,
     {
         delay::delay(self, duration)
+    }
+
+    /// Immediately skips a certain duration of this source.
+    ///
+    /// If the specified duration is longer than the source itself, `skip_duration` will skip to the end of the source.
+    #[inline]
+    fn skip_duration(self, duration: Duration) -> SkipDuration<Self>
+    where
+        Self: Sized,
+    {
+        skip::skip_duration(self, duration)
     }
 
     /// Amplifies the sound by the given value.

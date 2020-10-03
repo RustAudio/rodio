@@ -132,10 +132,11 @@ where
         }
 
         // Try the size hint.
-        if let Some(val) = self.current.size_hint().1 {
-            if val < THRESHOLD && val != 0 {
-                return Some(val);
-            }
+        let (lower_bound, _) = self.current.size_hint();
+        // The iterator default implementation just returns 0.
+        // That's a problematic value, so skip it.
+        if lower_bound > 0 {
+            return Some(lower_bound);
         }
 
         // Otherwise we use the constant value.

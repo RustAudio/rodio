@@ -57,6 +57,10 @@ where
         }
         next
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.input.size_hint()
+    }
 }
 
 impl<I> Source for Done<I>

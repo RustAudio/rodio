@@ -57,7 +57,8 @@ where
         target_channels: u16,
         target_sample_rate: u32,
     ) -> DataConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D> {
-        let frame_len = input.current_frame_len();
+        // Limit the frame length to something reasonable
+        let frame_len = input.current_frame_len().map(|x| x.min(32768));
 
         let from_channels = input.channels();
         let from_sample_rate = input.sample_rate();

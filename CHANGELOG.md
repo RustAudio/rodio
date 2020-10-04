@@ -1,7 +1,9 @@
-# Unreleased
+# Version 0.12.0 (2020-10-05)
+
 - Breaking: Update `cpal` to [0.12](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0120-2020-07-09).
 - Breaking: Rework API removing global "rodio audio processing" thread & adapting to the upstream cpal API changes.
 - Add new_X format specific methods to Decoder.
+- Fix resampler dependency on internal `Vec::capacity` behaviour.
 
 # Version 0.11.0 (2020-03-16)
 

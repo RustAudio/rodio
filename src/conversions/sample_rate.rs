@@ -15,6 +15,8 @@ where
     from: u32,
     /// We convert chunks of `from` samples into chunks of `to` samples.
     to: u32,
+    /// Number of channels in the stream
+    channels: cpal::ChannelCount,
     /// One sample per channel, extracted from `input`.
     current_frame: Vec<I::Item>,
     /// Position of `current_sample` modulo `from`.
@@ -86,6 +88,7 @@ where
             input: input,
             from: from / gcd,
             to: to / gcd,
+            channels: num_channels,
             current_frame_pos_in_chunk: 0,
             next_output_frame_pos_in_chunk: 0,
             current_frame: first_samples,
@@ -105,7 +108,7 @@ where
 
         mem::swap(&mut self.current_frame, &mut self.next_frame);
         self.next_frame.clear();
-        for _ in 0..self.next_frame.capacity() {
+        for _ in 0..self.channels {
             if let Some(i) = self.input.next() {
                 self.next_frame.push(i);
             } else {
@@ -216,7 +219,7 @@ where
             let samples_after_chunk = samples_after_chunk.saturating_sub(
                 self.from
                     .saturating_sub(self.current_frame_pos_in_chunk + 2) as usize
-                    * self.current_frame.capacity(),
+                    * usize::from(self.channels),
             );
             // calculating the number of samples after the transformation
             // TODO: this is wrong here \|/
@@ -225,7 +228,7 @@ where
             // `samples_current_chunk` will contain the number of samples remaining to be output
             // for the chunk currently being processed
             let samples_current_chunk = (self.to - self.next_output_frame_pos_in_chunk) as usize
-                * self.current_frame.capacity();
+                * usize::from(self.channels);
 
             samples_current_chunk + samples_after_chunk + self.output_buffer.len()
         };
@@ -249,83 +252,103 @@ where
 #[cfg(test)]
 mod test {
     use super::SampleRateConverter;
+    use core::time::Duration;
     use cpal::SampleRate;
+    use quickcheck::quickcheck;
 
-    #[test]
-    fn zero() {
-        let input: Vec<u16> = Vec::new();
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(1278), SampleRate(78923), 1);
-        //assert_eq!(output.len(), 0);
-
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, []);
+    // TODO: Remove once cpal::SampleRate implements ops::Mul
+    const fn multiply_rate(r: SampleRate, k: u32) -> SampleRate {
+        SampleRate(k * r.0)
     }
 
-    #[test]
-    fn identity_1channel() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 1);
-        assert_eq!(output.len(), 8);
+    quickcheck! {
+        fn zero(from: u32, to: u32, n: u16) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
+            let to   = if   to == 0 { return; } else { SampleRate(to)   };
+            if n == 0 { return; }
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
-    }
+            let input: Vec<u16> = Vec::new();
+            let output =
+                SampleRateConverter::new(input.into_iter(), from, to, n)
+                  .collect::<Vec<_>>();
 
-    #[test]
-    fn identity_2channels() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 2);
-        assert_eq!(output.len(), 8);
+            assert_eq!(output, []);
+        }
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22]);
-    }
+        fn identity(from: u32, n: u16, input: Vec<u16>) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
+            if n == 0 { return; }
 
-    #[test]
-    fn identity_2channels_misalign() {
-        let input = vec![2u16, 16, 4, 18, 6];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 2);
-        assert_eq!(output.len(), 5);
+            let output =
+                SampleRateConverter::new(input.clone().into_iter(), from, from, n)
+                  .collect::<Vec<_>>();
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2u16, 16, 4, 18, 6]);
-    }
+            assert_eq!(input, output);
+        }
 
-    #[test]
-    fn identity_5channels() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12345), SampleRate(12345), 5);
-        assert_eq!(output.len(), 10);
+        fn divide_sample_rate(to: u32, k: u32, input: Vec<u16>, n: u16) -> () {
+            let to = if to == 0 { return; } else { SampleRate(to) };
+            let from = multiply_rate(to, k);
+            if k == 0 || n == 0 { return; }
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2u16, 16, 4, 18, 6, 20, 8, 22, 10, 24]);
-    }
+            // Truncate the input, so it contains an integer number of frames.
+            let input = {
+                let ns = n as usize;
+                let mut i = input;
+                i.truncate(ns * (i.len() / ns));
+                i
+            };
 
-    #[test]
-    fn half_sample_rate() {
-        let input = vec![1u16, 16, 2, 17, 3, 18, 4, 19, 5, 20, 6, 21];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(44100), SampleRate(22050), 2);
-        assert_eq!(output.len(), 6);
+            let output =
+                SampleRateConverter::new(input.clone().into_iter(), from, to, n)
+                  .collect::<Vec<_>>();
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [1, 16, 3, 18, 5, 20]);
-    }
+            assert_eq!(input.chunks_exact(n.into())
+                         .step_by(k as usize).collect::<Vec<_>>().concat(),
+                       output)
+        }
 
-    #[test]
-    fn double_sample_rate() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(22050), SampleRate(44100), 2);
-        //assert_eq!(output.len(), 14);
+        fn multiply_sample_rate(from: u32, k: u32, input: Vec<u16>, n: u16) -> () {
+            let from = if from == 0 { return; } else { SampleRate(from) };
+            let to = multiply_rate(from, k);
+            if k == 0 || n == 0 { return; }
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2, 16, 3, 17, 4, 18, 5, 19, 6, 20, 7, 21, 8, 22]);
+            // Truncate the input, so it contains an integer number of frames.
+            let input = {
+                let ns = n as usize;
+                let mut i = input;
+                i.truncate(ns * (i.len() / ns));
+                i
+            };
+
+            let output =
+                SampleRateConverter::new(input.clone().into_iter(), from, to, n)
+                  .collect::<Vec<_>>();
+
+            assert_eq!(input,
+                       output.chunks_exact(n.into())
+                         .step_by(k as usize).collect::<Vec<_>>().concat()
+            )
+        }
+
+        #[ignore]
+        fn equal_durations(d: Duration, freq: u32, to: u32) -> () {
+            use crate::source::{SineWave, Source};
+
+            let to = if to == 0 { return; } else { SampleRate(to) };
+            let source = SineWave::new(freq).take_duration(d);
+            let from = SampleRate(source.sample_rate());
+
+            let resampled =
+                SampleRateConverter::new(source, from, to, 1);
+            let duration =
+                Duration::from_secs_f32(resampled.count() as f32 / to.0 as f32);
+
+            let delta = if d < duration { duration - d } else { d - duration };
+            assert!(delta < Duration::from_millis(1),
+                    "Resampled duration ({:?}) is not close to original ({:?}); Δ = {:?}",
+                    duration, d, delta);
+        }
     }
 
     #[test]
@@ -337,40 +360,5 @@ mod test {
 
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [2, 16, 3, 17, 4, 18, 6, 20, 7, 21, 8, 22]);
-    }
-
-    #[test]
-    #[ignore]
-    fn upsample_lengths() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let mut output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(2000), SampleRate(3000), 2);
-
-        assert_eq!(output.len(), 12);
-        assert_eq!(output.next(), Some(2));
-        assert_eq!(output.len(), 11);
-        assert_eq!(output.next(), Some(16));
-        assert_eq!(output.len(), 10);
-        assert_eq!(output.next(), Some(3));
-        assert_eq!(output.len(), 9);
-        assert_eq!(output.next(), Some(17));
-        assert_eq!(output.len(), 8);
-        assert_eq!(output.next(), Some(4));
-        assert_eq!(output.len(), 7);
-        assert_eq!(output.next(), Some(18));
-        assert_eq!(output.len(), 6);
-        assert_eq!(output.next(), Some(6));
-        assert_eq!(output.len(), 5);
-        assert_eq!(output.next(), Some(20));
-        assert_eq!(output.len(), 4);
-        assert_eq!(output.next(), Some(7));
-        assert_eq!(output.len(), 3);
-        assert_eq!(output.next(), Some(21));
-        assert_eq!(output.len(), 2);
-        assert_eq!(output.next(), Some(8));
-        assert_eq!(output.len(), 1);
-        assert_eq!(output.next(), Some(22));
-        assert_eq!(output.len(), 0);
-        assert_eq!(output.next(), None);
     }
 }

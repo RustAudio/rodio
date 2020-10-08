@@ -256,7 +256,8 @@ mod test {
     use cpal::SampleRate;
     use quickcheck::quickcheck;
 
-    // TODO: Remove once cpal::SampleRate implements ops::Mul
+    // TODO: Remove once cpal 0.12.2 is released and the dependency is updated
+    //  (cpal#483 implemented ops::Mul on SampleRate)
     const fn multiply_rate(r: SampleRate, k: u32) -> SampleRate {
         SampleRate(k * r.0)
     }

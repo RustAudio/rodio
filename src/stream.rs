@@ -85,6 +85,24 @@ impl From<decoder::DecoderError> for PlayError {
     }
 }
 
+impl fmt::Display for PlayError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DecoderError(e) => e.fmt(f),
+            Self::NoDevice => write!(f, "NoDevice"),
+        }
+    }
+}
+
+impl error::Error for PlayError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            Self::DecoderError(e) => Some(e),
+            Self::NoDevice => None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum StreamError {
     PlayStreamError(cpal::PlayStreamError),

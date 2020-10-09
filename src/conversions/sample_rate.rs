@@ -256,13 +256,15 @@ mod test {
     use cpal::SampleRate;
     use quickcheck::quickcheck;
 
-    // TODO: Remove once cpal::SampleRate implements ops::Mul
+    // TODO: Remove once cpal 0.12.2 is released and the dependency is updated
+    //  (cpal#483 implemented ops::Mul on SampleRate)
     const fn multiply_rate(r: SampleRate, k: u32) -> SampleRate {
         SampleRate(k * r.0)
     }
 
     quickcheck! {
-        fn zero(from: u32, to: u32, n: u16) -> () {
+        /// Check that resampling an empty input produces no output.
+        fn empty(from: u32, to: u32, n: u16) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
             let to   = if   to == 0 { return; } else { SampleRate(to)   };
             if n == 0 { return; }
@@ -275,6 +277,7 @@ mod test {
             assert_eq!(output, []);
         }
 
+        /// Check that resampling to the same rate does not change the signal.
         fn identity(from: u32, n: u16, input: Vec<u16>) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
             if n == 0 { return; }
@@ -286,6 +289,8 @@ mod test {
             assert_eq!(input, output);
         }
 
+        /// Check that dividing the sample rate by k (integer) is the same as
+        ///   dropping a sample from each channel.
         fn divide_sample_rate(to: u32, k: u32, input: Vec<u16>, n: u16) -> () {
             let to = if to == 0 { return; } else { SampleRate(to) };
             let from = multiply_rate(to, k);
@@ -308,6 +313,8 @@ mod test {
                        output)
         }
 
+        /// Check that, after multiplying the sample rate by k, every k-th
+        ///  sample in the output matches exactly with the input.
         fn multiply_sample_rate(from: u32, k: u32, input: Vec<u16>, n: u16) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
             let to = multiply_rate(from, k);
@@ -332,7 +339,10 @@ mod test {
         }
 
         #[ignore]
-        fn equal_durations(d: Duration, freq: u32, to: u32) -> () {
+        /// Check that resampling does not change the audio duration,
+        ///  except by a negligible amount (± 1ms).  Reproduces #316.
+        /// Ignored, pending a bug fix.
+        fn preserve_durations(d: Duration, freq: u32, to: u32) -> () {
             use crate::source::{SineWave, Source};
 
             let to = if to == 0 { return; } else { SampleRate(to) };

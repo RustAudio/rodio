@@ -114,8 +114,8 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        let ms = self.len() * 1000 / (self.channels as usize * self.sample_rate as usize);
-        Some(Duration::from_millis(ms as u64))
+        let ms = self.len() as u64 * 1000 / (self.channels as u64 * self.sample_rate as u64);
+        Some(Duration::from_millis(ms))
     }
 }
 

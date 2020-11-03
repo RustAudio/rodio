@@ -1,4 +1,4 @@
-# Version 0.12.1 (2020-11-03)
+# Version 0.13.0 (2020-11-03)
 
 - Update `cpal` to [0.13](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0130-2020-10-28).
 - Add Android support.

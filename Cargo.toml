@@ -23,6 +23,7 @@ flac = ["claxon"]
 vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["minimp3"]
+wasm-bindgen = ["cpal/wasm-bindgen"]
 
 [dev-dependencies]
 quickcheck = "0.9.2"

@@ -1,9 +1,10 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use crate::Source;
+use crate::{Source, SourceExt};
 
-use minimp3::{Decoder, Frame};
+use minimp3::{Frame, Decoder};
+// use minimp3::SeekDecoder as Decoder;
 
 pub struct Mp3Decoder<R>
 where
@@ -58,6 +59,16 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+}
+
+impl<R> SourceExt for Mp3Decoder<R>
+where 
+    R: Read + Seek,
+{
+    fn request_pos(&self, pos: f32) -> bool {
+        // self.seek_samples(0); //TODO
+        true
     }
 }
 

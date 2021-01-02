@@ -427,3 +427,8 @@ where
         (**self).total_duration()
     }
 }
+
+pub trait SourceExt {
+    /// Seek to pos and whether the seek succeeded
+    fn request_pos(&self, pos: f32) -> bool;
+}

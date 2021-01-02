@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
+use crate::{Sample, Source, SourceExt};
 
 /// Internal function that builds a `Amplify` object.
 pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
@@ -92,5 +92,16 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+}
+
+impl<I> SourceExt for Amplify<I>
+where
+    I: Source,
+    I: SourceExt,
+    I::Item: Sample,
+{
+    fn request_pos(&self, pos: f32) -> bool {
+        self.input.request_pos(pos)
     }
 }

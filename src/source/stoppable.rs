@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
+use crate::{Sample, Source, SourceExt};
 
 /// Internal function that builds a `Stoppable` object.
 pub fn stoppable<I>(source: I) -> Stoppable<I> {
@@ -87,5 +87,16 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+}
+
+impl<I> SourceExt for Stoppable<I>
+where
+    I: Source,
+    I: SourceExt,
+    I::Item: Sample,
+{
+    fn request_pos(&self, pos: f32) -> bool {
+        self.input.request_pos(pos)
     }
 }

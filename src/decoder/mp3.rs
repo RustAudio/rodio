@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use crate::{Source, SourceExt};
 
-use minimp3::{Frame, Decoder};
-// use minimp3::SeekDecoder as Decoder;
+use minimp3::Frame;
+use minimp3::SeekDecoder as Decoder;
 
 pub struct Mp3Decoder<R>
 where
@@ -23,8 +23,10 @@ where
         if !is_mp3(data.by_ref()) {
             return Err(data);
         }
-        let mut decoder = Decoder::new(data);
-        let current_frame = decoder.next_frame().unwrap();
+        let mut decoder = Decoder::new(data).map_err(|_| ())?;
+        // TODO: figure out decode_frame vs next_frame <dvdsk noreply@davidsk.dev> 
+        // let current_frame = decoder.next_frame().unwrap();
+        let current_frame = decoder.decode_frame().map_err(|_| ())?;
 
         Ok(Mp3Decoder {
             decoder,
@@ -66,9 +68,12 @@ impl<R> SourceExt for Mp3Decoder<R>
 where 
     R: Read + Seek,
 {
-    fn request_pos(&self, pos: f32) -> bool {
-        // self.seek_samples(0); //TODO
-        true
+    fn request_pos(&mut self, pos: f32) -> bool {
+        let pos = (pos * self.sample_rate() as f32) as u64;
+        // do not trigger a sample_rate, channels and frame len update
+        // as the seek only takes effect after the current frame is done
+        dbg!("seek");
+        self.decoder.seek_samples(pos).is_ok()
     }
 }
 
@@ -78,14 +83,14 @@ where
 {
     type Item = i16;
 
-    #[inline]
     fn next(&mut self) -> Option<i16> {
-        if self.current_frame_offset == self.current_frame.data.len() {
-            match self.decoder.next_frame() {
-                Ok(frame) => self.current_frame = frame,
-                _ => return None,
+        if self.current_frame_offset == self.current_frame_len().unwrap() {
+            if let Ok(frame) = self.decoder.decode_frame() {
+                self.current_frame = frame;
+                self.current_frame_offset = 0;
+            } else {
+                return None;
             }
-            self.current_frame_offset = 0;
         }
 
         let v = self.current_frame.data[self.current_frame_offset];

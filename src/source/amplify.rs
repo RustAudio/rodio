@@ -101,7 +101,7 @@ where
     I: SourceExt,
     I::Item: Sample,
 {
-    fn request_pos(&self, pos: f32) -> bool {
+    fn request_pos(&mut self, pos: f32) -> bool {
         self.input.request_pos(pos)
     }
 }

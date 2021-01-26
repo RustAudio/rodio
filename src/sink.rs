@@ -29,13 +29,9 @@ struct Controls {
     pause: AtomicBool,
     volume: Mutex<f32>,
     stopped: AtomicBool,
-<<<<<<< HEAD
     speed: Mutex<f32>,
     to_clear: Mutex<u32>,
-||||||| parent of 2cb7526 (seek implemented through SourceExt trait)
-=======
     set_pos: Mutex<Option<f32>>,
->>>>>>> 2cb7526 (seek implemented through SourceExt trait)
 }
 
 impl Sink {
@@ -59,13 +55,9 @@ impl Sink {
                 pause: AtomicBool::new(false),
                 volume: Mutex::new(1.0),
                 stopped: AtomicBool::new(false),
-<<<<<<< HEAD
                 speed: Mutex::new(1.0),
                 to_clear: Mutex::new(0),
-||||||| parent of 2cb7526 (seek implemented through SourceExt trait)
-=======
                 set_pos: Mutex::new(None),
->>>>>>> 2cb7526 (seek implemented through SourceExt trait)
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
@@ -129,32 +121,51 @@ impl Sink {
     #[inline]
     pub fn append_seekable<S>(&self, source: S)
     where
-        S: Source + Send + 'static,
-        S: SourceExt + Send + 'static,
-        S::Item: Sample,
-        S::Item: Send,
+        S: Source + SourceExt + Send + 'static,
+        f32: FromSample<S::Item>,
+        S::Item: Sample + Send,
     {
+        // Wait for queue to flush then resume stopped playback
+        if self.controls.stopped.load(Ordering::SeqCst) {
+            if self.sound_count.load(Ordering::SeqCst) > 0 {
+                self.sleep_until_end();
+            }
+            self.controls.stopped.store(false, Ordering::SeqCst);
+        }
+
         let controls = self.controls.clone();
 
+        let start_played = AtomicBool::new(false);
+
         let source = source
+            .speed(1.0)
             .pausable(false)
             .amplify(1.0)
+            .skippable()
             .stoppable()
             .periodic_access(Duration::from_millis(5), move |src| {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
-                } else {
-                    src.inner_mut().set_factor(*controls.volume.lock().unwrap());
-                    src.inner_mut()
-                        .inner_mut()
-                        .set_paused(controls.pause.load(Ordering::SeqCst));
-                    if let Some(pos) = controls.set_pos.lock().unwrap().take() {
-                        src.inner_mut()
-                            .inner_mut()
-                            .inner_mut()
-                            .request_pos(pos);
+                }
+                {
+                    let mut to_clear = controls.to_clear.lock().unwrap();
+                    if *to_clear > 0 {
+                        let _ = src.inner_mut().skip();
+                        *to_clear -= 1;
                     }
                 }
+                let amp = src.inner_mut().inner_mut();
+                amp.set_factor(*controls.volume.lock().unwrap());
+                amp.inner_mut()
+                    .set_paused(controls.pause.load(Ordering::SeqCst));
+                amp.inner_mut()
+                    .inner_mut()
+                    .set_factor(*controls.speed.lock().unwrap());
+                let seekable = amp.inner_mut().inner_mut().inner_mut();
+                if let Some(pos) = controls.set_pos.lock().unwrap().take() {
+                    seekable.request_pos(pos);
+                }
+                start_played.store(true, Ordering::SeqCst);
             })
             .convert_samples();
         self.sound_count.fetch_add(1, Ordering::Relaxed);

@@ -373,15 +373,17 @@ where
     R: Read + Seek,
 {
     fn request_pos(&mut self, pos: f32) -> bool {
-        match self.0 {
-            #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => false,
-            #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => false,
-            #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => false,
-            #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref mut source) => source.request_pos(pos),
+        match &mut self.0 {
+            #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
+            DecoderImpl::Wav(_) => false,
+            #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
+            DecoderImpl::Vorbis(_) => false,
+            #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
+            DecoderImpl::Flac(_) => false,
+            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            DecoderImpl::Mp3(source) => source.request_pos(pos),
+            #[cfg(feature = "symphonia")]
+            DecoderImpl::Symphonia(_) => false,
             DecoderImpl::None(_) => false,
         }
     }
@@ -392,18 +394,19 @@ where
     R: Read + Seek,
 {
     fn request_pos(&mut self, pos: f32) -> bool {
-        match self.0 {
-            #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => false,
-            #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => false,
-            #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => false,
-            #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref mut source) => {source.request_pos(pos)},
+        match &mut self.0 {
+            #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
+            DecoderImpl::Wav(_) => false,
+            #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
+            DecoderImpl::Vorbis(_) => false,
+            #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
+            DecoderImpl::Flac(_) => false,
+            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            DecoderImpl::Mp3(source) => source.request_pos(pos),
+            #[cfg(feature = "symphonia")]
+            DecoderImpl::Symphonia(_) => false,
             DecoderImpl::None(_) => false,
         }
-        // todo!();
     }
 }
 

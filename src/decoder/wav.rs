@@ -28,12 +28,12 @@ where
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
         let reader = SamplesIterator {
-            reader: reader,
+            reader,
             samples_read: 0,
         };
 
         Ok(WavDecoder {
-            reader: reader,
+            reader,
             sample_rate: spec.sample_rate,
             channels: spec.channels,
         })

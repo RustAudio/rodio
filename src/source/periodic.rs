@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `PeriodicAccess` object.
 pub fn periodic<I, F>(source: I, period: Duration, modifier: F) -> PeriodicAccess<I, F>
@@ -11,12 +10,12 @@ where
 {
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong
-    let update_ms = period.as_secs() as u32 * 1_000 + period.subsec_nanos() / 1_000_000;
+    let update_ms = period.as_secs() as u32 * 1_000 + period.subsec_millis();
     let update_frequency = (update_ms * source.sample_rate()) / 1000 * source.channels() as u32;
 
     PeriodicAccess {
         input: source,
-        modifier: modifier,
+        modifier,
         // Can overflow when subtracting if this is 0
         update_frequency: if update_frequency == 0 {
             1
@@ -122,10 +121,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::buffer::SamplesBuffer;
-    use crate::source::Source;
     use std::cell::RefCell;
     use std::time::Duration;
+
+    use crate::buffer::SamplesBuffer;
+    use crate::source::Source;
 
     #[test]
     fn stereo_access() {

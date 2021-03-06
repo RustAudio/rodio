@@ -2,9 +2,8 @@
 
 use std::error::Error;
 use std::fmt;
-use std::io::{Read, Seek};
 #[allow(unused_imports)]
-use std::io::SeekFrom;
+use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::time::Duration;
 
@@ -42,12 +41,12 @@ where
     Flac(flac::FlacDecoder<R>),
     #[cfg(feature = "mp3")]
     Mp3(mp3::Mp3Decoder<R>),
-    None(::std::marker::PhantomData<R>)
+    None(::std::marker::PhantomData<R>),
 }
 
 impl<R> Decoder<R>
 where
-    R: Read + Seek + Send + 'static,
+    R: Read + Seek + Send,
 {
     /// Builds a new decoder.
     ///
@@ -131,7 +130,7 @@ where
 
 impl<R> LoopedDecoder<R>
 where
-    R: Read + Seek + Send + 'static,
+    R: Read + Seek + Send,
 {
     fn new(decoder: Decoder<R>) -> LoopedDecoder<R> {
         Self(decoder.0)
@@ -146,30 +145,30 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<i16> {
-        match self.0 {
+        match &mut self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref mut source) => source.next(),
+            DecoderImpl::Wav(source) => source.next(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref mut source) => source.next(),
+            DecoderImpl::Vorbis(source) => source.next(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref mut source) => source.next(),
+            DecoderImpl::Flac(source) => source.next(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref mut source) => source.next(),
+            DecoderImpl::Mp3(source) => source.next(),
             DecoderImpl::None(_) => None,
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.size_hint(),
+            DecoderImpl::Wav(source) => source.size_hint(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.size_hint(),
+            DecoderImpl::Vorbis(source) => source.size_hint(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.size_hint(),
+            DecoderImpl::Flac(source) => source.size_hint(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => source.size_hint(),
+            DecoderImpl::Mp3(source) => source.size_hint(),
             DecoderImpl::None(_) => (0, None),
         }
     }
@@ -181,60 +180,60 @@ where
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.current_frame_len(),
+            DecoderImpl::Wav(source) => source.current_frame_len(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.current_frame_len(),
+            DecoderImpl::Vorbis(source) => source.current_frame_len(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.current_frame_len(),
+            DecoderImpl::Flac(source) => source.current_frame_len(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => source.current_frame_len(),
+            DecoderImpl::Mp3(source) => source.current_frame_len(),
             DecoderImpl::None(_) => Some(0),
         }
     }
 
     #[inline]
     fn channels(&self) -> u16 {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.channels(),
+            DecoderImpl::Wav(source) => source.channels(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.channels(),
+            DecoderImpl::Vorbis(source) => source.channels(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.channels(),
+            DecoderImpl::Flac(source) => source.channels(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => source.channels(),
+            DecoderImpl::Mp3(source) => source.channels(),
             DecoderImpl::None(_) => 0,
         }
     }
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.sample_rate(),
+            DecoderImpl::Wav(source) => source.sample_rate(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.sample_rate(),
+            DecoderImpl::Vorbis(source) => source.sample_rate(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.sample_rate(),
+            DecoderImpl::Flac(source) => source.sample_rate(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => source.sample_rate(),
+            DecoderImpl::Mp3(source) => source.sample_rate(),
             DecoderImpl::None(_) => 1,
         }
     }
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.total_duration(),
+            DecoderImpl::Wav(source) => source.total_duration(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.total_duration(),
+            DecoderImpl::Vorbis(source) => source.total_duration(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.total_duration(),
+            DecoderImpl::Flac(source) => source.total_duration(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => source.total_duration(),
+            DecoderImpl::Mp3(source) => source.total_duration(),
             DecoderImpl::None(_) => Some(Duration::default()),
         }
     }
@@ -248,15 +247,15 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<i16> {
-        if let Some(sample) = match self.0 {
+        if let Some(sample) = match &mut self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref mut source) => source.next(),
+            DecoderImpl::Wav(source) => source.next(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref mut source) => source.next(),
+            DecoderImpl::Vorbis(source) => source.next(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref mut source) => source.next(),
+            DecoderImpl::Flac(source) => source.next(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref mut source) => source.next(),
+            DecoderImpl::Mp3(source) => source.next(),
             DecoderImpl::None(_) => None,
         } {
             Some(sample)
@@ -276,7 +275,9 @@ where
                     use lewton::inside_ogg::OggStreamReader;
                     let mut reader = source.into_inner().into_inner();
                     reader.seek_bytes(SeekFrom::Start(0)).ok()?;
-                    let mut source = vorbis::VorbisDecoder::from_stream_reader(OggStreamReader::from_ogg_reader(reader).ok()?);
+                    let mut source = vorbis::VorbisDecoder::from_stream_reader(
+                        OggStreamReader::from_ogg_reader(reader).ok()?,
+                    );
                     let sample = source.next();
                     (DecoderImpl::Vorbis(source), sample)
                 }
@@ -296,7 +297,7 @@ where
                     let sample = source.next();
                     (DecoderImpl::Mp3(source), sample)
                 }
-                none @ DecoderImpl::None(_) => (none, None)
+                none @ DecoderImpl::None(_) => (none, None),
             };
             self.0 = decoder;
             sample
@@ -305,15 +306,15 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => (source.size_hint().0, None),
+            DecoderImpl::Wav(source) => (source.size_hint().0, None),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => (source.size_hint().0, None),
+            DecoderImpl::Vorbis(source) => (source.size_hint().0, None),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => (source.size_hint().0, None),
+            DecoderImpl::Flac(source) => (source.size_hint().0, None),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => (source.size_hint().0, None),
+            DecoderImpl::Mp3(source) => (source.size_hint().0, None),
             DecoderImpl::None(_) => (0, None),
         }
     }
@@ -325,45 +326,45 @@ where
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.current_frame_len(),
+            DecoderImpl::Wav(source) => source.current_frame_len(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.current_frame_len(),
+            DecoderImpl::Vorbis(source) => source.current_frame_len(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.current_frame_len(),
+            DecoderImpl::Flac(source) => source.current_frame_len(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => source.current_frame_len(),
+            DecoderImpl::Mp3(source) => source.current_frame_len(),
             DecoderImpl::None(_) => Some(0),
         }
     }
 
     #[inline]
     fn channels(&self) -> u16 {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.channels(),
+            DecoderImpl::Wav(source) => source.channels(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.channels(),
+            DecoderImpl::Vorbis(source) => source.channels(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.channels(),
+            DecoderImpl::Flac(source) => source.channels(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => source.channels(),
+            DecoderImpl::Mp3(source) => source.channels(),
             DecoderImpl::None(_) => 0,
         }
     }
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        match self.0 {
+        match &self.0 {
             #[cfg(feature = "wav")]
-            DecoderImpl::Wav(ref source) => source.sample_rate(),
+            DecoderImpl::Wav(source) => source.sample_rate(),
             #[cfg(feature = "vorbis")]
-            DecoderImpl::Vorbis(ref source) => source.sample_rate(),
+            DecoderImpl::Vorbis(source) => source.sample_rate(),
             #[cfg(feature = "flac")]
-            DecoderImpl::Flac(ref source) => source.sample_rate(),
+            DecoderImpl::Flac(source) => source.sample_rate(),
             #[cfg(feature = "mp3")]
-            DecoderImpl::Mp3(ref source) => source.sample_rate(),
+            DecoderImpl::Mp3(source) => source.sample_rate(),
             DecoderImpl::None(_) => 1,
         }
     }
@@ -384,7 +385,7 @@ pub enum DecoderError {
 impl fmt::Display for DecoderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            &DecoderError::UnrecognizedFormat => write!(f, "Unrecognized format"),
+            DecoderError::UnrecognizedFormat => write!(f, "Unrecognized format"),
         }
     }
 }
@@ -392,7 +393,7 @@ impl fmt::Display for DecoderError {
 impl Error for DecoderError {
     fn description(&self) -> &str {
         match self {
-            &DecoderError::UnrecognizedFormat => "Unrecognized format",
+            DecoderError::UnrecognizedFormat => "Unrecognized format",
         }
     }
 }

@@ -13,7 +13,7 @@ impl<I, O> DataConverter<I, O> {
     #[inline]
     pub fn new(input: I) -> DataConverter<I, O> {
         DataConverter {
-            input: input,
+            input,
             marker: PhantomData,
         }
     }

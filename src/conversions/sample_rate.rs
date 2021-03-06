@@ -1,5 +1,4 @@
 use crate::conversions::Sample;
-use cpal;
 
 use std::mem;
 
@@ -39,7 +38,7 @@ where
     ///
     /// # Panic
     ///
-    /// Panicks if `from` or `to` are equal to 0.
+    /// Panics if `from` or `to` are equal to 0.
     ///
     #[inline]
     pub fn new(
@@ -85,7 +84,7 @@ where
         };
 
         SampleRateConverter {
-            input: input,
+            input,
             from: from / gcd,
             to: to / gcd,
             channels: num_channels,
@@ -133,7 +132,7 @@ where
         }
 
         // Short circuit if there are some samples waiting.
-        if self.output_buffer.len() >= 1 {
+        if !self.output_buffer.is_empty() {
             return Some(self.output_buffer.remove(0));
         }
 
@@ -174,7 +173,7 @@ where
             .zip(self.next_frame.iter())
             .enumerate()
         {
-            let sample = Sample::lerp(cur.clone(), next.clone(), numerator, self.to);
+            let sample = Sample::lerp(*cur, *next, numerator, self.to);
 
             if off == 0 {
                 result = Some(sample);
@@ -192,7 +191,7 @@ where
             debug_assert!(self.next_frame.is_empty());
 
             // draining `self.current_frame`
-            if self.current_frame.len() >= 1 {
+            if !self.current_frame.is_empty() {
                 let r = Some(self.current_frame.remove(0));
                 mem::swap(&mut self.output_buffer, &mut self.current_frame);
                 self.current_frame.clear();

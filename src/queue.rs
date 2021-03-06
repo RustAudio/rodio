@@ -1,17 +1,11 @@
 //! Queue that plays sounds one after the other.
 
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::sync::mpsc;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::Sender;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::Empty;
-use crate::source::Source;
-use crate::source::Zero;
+use crate::source::{Empty, Source, Zero};
 use crate::Sample;
 
 /// Builds a new queue. It consists of an input and an output.

@@ -1,5 +1,6 @@
-use crate::{Sample, Source};
 use std::time::Duration;
+
+use crate::{Sample, Source};
 
 const NS_PER_SECOND: u128 = 1_000_000_000;
 
@@ -147,16 +148,17 @@ where
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration().map(|val| {
             val.checked_sub(self.skipped_duration)
-                .unwrap_or(Duration::from_secs(0))
+                .unwrap_or_else(|| Duration::from_secs(0))
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::buffer::SamplesBuffer;
     use crate::source::Source;
-    use std::time::Duration;
 
     fn test_skip_duration_samples_left(
         channels: u16,
@@ -168,7 +170,7 @@ mod tests {
             .map(|_| 0f32)
             .collect();
         let test_buffer = SamplesBuffer::new(channels, sample_rate, data);
-        let seconds_left = seconds.checked_sub(seconds_to_skip).unwrap_or(0);
+        let seconds_left = seconds.saturating_sub(seconds_to_skip);
 
         let samples_left_expected = (sample_rate * channels as u32 * seconds_left) as usize;
         let samples_left = test_buffer

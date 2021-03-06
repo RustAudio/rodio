@@ -1,13 +1,10 @@
 //! Mixer that plays multiple sounds at the same time.
 
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::Source;
-use crate::source::UniformSourceIterator;
+use crate::source::{Source, UniformSourceIterator};
 use crate::Sample;
 
 /// Builds a new mixer.

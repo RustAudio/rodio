@@ -1,6 +1,6 @@
-use crate::Sample;
-use crate::Source;
 use std::time::Duration;
+
+use crate::{Sample, Source};
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -33,7 +33,7 @@ where
             if let Some(s) = input.next() {
                 sample = Some(
                     sample
-                        .get_or_insert_with(|| I::Item::zero_value())
+                        .get_or_insert_with(I::Item::zero_value)
                         .saturating_add(s),
                 );
             }
@@ -92,13 +92,13 @@ where
                 if let Some(s) = self.input.next() {
                     self.current_sample = Some(
                         self.current_sample
-                            .get_or_insert_with(|| I::Item::zero_value())
+                            .get_or_insert_with(I::Item::zero_value)
                             .saturating_add(s),
                     );
                 }
             }
         }
-        return ret;
+        ret
     }
 
     #[inline]

@@ -1,8 +1,8 @@
-use crate::source::ChannelVolume;
-use crate::Sample;
-use crate::Source;
 use std::fmt::Debug;
 use std::time::Duration;
+
+use crate::source::ChannelVolume;
+use crate::{Sample, Source};
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.

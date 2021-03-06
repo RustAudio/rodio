@@ -29,20 +29,19 @@ where
         Ok(Self::from_stream_reader(stream_reader))
     }
     pub fn from_stream_reader(mut stream_reader: OggStreamReader<R>) -> Self {
-        let mut data = match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
-            Some(d) => d,
-            None => Vec::new(),
+        let mut data = match stream_reader.read_dec_packet_itl() {
+            Ok(Some(d)) => d,
+            _ => Vec::new(),
         };
 
         // The first packet is always empty, therefore
         // we need to read the second frame to get some data
-        match stream_reader.read_dec_packet_itl().ok().and_then(|v| v) {
-            Some(mut d) => data.append(&mut d),
-            None => (),
-        };
+        if let Ok(Some(mut d)) = stream_reader.read_dec_packet_itl() {
+            data.append(&mut d);
+        }
 
         VorbisDecoder {
-            stream_reader: stream_reader,
+            stream_reader,
             current_data: data.into_iter(),
         }
     }
@@ -86,26 +85,16 @@ where
     fn next(&mut self) -> Option<i16> {
         if let Some(sample) = self.current_data.next() {
             if self.current_data.len() == 0 {
-                if let Some(data) = self
-                    .stream_reader
-                    .read_dec_packet_itl()
-                    .ok()
-                    .and_then(|v| v)
-                {
+                if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
                     self.current_data = data.into_iter();
                 }
             }
-            return Some(sample);
+            Some(sample)
         } else {
-            if let Some(data) = self
-                .stream_reader
-                .read_dec_packet_itl()
-                .ok()
-                .and_then(|v| v)
-            {
+            if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
                 self.current_data = data.into_iter();
             }
-            return self.current_data.next();
+            self.current_data.next()
         }
     }
 

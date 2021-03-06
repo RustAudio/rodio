@@ -1,14 +1,8 @@
 use std::cmp;
 use std::time::Duration;
 
-use cpal;
-
-use crate::conversions::ChannelCountConverter;
-use crate::conversions::DataConverter;
-use crate::conversions::SampleRateConverter;
-
-use crate::Sample;
-use crate::Source;
+use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
+use crate::{Sample, Source};
 
 /// An iterator that reads from a `Source` and converts the samples to a specific rate and
 /// channels count.
@@ -45,9 +39,9 @@ where
 
         UniformSourceIterator {
             inner: Some(input),
-            target_channels: target_channels,
-            target_sample_rate: target_sample_rate,
-            total_duration: total_duration,
+            target_channels,
+            target_sample_rate,
+            total_duration,
         }
     }
 
@@ -74,9 +68,8 @@ where
             from_channels,
         );
         let input = ChannelCountConverter::new(input, from_channels, target_channels);
-        let input = DataConverter::new(input);
 
-        input
+        DataConverter::new(input)
     }
 }
 
@@ -158,7 +151,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if let Some(ref mut n) = self.n {
+        if let Some(n) = &mut self.n {
             if *n != 0 {
                 *n -= 1;
                 self.iter.next()

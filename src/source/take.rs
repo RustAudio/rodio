@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -12,7 +11,7 @@ where
     TakeDuration {
         current_frame_len: input.current_frame_len(),
         duration_per_sample: TakeDuration::get_duration_per_sample(&input),
-        input: input,
+        input,
         remaining_duration: duration,
         requested_duration: duration,
         filter: None,
@@ -119,19 +118,17 @@ where
 
         if self.remaining_duration <= self.duration_per_sample {
             None
+        } else if let Some(sample) = self.input.next() {
+            let sample = match &self.filter {
+                Some(filter) => filter.apply(sample, &self),
+                None => sample,
+            };
+
+            self.remaining_duration -= self.duration_per_sample;
+
+            Some(sample)
         } else {
-            if let Some(sample) = self.input.next() {
-                let sample = match &self.filter {
-                    Some(filter) => filter.apply(sample, &self),
-                    None => sample,
-                };
-
-                self.remaining_duration = self.remaining_duration - self.duration_per_sample;
-
-                Some(sample)
-            } else {
-                None
-            }
+            None
         }
     }
 

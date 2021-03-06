@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Builds a source that chains sources provided by an iterator.
 ///
@@ -18,7 +17,7 @@ where
     let first_source = iterator.next();
 
     FromIter {
-        iterator: iterator,
+        iterator,
         current_source: first_source,
     }
 }
@@ -46,7 +45,7 @@ where
     #[inline]
     fn next(&mut self) -> Option<<I::Item as Iterator>::Item> {
         loop {
-            if let Some(ref mut src) = self.current_source {
+            if let Some(src) = &mut self.current_source {
                 if let Some(value) = src.next() {
                     return Some(value);
                 }
@@ -62,7 +61,7 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if let Some(ref cur) = self.current_source {
+        if let Some(cur) = &self.current_source {
             (cur.size_hint().0, None)
         } else {
             (0, None)
@@ -91,7 +90,7 @@ where
         const THRESHOLD: usize = 10240;
 
         // Try the current `current_frame_len`.
-        if let Some(ref src) = self.current_source {
+        if let Some(src) = &self.current_source {
             if let Some(val) = src.current_frame_len() {
                 if val != 0 {
                     return Some(val);
@@ -100,7 +99,7 @@ where
         }
 
         // Try the size hint.
-        if let Some(ref src) = self.current_source {
+        if let Some(src) = &self.current_source {
             if let Some(val) = src.size_hint().1 {
                 if val < THRESHOLD && val != 0 {
                     return Some(val);
@@ -114,7 +113,7 @@ where
 
     #[inline]
     fn channels(&self) -> u16 {
-        if let Some(ref src) = self.current_source {
+        if let Some(src) = &self.current_source {
             src.channels()
         } else {
             // Dummy value that only happens if the iterator was empty.
@@ -124,7 +123,7 @@ where
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        if let Some(ref src) = self.current_source {
+        if let Some(src) = &self.current_source {
             src.sample_rate()
         } else {
             // Dummy value that only happens if the iterator was empty.
@@ -141,8 +140,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
-    use crate::source::from_iter;
-    use crate::source::Source;
+    use crate::source::{from_iter, Source};
 
     #[test]
     fn basic() {

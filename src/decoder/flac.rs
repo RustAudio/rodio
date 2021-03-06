@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::time::Duration;
@@ -35,7 +36,7 @@ where
         let spec = reader.streaminfo();
 
         Ok(FlacDecoder {
-            reader: reader,
+            reader,
             current_block: Vec::with_capacity(
                 spec.max_block_size as usize * spec.channels as usize,
             ),
@@ -96,12 +97,10 @@ where
                     + self.current_block_off / self.channels as usize;
                 let raw_val = self.current_block[real_offset];
                 self.current_block_off += 1;
-                let real_val = if self.bits_per_sample == 16 {
-                    raw_val as i16
-                } else if self.bits_per_sample < 16 {
-                    (raw_val << (16 - self.bits_per_sample)) as i16
-                } else {
-                    (raw_val >> (self.bits_per_sample - 16)) as i16
+                let real_val = match self.bits_per_sample.cmp(&16) {
+                    Ordering::Less => (raw_val << (16 - self.bits_per_sample)) as i16,
+                    Ordering::Equal => raw_val as i16,
+                    Ordering::Greater => (raw_val >> (self.bits_per_sample - 16)) as i16,
                 };
                 return Some(real_val as i16);
             }

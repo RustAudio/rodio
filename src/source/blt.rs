@@ -11,8 +11,8 @@ where
     I: Source<Item = f32>,
 {
     BltFilter {
-        input: input,
-        formula: BltFormula::LowPass { freq: freq, q: 0.5 },
+        input,
+        formula: BltFormula::LowPass { freq, q: 0.5 },
         applier: None,
         x_n1: 0.0,
         x_n2: 0.0,
@@ -35,7 +35,7 @@ pub struct BltFilter<I> {
 impl<I> BltFilter<I> {
     /// Modifies this filter so that it becomes a low-pass filter.
     pub fn to_low_pass(&mut self, freq: u32) {
-        self.formula = BltFormula::LowPass { freq: freq, q: 0.5 };
+        self.formula = BltFormula::LowPass { freq, q: 0.5 };
         self.applier = None;
     }
 
@@ -135,8 +135,8 @@ enum BltFormula {
 
 impl BltFormula {
     fn to_applier(&self, sampling_frequency: u32) -> BltApplier {
-        match self {
-            &BltFormula::LowPass { freq, q } => {
+        match *self {
+            BltFormula::LowPass { freq, q } => {
                 let w0 = 2.0 * PI * freq as f32 / sampling_frequency as f32;
 
                 let alpha = w0.sin() / (2.0 * q);

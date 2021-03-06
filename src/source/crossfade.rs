@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use crate::source::{FadeIn, Mix, TakeDuration};
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Mixes one sound fading out with another sound fading in for the given duration.
 ///
@@ -32,8 +31,7 @@ mod tests {
     use crate::buffer::SamplesBuffer;
     fn dummysource(length: u8) -> SamplesBuffer<f32> {
         let data: Vec<f32> = (1..=length).map(f32::from).collect();
-        let source = SamplesBuffer::new(1, 1, data);
-        source
+        SamplesBuffer::new(1, 1, data)
     }
 
     #[test]

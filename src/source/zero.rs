@@ -1,7 +1,7 @@
-use crate::Sample;
-use crate::Source;
 use std::marker::PhantomData;
 use std::time::Duration;
+
+use crate::{Sample, Source};
 
 /// An infinite source that produces zero.
 #[derive(Clone, Debug)]
@@ -15,8 +15,8 @@ impl<S> Zero<S> {
     #[inline]
     pub fn new(channels: u16, sample_rate: u32) -> Zero<S> {
         Zero {
-            channels: channels,
-            sample_rate: sample_rate,
+            channels,
+            sample_rate,
             marker: PhantomData,
         }
     }

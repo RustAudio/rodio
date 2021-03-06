@@ -2,8 +2,7 @@ use std::cmp;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Buffered` object.
 #[inline]
@@ -18,7 +17,7 @@ where
     Buffered {
         current_frame: first_frame,
         position_in_frame: 0,
-        total_duration: total_duration,
+        total_duration,
     }
 }
 
@@ -90,9 +89,9 @@ where
     }
 
     Arc::new(Frame::Data(FrameData {
-        data: data,
-        channels: channels,
-        rate: rate,
+        data,
+        channels,
+        rate,
         next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
     }))
 }
@@ -106,14 +105,14 @@ where
     fn next_frame(&mut self) {
         let next_frame = {
             let mut next_frame_ptr = match &*self.current_frame {
-                &Frame::Data(FrameData { ref next, .. }) => next.lock().unwrap(),
+                Frame::Data(FrameData { next, .. }) => next.lock().unwrap(),
                 _ => unreachable!(),
             };
 
             let next_frame = match &**next_frame_ptr {
-                &Frame::Data(_) => next_frame_ptr.clone(),
-                &Frame::End => next_frame_ptr.clone(),
-                &Frame::Input(ref input) => {
+                Frame::Data(_) => next_frame_ptr.clone(),
+                Frame::End => next_frame_ptr.clone(),
+                Frame::Input(input) => {
                     let input = input.lock().unwrap().take().unwrap();
                     extract(input)
                 }
@@ -141,18 +140,18 @@ where
         let advance_frame;
 
         match &*self.current_frame {
-            &Frame::Data(FrameData { ref data, .. }) => {
-                current_sample = Some(data[self.position_in_frame].clone());
+            Frame::Data(FrameData { data, .. }) => {
+                current_sample = Some(data[self.position_in_frame]);
                 self.position_in_frame += 1;
                 advance_frame = self.position_in_frame >= data.len();
             }
 
-            &Frame::End => {
+            Frame::End => {
                 current_sample = None;
                 advance_frame = false;
             }
 
-            &Frame::Input(_) => unreachable!(),
+            Frame::Input(_) => unreachable!(),
         };
 
         if advance_frame {
@@ -181,27 +180,27 @@ where
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         match &*self.current_frame {
-            &Frame::Data(FrameData { ref data, .. }) => Some(data.len() - self.position_in_frame),
-            &Frame::End => Some(0),
-            &Frame::Input(_) => unreachable!(),
+            Frame::Data(FrameData { data, .. }) => Some(data.len() - self.position_in_frame),
+            Frame::End => Some(0),
+            Frame::Input(_) => unreachable!(),
         }
     }
 
     #[inline]
     fn channels(&self) -> u16 {
-        match &*self.current_frame {
-            &Frame::Data(FrameData { channels, .. }) => channels,
-            &Frame::End => 1,
-            &Frame::Input(_) => unreachable!(),
+        match *self.current_frame {
+            Frame::Data(FrameData { channels, .. }) => channels,
+            Frame::End => 1,
+            Frame::Input(_) => unreachable!(),
         }
     }
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        match &*self.current_frame {
-            &Frame::Data(FrameData { rate, .. }) => rate,
-            &Frame::End => 44100,
-            &Frame::Input(_) => unreachable!(),
+        match *self.current_frame {
+            Frame::Data(FrameData { rate, .. }) => rate,
+            Frame::End => 44100,
+            Frame::Input(_) => unreachable!(),
         }
     }
 
@@ -220,8 +219,8 @@ where
     fn clone(&self) -> Buffered<I> {
         Buffered {
             current_frame: self.current_frame.clone(),
-            position_in_frame: self.position_in_frame.clone(),
-            total_duration: self.total_duration.clone(),
+            position_in_frame: self.position_in_frame,
+            total_duration: self.total_duration,
         }
     }
 }

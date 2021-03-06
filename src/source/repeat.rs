@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use crate::source::buffered::Buffered;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Repeat` object.
 pub fn repeat<I>(input: I) -> Repeat<I>

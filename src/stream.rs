@@ -1,14 +1,13 @@
+use std::io::{Read, Seek};
+use std::sync::{Arc, Weak};
+use std::{error, fmt};
+
 use crate::decoder;
 use crate::dynamic_mixer::{self, DynamicMixerController};
 use crate::sink::Sink;
 use crate::source::Source;
-use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-    Sample,
-};
-use std::io::{Read, Seek};
-use std::sync::{Arc, Weak};
-use std::{error, fmt};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::Sample;
 
 /// `cpal::Stream` container. Also see the more useful `OutputStreamHandle`.
 ///

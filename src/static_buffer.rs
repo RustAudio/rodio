@@ -13,8 +13,7 @@
 use std::slice::Iter as SliceIter;
 use std::time::Duration;
 
-use crate::source::Source;
-use crate::Sample;
+use crate::{Sample, Source};
 
 /// A buffer of samples treated as a source.
 #[derive(Clone)]
@@ -36,9 +35,9 @@ where
     ///
     /// # Panic
     ///
-    /// - Panicks if the number of channels is zero.
-    /// - Panicks if the samples rate is zero.
-    /// - Panicks if the length of the buffer is larger than approximatively 16 billion elements.
+    /// - Panics if the number of channels is zero.
+    /// - Panics if the samples rate is zero.
+    /// - Panics if the length of the buffer is larger than approximatively 16 billion elements.
     ///   This is because the calculation of the duration would overflow.
     ///
     pub fn new(channels: u16, sample_rate: u32, data: &'static [S]) -> StaticSamplesBuffer<S> {
@@ -55,9 +54,9 @@ where
 
         StaticSamplesBuffer {
             data: data.iter(),
-            channels: channels,
-            sample_rate: sample_rate,
-            duration: duration,
+            channels,
+            sample_rate,
+            duration,
         }
     }
 }

@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `FadeIn` object.
 pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
@@ -12,7 +11,7 @@ where
     let duration = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
 
     FadeIn {
-        input: input,
+        input,
         remaining_ns: duration as f32,
         total_ns: duration as f32,
     }

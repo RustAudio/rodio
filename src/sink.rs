@@ -1,15 +1,10 @@
-use crate::stream::{OutputStreamHandle, PlayError};
-use std::sync::atomic::Ordering;
-use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::queue;
-use crate::source::Done;
-use crate::Sample;
-use crate::Source;
+use crate::stream::{OutputStreamHandle, PlayError};
+use crate::{queue, source::Done, Sample, Source};
 
 /// Handle to an device that outputs sounds.
 ///
@@ -179,8 +174,7 @@ impl Drop for Sink {
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
-    use crate::sink::Sink;
-    use crate::source::Source;
+    use crate::{Sink, Source};
 
     #[test]
     fn test_pause_and_stop() {
@@ -192,7 +186,7 @@ mod tests {
 
         // Low rate to ensure immediate control.
         sink.append(SamplesBuffer::new(1, 1, v.clone()));
-        let mut src = SamplesBuffer::new(1, 1, v.clone()).convert_samples();
+        let mut src = SamplesBuffer::new(1, 1, v).convert_samples();
 
         assert_eq!(queue_rx.next(), src.next());
         assert_eq!(queue_rx.next(), src.next());

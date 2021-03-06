@@ -77,6 +77,6 @@ where
         let v = self.current_frame.data[self.current_frame_offset];
         self.current_frame_offset += 1;
 
-        return Some(v);
+        Some(v)
     }
 }

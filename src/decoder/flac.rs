@@ -1,9 +1,7 @@
-use std::{
-    cmp::Ordering,
-    io::{Read, Seek, SeekFrom},
-    mem,
-    time::Duration,
-};
+use std::cmp::Ordering;
+use std::io::{Read, Seek, SeekFrom};
+use std::mem;
+use std::time::Duration;
 
 use crate::Source;
 

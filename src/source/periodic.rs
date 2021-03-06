@@ -121,8 +121,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{buffer::SamplesBuffer, source::Source};
-    use std::{cell::RefCell, time::Duration};
+    use std::cell::RefCell;
+    use std::time::Duration;
+
+    use crate::buffer::SamplesBuffer;
+    use crate::source::Source;
 
     #[test]
     fn stereo_access() {

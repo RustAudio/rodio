@@ -1,5 +1,7 @@
+use std::marker::PhantomData;
+use std::time::Duration;
+
 use crate::{Sample, Source};
-use std::{marker::PhantomData, time::Duration};
 
 /// An infinite source that produces zero.
 #[derive(Clone, Debug)]

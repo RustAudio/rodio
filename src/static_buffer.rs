@@ -10,9 +10,10 @@
 //! ```
 //!
 
-use std::{slice::Iter as SliceIter, time::Duration};
+use std::slice::Iter as SliceIter;
+use std::time::Duration;
 
-use crate::{source::Source, Sample};
+use crate::{Sample, Source};
 
 /// A buffer of samples treated as a source.
 #[derive(Clone)]
@@ -104,7 +105,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{source::Source, static_buffer::StaticSamplesBuffer};
+    use crate::source::Source;
+    use crate::static_buffer::StaticSamplesBuffer;
 
     #[test]
     fn basic() {

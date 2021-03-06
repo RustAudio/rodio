@@ -1,4 +1,5 @@
-use std::{f32::consts::PI, time::Duration};
+use std::f32::consts::PI;
+use std::time::Duration;
 
 use crate::Source;
 

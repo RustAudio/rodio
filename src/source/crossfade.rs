@@ -1,9 +1,7 @@
 use std::time::Duration;
 
-use crate::{
-    source::{FadeIn, Mix, TakeDuration},
-    Sample, Source,
-};
+use crate::source::{FadeIn, Mix, TakeDuration};
+use crate::{Sample, Source};
 
 /// Mixes one sound fading out with another sound fading in for the given duration.
 ///

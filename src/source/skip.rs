@@ -1,5 +1,6 @@
-use crate::{Sample, Source};
 use std::time::Duration;
+
+use crate::{Sample, Source};
 
 const NS_PER_SECOND: u128 = 1_000_000_000;
 
@@ -154,8 +155,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{buffer::SamplesBuffer, source::Source};
     use std::time::Duration;
+
+    use crate::buffer::SamplesBuffer;
+    use crate::source::Source;
 
     fn test_skip_duration_samples_left(
         channels: u16,

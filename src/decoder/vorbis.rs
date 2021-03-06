@@ -1,8 +1,6 @@
-use std::{
-    io::{Read, Seek, SeekFrom},
-    time::Duration,
-    vec,
-};
+use std::io::{Read, Seek, SeekFrom};
+use std::time::Duration;
+use std::vec;
 
 use crate::Source;
 

@@ -1,7 +1,7 @@
-use std::{cmp, time::Duration};
+use std::cmp;
+use std::time::Duration;
 
 use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
-
 use crate::{Sample, Source};
 
 /// An iterator that reads from a `Source` and converts the samples to a specific rate and

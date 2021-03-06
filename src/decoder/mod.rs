@@ -1,14 +1,11 @@
 //! Decodes samples from an audio file.
 
+use std::error::Error;
+use std::fmt;
 #[allow(unused_imports)]
-use std::io::SeekFrom;
-use std::{
-    error::Error,
-    fmt,
-    io::{Read, Seek},
-    mem,
-    time::Duration,
-};
+use std::io::{Read, Seek, SeekFrom};
+use std::mem;
+use std::time::Duration;
 
 use crate::Source;
 

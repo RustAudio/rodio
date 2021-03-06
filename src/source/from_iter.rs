@@ -139,10 +139,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        buffer::SamplesBuffer,
-        source::{from_iter, Source},
-    };
+    use crate::buffer::SamplesBuffer;
+    use crate::source::{from_iter, Source};
 
     #[test]
     fn basic() {

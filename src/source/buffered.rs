@@ -1,8 +1,6 @@
-use std::{
-    cmp,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::cmp;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::{Sample, Source};
 

@@ -1,7 +1,5 @@
-use std::{
-    io::{Read, Seek},
-    time::Duration,
-};
+use std::io::{Read, Seek};
+use std::time::Duration;
 
 use crate::Source;
 

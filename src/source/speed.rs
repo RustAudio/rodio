@@ -1,14 +1,10 @@
 use std::time::Duration;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Speed` object.
 pub fn speed<I>(input: I, factor: f32) -> Speed<I> {
-    Speed {
-        input: input,
-        factor: factor,
-    }
+    Speed { input, factor }
 }
 
 /// Filter that modifies each sample by a given value.

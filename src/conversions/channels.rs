@@ -1,5 +1,3 @@
-use cpal;
-
 /// Iterator that converts from a certain channel count to another.
 #[derive(Clone, Debug)]
 pub struct ChannelCountConverter<I>
@@ -33,9 +31,9 @@ where
         assert!(to >= 1);
 
         ChannelCountConverter {
-            input: input,
-            from: from,
-            to: to,
+            input,
+            from,
+            to,
             sample_repeat: None,
             next_output_sample_pos: 0,
         }

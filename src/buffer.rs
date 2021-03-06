@@ -10,11 +10,9 @@
 //! ```
 //!
 
-use std::time::Duration;
-use std::vec::IntoIter as VecIntoIter;
+use std::{time::Duration, vec::IntoIter as VecIntoIter};
 
-use crate::source::Source;
-use crate::Sample;
+use crate::{source::Source, Sample};
 
 /// A buffer of samples treated as a source.
 pub struct SamplesBuffer<S> {
@@ -32,9 +30,9 @@ where
     ///
     /// # Panic
     ///
-    /// - Panicks if the number of channels is zero.
-    /// - Panicks if the samples rate is zero.
-    /// - Panicks if the length of the buffer is larger than approximatively 16 billion elements.
+    /// - Panics if the number of channels is zero.
+    /// - Panics if the samples rate is zero.
+    /// - Panics if the length of the buffer is larger than approximately 16 billion elements.
     ///   This is because the calculation of the duration would overflow.
     ///
     pub fn new<D>(channels: u16, sample_rate: u32, data: D) -> SamplesBuffer<S>
@@ -55,9 +53,9 @@ where
 
         SamplesBuffer {
             data: data.into_iter(),
-            channels: channels,
-            sample_rate: sample_rate,
-            duration: duration,
+            channels,
+            sample_rate,
+            duration,
         }
     }
 }
@@ -106,8 +104,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::buffer::SamplesBuffer;
-    use crate::source::Source;
+    use crate::{buffer::SamplesBuffer, source::Source};
 
     #[test]
     fn basic() {

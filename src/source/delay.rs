@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Delay` object.
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
@@ -13,7 +12,7 @@ where
     let samples = duration_ns * input.sample_rate() as u64 / 1000000000 * input.channels() as u64;
 
     Delay {
-        input: input,
+        input,
         remaining_samples: samples as usize,
         requested_duration: duration,
     }

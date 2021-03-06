@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use crate::Sample;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Amplify` object.
 pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
@@ -9,10 +8,7 @@ where
     I: Source,
     I::Item: Sample,
 {
-    Amplify {
-        input: input,
-        factor: factor,
-    }
+    Amplify { input, factor }
 }
 
 /// Filter that modifies each sample by a given value.

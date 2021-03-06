@@ -1,5 +1,5 @@
 use crate::Source;
-use std::time::Duration;
+use std::{f32::consts::TAU, time::Duration};
 
 /// An infinite source that produces a sine.
 ///
@@ -28,7 +28,7 @@ impl Iterator for SineWave {
     fn next(&mut self) -> Option<f32> {
         self.num_sample = self.num_sample.wrapping_add(1);
 
-        let value = 2.0 * 3.14159265 * self.freq * self.num_sample as f32 / 48000.0;
+        let value = TAU * self.freq * self.num_sample as f32 / 48000.0;
         Some(value.sin())
     }
 }

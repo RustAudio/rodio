@@ -1,11 +1,16 @@
-use crate::Sample;
-use crate::Source;
-use std::marker::PhantomData;
-use std::time::Duration;
+use crate::{Sample, Source};
+use std::{marker::PhantomData, time::Duration};
 
 /// An empty source.
 #[derive(Debug, Copy, Clone)]
 pub struct Empty<S>(PhantomData<S>);
+
+impl<S> Default for Empty<S> {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<S> Empty<S> {
     #[inline]

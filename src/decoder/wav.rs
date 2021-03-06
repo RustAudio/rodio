@@ -1,5 +1,7 @@
-use std::io::{Read, Seek, SeekFrom};
-use std::time::Duration;
+use std::{
+    io::{Read, Seek, SeekFrom},
+    time::Duration,
+};
 
 use crate::Source;
 
@@ -28,12 +30,12 @@ where
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
         let reader = SamplesIterator {
-            reader: reader,
+            reader,
             samples_read: 0,
         };
 
         Ok(WavDecoder {
-            reader: reader,
+            reader,
             sample_rate: spec.sample_rate,
             channels: spec.channels,
         })

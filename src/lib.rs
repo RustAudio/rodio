@@ -20,19 +20,17 @@
 //! use std::io::BufReader;
 //! use rodio::Source;
 //!
-//! fn main() {
-//!    let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+//! let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
 //!
-//!    // Load a sound from a file, using a path relative to Cargo.toml
-//!    let file = File::open("sound.ogg").unwrap();
-//!    let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-//!    stream_handle.play_raw(source.convert_samples());
+//! // Load a sound from a file, using a path relative to Cargo.toml
+//! let file = File::open("sound.ogg").unwrap();
+//! let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+//! stream_handle.play_raw(source.convert_samples());
 //!
-//!    // The sound plays in a separate audio thread,
-//!    // so we need to keep the main thread alive while it's playing.
-//!    // Press ctrl + C to stop the process once you're done.
-//!    loop {}
-//! }
+//! // The sound plays in a separate audio thread,
+//! // so we need to keep the main thread alive while it's playing.
+//! // Press ctrl + C to stop the process once you're done.
+//! loop {}
 //! ```
 //!
 //! ## Sink
@@ -106,9 +104,11 @@ pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
-pub use crate::conversions::Sample;
-pub use crate::decoder::Decoder;
-pub use crate::sink::Sink;
-pub use crate::source::Source;
-pub use crate::spatial_sink::SpatialSink;
-pub use crate::stream::{OutputStream, OutputStreamHandle, PlayError, StreamError};
+pub use crate::{
+    conversions::Sample,
+    decoder::Decoder,
+    sink::Sink,
+    source::Source,
+    spatial_sink::SpatialSink,
+    stream::{OutputStream, OutputStreamHandle, PlayError, StreamError},
+};

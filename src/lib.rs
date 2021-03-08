@@ -6,8 +6,8 @@
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [decoder](decoder/index.html), etc. or even your own type that implements
 //!   [the `Source` trait](source/trait.Source.html).
-//! - Choose an output with the [`devices`](fn.devices.html) or
-//!   [`default_output_device`](fn.default_output_device.html) functions.
+//! - Get an output stream to a physical device. For example, get a stream to system's default sound
+//!   device with [`OutputStream::try_default()`](struct.OutputStream.html#method.try_default)
 //! - Call [`play_raw(output, source)`](fn.play_raw.html).
 //!
 //! The `play_raw` function expects the source to produce `f32`s, which may not be the case. If you

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+env:
+  RUSTFLAGS: "-C debuginfo=0 -D warnings"
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        toolchain: [stable, beta, nightly]
+        include:
+          - os: macos-latest
+            MACOS: true
+          - os: windows-latest
+          - os: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: install linux deps
+        run: |
+          sudo apt update
+          sudo apt install --no-install-recommends libasound2-dev pkg-config
+        if: contains(matrix.os, 'ubuntu')
+
+      - name: install ${{ matrix.toolchain }} toolchain
+        id: install_toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          profile: minimal
+          # Don't use a 'components:' entry--we don't need them with beta/nightly, plus nightly often doesn't have them
+          override: true
+
+      # This block can be uncommented to add clippy to CI, but first the existing clippy warnings need to be fixed!
+      # - name: clippy
+      #   run: |
+      #     rustup component add clippy
+      #     cargo clippy -- -D warnings
+      #   if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
+
+      - run: |
+          rustup component add rustfmt
+          cargo fmt --all -- --check
+        if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
+
+      - run: cargo test --all-targets --all-features

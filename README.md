@@ -1,7 +1,8 @@
 # Audio playback library
 
-[![Build Status](https://travis-ci.org/RustAudio/rodio.svg?branch=master)](https://travis-ci.org/RustAudio/rodio)
-[![](http://meritbadge.herokuapp.com/rodio)](https://crates.io/crates/rodio)
+[![Crates.io Version](https://img.shields.io/crates/v/rodio.svg)](https://crates.io/crates/rodio)
+[![Crates.io Downloads](https://img.shields.io/crates/d/rodio.svg)](https://crates.io/crates/rodio)
+[![Build Status](https://github.com/RustAudio/rodio/workflows/CI/badge.svg)](https://github.com/RustAudio/rodio/actions)
 
 Rust playback library.
 

@@ -15,7 +15,7 @@
 //!
 //! For example, here is how you would play an audio file:
 //!
-//! ```
+//! ```no_run
 //! use std::fs::File;
 //! use std::io::BufReader;
 //! use rodio::{Decoder, OutputStream, source::Source};

@@ -44,7 +44,7 @@
 //!
 //! - Get a [`Sink`] to the output stream, and [`.append()`](Sink::append) your sound to it.
 //!
-//! ```
+//! ```no_run
 //! use std::fs::File;
 //! use std::io::BufReader;
 //! use std::time::Duration;

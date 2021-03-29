@@ -56,3 +56,26 @@ jobs:
         if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
 
       - run: cargo test --all-targets --all-features
+  cargo-publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    env:
+      CRATESIO_TOKEN: ${{ secrets.CRATESIO_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Update apt
+        run: sudo apt update
+      - name: Install alsa
+        run: sudo apt install --no-install-recommends libasound2-dev pkg-config
+      - name: Run cargo publish for rodio
+        continue-on-error: true
+        run: |
+          RODIO_TMP=$(mktemp /tmp/rodioXXX.txt) || echo "::error::mktemp error"
+          echo "::set-env name=RODIO_TMP::$RODIO_TMP"
+          cargo publish --token $CRATESIO_TOKEN 2> $RODIO_TMP
+      - name: Check if rodio is already published
+        run: |
+          empty=0
+          grep -q '[^[:space:]]' < $RODIO_TMP || empty=1
+          [ $empty -eq 0 ] && cat $RODIO_TMP
+          [ $empty -eq 1 ] || grep -q "is already uploaded" < $RODIO_TMP

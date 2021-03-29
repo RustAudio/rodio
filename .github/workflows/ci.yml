@@ -71,11 +71,12 @@ jobs:
         continue-on-error: true
         run: |
           RODIO_TMP=$(mktemp /tmp/rodioXXX.txt) || echo "::error::mktemp error"
-          echo "::set-env name=RODIO_TMP::$RODIO_TMP"
+          echo "RODIO_TMP=$RODIO_TMP" >> $GITHUB_ENV
           cargo publish --token $CRATESIO_TOKEN 2> $RODIO_TMP
       - name: Check if rodio is already published
         run: |
           empty=0
+          RODIO_TMP="${{ env.RODIO_TMP }}"
           grep -q '[^[:space:]]' < $RODIO_TMP || empty=1
           [ $empty -eq 0 ] && cat $RODIO_TMP
           [ $empty -eq 1 ] || grep -q "is already uploaded" < $RODIO_TMP

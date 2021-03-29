@@ -28,7 +28,7 @@ impl OutputStream {
     pub fn try_from_device(
         device: &cpal::Device,
     ) -> Result<(Self, OutputStreamHandle), StreamError> {
-        let (mixer, _stream) = device.new_output_stream();
+        let (mixer, _stream) = device.try_new_output_stream()?;
         _stream.play()?;
         let out = Self { mixer, _stream };
         let handle = OutputStreamHandle {
@@ -139,6 +139,9 @@ pub(crate) trait CpalDeviceExt {
         format: cpal::SupportedStreamConfig,
     ) -> Result<(Arc<DynamicMixerController<f32>>, cpal::Stream), cpal::BuildStreamError>;
 
+    fn try_new_output_stream(
+        &self,
+    ) -> Result<(Arc<DynamicMixerController<f32>>, cpal::Stream), StreamError>;
     fn new_output_stream(&self) -> (Arc<DynamicMixerController<f32>>, cpal::Stream);
 }
 
@@ -183,6 +186,27 @@ impl CpalDeviceExt for cpal::Device {
             ),
         }
         .map(|stream| (mixer_tx, stream))
+    }
+
+    fn try_new_output_stream(
+        &self,
+    ) -> Result<(Arc<DynamicMixerController<f32>>, cpal::Stream), StreamError> {
+        // Determine the format to use for the new stream.
+        let default_format = match self.default_output_config() {
+            Ok(f) => f,
+            Err(_) => return Err(StreamError::NoDevice),
+        };
+
+        Ok(self
+            .new_output_stream_with_format(default_format)
+            .unwrap_or_else(|err| {
+                // look through all supported formats to see if another works
+                supported_output_formats(self)
+                    .filter_map(|format| self.new_output_stream_with_format(format).ok())
+                    .next()
+                    .ok_or(err)
+                    .expect("build_output_stream failed with all supported formats")
+            }))
     }
 
     fn new_output_stream(&self) -> (Arc<DynamicMixerController<f32>>, cpal::Stream) {

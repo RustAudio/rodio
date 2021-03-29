@@ -1,6 +1,6 @@
 [package]
 name = "rodio"
-version = "0.13.0"
+version = "0.13.1"
 authors = ["Pierre Krieger <pierre.krieger1708@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Audio playback library"

@@ -1,3 +1,11 @@
+# Version 0.14.0 (2021-05-21)
+
+- Re-export `cpal` in full.
+- Replace panics when calling `OutputStream::try_default`, `OutputStream::try_from_device` with new 
+  `StreamError` variants.
+- `OutputStream::try_default` will now fallback to non-default output devices if an `OutputStream`
+  cannot be created from the default device.
+
 # Version 0.13.1 (2021-03-28)
 
 - Fix panic when no `pulseaudio-alsa` was installed.

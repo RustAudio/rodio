@@ -129,14 +129,14 @@ mod test {
     #[test]
     fn len_more() {
         let input = vec![1u16, 2, 1, 2];
-        let output = ChannelCountConverter::new(input.into_iter(), 2, 3).collect::<Vec<_>>();
+        let output = ChannelCountConverter::new(input.into_iter(), 2, 3);
         assert_eq!(output.len(), 6);
     }
 
     #[test]
     fn len_less() {
         let input = vec![1u16, 2, 1, 2];
-        let output = ChannelCountConverter::new(input.into_iter(), 2, 1).collect::<Vec<_>>();
+        let output = ChannelCountConverter::new(input.into_iter(), 2, 1);
         assert_eq!(output.len(), 2);
     }
 }

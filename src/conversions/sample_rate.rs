@@ -253,15 +253,13 @@ mod test {
     use super::SampleRateConverter;
     use core::time::Duration;
     use cpal::SampleRate;
-    use quickcheck::quickcheck;
 
-    // TODO: Remove once cpal 0.12.2 is released and the dependency is updated
-    //  (cpal#483 implemented ops::Mul on SampleRate)
-    const fn multiply_rate(r: SampleRate, k: u32) -> SampleRate {
-        SampleRate(k * r.0)
+    const fn overflowing_mul_rate(r: SampleRate, k: u32) -> (SampleRate, bool) {
+        let (result, overflow) = k.overflowing_mul(r.0);
+        (SampleRate(result), overflow)
     }
 
-    quickcheck! {
+    quickcheck::quickcheck! {
         /// Check that resampling an empty input produces no output.
         fn empty(from: u32, to: u32, n: u16) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
@@ -292,8 +290,8 @@ mod test {
         ///   dropping a sample from each channel.
         fn divide_sample_rate(to: u32, k: u32, input: Vec<u16>, n: u16) -> () {
             let to = if to == 0 { return; } else { SampleRate(to) };
-            let from = multiply_rate(to, k);
-            if k == 0 || n == 0 { return; }
+            let (from, overflow) = overflowing_mul_rate(to, k);
+            if overflow || k == 0 || n == 0 { return; }
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {
@@ -316,8 +314,8 @@ mod test {
         ///  sample in the output matches exactly with the input.
         fn multiply_sample_rate(from: u32, k: u32, input: Vec<u16>, n: u16) -> () {
             let from = if from == 0 { return; } else { SampleRate(from) };
-            let to = multiply_rate(from, k);
-            if k == 0 || n == 0 { return; }
+            let (to, overflow) = overflowing_mul_rate(from, k);
+            if overflow || k == 0 || n == 0 { return; }
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {

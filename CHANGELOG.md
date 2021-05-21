@@ -1,4 +1,4 @@
-# Unreleased 0.14.0
+# Version 0.14.0 (2021-05-21)
 
 - Re-export `cpal` in full.
 - Replace panics when calling `OutputStream::try_default`, `OutputStream::try_from_device` with new 

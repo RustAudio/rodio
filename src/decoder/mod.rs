@@ -133,6 +133,7 @@ where
         }
     }
 
+    /// Builds a new decoder from wav data.
     #[cfg(feature = "symphonia-wav")]
     pub fn new_wav(data: R) -> Result<Decoder<R>, DecoderError> {
         Decoder::new_symphonia(data, "wav")
@@ -145,6 +146,12 @@ where
             Err(_) => Err(DecoderError::UnrecognizedFormat),
             Ok(decoder) => Ok(Decoder(DecoderImpl::Flac(decoder))),
         }
+    }
+
+    /// Builds a new decoder from flac data.
+    #[cfg(feature = "symphonia-flac")]
+    pub fn new_flac(data: R) -> Result<Decoder<R>, DecoderError> {
+        Decoder::new_symphonia(data, "flac")
     }
 
     /// Builds a new decoder from vorbis data.
@@ -165,16 +172,19 @@ where
         }
     }
 
+    /// Builds a new decoder from mp3 data.
     #[cfg(feature = "symphonia-mp3")]
     pub fn new_mp3(data: R) -> Result<Decoder<R>, DecoderError> {
         Decoder::new_symphonia(data, "mp3")
     }
 
+    /// Builds a new decoder from aac data.
     #[cfg(feature = "symphonia-aac")]
     pub fn new_aac(data: R) -> Result<Decoder<R>, DecoderError> {
         Decoder::new_symphonia(data, "aac")
     }
 
+    /// Builds a new decoder from mp4 data.
     #[cfg(feature = "symphonia-isomp4")]
     pub fn new_mp4(data: R, hint: Mp4Type) -> Result<Decoder<R>, DecoderError> {
         Decoder::new_symphonia(data, &hint.to_string())

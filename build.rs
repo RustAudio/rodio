@@ -7,7 +7,8 @@ fn main() {
         feature = "symphonia-mp3",
         feature = "symphonia-wav",
         feature = "symphonia-aac",
-        feature = "symphonia-isomp4"
+        feature = "symphonia-isomp4",
+        feature = "symphonia-flac"
         )}
     }
 }

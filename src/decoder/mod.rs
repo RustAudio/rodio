@@ -1,18 +1,34 @@
 //! Decodes samples from an audio file.
 
+#[cfg(all(feature = "symphonia-mp3", feature = "mp3"))]
+compile_error!("Choose either symphonia-mp3 or mp3");
+
+#[cfg(all(feature = "symphonia-wav", feature = "wav"))]
+compile_error!("Choose either symphonia-wav or wav");
+
 use std::error::Error;
 use std::fmt;
 #[allow(unused_imports)]
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
+use std::str::FromStr;
 use std::time::Duration;
 
 use crate::Source;
+
+#[cfg(symphonia)]
+use self::read_seek_source::ReadSeekSource;
+#[cfg(symphonia)]
+use ::symphonia::core::io::{MediaSource, MediaSourceStream};
 
 #[cfg(feature = "flac")]
 mod flac;
 #[cfg(feature = "mp3")]
 mod mp3;
+#[cfg(symphonia)]
+mod read_seek_source;
+#[cfg(symphonia)]
+mod symphonia;
 #[cfg(feature = "vorbis")]
 mod vorbis;
 #[cfg(feature = "wav")]
@@ -41,12 +57,14 @@ where
     Flac(flac::FlacDecoder<R>),
     #[cfg(feature = "mp3")]
     Mp3(mp3::Mp3Decoder<R>),
+    #[cfg(symphonia)]
+    Symphonia(symphonia::SymphoniaDecoder),
     None(::std::marker::PhantomData<R>),
 }
 
 impl<R> Decoder<R>
 where
-    R: Read + Seek + Send,
+    R: Read + Seek + Send + 'static,
 {
     /// Builds a new decoder.
     ///
@@ -85,6 +103,21 @@ where
             }
         };
 
+        #[cfg(symphonia)]
+        {
+            let mss = MediaSourceStream::new(
+                Box::new(ReadSeekSource::new(data)) as Box<dyn MediaSource>,
+                Default::default(),
+            );
+
+            match symphonia::SymphoniaDecoder::new(mss, None) {
+                Err(data) => data,
+                Ok(decoder) => {
+                    return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
+                }
+            }
+        };
+
         Err(DecoderError::UnrecognizedFormat)
     }
     pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
@@ -98,6 +131,11 @@ where
             Err(_) => Err(DecoderError::UnrecognizedFormat),
             Ok(decoder) => Ok(Decoder(DecoderImpl::Wav(decoder))),
         }
+    }
+
+    #[cfg(feature = "symphonia-wav")]
+    pub fn new_wav(data: R) -> Result<Decoder<R>, DecoderError> {
+        Decoder::new_symphonia(data, "wav")
     }
 
     /// Builds a new decoder from flac data.
@@ -125,6 +163,71 @@ where
             Err(_) => Err(DecoderError::UnrecognizedFormat),
             Ok(decoder) => Ok(Decoder(DecoderImpl::Mp3(decoder))),
         }
+    }
+
+    #[cfg(feature = "symphonia-mp3")]
+    pub fn new_mp3(data: R) -> Result<Decoder<R>, DecoderError> {
+        Decoder::new_symphonia(data, "mp3")
+    }
+
+    #[cfg(feature = "symphonia-aac")]
+    pub fn new_aac(data: R) -> Result<Decoder<R>, DecoderError> {
+        Decoder::new_symphonia(data, "aac")
+    }
+
+    #[cfg(feature = "symphonia-isomp4")]
+    pub fn new_mp4(data: R, hint: Mp4Type) -> Result<Decoder<R>, DecoderError> {
+        Decoder::new_symphonia(data, &hint.to_string())
+    }
+
+    #[cfg(symphonia)]
+    fn new_symphonia(data: R, hint: &str) -> Result<Decoder<R>, DecoderError> {
+        let mss = MediaSourceStream::new(
+            Box::new(ReadSeekSource::new(data)) as Box<dyn MediaSource>,
+            Default::default(),
+        );
+
+        match symphonia::SymphoniaDecoder::new(mss, Some(hint)) {
+            Err(_) => Err(DecoderError::UnrecognizedFormat),
+            Ok(decoder) => {
+                return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Mp4Type {
+    Mp4,
+    M4a,
+    M4p,
+    M4b,
+    M4r,
+    M4v,
+    Mov,
+}
+
+impl FromStr for Mp4Type {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Mp4Type, Self::Err> {
+        match &input.to_lowercase()[..] {
+            "mp4" => Ok(Mp4Type::Mp4),
+            "m4a" => Ok(Mp4Type::M4a),
+            "m4p" => Ok(Mp4Type::M4p),
+            "m4b" => Ok(Mp4Type::M4b),
+            "m4r" => Ok(Mp4Type::M4r),
+            "m4v" => Ok(Mp4Type::M4v),
+            "mov" => Ok(Mp4Type::Mov),
+            _ => Err(format!("{} is not a valid mp4 extension", input)),
+        }
+    }
+}
+
+impl fmt::Display for Mp4Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let res = self.to_string().to_lowercase();
+        write!(f, "{}", res)
     }
 }
 
@@ -154,6 +257,8 @@ where
             DecoderImpl::Flac(source) => source.next(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.next(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.next(),
             DecoderImpl::None(_) => None,
         }
     }
@@ -169,6 +274,8 @@ where
             DecoderImpl::Flac(source) => source.size_hint(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.size_hint(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.size_hint(),
             DecoderImpl::None(_) => (0, None),
         }
     }
@@ -189,6 +296,8 @@ where
             DecoderImpl::Flac(source) => source.current_frame_len(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.current_frame_len(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.current_frame_len(),
             DecoderImpl::None(_) => Some(0),
         }
     }
@@ -204,6 +313,8 @@ where
             DecoderImpl::Flac(source) => source.channels(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.channels(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.channels(),
             DecoderImpl::None(_) => 0,
         }
     }
@@ -219,6 +330,8 @@ where
             DecoderImpl::Flac(source) => source.sample_rate(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.sample_rate(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.sample_rate(),
             DecoderImpl::None(_) => 1,
         }
     }
@@ -234,6 +347,8 @@ where
             DecoderImpl::Flac(source) => source.total_duration(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.total_duration(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.total_duration(),
             DecoderImpl::None(_) => Some(Duration::default()),
         }
     }
@@ -256,6 +371,8 @@ where
             DecoderImpl::Flac(source) => source.next(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.next(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.next(),
             DecoderImpl::None(_) => None,
         } {
             Some(sample)
@@ -297,6 +414,14 @@ where
                     let sample = source.next();
                     (DecoderImpl::Mp3(source), sample)
                 }
+                #[cfg(symphonia)]
+                DecoderImpl::Symphonia(source) => {
+                    let mut reader = Box::new(source).into_inner();
+                    reader.seek(SeekFrom::Start(0)).ok()?;
+                    let mut source = symphonia::SymphoniaDecoder::new(reader, None).ok()?;
+                    let sample = source.next();
+                    (DecoderImpl::Symphonia(source), sample)
+                }
                 none @ DecoderImpl::None(_) => (none, None),
             };
             self.0 = decoder;
@@ -315,6 +440,8 @@ where
             DecoderImpl::Flac(source) => (source.size_hint().0, None),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => (source.size_hint().0, None),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => (source.size_hint().0, None),
             DecoderImpl::None(_) => (0, None),
         }
     }
@@ -335,6 +462,8 @@ where
             DecoderImpl::Flac(source) => source.current_frame_len(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.current_frame_len(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.current_frame_len(),
             DecoderImpl::None(_) => Some(0),
         }
     }
@@ -350,6 +479,8 @@ where
             DecoderImpl::Flac(source) => source.channels(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.channels(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.channels(),
             DecoderImpl::None(_) => 0,
         }
     }
@@ -365,6 +496,8 @@ where
             DecoderImpl::Flac(source) => source.sample_rate(),
             #[cfg(feature = "mp3")]
             DecoderImpl::Mp3(source) => source.sample_rate(),
+            #[cfg(symphonia)]
+            DecoderImpl::Symphonia(source) => source.sample_rate(),
             DecoderImpl::None(_) => 1,
         }
     }

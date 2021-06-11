@@ -21,8 +21,6 @@ pub struct SymphoniaDecoder {
     channels: usize,
 }
 
-unsafe impl Send for SymphoniaDecoder {}
-
 impl SymphoniaDecoder {
     pub fn new(mss: MediaSourceStream, extension: Option<&str>) -> Result<Self, ()> {
         let mut hint = Hint::new();

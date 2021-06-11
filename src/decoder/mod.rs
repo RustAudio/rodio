@@ -1,10 +1,16 @@
 //! Decodes samples from an audio file.
 
 #[cfg(all(feature = "symphonia-mp3", feature = "mp3"))]
-compile_error!("Choose either symphonia-mp3 or mp3");
+compile_error!("Both symphonia-mp3 and mp3 are enabled. 
+If you enabled symphonia-mp3 or symphonia-all, make sure to set default-features=false to disable the default mp3 decoder");
 
 #[cfg(all(feature = "symphonia-wav", feature = "wav"))]
-compile_error!("Choose either symphonia-wav or wav");
+compile_error!("Both symphonia-wav and wav are enabled. 
+If you enabled symphonia-wav or symphonia-all, make sure to set default-features=false to disable the default wav decoder");
+
+#[cfg(all(feature = "symphonia-flac", feature = "flac"))]
+compile_error!("Both symphonia-flac and flac are enabled. 
+If you enabled symphonia-flac or symphonia-all, make sure to set default-features=false to disable the default flac decoder");
 
 use std::error::Error;
 use std::fmt;

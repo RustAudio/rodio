@@ -12,13 +12,13 @@ If you enabled symphonia-wav or symphonia-all, make sure to set default-features
 compile_error!("Both symphonia-flac and flac are enabled. 
 If you enabled symphonia-flac or symphonia-all, make sure to set default-features=false to disable the default flac decoder");
 
-use std::error::Error;
 use std::fmt;
 #[allow(unused_imports)]
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::str::FromStr;
 use std::time::Duration;
+use thiserror::Error;
 
 use crate::Source;
 
@@ -116,14 +116,14 @@ where
                 Default::default(),
             );
 
-            match symphonia::SymphoniaDecoder::new(mss, None) {
-                Err(data) => data,
+            return match symphonia::SymphoniaDecoder::new(mss, None) {
+                Err(e) => Err(e),
                 Ok(decoder) => {
                     return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
                 }
-            }
+            };
         };
-
+        #[cfg(not(symphonia))]
         Err(DecoderError::UnrecognizedFormat)
     }
     pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
@@ -204,7 +204,7 @@ where
         );
 
         match symphonia::SymphoniaDecoder::new(mss, Some(hint)) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
+            Err(e) => Err(e),
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
             }
@@ -525,24 +525,31 @@ where
 }
 
 /// Error that can happen when creating a decoder.
-#[derive(Debug, Clone)]
+#[derive(Debug, Error)]
 pub enum DecoderError {
     /// The format of the data has not been recognized.
+    #[error("Unrecognized format")]
     UnrecognizedFormat,
-}
 
-impl fmt::Display for DecoderError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DecoderError::UnrecognizedFormat => write!(f, "Unrecognized format"),
-        }
-    }
-}
+    /// The underlying Symphonia decoder returned an error
+    #[error(transparent)]
+    #[cfg(symphonia)]
+    IoError(#[from] std::io::Error),
 
-impl Error for DecoderError {
-    fn description(&self) -> &str {
-        match self {
-            DecoderError::UnrecognizedFormat => "Unrecognized format",
-        }
-    }
+    #[error("Decode Error: {0}")]
+    #[cfg(symphonia)]
+    DecoderError(&'static str),
+
+    #[error("Limit Error: {0}")]
+    #[cfg(symphonia)]
+    LimitError(&'static str),
+
+    #[cfg(symphonia)]
+    #[error("The demuxer or decoder needs to be reset before continuing")]
+    ResetRequired,
+
+    /// No streams were found by the decoder
+    #[error("No streams found")]
+    #[cfg(symphonia)]
+    NoStreams,
 }

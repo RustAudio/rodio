@@ -19,7 +19,7 @@ symphonia = {git = "https://github.com/pdeljanov/Symphonia", rev = "1587c01", op
 thiserror = "1.0.25"
 
 [features]
-default = ["vorbis", "mp3", "flac", "wav"]
+default = ["flac", "mp3", "vorbis", "wav"]
 
 flac = ["claxon"]
 mp3 = ["minimp3"]

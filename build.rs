@@ -1,7 +1,8 @@
 use cfg_aliases::cfg_aliases;
 
 fn main() {
-    // Setup cfg aliases
+    // Add alias to see if any symphonia features are enabled
+    // This prevents having to copy/paste this large cfg check each time
     cfg_aliases! {
         symphonia: {
             any(

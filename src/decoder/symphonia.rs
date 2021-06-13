@@ -30,9 +30,7 @@ impl SymphoniaDecoder {
         match SymphoniaDecoder::init(mss, extension) {
             Err(e) => match e {
                 symphonia::core::errors::Error::IoError(e) => Err(DecoderError::IoError(e)),
-                symphonia::core::errors::Error::DecodeError(e) => {
-                    Err(DecoderError::DecoderError(e))
-                }
+                symphonia::core::errors::Error::DecodeError(e) => Err(DecoderError::DecodeError(e)),
                 symphonia::core::errors::Error::SeekError(_) => {
                     unreachable!("Seek errors should not occur during initialization")
                 }
@@ -149,7 +147,6 @@ impl Iterator for SymphoniaDecoder {
         }
 
         let sample = self.buffer.samples()[self.current_frame_offset];
-
         self.current_frame_offset += 1;
 
         Some(sample)

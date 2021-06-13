@@ -116,13 +116,13 @@ where
                 Default::default(),
             );
 
-            return match symphonia::SymphoniaDecoder::new(mss, None) {
+            match symphonia::SymphoniaDecoder::new(mss, None) {
                 Err(e) => Err(e),
                 Ok(decoder) => {
                     return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
                 }
-            };
-        };
+            }
+        }
         #[cfg(not(symphonia))]
         Err(DecoderError::UnrecognizedFormat)
     }
@@ -531,21 +531,25 @@ pub enum DecoderError {
     #[error("Unrecognized format")]
     UnrecognizedFormat,
 
-    /// The underlying Symphonia decoder returned an error
+    /// An IO error occured while reading, writing, or seeking the stream.
     #[error(transparent)]
     #[cfg(symphonia)]
     IoError(#[from] std::io::Error),
 
+    /// The stream contained malformed data and could not be decoded or demuxed.
     #[error("Decode Error: {0}")]
     #[cfg(symphonia)]
-    DecoderError(&'static str),
+    DecodeError(&'static str),
 
+    /// A default or user-defined limit was reached while decoding or demuxing the stream. Limits
+    /// are used to prevent denial-of-service attacks from malicious streams.
     #[error("Limit Error: {0}")]
     #[cfg(symphonia)]
     LimitError(&'static str),
 
-    #[cfg(symphonia)]
+    /// The demuxer or decoder needs to be reset before continuing.
     #[error("The demuxer or decoder needs to be reset before continuing")]
+    #[cfg(symphonia)]
     ResetRequired,
 
     /// No streams were found by the decoder

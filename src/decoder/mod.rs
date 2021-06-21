@@ -46,7 +46,7 @@ where
 
 impl<R> Decoder<R>
 where
-    R: Read + Seek + Send,
+    R: Read + Seek,
 {
     /// Builds a new decoder.
     ///
@@ -130,7 +130,7 @@ where
 
 impl<R> LoopedDecoder<R>
 where
-    R: Read + Seek + Send,
+    R: Read + Seek,
 {
     fn new(decoder: Decoder<R>) -> LoopedDecoder<R> {
         Self(decoder.0)

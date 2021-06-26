@@ -61,7 +61,7 @@ impl SymphoniaDecoder {
         let metadata_opts: MetadataOptions = Default::default();
         let mut probed = get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
 
-        let stream = match probed.format.default_stream() {
+        let stream = match probed.format.default_track() {
             Some(stream) => stream,
             None => return Ok(None),
         };
@@ -107,7 +107,7 @@ impl Source for SymphoniaDecoder {
     #[inline]
     fn sample_rate(&self) -> u32 {
         self.format
-            .default_stream()
+            .default_track()
             .unwrap()
             .codec_params
             .sample_rate

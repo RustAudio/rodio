@@ -15,7 +15,7 @@ cpal = "0.13"
 hound = {version = "3.3.1", optional = true}
 lewton = {version = "0.10", optional = true}
 minimp3 = {version = "0.5.0", optional = true}
-symphonia = {git = "https://github.com/pdeljanov/Symphonia", rev = "38fe3fa", optional = true, default-features = false}
+symphonia = {version = "0.3", optional = true, default-features = false}
 thiserror = "1.0.25"
 
 [features]

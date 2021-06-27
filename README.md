@@ -6,23 +6,27 @@
 
 Rust playback library.
 
- - Playback is handled by [cpal](https://github.com/RustAudio/cpal).
- - MP3 decoding is handled by [minimp3](https://github.com/lieff/minimp3).
- - WAV decoding is handled by [hound](https://github.com/ruud-v-a/hound).
- - Vorbis decoding is handled by [lewton](https://github.com/est31/lewton).
- - Flac decoding is handled by [claxon](https://github.com/ruuda/claxon).
+- Playback is handled by [CPAL](https://github.com/RustAudio/cpal).
+- MP3 decoding is handled by [Minimp3](https://github.com/lieff/minimp3).
+- WAV decoding is handled by [Hound](https://github.com/ruud-v-a/hound).
+- Vorbis decoding is handled by [Lewton](https://github.com/est31/lewton).
+- FLAC decoding is handled by [Claxon](https://github.com/ruuda/claxon).
+- MP4 and AAC (both disabled by default) are handled by [Symphonia](https://github.com/pdeljanov/Symphonia)
+
+Alternatively, Symphonia can be used to decode any of the other codecs above with the exception of Vorbis. See the docs for more details on backends.
 
 # [Documentation](http://docs.rs/rodio)
 
 [The documentation](http://docs.rs/rodio) contains an introduction to the library.
 
 ## License
-[License]: #license
+
+[license]: #license
 
 Licensed under either of
 
-* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0), or
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0), or
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.
 

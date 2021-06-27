@@ -3,6 +3,7 @@ use symphonia::{
     core::{
         audio::SampleBuffer,
         codecs::{Decoder, DecoderOptions},
+        errors::Error,
         formats::{FormatOptions, FormatReader, Packet},
         io::MediaSourceStream,
         meta::MetadataOptions,
@@ -29,16 +30,14 @@ impl SymphoniaDecoder {
     pub fn new(mss: MediaSourceStream, extension: Option<&str>) -> Result<Self, DecoderError> {
         match SymphoniaDecoder::init(mss, extension) {
             Err(e) => match e {
-                symphonia::core::errors::Error::IoError(e) => Err(DecoderError::IoError(e)),
-                symphonia::core::errors::Error::DecodeError(e) => Err(DecoderError::DecodeError(e)),
-                symphonia::core::errors::Error::SeekError(_) => {
+                Error::IoError(e) => Err(DecoderError::IoError(e)),
+                Error::DecodeError(e) => Err(DecoderError::DecodeError(e)),
+                Error::SeekError(_) => {
                     unreachable!("Seek errors should not occur during initialization")
                 }
-                symphonia::core::errors::Error::Unsupported(_) => {
-                    Err(DecoderError::UnrecognizedFormat)
-                }
-                symphonia::core::errors::Error::LimitError(e) => Err(DecoderError::LimitError(e)),
-                symphonia::core::errors::Error::ResetRequired => Err(DecoderError::ResetRequired),
+                Error::Unsupported(_) => Err(DecoderError::UnrecognizedFormat),
+                Error::LimitError(e) => Err(DecoderError::LimitError(e)),
+                Error::ResetRequired => Err(DecoderError::ResetRequired),
             },
             Ok(Some(decoder)) => Ok(decoder),
             Ok(None) => Err(DecoderError::NoStreams),
@@ -78,7 +77,7 @@ impl SymphoniaDecoder {
 
         let decoded = decoder.decode(&current_frame)?;
         let spec = decoded.spec().clone();
-        let duration = symphonia::core::units::Duration::from(decoded.capacity() as u64);
+        let duration = units::Duration::from(decoded.capacity() as u64);
         let mut buf = SampleBuffer::<i16>::new(duration, spec.to_owned());
         buf.copy_interleaved_ref(decoded);
 

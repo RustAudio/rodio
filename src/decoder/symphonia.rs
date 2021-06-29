@@ -4,7 +4,7 @@ use symphonia::{
         audio::SampleBuffer,
         codecs::{Decoder, DecoderOptions},
         errors::Error,
-        formats::{FormatOptions, FormatReader, Packet},
+        formats::{FormatOptions, FormatReader},
         io::MediaSourceStream,
         meta::MetadataOptions,
         probe::Hint,
@@ -19,7 +19,6 @@ use super::DecoderError;
 
 pub struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
-    current_frame: Packet,
     current_frame_offset: usize,
     format: Box<dyn FormatReader>,
     buffer: SampleBuffer<i16>,
@@ -83,7 +82,6 @@ impl SymphoniaDecoder {
 
         return Ok(Some(SymphoniaDecoder {
             decoder,
-            current_frame,
             current_frame_offset: 0,
             format: probed.format,
             buffer: buf,
@@ -126,20 +124,16 @@ impl Iterator for SymphoniaDecoder {
     fn next(&mut self) -> Option<i16> {
         if self.current_frame_offset == self.buffer.len() {
             match self.format.next_packet() {
-                Ok(packet) => {
-                    self.current_frame = packet;
-
-                    match self.decoder.decode(&self.current_frame) {
-                        Ok(decoded) => {
-                            let spec = decoded.spec();
-                            let duration = units::Duration::from(decoded.capacity() as u64);
-                            let mut buf = SampleBuffer::<i16>::new(duration, spec.to_owned());
-                            buf.copy_interleaved_ref(decoded);
-                            self.buffer = buf;
-                        }
-                        Err(_) => return None,
+                Ok(packet) => match self.decoder.decode(&packet) {
+                    Ok(decoded) => {
+                        let spec = decoded.spec();
+                        let duration = units::Duration::from(decoded.capacity() as u64);
+                        let mut buf = SampleBuffer::<i16>::new(duration, spec.to_owned());
+                        buf.copy_interleaved_ref(decoded);
+                        self.buffer = buf;
                     }
-                }
+                    Err(_) => return None,
+                },
                 Err(_) => return None,
             }
             self.current_frame_offset = 0;

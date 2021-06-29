@@ -230,8 +230,16 @@ impl FromStr for Mp4Type {
 
 impl fmt::Display for Mp4Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let res = self.to_string().to_lowercase();
-        write!(f, "{}", res)
+        let text = match self {
+            Mp4Type::Mp4 => "mp4",
+            Mp4Type::M4a => "m4a",
+            Mp4Type::M4p => "m4p",
+            Mp4Type::M4b => "m4b",
+            Mp4Type::M4r => "m4r",
+            Mp4Type::M4v => "m4v",
+            Mp4Type::Mov => "mov",
+        };
+        write!(f, "{}", text)
     }
 }
 
@@ -542,13 +550,7 @@ pub enum DecoderError {
 
 impl fmt::Display for DecoderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
-    }
-}
-
-impl Error for DecoderError {
-    fn description(&self) -> &str {
-        match self {
+        let text = match self {
             DecoderError::UnrecognizedFormat => "Unrecognized format",
             #[cfg(feature = "symphonia")]
             DecoderError::IoError(msg) => &msg[..],
@@ -560,6 +562,9 @@ impl Error for DecoderError {
             DecoderError::ResetRequired => "Reset required",
             #[cfg(feature = "symphonia")]
             DecoderError::NoStreams => "No streams",
-        }
+        };
+        write!(f, "{}", text)
     }
 }
+
+impl Error for DecoderError {}

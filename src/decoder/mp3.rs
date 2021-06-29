@@ -1,4 +1,4 @@
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
 use crate::Source;
@@ -18,9 +18,12 @@ impl<R> Mp3Decoder<R>
 where
     R: Read + Seek,
 {
-    pub fn new(data: R) -> Result<Self, ()> {
+    pub fn new(mut data: R) -> Result<Self, R> {
+        if !is_mp3(data.by_ref()) {
+            return Err(data);
+        }
         let mut decoder = Decoder::new(data);
-        let current_frame = decoder.next_frame().map_err(|_| ())?;
+        let current_frame = decoder.next_frame().unwrap();
 
         Ok(Mp3Decoder {
             decoder,
@@ -79,4 +82,19 @@ where
 
         Some(v)
     }
+}
+
+/// Returns true if the stream contains mp3 data, then resets it to where it was.
+fn is_mp3<R>(mut data: R) -> bool
+where
+    R: Read + Seek,
+{
+    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+    let mut decoder = Decoder::new(data.by_ref());
+    if decoder.next_frame().is_err() {
+        data.seek(SeekFrom::Start(stream_pos)).unwrap();
+        return false;
+    }
+
+    true
 }

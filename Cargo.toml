@@ -15,6 +15,7 @@ claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.3.1", optional = true }
 lewton = { version = "0.10", optional = true }
 minimp3 = { version = "0.5.0", optional = true }
+symphonia = {version = "0.3", optional = true }
 
 [features]
 default = ["flac", "vorbis", "wav", "mp3"]
@@ -24,6 +25,16 @@ vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["minimp3"]
 wasm-bindgen = ["cpal/wasm-bindgen"]
+symphonia-aac = ["symphonia/aac"]
+symphonia-all = ["symphonia-aac", "symphonia-flac", "symphonia-isomp4", "symphonia-mp3", "symphonia-wav"]
+symphonia-flac = ["symphonia/flac"]
+symphonia-isomp4 = ["symphonia/isomp4"]
+symphonia-mp3 = ["symphonia/mp3"]
+symphonia-wav = ["symphonia/wav", "symphonia/pcm"]
 
 [dev-dependencies]
 quickcheck = "0.9.2"
+
+[[example]]
+name = "music_m4a"
+required-features = ["symphonia-isomp4", "symphonia-aac"]

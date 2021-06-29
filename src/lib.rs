@@ -84,6 +84,19 @@
 //! let source = source.take_duration(Duration::from_secs(5)).repeat_infinite();
 //! ```
 //!
+//! ## Alternative Decoder Backends
+//!
+//! [Symphonia](https://github.com/pdeljanov/Symphonia) is an alternative deocder library that can be used in place
+//! of many of the default backends.
+//! Currently, the main benefit is that Symphonia is the only backend that supports M4A and AAC,
+//! but it may be used to implement additional optional functionality in the future.
+//!
+//! To use, enable either the `symphonia-all` feature to enable all Symphonia codecs
+//! or enable specific codecs using one of the `symphonia-{codec name}` features.
+//! If you enable one or more of the Symphonia codecs, you may want to set `default-features = false` in order
+//! to avoid adding extra crates to your binary.
+//! See the [available feature flags](https://docs.rs/crate/rodio/latest/features) for all options.
+//!
 //! ## How it works under the hood
 //!
 //! Rodio spawns a background thread that is dedicated to reading from the sources and sending

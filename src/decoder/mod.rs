@@ -15,9 +15,9 @@ use self::read_seek_source::ReadSeekSource;
 #[cfg(feature = "symphonia")]
 use ::symphonia::core::io::{MediaSource, MediaSourceStream};
 
-#[cfg(feature = "flac")]
+#[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
 mod flac;
-#[cfg(feature = "mp3")]
+#[cfg(all(feature = "mp3", not(feature = "symphonia-mp3")))]
 mod mp3;
 #[cfg(feature = "symphonia")]
 mod read_seek_source;
@@ -25,7 +25,7 @@ mod read_seek_source;
 mod symphonia;
 #[cfg(feature = "vorbis")]
 mod vorbis;
-#[cfg(feature = "wav")]
+#[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
 mod wav;
 
 /// Source of audio samples from decoding a file.

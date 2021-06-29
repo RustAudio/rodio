@@ -30,7 +30,7 @@ impl SymphoniaDecoder {
     pub fn new(mss: MediaSourceStream, extension: Option<&str>) -> Result<Self, DecoderError> {
         match SymphoniaDecoder::init(mss, extension) {
             Err(e) => match e {
-                Error::IoError(e) => Err(DecoderError::IoError(e)),
+                Error::IoError(e) => Err(DecoderError::IoError(e.to_string())),
                 Error::DecodeError(e) => Err(DecoderError::DecodeError(e)),
                 Error::SeekError(_) => {
                     unreachable!("Seek errors should not occur during initialization")

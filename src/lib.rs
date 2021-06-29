@@ -90,11 +90,9 @@
 //! Currently, the main benefit is that Symphonia is the only decoder library that supports M4A and AAC,
 //! but it may be used to implement additional optional functionality in the future.
 //!
-//! To enable, set `default-features = false` and enable either the `symphonia-all` feature to enable all Symphonia codecs
+//! To use, enable either the `symphonia-all` feature to enable all Symphonia codecs
 //! or enable specific codecs using one of the `symphonia-{codec name}` features.
 //! See the [available feature flags](https://docs.rs/crate/rodio/latest/features) for all options.
-//! Note that Symphonia does not currently support Vorbis, so the `vorbis` feature should be explicitly used to re-enable the default vorbis decoder
-//! if default features are disabled.
 //!
 //! ## How it works under the hood
 //!

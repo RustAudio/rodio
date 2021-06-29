@@ -6,7 +6,7 @@ on:
     branches: [main, master]
 
 env:
-  RUSTFLAGS: '-C debuginfo=0 -D warnings'
+  RUSTFLAGS: "-C debuginfo=0 -D warnings"
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
 
@@ -56,7 +56,7 @@ jobs:
         if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
 
       - run: cargo test --all-targets
-      - run: cargo test --no-default-features --features=symphonia-all --all-targets
+      - run: cargo test --features=symphonia-all --all-targets
   cargo-publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     env:

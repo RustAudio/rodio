@@ -1,7 +1,7 @@
 use std::time::Duration;
 use symphonia::{
     core::{
-        audio::SampleBuffer,
+        audio::{AudioBufferRef, SampleBuffer, SignalSpec},
         codecs::{Decoder, DecoderOptions},
         errors::Error,
         formats::{FormatOptions, FormatReader},
@@ -22,7 +22,7 @@ pub struct SymphoniaDecoder {
     current_frame_offset: usize,
     format: Box<dyn FormatReader>,
     buffer: SampleBuffer<i16>,
-    channels: usize,
+    spec: SignalSpec,
 }
 
 impl SymphoniaDecoder {
@@ -73,20 +73,25 @@ impl SymphoniaDecoder {
         )?;
 
         let current_frame = probed.format.next_packet()?;
-
         let decoded = decoder.decode(&current_frame)?;
-        let spec = decoded.spec().clone();
-        let duration = units::Duration::from(decoded.capacity() as u64);
-        let mut buf = SampleBuffer::<i16>::new(duration, spec.to_owned());
-        buf.copy_interleaved_ref(decoded);
+        let spec = decoded.spec().to_owned();
+        let buffer = SymphoniaDecoder::get_buffer(decoded, &spec);
 
         return Ok(Some(SymphoniaDecoder {
             decoder,
             current_frame_offset: 0,
             format: probed.format,
-            buffer: buf,
-            channels: spec.channels.count(),
+            buffer,
+            spec,
         }));
+    }
+
+    #[inline]
+    fn get_buffer(decoded: AudioBufferRef, spec: &SignalSpec) -> SampleBuffer<i16> {
+        let duration = units::Duration::from(decoded.capacity() as u64);
+        let mut buffer = SampleBuffer::<i16>::new(duration, spec.clone());
+        buffer.copy_interleaved_ref(decoded);
+        return buffer;
     }
 }
 
@@ -98,17 +103,12 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn channels(&self) -> u16 {
-        self.channels as u16
+        self.spec.channels.count() as u16
     }
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        self.format
-            .default_track()
-            .unwrap()
-            .codec_params
-            .sample_rate
-            .unwrap()
+        self.spec.rate
     }
 
     #[inline]
@@ -126,11 +126,8 @@ impl Iterator for SymphoniaDecoder {
             match self.format.next_packet() {
                 Ok(packet) => match self.decoder.decode(&packet) {
                     Ok(decoded) => {
-                        let spec = decoded.spec();
-                        let duration = units::Duration::from(decoded.capacity() as u64);
-                        let mut buf = SampleBuffer::<i16>::new(duration, spec.to_owned());
-                        buf.copy_interleaved_ref(decoded);
-                        self.buffer = buf;
+                        self.spec = decoded.spec().to_owned();
+                        self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
                     }
                     Err(_) => return None,
                 },

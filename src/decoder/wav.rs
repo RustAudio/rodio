@@ -11,6 +11,7 @@ where
     R: Read + Seek,
 {
     reader: SamplesIterator<R>,
+    total_duration: Duration,
     sample_rate: u32,
     channels: u16,
 }
@@ -27,15 +28,22 @@ where
 
         let reader = WavReader::new(data).unwrap();
         let spec = reader.spec();
+        let len = reader.len() as u64;
         let reader = SamplesIterator {
             reader,
             samples_read: 0,
         };
 
+        let sample_rate = spec.sample_rate;
+        let channels = spec.channels;
+        let total_duration =
+            Duration::from_micros((1_000_000 * len) / (sample_rate as u64 * channels as u64));
+
         Ok(WavDecoder {
             reader,
-            sample_rate: spec.sample_rate,
-            channels: spec.channels,
+            total_duration,
+            sample_rate,
+            channels,
         })
     }
     pub fn into_inner(self) -> R {
@@ -114,8 +122,7 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        let ms = self.len() as u64 * 1000 / (self.channels as u64 * self.sample_rate as u64);
-        Some(Duration::from_millis(ms))
+        Some(self.total_duration)
     }
 }
 

@@ -327,6 +327,12 @@ where
     {
         blt::low_pass(self, freq)
     }
+
+    #[inline]
+    fn high_pass(self, freq: u32) -> BltFilter<Self>
+    where
+        Self: Sized,
+        Self: Source<Item = f32>, { blt::high_pass(self, freq) }
 }
 
 impl<S> Source for Box<dyn Source<Item = S>>

@@ -21,6 +21,21 @@ where
     }
 }
 
+pub fn high_pass<I>(input: I, freq: u32) -> BltFilter<I>
+where
+    I: Source<Item = f32>
+{
+    BltFilter {
+        input,
+        formula: BltFormula::HighPass { freq, q: 0.5 },
+        applier: None,
+        x_n1: 0.0,
+        x_n2: 0.0,
+        y_n1: 0.0,
+        y_n2: 0.0
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct BltFilter<I> {
     input: I,
@@ -36,6 +51,12 @@ impl<I> BltFilter<I> {
     /// Modifies this filter so that it becomes a low-pass filter.
     pub fn to_low_pass(&mut self, freq: u32) {
         self.formula = BltFormula::LowPass { freq, q: 0.5 };
+        self.applier = None;
+    }
+
+    /// Modifies this filter so that it becomes a high-pass filter
+    pub fn to_high_pass(&mut self, freq: u32) {
+        self.formula = BltFormula::HighPass { freq, q: 0.5 };
         self.applier = None;
     }
 
@@ -131,6 +152,7 @@ where
 #[derive(Clone, Debug)]
 enum BltFormula {
     LowPass { freq: u32, q: f32 },
+    HighPass { freq: u32, q: f32},
 }
 
 impl BltFormula {
@@ -145,6 +167,26 @@ impl BltFormula {
                 let b2 = b0;
                 let a0 = 1.0 + alpha;
                 let a1 = -2.0 * w0.cos();
+                let a2 = 1.0 - alpha;
+
+                BltApplier {
+                    b0: b0 / a0,
+                    b1: b1 / a0,
+                    b2: b2 / a0,
+                    a1: a1 / a0,
+                    a2: a2 / a0,
+                }
+            }
+            BltFormula::HighPass { freq, q } => {
+                let w0 = 2.0 * PI * freq as f32 / sampling_frequency as f32;
+                let cos_w0 = w0.cos();
+                let alpha = w0.sin() / (2.0 * q);
+
+                let b0 = (1.0 + cos_w0) / 2.0;
+                let b1 = -1.0 - cos_w0;
+                let b2 = b0;
+                let a0 = 1.0 + alpha;
+                let a1 = -2.0 * cos_w0;
                 let a2 = 1.0 - alpha;
 
                 BltApplier {

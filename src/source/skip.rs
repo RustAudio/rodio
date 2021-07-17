@@ -33,6 +33,12 @@ where
         // .unwrap() safety: if `current_frame_len()` is None, the body of the `if` statement
         // above returns before we get here.
         let frame_len: usize = input.current_frame_len().unwrap();
+        // If frame_len is zero, then there is no more data to skip. Instead
+        // just bail out.
+        if frame_len == 0 {
+            return;
+        }
+
         let ns_per_sample: u128 =
             NS_PER_SECOND / input.sample_rate() as u128 / input.channels() as u128;
 

@@ -30,6 +30,8 @@ where
     let output = DynamicMixer {
         current_sources: Vec::with_capacity(16),
         input: input.clone(),
+        sample_count: 0,
+        still_pending: vec![],
     };
 
     (input, output)
@@ -69,6 +71,12 @@ pub struct DynamicMixer<S> {
 
     // The pending sounds.
     input: Arc<DynamicMixerController<S>>,
+
+    // The number of samples produced so far.
+    sample_count: usize,
+
+    // A temporary vec used in start_pending_sources.
+    still_pending: Vec<Box<dyn Source<Item = S> + Send>>,
 }
 
 impl<S> Source for DynamicMixer<S>
@@ -105,11 +113,10 @@ where
     #[inline]
     fn next(&mut self) -> Option<S> {
         if self.input.has_pending.load(Ordering::SeqCst) {
-            // TODO: relax ordering?
-            let mut pending = self.input.pending_sources.lock().unwrap();
-            self.current_sources.extend(pending.drain(..));
-            self.input.has_pending.store(false, Ordering::SeqCst); // TODO: relax ordering?
+            self.start_pending_sources();
         }
+
+        self.sample_count += 1;
 
         if self.current_sources.is_empty() {
             return None;
@@ -140,6 +147,33 @@ where
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         (0, None)
+    }
+}
+
+impl<S> DynamicMixer<S>
+where
+    S: Sample + Send + 'static,
+{
+    // Samples from the #next() function are interlaced for each of the channels.
+    // We need to ensure we start playing sources so that their samples are
+    // in-step with the modulo of the samples produced so far. Otherwise, the
+    // sound will play on the wrong channels, e.g. left / right will be reversed.
+    fn start_pending_sources(&mut self) {
+        let mut pending = self.input.pending_sources.lock().unwrap(); // TODO: relax ordering?
+
+        for source in pending.drain(..) {
+            let in_step = self.sample_count % source.channels() as usize == 0;
+
+            if in_step {
+                self.current_sources.push(source);
+            } else {
+                self.still_pending.push(source);
+            }
+        }
+        std::mem::swap(&mut self.still_pending, &mut pending);
+
+        let has_pending = !pending.is_empty();
+        self.input.has_pending.store(has_pending, Ordering::SeqCst); // TODO: relax ordering?
     }
 }
 

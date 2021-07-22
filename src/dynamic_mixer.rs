@@ -32,6 +32,7 @@ where
         input: input.clone(),
         sample_count: 0,
         still_pending: vec![],
+        still_current: vec![],
     };
 
     (input, output)
@@ -77,6 +78,9 @@ pub struct DynamicMixer<S> {
 
     // A temporary vec used in start_pending_sources.
     still_pending: Vec<Box<dyn Source<Item = S> + Send>>,
+
+    // A temporary vec used in sum_current_sources.
+    still_current: Vec<Box<dyn Source<Item = S> + Send>>,
 }
 
 impl<S> Source for DynamicMixer<S>
@@ -118,24 +122,7 @@ where
 
         self.sample_count += 1;
 
-        if self.current_sources.is_empty() {
-            return None;
-        }
-
-        let mut to_drop = Vec::new();
-
-        let mut sum = S::zero_value();
-        for (num, src) in self.current_sources.iter_mut().enumerate() {
-            if let Some(val) = src.next() {
-                sum = sum.saturating_add(val);
-            } else {
-                to_drop.push(num);
-            }
-        }
-
-        for &td in to_drop.iter().rev() {
-            self.current_sources.remove(td);
-        }
+        let sum = self.sum_current_sources();
 
         if self.current_sources.is_empty() {
             None
@@ -174,6 +161,20 @@ where
 
         let has_pending = !pending.is_empty();
         self.input.has_pending.store(has_pending, Ordering::SeqCst); // TODO: relax ordering?
+    }
+
+    fn sum_current_sources(&mut self) -> S {
+        let mut sum = S::zero_value();
+
+        for mut source in self.current_sources.drain(..) {
+            if let Some(value) = source.next() {
+                sum = sum.saturating_add(value);
+                self.still_current.push(source);
+            }
+        }
+        std::mem::swap(&mut self.still_current, &mut self.current_sources);
+
+        sum
     }
 }
 

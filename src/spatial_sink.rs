@@ -138,4 +138,10 @@ impl SpatialSink {
     pub fn empty(&self) -> bool {
         self.sink.empty()
     }
+
+    /// Returns the number of sounds currently in the queue.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.sink.len()
+    }
 }

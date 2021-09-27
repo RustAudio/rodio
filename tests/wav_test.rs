@@ -26,4 +26,9 @@ fn test_wav_encodings() {
     let file = std::fs::File::open("tests/lmms32bit.wav").unwrap();
     let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
     assert!(decoder.any(|x| x != 0));
+
+    // 32 bit signed integer wav file exported from Audacity (1 channel).
+    let file = std::fs::File::open("tests/audacity32bit_int.wav").unwrap();
+    let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
+    assert!(decoder.any(|x| x != 0));
 }

@@ -73,6 +73,10 @@ where
                 self.samples_read += 1;
                 f32_to_i16(value.unwrap_or(0.0))
             }),
+            (SampleFormat::Int, 8) => self.reader.samples().next().map(|value| {
+                self.samples_read += 1;
+                i8_to_i16(value.unwrap_or(0))
+            }),
             (SampleFormat::Int, 16) => self.reader.samples().next().map(|value| {
                 self.samples_read += 1;
                 value.unwrap_or(0)
@@ -81,9 +85,9 @@ where
                 self.samples_read += 1;
                 i24_to_i16(value.unwrap_or(0))
             }),
-            (SampleFormat::Int, 8) => self.reader.samples().next().map(|value| {
+            (SampleFormat::Int, 32) => self.reader.samples().next().map(|value| {
                 self.samples_read += 1;
-                i8_to_i16(value.unwrap_or(0))
+                i32_to_i16(value.unwrap_or(0))
             }),
             (sample_format, bits_per_sample) => panic!(
                 "Unimplemented wav spec: {:?}, {}",
@@ -170,6 +174,12 @@ fn f32_to_i16(f: f32) -> i16 {
     (f.max(-1.0).min(1.0) * i16::max_value() as f32) as i16
 }
 
+/// Returns an 8-bit WAV int as an i16. This scales the sample value by a factor
+/// of 256.
+fn i8_to_i16(i: i8) -> i16 {
+    i as i16 * 256
+}
+
 /// Returns a 24 bit WAV int as an i16. Note that this is a 24 bit integer, not a
 /// 32 bit one. 24 bit ints are in the range [−8,388,608, 8,388,607] while i16s
 /// are in the range [-32768, 32767]. Note that this function definitely causes
@@ -178,8 +188,10 @@ fn i24_to_i16(i: i32) -> i16 {
     (i >> 8) as i16
 }
 
-/// Returns an 8-bit WAV int as an i16. This scales the sample value by a factor
-/// of 256.
-fn i8_to_i16(i: i8) -> i16 {
-    i as i16 * 256
+/// Returns a 32 bit WAV int as an i16. 32 bit ints are in the range
+/// [-2,147,483,648, 2,147,483,647] while i16s are in the range [-32768, 32767].
+/// Note that this function definitely causes precision loss but hopefully this
+/// isn't too audiable when actually playing?
+fn i32_to_i16(i: i32) -> i16 {
+    (i >> 16) as i16
 }

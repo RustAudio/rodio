@@ -91,8 +91,6 @@ impl SpatialSink {
         self.sink.set_volume(value);
     }
 
-    
-
     /// Gets the speed of the sound.
     ///
     /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will

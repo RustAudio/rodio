@@ -100,6 +100,15 @@ impl Sink {
         *self.controls.volume.lock().unwrap()
     }
 
+    /// Changes the speed of the sound.
+    ///
+    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
+    /// change the play speed of the sound.
+    #[inline]
+    pub fn set_speed(&self, value: f32) {
+        *self.controls.speed.lock().unwrap() = value;
+    }
+
     /// Changes the volume of the sound.
     ///
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than `1.0` will

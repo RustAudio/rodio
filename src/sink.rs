@@ -24,6 +24,7 @@ struct Controls {
     pause: AtomicBool,
     volume: Mutex<f32>,
     stopped: AtomicBool,
+    speed: Mutex<f32>,
 }
 
 impl Sink {
@@ -47,6 +48,7 @@ impl Sink {
                 pause: AtomicBool::new(false),
                 volume: Mutex::new(1.0),
                 stopped: AtomicBool::new(false),
+                speed: Mutex::new(1.0),
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
@@ -65,6 +67,7 @@ impl Sink {
         let controls = self.controls.clone();
 
         let source = source
+            .speed(1.0)
             .pausable(false)
             .amplify(1.0)
             .stoppable()
@@ -76,6 +79,10 @@ impl Sink {
                     src.inner_mut()
                         .inner_mut()
                         .set_paused(controls.pause.load(Ordering::SeqCst));
+                    src.inner_mut()
+                        .inner_mut()
+                        .inner_mut()
+                        .set_factor(*controls.speed.lock().unwrap());
                 }
             })
             .convert_samples();

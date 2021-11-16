@@ -341,7 +341,7 @@ mod test {
         /// Check that resampling does not change the audio duration,
         ///  except by a negligible amount (± 1ms).  Reproduces #316.
         /// Ignored, pending a bug fix.
-        fn preserve_durations(d: Duration, freq: u32, to: u32) -> () {
+        fn preserve_durations(d: Duration, freq: f32, to: u32) -> () {
             use crate::source::{SineWave, Source};
 
             let to = if to == 0 { return; } else { SampleRate(to) };

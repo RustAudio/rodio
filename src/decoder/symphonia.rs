@@ -72,8 +72,27 @@ impl SymphoniaDecoder {
             },
         )?;
 
-        let current_frame = probed.format.next_packet()?;
-        let decoded = decoder.decode(&current_frame)?;
+        // Decoder errors are considered not fatal.
+        // The correct action is to just get a new packet and try again.
+        // But after over 3 consecutive decode errors, the error is returned.
+        let mut decode_errors = 0;
+        let decoded = loop {
+            let current_frame = probed.format.next_packet()?;
+            match decoder.decode(&current_frame) {
+                Ok(decoded) => decoded,
+                Err(e) => match e {
+                    Error::DecodeError(e) => {
+                        decode_errors += 1;
+                        if decode_errors > 3 {
+                            return Err(DecoderError::DecodeError(e));
+                        } else {
+                            continue;
+                        }
+                    }
+                    _ => return Err(e),
+                }
+            }
+        }
         let spec = decoded.spec().to_owned();
         let buffer = SymphoniaDecoder::get_buffer(decoded, &spec);
 
@@ -123,15 +142,31 @@ impl Iterator for SymphoniaDecoder {
     #[inline]
     fn next(&mut self) -> Option<i16> {
         if self.current_frame_offset == self.buffer.len() {
-            match self.format.next_packet() {
-                Ok(packet) => match self.decoder.decode(&packet) {
-                    Ok(decoded) => {
-                        self.spec = decoded.spec().to_owned();
-                        self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
-                    }
+            // Decoder errors are considered not fatal.
+            // The correct action is to just get a new packet and try again.
+            // But after over 3 consecutive decode errors, the error is returned.
+            let mut decode_errors = 0;
+            loop {
+                match self.format.next_packet() {
+                    Ok(packet) => match self.decoder.decode(&packet) {
+                        Ok(decoded) => {
+                            self.spec = decoded.spec().to_owned();
+                            self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
+                        }
+                        Err(e) => match e {
+                            Error::DecodeError(e) => {
+                                decode_errors += 1;
+                                if decode_errors > 3 {
+                                    return None;
+                                } else {
+                                    continue;
+                                }
+                            }
+                            _ => return None,
+                        }
+                    },
                     Err(_) => return None,
-                },
-                Err(_) => return None,
+                }
             }
             self.current_frame_offset = 0;
         }

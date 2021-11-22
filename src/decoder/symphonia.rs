@@ -17,6 +17,11 @@ use crate::Source;
 
 use super::DecoderError;
 
+// Decoder errors are not considered fatal.
+// The correct action is to just get a new packet and try again.
+// But a decode error in more than 3 consecutive packets is fatal.
+const MAX_DECODE_ERRORS: usize = 3;
+
 pub struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
     current_frame_offset: usize,
@@ -72,10 +77,7 @@ impl SymphoniaDecoder {
             },
         )?;
 
-        // Decoder errors are considered not fatal.
-        // The correct action is to just get a new packet and try again.
-        // But over 3 consecutive decode errors is fatal.
-        let mut decode_errors = 0;
+        let mut decode_errors: usize = 0;
         let decoded = loop {
             let current_frame = probed.format.next_packet()?;
             match decoder.decode(&current_frame) {
@@ -83,7 +85,7 @@ impl SymphoniaDecoder {
                 Err(e) => match e {
                     Error::DecodeError(_) => {
                         decode_errors += 1;
-                        if decode_errors > 3 {
+                        if decode_errors > MAX_DECODE_ERRORS {
                             return Err(e);
                         } else {
                             continue;
@@ -142,10 +144,7 @@ impl Iterator for SymphoniaDecoder {
     #[inline]
     fn next(&mut self) -> Option<i16> {
         if self.current_frame_offset == self.buffer.len() {
-            // Decoder errors are considered not fatal.
-            // The correct action is to just get a new packet and try again.
-            // But over 3 consecutive decode errors is fatal.
-            let mut decode_errors = 0;
+            let mut decode_errors: usize = 0;
             loop {
                 match self.format.next_packet() {
                     Ok(packet) => match self.decoder.decode(&packet) {
@@ -157,7 +156,7 @@ impl Iterator for SymphoniaDecoder {
                         Err(e) => match e {
                             Error::DecodeError(_) => {
                                 decode_errors += 1;
-                                if decode_errors > 3 {
+                                if decode_errors > MAX_DECODE_ERRORS {
                                     return None;
                                 } else {
                                     continue;

@@ -90,9 +90,9 @@ impl SymphoniaDecoder {
                         }
                     }
                     _ => return Err(e),
-                }
+                },
             }
-        }
+        };
         let spec = decoded.spec().to_owned();
         let buffer = SymphoniaDecoder::get_buffer(decoded, &spec);
 
@@ -163,7 +163,7 @@ impl Iterator for SymphoniaDecoder {
                                 }
                             }
                             _ => return None,
-                        }
+                        },
                     },
                     Err(_) => return None,
                 }

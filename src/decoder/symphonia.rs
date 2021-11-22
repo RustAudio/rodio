@@ -74,17 +74,17 @@ impl SymphoniaDecoder {
 
         // Decoder errors are considered not fatal.
         // The correct action is to just get a new packet and try again.
-        // But after over 3 consecutive decode errors, the error is returned.
+        // But over 3 consecutive decode errors is fatal.
         let mut decode_errors = 0;
         let decoded = loop {
             let current_frame = probed.format.next_packet()?;
             match decoder.decode(&current_frame) {
-                Ok(decoded) => decoded,
+                Ok(decoded) => break decoded,
                 Err(e) => match e {
-                    Error::DecodeError(e) => {
+                    Error::DecodeError(_) => {
                         decode_errors += 1;
                         if decode_errors > 3 {
-                            return Err(DecoderError::DecodeError(e));
+                            return Err(e);
                         } else {
                             continue;
                         }
@@ -144,7 +144,7 @@ impl Iterator for SymphoniaDecoder {
         if self.current_frame_offset == self.buffer.len() {
             // Decoder errors are considered not fatal.
             // The correct action is to just get a new packet and try again.
-            // But after over 3 consecutive decode errors, the error is returned.
+            // But over 3 consecutive decode errors is fatal.
             let mut decode_errors = 0;
             loop {
                 match self.format.next_packet() {
@@ -152,9 +152,10 @@ impl Iterator for SymphoniaDecoder {
                         Ok(decoded) => {
                             self.spec = decoded.spec().to_owned();
                             self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
+                            break;
                         }
                         Err(e) => match e {
-                            Error::DecodeError(e) => {
+                            Error::DecodeError(_) => {
                                 decode_errors += 1;
                                 if decode_errors > 3 {
                                     return None;

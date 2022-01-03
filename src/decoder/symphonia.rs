@@ -48,6 +48,23 @@ impl SymphoniaDecoder {
         }
     }
 
+    pub fn new_with_format_reader(format_reader: Box<dyn FormatReader>) -> Result<Self, DecoderError> {
+        match SymphoniaDecoder::init_from_format_reader(format_reader) {
+            Err(e) => match e {
+                Error::IoError(e) => Err(DecoderError::IoError(e.to_string())),
+                Error::DecodeError(e) => Err(DecoderError::DecodeError(e)),
+                Error::SeekError(_) => {
+                    unreachable!("Seek errors should not occur during initialization")
+                }
+                Error::Unsupported(_) => Err(DecoderError::UnrecognizedFormat),
+                Error::LimitError(e) => Err(DecoderError::LimitError(e)),
+                Error::ResetRequired => Err(DecoderError::ResetRequired),
+            },
+            Ok(Some(decoder)) => Ok(decoder),
+            Ok(None) => Err(DecoderError::NoStreams),
+        }
+    }
+
     pub fn into_inner(self: Box<Self>) -> MediaSourceStream {
         self.format.into_inner()
     }
@@ -62,9 +79,16 @@ impl SymphoniaDecoder {
         }
         let format_opts: FormatOptions = Default::default();
         let metadata_opts: MetadataOptions = Default::default();
-        let mut probed = get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
+        let probed = get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
 
-        let stream = match probed.format.default_track() {
+        Self::init_from_format_reader(probed.format)
+    }
+
+    fn init_from_format_reader(
+        mut format_reader: Box<dyn FormatReader>,
+    ) -> symphonia::core::errors::Result<Option<SymphoniaDecoder>> {
+
+        let stream = match format_reader.default_track() {
             Some(stream) => stream,
             None => return Ok(None),
         };
@@ -79,7 +103,7 @@ impl SymphoniaDecoder {
 
         let mut decode_errors: usize = 0;
         let decoded = loop {
-            let current_frame = probed.format.next_packet()?;
+            let current_frame = format_reader.next_packet()?;
             match decoder.decode(&current_frame) {
                 Ok(decoded) => break decoded,
                 Err(e) => match e {
@@ -101,7 +125,7 @@ impl SymphoniaDecoder {
         return Ok(Some(SymphoniaDecoder {
             decoder,
             current_frame_offset: 0,
-            format: probed.format,
+            format: format_reader,
             buffer,
             spec,
         }));

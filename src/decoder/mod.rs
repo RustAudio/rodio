@@ -13,7 +13,10 @@ use crate::Source;
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
 #[cfg(feature = "symphonia")]
-use ::symphonia::core::io::{MediaSource, MediaSourceStream};
+use ::symphonia::core::{
+	io::{MediaSource, MediaSourceStream},
+	formats::FormatReader,
+};
 
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
 mod flac;
@@ -182,6 +185,26 @@ where
     #[cfg(feature = "symphonia-isomp4")]
     pub fn new_mp4(data: R, hint: Mp4Type) -> Result<Decoder<R>, DecoderError> {
         Decoder::new_symphonia(data, &hint.to_string())
+    }
+
+    /// Builds a new decoder using a Symphonia [FormatReader]
+    ///
+    /// This requires that you've already probed the source file using Symphonia, and
+    /// already have access to a [FormatReader].  If you don't know what that means or
+    /// how to get one, you're likely going to be more interested in the other
+    /// constructors for this struct, which will produce an identical [Decoder] from an
+    /// audio file.
+    ///
+    /// Note that having a format reader does not guarantee that rodio will be able to
+    /// play the stream within it.  That is, if you have not enabled the `symphonia-mp3`
+    /// feature and attempt to play an `mp3` encoded source with this method, an error
+    /// will be produced.  Ensure that the appropriate symphonia features have been
+    /// enabled before using this method.
+    #[cfg(feature = "symphonia")]
+    pub fn new_from_format_reader(format_reader: Box<dyn FormatReader>) -> Result<Decoder<R>, DecoderError> {
+        symphonia::SymphoniaDecoder::new_with_format_reader(format_reader)
+            .map(DecoderImpl::Symphonia)
+            .map(Decoder)
     }
 
     #[cfg(feature = "symphonia")]

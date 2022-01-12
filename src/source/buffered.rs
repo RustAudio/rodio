@@ -1,4 +1,5 @@
 use std::cmp;
+use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -63,6 +64,40 @@ where
     channels: u16,
     rate: u32,
     next: Mutex<Arc<Frame<I>>>,
+}
+
+impl<I> Drop for FrameData<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    fn drop(&mut self) {
+        // This is necessary to prevent stack overflows deallocating long chains of the mutually
+        // recursive `Frame` and `FrameData` types. This iteratively traverses as much of the
+        // chain as needs to be deallocated, and repeatedly "pops" the head off the list. This
+        // solves the problem, as when the time comes to actually deallocate the `FrameData`,
+        // the `next` field will contain a `Frame::End`, or an `Arc` with additional references,
+        // so the depth of recursive drops will be bounded.
+        loop {
+            if let Ok(arc_next) = self.next.get_mut() {
+                if let Some(next_ref) = Arc::get_mut(arc_next) {
+                    // This allows us to own the next Frame.
+                    let next = mem::replace(next_ref, Frame::End);
+                    if let Frame::Data(next_data) = next {
+                        // Swap the current FrameData with the next one, allowing the current one
+                        // to go out of scope.
+                        *self = next_data;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
 }
 
 /// Builds a frame from the input iterator.

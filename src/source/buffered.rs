@@ -78,18 +78,14 @@ where
         // solves the problem, as when the time comes to actually deallocate the `FrameData`,
         // the `next` field will contain a `Frame::End`, or an `Arc` with additional references,
         // so the depth of recursive drops will be bounded.
-        loop {
-            if let Ok(arc_next) = self.next.get_mut() {
-                if let Some(next_ref) = Arc::get_mut(arc_next) {
-                    // This allows us to own the next Frame.
-                    let next = mem::replace(next_ref, Frame::End);
-                    if let Frame::Data(next_data) = next {
-                        // Swap the current FrameData with the next one, allowing the current one
-                        // to go out of scope.
-                        *self = next_data;
-                    } else {
-                        break;
-                    }
+        while let Ok(arc_next) = self.next.get_mut() {
+            if let Some(next_ref) = Arc::get_mut(arc_next) {
+                // This allows us to own the next Frame.
+                let next = mem::replace(next_ref, Frame::End);
+                if let Frame::Data(next_data) = next {
+                    // Swap the current FrameData with the next one, allowing the current one
+                    // to go out of scope.
+                    *self = next_data;
                 } else {
                     break;
                 }

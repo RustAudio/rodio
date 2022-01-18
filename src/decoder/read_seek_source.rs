@@ -19,7 +19,7 @@ impl<T: Read + Seek + Send> MediaSource for ReadSeekSource<T> {
         true
     }
 
-    fn len(&self) -> Option<u64> {
+    fn byte_len(&self) -> Option<u64> {
         None
     }
 }

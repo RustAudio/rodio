@@ -15,9 +15,9 @@ pub struct SineWave {
 impl SineWave {
     /// The frequency of the sine.
     #[inline]
-    pub fn new(freq: u32) -> SineWave {
+    pub fn new(freq: f32) -> SineWave {
         SineWave {
-            freq: freq as f32,
+            freq: freq,
             num_sample: 0,
         }
     }

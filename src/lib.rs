@@ -55,7 +55,7 @@
 //! let sink = Sink::try_new(&stream_handle).unwrap();
 //!
 //! // Add a dummy source of the sake of the example.
-//! let source = SineWave::new(440).take_duration(Duration::from_secs_f32(0.25)).amplify(0.20);
+//! let source = SineWave::new(440.0).take_duration(Duration::from_secs_f32(0.25)).amplify(0.20);
 //! sink.append(source);
 //!
 //! // The sound plays in a separate thread. This call will block the current thread until the sink
@@ -80,7 +80,7 @@
 //! use std::time::Duration;
 //!
 //! // Repeats the first five seconds of the sound forever.
-//! # let source = rodio::source::SineWave::new(440);
+//! # let source = rodio::source::SineWave::new(440.0);
 //! let source = source.take_duration(Duration::from_secs(5)).repeat_infinite();
 //! ```
 //!

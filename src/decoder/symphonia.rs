@@ -48,7 +48,9 @@ impl SymphoniaDecoder {
         }
     }
 
-    pub fn new_with_format_reader(format_reader: Box<dyn FormatReader>) -> Result<Self, DecoderError> {
+    pub fn new_with_format_reader(
+        format_reader: Box<dyn FormatReader>,
+    ) -> Result<Self, DecoderError> {
         match SymphoniaDecoder::init_from_format_reader(format_reader) {
             Err(e) => match e {
                 Error::IoError(e) => Err(DecoderError::IoError(e.to_string())),
@@ -87,7 +89,6 @@ impl SymphoniaDecoder {
     fn init_from_format_reader(
         mut format_reader: Box<dyn FormatReader>,
     ) -> symphonia::core::errors::Result<Option<SymphoniaDecoder>> {
-
         let stream = match format_reader.default_track() {
             Some(stream) => stream,
             None => return Ok(None),

@@ -14,8 +14,8 @@ use crate::Source;
 use self::read_seek_source::ReadSeekSource;
 #[cfg(feature = "symphonia")]
 use ::symphonia::core::{
-	io::{MediaSource, MediaSourceStream},
-	formats::FormatReader,
+    formats::FormatReader,
+    io::{MediaSource, MediaSourceStream},
 };
 
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
@@ -201,7 +201,9 @@ where
     /// will be produced.  Ensure that the appropriate symphonia features have been
     /// enabled before using this method.
     #[cfg(feature = "symphonia")]
-    pub fn new_from_format_reader(format_reader: Box<dyn FormatReader>) -> Result<Decoder<R>, DecoderError> {
+    pub fn new_from_format_reader(
+        format_reader: Box<dyn FormatReader>,
+    ) -> Result<Decoder<R>, DecoderError> {
         symphonia::SymphoniaDecoder::new_with_format_reader(format_reader)
             .map(DecoderImpl::Symphonia)
             .map(Decoder)

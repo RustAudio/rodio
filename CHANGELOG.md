@@ -1,3 +1,12 @@
+# Version 0.15.0 (2022-01-23)
+
+- Remove requirement that the argument `Decoder::new` and `LoopedDecoder::new` implement `Send`.
+- Add optional symphonia backend.
+- `WavDecoder`'s `total_duration` now returns the total duration of the sound rather than the remaining duration.
+- Add 32-bit signed in WAV decoding.
+- `SineWave::new()` now takes a `f32` instead of a `u32`.
+- Add `len()` method to `SpatialSink`.
+
 # Version 0.14.0 (2021-05-21)
 
 - Re-export `cpal` in full.

@@ -91,6 +91,24 @@ impl SpatialSink {
         self.sink.set_volume(value);
     }
 
+    /// Gets the speed of the sound.
+    ///
+    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
+    /// change the play speed of the sound.
+    #[inline]
+    pub fn speed(&self) -> f32 {
+        self.sink.speed()
+    }
+
+    /// Changes the speed of the sound.
+    ///
+    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
+    /// change the play speed of the sound.
+    #[inline]
+    pub fn set_speed(&self, value: f32) {
+        self.sink.set_speed(value)
+    }
+
     /// Resumes playback of a paused sound.
     ///
     /// No effect if not paused.

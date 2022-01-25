@@ -24,6 +24,7 @@ struct Controls {
     pause: AtomicBool,
     volume: Mutex<f32>,
     stopped: AtomicBool,
+    speed: Mutex<f32>,
 }
 
 impl Sink {
@@ -47,6 +48,7 @@ impl Sink {
                 pause: AtomicBool::new(false),
                 volume: Mutex::new(1.0),
                 stopped: AtomicBool::new(false),
+                speed: Mutex::new(1.0),
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
@@ -65,6 +67,7 @@ impl Sink {
         let controls = self.controls.clone();
 
         let source = source
+            .speed(1.0)
             .pausable(false)
             .amplify(1.0)
             .stoppable()
@@ -76,6 +79,10 @@ impl Sink {
                     src.inner_mut()
                         .inner_mut()
                         .set_paused(controls.pause.load(Ordering::SeqCst));
+                    src.inner_mut()
+                        .inner_mut()
+                        .inner_mut()
+                        .set_factor(*controls.speed.lock().unwrap());
                 }
             })
             .convert_samples();
@@ -100,6 +107,24 @@ impl Sink {
     #[inline]
     pub fn set_volume(&self, value: f32) {
         *self.controls.volume.lock().unwrap() = value;
+    }
+
+    /// Gets the speed of the sound.
+    ///
+    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
+    /// change the play speed of the sound.
+    #[inline]
+    pub fn speed(&self) -> f32 {
+        *self.controls.speed.lock().unwrap()
+    }
+
+    /// Changes the speed of the sound.
+    ///
+    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
+    /// change the play speed of the sound.
+    #[inline]
+    pub fn set_speed(&self, value: f32) {
+        *self.controls.speed.lock().unwrap() = value;
     }
 
     /// Resumes playback of a paused sink.

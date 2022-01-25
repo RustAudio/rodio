@@ -19,6 +19,12 @@ where
     I: Source,
     I::Item: Sample,
 {
+    /// Modifies the speed factor.
+    #[inline]
+    pub fn set_factor(&mut self, factor: f32) {
+        self.factor = factor;
+    }
+
     /// Returns a reference to the inner source.
     #[inline]
     pub fn inner(&self) -> &I {

@@ -13,7 +13,7 @@ Rust playback library.
  - Flac decoding is handled by [claxon](https://github.com/ruuda/claxon).
  - MP4 and AAC (both disabled by default) are handled by [Symphonia](https://github.com/pdeljanov/Symphonia).
 
- Alternatively, Symphonia can be used to decode any of the other codecs above with the exception of Vorbis. See the docs for more details on backends.
+ Alternatively, Symphonia can be used to decode any of the other codecs above. See the docs for more details on backends.
 
 # [Documentation](http://docs.rs/rodio)
 

@@ -81,7 +81,7 @@ where
             }
         };
 
-        #[cfg(feature = "vorbis")]
+        #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
         let data = match vorbis::VorbisDecoder::new(data) {
             Err(data) => data,
             Ok(decoder) => {

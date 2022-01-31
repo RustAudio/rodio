@@ -1,4 +1,5 @@
 use std::io::{Read, Seek};
+use std::marker::Sync;
 use std::sync::{Arc, Weak};
 use std::{error, fmt};
 
@@ -75,7 +76,7 @@ impl OutputStreamHandle {
     /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
     pub fn play_once<R>(&self, input: R) -> Result<Sink, PlayError>
     where
-        R: Read + Seek + Send + 'static,
+        R: Read + Seek + Send + Sync + 'static,
     {
         let input = decoder::Decoder::new(input)?;
         let sink = Sink::try_new(self)?;

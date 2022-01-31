@@ -4,6 +4,7 @@ use std::error::Error;
 use std::fmt;
 #[allow(unused_imports)]
 use std::io::{Read, Seek, SeekFrom};
+use std::marker::Sync;
 use std::mem;
 use std::str::FromStr;
 use std::time::Duration;
@@ -58,7 +59,7 @@ where
 
 impl<R> Decoder<R>
 where
-    R: Read + Seek + Send + 'static,
+    R: Read + Seek + Send + Sync + 'static,
 {
     /// Builds a new decoder.
     ///

@@ -23,7 +23,7 @@ where
 
 pub fn high_pass<I>(input: I, freq: u32) -> BltFilter<I>
 where
-    I: Source<Item = f32>
+    I: Source<Item = f32>,
 {
     BltFilter {
         input,
@@ -32,7 +32,7 @@ where
         x_n1: 0.0,
         x_n2: 0.0,
         y_n1: 0.0,
-        y_n2: 0.0
+        y_n2: 0.0,
     }
 }
 
@@ -152,7 +152,7 @@ where
 #[derive(Clone, Debug)]
 enum BltFormula {
     LowPass { freq: u32, q: f32 },
-    HighPass { freq: u32, q: f32},
+    HighPass { freq: u32, q: f32 },
 }
 
 impl BltFormula {

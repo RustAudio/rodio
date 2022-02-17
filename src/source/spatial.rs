@@ -51,13 +51,15 @@ where
         left_ear: [f32; 3],
         right_ear: [f32; 3],
     ) {
+        debug_assert!(left_ear != right_ear);
         let left_dist_sq = dist_sq(left_ear, emitter_pos);
         let right_dist_sq = dist_sq(right_ear, emitter_pos);
         let max_diff = dist_sq(left_ear, right_ear).sqrt();
         let left_dist = left_dist_sq.sqrt();
         let right_dist = right_dist_sq.sqrt();
-        let left_diff_modifier = ((left_dist - right_dist) / max_diff + 1.0) / 4.0 + 0.5;
-        let right_diff_modifier = ((right_dist - left_dist) / max_diff + 1.0) / 4.0 + 0.5;
+        let left_diff_modifier = (((left_dist - right_dist) / max_diff + 1.0) / 4.0 + 0.5).min(1.0);
+        let right_diff_modifier =
+            (((right_dist - left_dist) / max_diff + 1.0) / 4.0 + 0.5).min(1.0);
         let left_dist_modifier = (1.0 / left_dist_sq).min(1.0);
         let right_dist_modifier = (1.0 / right_dist_sq).min(1.0);
         self.input

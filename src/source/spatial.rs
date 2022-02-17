@@ -51,6 +51,7 @@ where
         left_ear: [f32; 3],
         right_ear: [f32; 3],
     ) {
+        debug_assert!(left_ear != right_ear);
         let left_dist_sq = dist_sq(left_ear, emitter_pos);
         let right_dist_sq = dist_sq(right_ear, emitter_pos);
         let max_diff = dist_sq(left_ear, right_ear).sqrt();

@@ -1,5 +1,4 @@
 use std::f32;
-use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -56,7 +55,7 @@ impl SpatialSink {
     pub fn append<S>(&self, source: S)
     where
         S: Source + Send + 'static,
-        S::Item: Sample + Send + Debug,
+        S::Item: Sample + Send,
     {
         let positions = self.positions.clone();
         let pos_lock = self.positions.lock().unwrap();

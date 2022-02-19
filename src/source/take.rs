@@ -54,7 +54,7 @@ pub struct TakeDuration<I> {
     filter: Option<DurationFilter>,
     // Remaining samples in current frame.
     current_frame_len: Option<usize>,
-    // Only updated when the current frame len is exausted.
+    // Only updated when the current frame len is exhausted.
     duration_per_sample: Duration,
 }
 

@@ -527,7 +527,7 @@ pub enum DecoderError {
     /// The format of the data has not been recognized.
     UnrecognizedFormat,
 
-    /// An IO error occured while reading, writing, or seeking the stream.
+    /// An IO error occurred while reading, writing, or seeking the stream.
     #[cfg(feature = "symphonia")]
     IoError(String),
 

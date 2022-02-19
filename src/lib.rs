@@ -86,7 +86,7 @@
 //!
 //! ## Alternative Decoder Backends
 //!
-//! [Symphonia](https://github.com/pdeljanov/Symphonia) is an alternative deocder library that can be used in place
+//! [Symphonia](https://github.com/pdeljanov/Symphonia) is an alternative decoder library that can be used in place
 //! of many of the default backends.
 //! Currently, the main benefit is that Symphonia is the only backend that supports M4A and AAC,
 //! but it may be used to implement additional optional functionality in the future.

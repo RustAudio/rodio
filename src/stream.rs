@@ -85,7 +85,7 @@ impl OutputStreamHandle {
     }
 }
 
-/// An error occurred while attemping to play a sound.
+/// An error occurred while attempting to play a sound.
 #[derive(Debug)]
 pub enum PlayError {
     /// Attempting to decode the audio failed.

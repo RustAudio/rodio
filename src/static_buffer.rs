@@ -37,7 +37,7 @@ where
     ///
     /// - Panics if the number of channels is zero.
     /// - Panics if the samples rate is zero.
-    /// - Panics if the length of the buffer is larger than approximatively 16 billion elements.
+    /// - Panics if the length of the buffer is larger than approximately 16 billion elements.
     ///   This is because the calculation of the duration would overflow.
     ///
     pub fn new(channels: u16, sample_rate: u32, data: &'static [S]) -> StaticSamplesBuffer<S> {

@@ -3,6 +3,8 @@ use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use pinboard::NonEmptyPinboard;
+
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
 
@@ -22,9 +24,9 @@ pub struct Sink {
 
 struct Controls {
     pause: AtomicBool,
-    volume: Mutex<f32>,
+    volume: NonEmptyPinboard<f32>,
     stopped: AtomicBool,
-    speed: Mutex<f32>,
+    speed: NonEmptyPinboard<f32>,
 }
 
 impl Sink {
@@ -46,9 +48,9 @@ impl Sink {
             sleep_until_end: Mutex::new(None),
             controls: Arc::new(Controls {
                 pause: AtomicBool::new(false),
-                volume: Mutex::new(1.0),
+                volume: NonEmptyPinboard::new(1.0),
                 stopped: AtomicBool::new(false),
-                speed: Mutex::new(1.0),
+                speed: NonEmptyPinboard::new(1.0),
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
@@ -75,14 +77,14 @@ impl Sink {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
                 } else {
-                    src.inner_mut().set_factor(*controls.volume.lock().unwrap());
+                    src.inner_mut().set_factor(controls.volume.read());
                     src.inner_mut()
                         .inner_mut()
                         .set_paused(controls.pause.load(Ordering::SeqCst));
                     src.inner_mut()
                         .inner_mut()
                         .inner_mut()
-                        .set_factor(*controls.speed.lock().unwrap());
+                        .set_factor(controls.speed.read());
                 }
             })
             .convert_samples();
@@ -97,7 +99,7 @@ impl Sink {
     /// multiply each sample by this value.
     #[inline]
     pub fn volume(&self) -> f32 {
-        *self.controls.volume.lock().unwrap()
+        self.controls.volume.read()
     }
 
     /// Changes the volume of the sound.
@@ -106,7 +108,7 @@ impl Sink {
     /// multiply each sample by this value.
     #[inline]
     pub fn set_volume(&self, value: f32) {
-        *self.controls.volume.lock().unwrap() = value;
+        self.controls.volume.set(value);
     }
 
     /// Gets the speed of the sound.
@@ -115,7 +117,7 @@ impl Sink {
     /// change the play speed of the sound.
     #[inline]
     pub fn speed(&self) -> f32 {
-        *self.controls.speed.lock().unwrap()
+        self.controls.speed.read()
     }
 
     /// Changes the speed of the sound.
@@ -124,7 +126,7 @@ impl Sink {
     /// change the play speed of the sound.
     #[inline]
     pub fn set_speed(&self, value: f32) {
-        *self.controls.speed.lock().unwrap() = value;
+        self.controls.speed.set(value);
     }
 
     /// Resumes playback of a paused sink.

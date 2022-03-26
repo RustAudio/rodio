@@ -12,7 +12,7 @@ fn main() {
     )
     .unwrap();
 
-    let file = std::fs::File::open("examples/music.ogg").unwrap();
+    let file = std::fs::File::open("assets/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
     sink.append(source);
 

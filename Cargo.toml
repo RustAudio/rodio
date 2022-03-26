@@ -7,7 +7,7 @@ description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]
 repository = "https://github.com/RustAudio/rodio"
 documentation = "http://docs.rs/rodio"
-exclude = ["assets/**"]
+exclude = ["assets/**", "tests/**"]
 edition = "2018"
 
 [dependencies]

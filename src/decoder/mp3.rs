@@ -91,10 +91,8 @@ where
 {
     let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
     let mut decoder = Decoder::new(data.by_ref());
-    if decoder.next_frame().is_err() {
-        data.seek(SeekFrom::Start(stream_pos)).unwrap();
-        return false;
-    }
+    let ok = decoder.next_frame().is_ok();
+    data.seek(SeekFrom::Start(stream_pos)).unwrap();
 
-    true
+    ok
 }

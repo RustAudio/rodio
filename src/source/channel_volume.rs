@@ -103,7 +103,25 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.input.size_hint()
+        let map_size_hint = |input_hint: usize| -> usize {
+            // The input source provides a number of samples (input_hint / channels);
+            // We return 1 item per channel per sample => * channel_volumes
+            let input_provides =
+                input_hint / (self.input.channels() as usize) * self.channel_volumes.len();
+
+            // In addition, we may be in the process of emitting additional values from
+            // self.current_sample
+            let current_sample = if self.current_sample.is_some() {
+                self.channel_volumes.len() - self.current_channel
+            } else {
+                0
+            };
+
+            input_provides + current_sample
+        };
+
+        let (min, max) = self.input.size_hint();
+        (map_size_hint(min), max.map(map_size_hint))
     }
 }
 
@@ -137,5 +155,49 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::buffer::SamplesBuffer;
+
+    const SAMPLES: usize = 100;
+
+    fn dummysource(channels: usize) -> SamplesBuffer<f32> {
+        let data: Vec<f32> = (1..=(SAMPLES * channels)).map(|v| v as f32).collect();
+        SamplesBuffer::new(channels as _, 1, data)
+    }
+
+    fn make_test(channels_source: usize, channels_result: usize) {
+        let original = dummysource(channels_source);
+        assert_eq!(original.size_hint().0, SAMPLES * channels_source);
+
+        let mono = ChannelVolume::new(original, vec![1.0; channels_result]);
+
+        let (hint_min, hint_max) = mono.size_hint();
+        assert_eq!(Some(hint_min), hint_max);
+
+        let actual_size = mono.count();
+        assert_eq!(hint_min, actual_size);
+    }
+
+    #[test]
+    fn size_stereo_mono() {
+        make_test(2, 1);
+    }
+    #[test]
+    fn size_mono_stereo() {
+        make_test(1, 2);
+    }
+
+    #[test]
+    fn size_stereo_eight() {
+        make_test(2, 8);
+    }
+    #[test]
+    fn size_stereo_five() {
+        make_test(2, 5);
     }
 }

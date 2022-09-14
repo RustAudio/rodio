@@ -22,10 +22,10 @@ pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
 pub use self::skip::SkipDuration;
+pub use self::skippable::Skippable;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
-pub use self::skippable::Skippable;
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
@@ -48,9 +48,9 @@ mod repeat;
 mod samples_converter;
 mod sine;
 mod skip;
+mod skippable;
 mod spatial;
 mod speed;
-mod skippable;
 mod stoppable;
 mod take;
 mod uniform;
@@ -321,7 +321,7 @@ where
 
     fn skippable(self) -> Skippable<Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         skippable::skippable(self)
     }

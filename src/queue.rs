@@ -94,7 +94,6 @@ where
         sounds.clear();
         len
     }
-
 }
 /// The output of the queue. Implements `Source`.
 pub struct SourcesQueueOutput<S> {

@@ -87,7 +87,7 @@ impl Sink {
                 amp.set_factor(*controls.volume.lock().unwrap());
                 amp.inner_mut()
                    .set_paused(controls.pause.load(Ordering::SeqCst));
-                amp.inner_mut().set_factor(*controls.speed.lock().unwrap());
+                amp.inner_mut().inner_mut().set_factor(*controls.speed.lock().unwrap());
                 
             })
             .convert_samples();

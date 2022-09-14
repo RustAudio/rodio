@@ -1,4 +1,4 @@
-# Version 0.15.1 (2022-09-13)
+# Version 0.16.0 (2022-09-14)
 
 - Update `cpal` to [0.14](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0140-2022-08-22).
 - Update `symphonia` to [0.5](https://github.com/pdeljanov/Symphonia/releases/tag/v0.5.1).

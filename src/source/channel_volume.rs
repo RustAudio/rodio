@@ -104,10 +104,17 @@ where
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let map_size_hint = |input_hint: usize| -> usize {
-            // The input source provides a number of samples (input_hint / channels);
+            // The input source provides a number of samples ceil(input_hint / channels);
             // We return 1 item per channel per sample => * channel_volumes
-            let input_provides =
-                input_hint / (self.input.channels() as usize) * self.channel_volumes.len();
+            let input_channels = self.input.channels() as usize;
+            let input_chunks = (input_hint / input_channels)
+                + if input_hint % input_channels != 0 {
+                    1
+                } else {
+                    0
+                };
+
+            let input_provides = input_chunks * self.channel_volumes.len();
 
             // In addition, we may be in the process of emitting additional values from
             // self.current_sample
@@ -163,16 +170,14 @@ mod tests {
     use super::*;
     use crate::buffer::SamplesBuffer;
 
-    const SAMPLES: usize = 100;
-
-    fn dummysource(channels: usize) -> SamplesBuffer<f32> {
-        let data: Vec<f32> = (1..=(SAMPLES * channels)).map(|v| v as f32).collect();
+    fn dummysource(samples: usize, channels: usize) -> SamplesBuffer<f32> {
+        let data: Vec<f32> = (1..=(samples * channels)).map(|v| v as f32).collect();
         SamplesBuffer::new(channels as _, 1, data)
     }
 
-    fn make_test(channels_source: usize, channels_result: usize) {
-        let original = dummysource(channels_source);
-        assert_eq!(original.size_hint().0, SAMPLES * channels_source);
+    fn make_test(samples: usize, channels_source: usize, channels_result: usize) {
+        let original = dummysource(samples, channels_source);
+        assert_eq!(original.size_hint().0, samples * channels_source);
 
         let mono = ChannelVolume::new(original, vec![1.0; channels_result]);
 
@@ -185,19 +190,50 @@ mod tests {
 
     #[test]
     fn size_stereo_mono() {
-        make_test(2, 1);
+        make_test(100, 2, 1);
+    }
+    #[test]
+    fn size_stereo_mono_offset() {
+        make_test(101, 2, 1);
     }
     #[test]
     fn size_mono_stereo() {
-        make_test(1, 2);
+        make_test(100, 1, 2);
     }
 
     #[test]
     fn size_stereo_eight() {
-        make_test(2, 8);
+        make_test(100, 2, 8);
     }
     #[test]
+    fn size_stereo_eight_offset() {
+        make_test(101, 2, 8);
+    }
+
+    #[test]
     fn size_stereo_five() {
-        make_test(2, 5);
+        make_test(100, 2, 5);
+    }
+    #[test]
+    fn size_stereo_five_offset() {
+        make_test(101, 2, 5);
+    }
+
+    #[test]
+    fn size_eight_stereo() {
+        make_test(100 * 8, 8, 2);
+    }
+    #[test]
+    fn size_eight_stereo_offset() {
+        make_test(100 * 8 + 1, 8, 2);
+    }
+
+    #[test]
+    fn size_five_stereo() {
+        make_test(100, 5, 2);
+    }
+    #[test]
+    fn size_five_stereo_offset() {
+        make_test(101, 5, 2);
     }
 }

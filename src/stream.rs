@@ -8,7 +8,7 @@ use crate::dynamic_mixer::{self, DynamicMixerController};
 use crate::sink::Sink;
 use crate::source::Source;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::Sample;
+use cpal::{Sample, SupportedStreamConfig};
 
 /// `cpal::Stream` container. Also see the more useful `OutputStreamHandle`.
 ///
@@ -25,11 +25,24 @@ pub struct OutputStreamHandle {
 }
 
 impl OutputStream {
-    /// Returns a new stream & handle using the given output device.
+    /// Returns a new stream & handle using the given output device and the default output
+    /// configuration.
     pub fn try_from_device(
         device: &cpal::Device,
     ) -> Result<(Self, OutputStreamHandle), StreamError> {
-        let (mixer, _stream) = device.try_new_output_stream()?;
+        let default_config = device.default_output_config()?;
+        OutputStream::try_from_device_config(device, default_config)
+    }
+
+    /// Returns a new stream & handle using the given device and stream config.
+    ///
+    /// If the supplied `SupportedStreamConfig` is invalid for the device this function will
+    /// fail to create an output stream and instead return a `StreamError`
+    pub fn try_from_device_config(
+        device: &cpal::Device,
+        config: SupportedStreamConfig,
+    ) -> Result<(Self, OutputStreamHandle), StreamError> {
+        let (mixer, _stream) = device.try_new_output_stream_config(config)?;
         _stream.play()?;
         let out = Self { mixer, _stream };
         let handle = OutputStreamHandle {
@@ -182,8 +195,9 @@ pub(crate) trait CpalDeviceExt {
         format: cpal::SupportedStreamConfig,
     ) -> Result<(Arc<DynamicMixerController<f32>>, cpal::Stream), cpal::BuildStreamError>;
 
-    fn try_new_output_stream(
+    fn try_new_output_stream_config(
         &self,
+        config: cpal::SupportedStreamConfig,
     ) -> Result<(Arc<DynamicMixerController<f32>>, cpal::Stream), StreamError>;
 }
 
@@ -230,21 +244,17 @@ impl CpalDeviceExt for cpal::Device {
         .map(|stream| (mixer_tx, stream))
     }
 
-    fn try_new_output_stream(
+    fn try_new_output_stream_config(
         &self,
+        config: SupportedStreamConfig,
     ) -> Result<(Arc<DynamicMixerController<f32>>, cpal::Stream), StreamError> {
-        // Determine the format to use for the new stream.
-        let default_format = self.default_output_config()?;
-
-        self.new_output_stream_with_format(default_format)
-            .or_else(|err| {
-                // look through all supported formats to see if another works
-                supported_output_formats(self)?
-                .filter_map(|format| self.new_output_stream_with_format(format).ok())
-                .next()
+        self.new_output_stream_with_format(config).or_else(|err| {
+            // look through all supported formats to see if another works
+            supported_output_formats(self)?
+                .find_map(|format| self.new_output_stream_with_format(format).ok())
                 // return original error if nothing works
                 .ok_or(StreamError::BuildStreamError(err))
-            })
+        })
     }
 }
 

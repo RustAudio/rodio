@@ -6,14 +6,15 @@
 
 Rust playback library.
 
- - Playback is handled by [cpal](https://github.com/RustAudio/cpal).
- - MP3 decoding is handled by [minimp3](https://github.com/lieff/minimp3).
- - WAV decoding is handled by [hound](https://github.com/ruud-v-a/hound).
- - Vorbis decoding is handled by [lewton](https://github.com/est31/lewton).
- - Flac decoding is handled by [claxon](https://github.com/ruuda/claxon).
- - MP4 and AAC (both disabled by default) are handled by [Symphonia](https://github.com/pdeljanov/Symphonia).
+Playback is handled by [cpal](https://github.com/RustAudio/cpal). Format decoding can be handled either by [Symphonia](https://github.com/pdeljanov/Symphonia), or by format-specific decoders:
 
- Alternatively, Symphonia can be used to decode any of the other codecs above. See the docs for more details on backends.
+ - MP3 by [minimp3](https://github.com/lieff/minimp3) (but defaults to [Symphonia](https://github.com/pdeljanov/Symphonia)).
+ - WAV by [hound](https://github.com/ruud-v-a/hound).
+ - Vorbis by [lewton](https://github.com/est31/lewton).
+ - FLAC by [claxon](https://github.com/ruuda/claxon).
+ - MP4 and AAC (both disabled by default) are handled only by [Symphonia](https://github.com/pdeljanov/Symphonia).
+
+See [the docs](https://docs.rs/rodio/latest/rodio/#alternative-decoder-backends) for more details on backends.
 
 # [Documentation](http://docs.rs/rodio)
 

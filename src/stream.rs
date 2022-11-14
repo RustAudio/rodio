@@ -31,7 +31,9 @@ impl OutputStream {
         device: &cpal::Device,
     ) -> Result<(Self, OutputStreamHandle), StreamError> {
         let default_config = device.default_output_config()?;
-        OutputStream::try_from_device_config(device, default_config)
+        OutputStream::try_from_device_config(device,
+                                             &default_config.config(),
+                                             &default_config.sample_format())
     }
 
     /// Returns a new stream & handle using the given device and stream config.
@@ -39,6 +41,21 @@ impl OutputStream {
     /// If the supplied `SupportedStreamConfig` is invalid for the device this function will
     /// fail to create an output stream and instead return a `StreamError`
     pub fn try_from_device_config(
+        device: &cpal::Device,
+        config: &StreamConfig,
+        sample_format: &SampleFormat,
+    ) -> Result<(Self, OutputStreamHandle), StreamError> {
+        let (mixer, _stream) = device.try_new_output_stream(&config, &sample_format)?;
+        _stream.play()?;
+        let out = Self { mixer, _stream };
+        let handle = OutputStreamHandle {
+            mixer: Arc::downgrade(&out.mixer),
+        };
+        Ok((out, handle))
+    }
+
+
+    pub fn try_from_config(
         device: &cpal::Device,
         config: SupportedStreamConfig,
     ) -> Result<(Self, OutputStreamHandle), StreamError> {
@@ -50,6 +67,7 @@ impl OutputStream {
         };
         Ok((out, handle))
     }
+
 
     /// Return a new stream & handle using the default output device.
     ///

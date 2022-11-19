@@ -60,7 +60,10 @@ impl SymphoniaDecoder {
         if let Some(ext) = extension {
             hint.with_extension(ext);
         }
-        let format_opts: FormatOptions = Default::default();
+        let format_opts: FormatOptions = FormatOptions {
+            enable_gapless: true,
+            ..Default::default()
+        };
         let metadata_opts: MetadataOptions = Default::default();
         let mut probed = get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
 

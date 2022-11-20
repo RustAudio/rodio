@@ -5,7 +5,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{Empty, Source, Zero};
+use crate::source::{Source, Zero};
 use crate::Sample;
 
 /// Builds a new queue. It consists of an input and an output.
@@ -29,7 +29,7 @@ where
     });
 
     let output = SourcesQueueOutput {
-        current: Box::new(Empty::<S>::new()) as Box<_>,
+        current: filler_silence(),
         signal_after_end: None,
         input: input.clone(),
     };
@@ -200,11 +200,7 @@ where
             if next.len() == 0 {
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
-                    let silence = Zero::<S>::new(1, 44100); // TODO: meh
-                    (
-                        Box::new(silence.take_duration(Duration::from_millis(10))) as Box<_>,
-                        None,
-                    )
+                    (filler_silence(), None)
                 } else {
                     return Err(());
                 }
@@ -217,6 +213,11 @@ where
         self.signal_after_end = signal_after_end;
         Ok(())
     }
+}
+
+fn filler_silence<S: Sample + Send + 'static>() -> Box<dyn Source<Item = S> + Send> {
+    //TODO: meh
+    Box::new(Zero::<S>::new_finite(1, 44100, Duration::from_millis(10))) as Box<_>
 }
 
 #[cfg(test)]

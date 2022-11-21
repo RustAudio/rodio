@@ -12,9 +12,27 @@ where
     I::Item: Sample,
 {
     input: ChannelVolume<I>,
+    positions: SoundPositions,
 }
 
-fn dist_sq(a: [f32; 3], b: [f32; 3]) -> f32 {
+#[derive(Debug, Clone, PartialEq)]
+pub struct SoundPositions {
+    pub emitter_position: [f32; 3],
+    pub left_ear: [f32; 3],
+    pub right_ear: [f32; 3],
+}
+
+impl SoundPositions {
+    pub fn new(emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3]) -> Self {
+        Self {
+            emitter_position,
+            left_ear,
+            right_ear,
+        }
+    }
+}
+
+fn dist_sq(a: &[f32; 3], b: &[f32; 3]) -> f32 {
     a.iter()
         .zip(b.iter())
         .map(|(a, b)| (a - b) * (a - b))
@@ -26,30 +44,33 @@ where
     I: Source,
     I::Item: Sample,
 {
-    pub fn new(
-        input: I,
-        emitter_position: [f32; 3],
-        left_ear: [f32; 3],
-        right_ear: [f32; 3],
-    ) -> Spatial<I>
+    pub fn new(input: I, positions: SoundPositions) -> Spatial<I>
     where
         I: Source,
         I::Item: Sample,
     {
         let mut ret = Spatial {
             input: ChannelVolume::new(input, vec![0.0, 0.0]),
+            positions,
         };
-        ret.set_positions(emitter_position, left_ear, right_ear);
+        ret.calculate_positions();
         ret
     }
 
+    pub fn set_positions(&mut self, positions: SoundPositions) {
+        if positions != self.positions {
+            self.positions = positions;
+            self.calculate_positions();
+        }
+    }
+
     /// Sets the position of the emitter and ears in the 3D world.
-    pub fn set_positions(
-        &mut self,
-        emitter_pos: [f32; 3],
-        left_ear: [f32; 3],
-        right_ear: [f32; 3],
-    ) {
+    fn calculate_positions(&mut self) {
+        let (left_ear, right_ear, emitter_pos) = (
+            &self.positions.left_ear,
+            &self.positions.right_ear,
+            &self.positions.emitter_position,
+        );
         debug_assert!(left_ear != right_ear);
         let left_dist_sq = dist_sq(left_ear, emitter_pos);
         let right_dist_sq = dist_sq(right_ear, emitter_pos);
@@ -59,8 +80,8 @@ where
         let left_diff_modifier = (((left_dist - right_dist) / max_diff + 1.0) / 4.0 + 0.5).min(1.0);
         let right_diff_modifier =
             (((right_dist - left_dist) / max_diff + 1.0) / 4.0 + 0.5).min(1.0);
-        let left_dist_modifier = (1.0 / left_dist_sq).min(1.0);
-        let right_dist_modifier = (1.0 / right_dist_sq).min(1.0);
+        let left_dist_modifier = (1.0 / right_dist_sq).min(1.0);
+        let right_dist_modifier = (1.0 / left_dist_sq).min(1.0);
         self.input
             .set_volume(0, left_diff_modifier * left_dist_modifier);
         self.input

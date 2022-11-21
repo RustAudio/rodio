@@ -22,7 +22,7 @@ pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
 pub use self::skip::SkipDuration;
-pub use self::spatial::Spatial;
+pub use self::spatial::{SoundPositions, Spatial};
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
 pub use self::take::TakeDuration;

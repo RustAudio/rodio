@@ -2,7 +2,7 @@ use std::f32;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{SoundPositions, Spatial, UniformSourceIterator};
+use crate::source::Spatial;
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{Sample, Sink, Source};
 
@@ -11,15 +11,27 @@ pub struct SpatialSink {
     positions: Arc<Mutex<SoundPositions>>,
 }
 
+struct SoundPositions {
+    emitter_position: [f32; 3],
+    left_ear: [f32; 3],
+    right_ear: [f32; 3],
+}
+
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
     pub fn try_new(
         stream: &OutputStreamHandle,
-        sound_positions: SoundPositions,
+        emitter_position: [f32; 3],
+        left_ear: [f32; 3],
+        right_ear: [f32; 3],
     ) -> Result<SpatialSink, PlayError> {
         Ok(SpatialSink {
             sink: Sink::try_new(stream)?,
-            positions: Arc::new(Mutex::new(sound_positions)),
+            positions: Arc::new(Mutex::new(SoundPositions {
+                emitter_position,
+                left_ear,
+                right_ear,
+            })),
         })
     }
 
@@ -47,15 +59,16 @@ impl SpatialSink {
     {
         let positions = self.positions.clone();
         let pos_lock = self.positions.lock().unwrap();
-        let sample_rate = source.sample_rate();
-        let source = UniformSourceIterator::<S, S::Item>::new(source, 2, sample_rate);
-        let source = Spatial::new(source, pos_lock.to_owned()).periodic_access(
-            Duration::from_millis(10),
-            move |i| {
-                let pos = positions.lock().unwrap();
-                i.set_positions(pos.to_owned())
-            },
-        );
+        let source = Spatial::new(
+            source,
+            pos_lock.emitter_position,
+            pos_lock.left_ear,
+            pos_lock.right_ear,
+        )
+        .periodic_access(Duration::from_millis(10), move |i| {
+            let pos = positions.lock().unwrap();
+            i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
+        });
         self.sink.append(source);
     }
 

@@ -12,27 +12,9 @@ where
     I::Item: Sample,
 {
     input: ChannelVolume<I>,
-    positions: SoundPositions,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SoundPositions {
-    pub emitter_position: [f32; 3],
-    pub left_ear: [f32; 3],
-    pub right_ear: [f32; 3],
-}
-
-impl SoundPositions {
-    pub fn new(emitter_position: [f32; 3], left_ear: [f32; 3], right_ear: [f32; 3]) -> Self {
-        Self {
-            emitter_position,
-            left_ear,
-            right_ear,
-        }
-    }
-}
-
-fn dist_sq(a: &[f32; 3], b: &[f32; 3]) -> f32 {
+fn dist_sq(a: [f32; 3], b: [f32; 3]) -> f32 {
     a.iter()
         .zip(b.iter())
         .map(|(a, b)| (a - b) * (a - b))
@@ -44,33 +26,30 @@ where
     I: Source,
     I::Item: Sample,
 {
-    pub fn new(input: I, positions: SoundPositions) -> Spatial<I>
+    pub fn new(
+        input: I,
+        emitter_position: [f32; 3],
+        left_ear: [f32; 3],
+        right_ear: [f32; 3],
+    ) -> Spatial<I>
     where
         I: Source,
         I::Item: Sample,
     {
         let mut ret = Spatial {
             input: ChannelVolume::new(input, vec![0.0, 0.0]),
-            positions,
         };
-        ret.calculate_positions();
+        ret.set_positions(emitter_position, left_ear, right_ear);
         ret
     }
 
-    pub fn set_positions(&mut self, positions: SoundPositions) {
-        if positions != self.positions {
-            self.positions = positions;
-            self.calculate_positions();
-        }
-    }
-
     /// Sets the position of the emitter and ears in the 3D world.
-    fn calculate_positions(&mut self) {
-        let (left_ear, right_ear, emitter_pos) = (
-            &self.positions.left_ear,
-            &self.positions.right_ear,
-            &self.positions.emitter_position,
-        );
+    pub fn set_positions(
+        &mut self,
+        emitter_pos: [f32; 3],
+        left_ear: [f32; 3],
+        right_ear: [f32; 3],
+    ) {
         debug_assert!(left_ear != right_ear);
         let left_dist_sq = dist_sq(left_ear, emitter_pos);
         let right_dist_sq = dist_sq(right_ear, emitter_pos);

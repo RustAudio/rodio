@@ -77,9 +77,9 @@ where
         let max_diff = dist_sq(left_ear, right_ear).sqrt();
         let left_dist = left_dist_sq.sqrt();
         let right_dist = right_dist_sq.sqrt();
-        let left_diff_modifier = (((left_dist - right_dist) / max_diff + 1.0) / 4.0 + 0.5).min(1.0);
+        let left_diff_modifier = (((right_dist - left_dist) / max_diff + 1.0) / 4.0 + 0.5).min(1.0);
         let right_diff_modifier =
-            (((right_dist - left_dist) / max_diff + 1.0) / 4.0 + 0.5).min(1.0);
+            (((left_dist - right_dist) / max_diff + 1.0) / 4.0 + 0.5).min(1.0);
         let left_dist_modifier = (1.0 / right_dist_sq).min(1.0);
         let right_dist_modifier = (1.0 / left_dist_sq).min(1.0);
         self.input

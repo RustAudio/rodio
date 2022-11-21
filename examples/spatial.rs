@@ -29,7 +29,7 @@ fn main() {
         .repeat_infinite()
         .take_duration(total_duration);
     sink.append(source);
-
+    thread::sleep(Duration::from_secs(3));
     // A sound emitter playing the music starting at the centre gradually moves to the right
     // until it stops and begins traveling to the left, it will eventually pass through the
     // listener again and go to the far left.

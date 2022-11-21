@@ -1,11 +1,13 @@
 //! Queue that plays sounds one after the other.
 
+use std::collections::VecDeque;
+use std::iter::from_fn;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{Source, Zero};
+use crate::source::{from_iter, Source, Zero};
 use crate::Sample;
 
 /// Builds a new queue. It consists of an input and an output.
@@ -24,14 +26,15 @@ where
     S: Sample + Send + 'static,
 {
     let input = Arc::new(SourcesQueueInput {
-        next_sounds: Mutex::new(Vec::new()),
+        next_sounds: Mutex::new(VecDeque::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
     });
 
     let output = SourcesQueueOutput {
-        current: filler_silence(),
+        current: Current::None(THRESHOLD),
         signal_after_end: None,
         input: input.clone(),
+        sample_count: 0,
     };
 
     (input, output)
@@ -41,7 +44,7 @@ where
 
 /// The input of the queue.
 pub struct SourcesQueueInput<S> {
-    next_sounds: Mutex<Vec<(Box<dyn Source<Item = S> + Send>, Option<Sender<()>>)>>,
+    next_sounds: Mutex<VecDeque<(Box<dyn Source<Item = S> + Send>, Option<Sender<()>>)>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
@@ -60,7 +63,7 @@ where
         self.next_sounds
             .lock()
             .unwrap()
-            .push((Box::new(source) as Box<_>, None));
+            .push_back((Box::new(source) as Box<_>, None));
     }
 
     /// Adds a new source to the end of the queue.
@@ -75,7 +78,7 @@ where
         self.next_sounds
             .lock()
             .unwrap()
-            .push((Box::new(source) as Box<_>, Some(tx)));
+            .push_back((Box::new(source) as Box<_>, Some(tx)));
         rx
     }
 
@@ -88,11 +91,12 @@ where
     }
 }
 
+type DynamicSource<S> = Box<dyn Source<Item = S> + Send>;
 /// The output of the queue. Implements `Source`.
 pub struct SourcesQueueOutput<S> {
     // The current iterator that produces samples.
-    current: Box<dyn Source<Item = S> + Send>,
-
+    current: Current<S>,
+    sample_count: usize,
     // Signal this sender before picking from `next`.
     signal_after_end: Option<Sender<()>>,
 
@@ -100,6 +104,7 @@ pub struct SourcesQueueOutput<S> {
     input: Arc<SourcesQueueInput<S>>,
 }
 
+const THRESHOLD: usize = 512;
 impl<S> Source for SourcesQueueOutput<S>
 where
     S: Sample + Send + 'static,
@@ -116,35 +121,48 @@ where
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
         // situation we force a frame to have a maximum number of samples indicate by this
         // constant.
-        const THRESHOLD: usize = 512;
+        //println!("current frame len called");
+        let len = match &self.current {
+            Current::Some(current) => 'value: {
+                if let Some(val) = current.current_frame_len() {
+                    if val != 0 {
+                        break 'value val;
+                    }
+                }
 
-        // Try the current `current_frame_len`.
-        if let Some(val) = self.current.current_frame_len() {
-            if val != 0 {
-                return Some(val);
+                // Try the size hint.
+                let (lower_bound, _) = current.size_hint();
+                // The iterator default implementation just returns 0.
+                // That's a problematic value, so skip it.
+                if lower_bound > 0 {
+                    break 'value lower_bound;
+                }
+
+                // Otherwise we use the constant value.
+                THRESHOLD
             }
+            Current::None(samples_left) => *samples_left,
+        };
+        if len == 0 {
+            println!("stop");
         }
-
-        // Try the size hint.
-        let (lower_bound, _) = self.current.size_hint();
-        // The iterator default implementation just returns 0.
-        // That's a problematic value, so skip it.
-        if lower_bound > 0 {
-            return Some(lower_bound);
-        }
-
-        // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        Some(len)
     }
 
     #[inline]
     fn channels(&self) -> u16 {
-        self.current.channels()
+        self.current
+            .option()
+            .map(|current| current.channels())
+            .unwrap_or(1)
     }
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        self.current.sample_rate()
+        self.current
+            .option()
+            .map(|current| current.sample_rate())
+            .unwrap_or(44100)
     }
 
     #[inline]
@@ -163,61 +181,112 @@ where
     fn next(&mut self) -> Option<S> {
         loop {
             // Basic situation that will happen most of the time.
-            if let Some(sample) = self.current.next() {
-                return Some(sample);
+            if let Some(current) = self.current.mut_option() {
+                if let Some(sample) = current.next() {
+                    self.sample_count += 1;
+                    return Some(sample);
+                }
             }
 
             // Since `self.current` has finished, we need to pick the next sound.
             // In order to avoid inlining this expensive operation, the code is in another function.
-            if self.go_next().is_err() {
-                return None;
+            match self.go_next() {
+                NextSourceResult::Silence => {
+                    self.sample_count += 1;
+                    return Some(S::zero_value());
+                }
+                NextSourceResult::Finished => {
+                    return None;
+                }
+                NextSourceResult::Continue => {}
             }
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.current.size_hint().0, None)
+        (
+            self.current
+                .option()
+                .map(|current| current.size_hint().0)
+                .unwrap_or(0),
+            None,
+        )
     }
+}
+
+enum Current<S> {
+    Some(DynamicSource<S>),
+    None(usize),
+}
+
+impl<S> Current<S> {
+    fn option(&self) -> Option<&DynamicSource<S>> {
+        match self {
+            Current::Some(source) => Some(source),
+            Current::None(_) => None,
+        }
+    }
+    fn mut_option(&mut self) -> Option<&mut DynamicSource<S>> {
+        match self {
+            Current::Some(source) => Some(source),
+            Current::None(_) => None,
+        }
+    }
+}
+
+enum NextSourceResult {
+    Silence,
+    Continue,
+    Finished,
 }
 
 impl<S> SourcesQueueOutput<S>
 where
     S: Sample + Send + 'static,
 {
-    // Called when `current` is empty and we must jump to the next element.
+    // Called when `current` is `None` or empty and we must jump to the next element.
     // Returns `Ok` if the sound should continue playing, or an error if it should stop.
     //
     // This method is separate so that it is not inlined.
-    fn go_next(&mut self) -> Result<(), ()> {
+    fn go_next(&mut self) -> NextSourceResult {
         if let Some(signal_after_end) = self.signal_after_end.take() {
             let _ = signal_after_end.send(());
         }
 
-        let (next, signal_after_end) = {
-            let mut next = self.input.next_sounds.lock().unwrap();
+        let mut next = self.input.next_sounds.lock().unwrap();
 
-            if next.len() == 0 {
-                if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
-                    // Play a short silence in order to avoid spinlocking.
-                    (filler_silence(), None)
-                } else {
-                    return Err(());
+        match next.front() {
+            Some(_) => match self.current {
+                Current::Some(_) | Current::None(1) => {
+                    let (source, signal) = next.pop_front().unwrap();
+                    let padding_frames = self.sample_count % source.channels() as usize;
+                    let source = Box::new(source.delay_samples(padding_frames)) as Box<_>;
+                    self.current = Current::Some(source);
+                    self.signal_after_end = signal;
+                    NextSourceResult::Continue
                 }
-            } else {
-                next.remove(0)
+                Current::None(remaining) => {
+                    self.current = Current::None(remaining - 1);
+                    NextSourceResult::Silence
+                }
+            },
+            None => {
+                if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
+                    let remaining_samples = match self.current {
+                        Current::Some(_) | Current::None(1) => THRESHOLD,
+                        Current::None(samples) => samples - 1,
+                    };
+                    //println!("decrement {}", remaining_samples);
+                    self.current = Current::None(remaining_samples);
+                    self.signal_after_end = None;
+                    NextSourceResult::Silence
+                } else {
+                    NextSourceResult::Finished
+                }
             }
-        };
-
-        self.current = next;
-        self.signal_after_end = signal_after_end;
-        Ok(())
+        }
     }
-}
-
-fn filler_silence<S: Sample + Send + 'static>() -> Box<dyn Source<Item = S> + Send> {
-    //TODO: meh
-    Box::new(Zero::<S>::new_finite(1, 44100, Duration::from_millis(10))) as Box<_>
 }
 
 #[cfg(test)]

@@ -14,7 +14,19 @@ where
     Delay {
         input,
         remaining_samples: samples as usize,
-        requested_duration: duration,
+        requested_duration: Some(duration),
+    }
+}
+
+pub fn delay_samples<I>(input: I, samples: usize) -> Delay<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    Delay {
+        input,
+        remaining_samples: samples,
+        requested_duration: None,
     }
 }
 
@@ -23,7 +35,7 @@ where
 pub struct Delay<I> {
     input: I,
     remaining_samples: usize,
-    requested_duration: Duration,
+    requested_duration: Option<Duration>,
 }
 
 impl<I> Delay<I>
@@ -101,8 +113,7 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.input
-            .total_duration()
-            .map(|val| val + self.requested_duration)
+        self.requested_duration
+            .and_then(|duration| self.input.total_duration().map(|val| val + duration))
     }
 }

@@ -100,6 +100,7 @@ pub struct SourcesQueueOutput<S> {
     input: Arc<SourcesQueueInput<S>>,
 }
 
+const THRESHOLD: usize = 512;
 impl<S> Source for SourcesQueueOutput<S>
 where
     S: Sample + Send + 'static,
@@ -124,7 +125,7 @@ where
             } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
                 && self.input.next_sounds.lock().unwrap().is_empty()
             {
-                // The next item will be a filler silence which will have the length of `THRESHOLD`
+                // The next source will be a filler silence which will have the length of `THRESHOLD`
                 return Some(THRESHOLD);
             }
         }
@@ -202,9 +203,10 @@ where
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.len() == 0 {
+                let silence = Box::new(Zero::<S>::new_samples(1, 44100, THRESHOLD)) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
-                    (filler_silence(), None)
+                    (silence, None)
                 } else {
                     return Err(());
                 }
@@ -217,11 +219,6 @@ where
         self.signal_after_end = signal_after_end;
         Ok(())
     }
-}
-
-const THRESHOLD: usize = 512;
-fn filler_silence<S: Sample + Send + 'static>() -> Box<dyn Source<Item = S> + Send> {
-    Box::new(Zero::<S>::new(1, 44100, THRESHOLD)) as Box<_>
 }
 
 #[cfg(test)]

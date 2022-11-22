@@ -5,7 +5,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{Source, Zero};
+use crate::source::{Empty, Source, Zero};
 use crate::Sample;
 
 /// Builds a new queue. It consists of an input and an output.
@@ -29,7 +29,7 @@ where
     });
 
     let output = SourcesQueueOutput {
-        current: filler_silence(),
+        current: Box::new(Empty::<S>::new()) as Box<_>,
         signal_after_end: None,
         input: input.clone(),
     };

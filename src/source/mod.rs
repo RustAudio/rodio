@@ -197,14 +197,6 @@ where
         delay::delay(self, duration)
     }
 
-    #[inline]
-    fn delay_samples(self, samples: usize) -> Delay<Self>
-    where
-        Self: Sized,
-    {
-        delay::delay_samples(self, samples)
-    }
-
     /// Immediately skips a certain duration of this source.
     ///
     /// If the specified duration is longer than the source itself, `skip_duration` will skip to the end of the source.

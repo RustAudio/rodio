@@ -100,6 +100,7 @@ pub struct SourcesQueueOutput<S> {
     input: Arc<SourcesQueueInput<S>>,
 }
 
+const THRESHOLD: usize = 512;
 impl<S> Source for SourcesQueueOutput<S>
 where
     S: Sample + Send + 'static,
@@ -116,12 +117,16 @@ where
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
         // situation we force a frame to have a maximum number of samples indicate by this
         // constant.
-        const THRESHOLD: usize = 512;
 
         // Try the current `current_frame_len`.
         if let Some(val) = self.current.current_frame_len() {
             if val != 0 {
                 return Some(val);
+            } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
+                && self.input.next_sounds.lock().unwrap().is_empty()
+            {
+                // The next source will be a filler silence which will have the length of `THRESHOLD`
+                return Some(THRESHOLD);
             }
         }
 
@@ -198,13 +203,10 @@ where
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.len() == 0 {
+                let silence = Box::new(Zero::<S>::new_samples(1, 44100, THRESHOLD)) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
-                    let silence = Zero::<S>::new(1, 44100); // TODO: meh
-                    (
-                        Box::new(silence.take_duration(Duration::from_millis(10))) as Box<_>,
-                        None,
-                    )
+                    (silence, None)
                 } else {
                     return Err(());
                 }

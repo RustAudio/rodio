@@ -8,6 +8,7 @@ use crate::{Sample, Source};
 pub struct Zero<S> {
     channels: u16,
     sample_rate: u32,
+    num_samples: Option<usize>,
     marker: PhantomData<S>,
 }
 
@@ -17,6 +18,16 @@ impl<S> Zero<S> {
         Zero {
             channels,
             sample_rate,
+            num_samples: None,
+            marker: PhantomData,
+        }
+    }
+    #[inline]
+    pub fn new_samples(channels: u16, sample_rate: u32, num_samples: usize) -> Zero<S> {
+        Zero {
+            channels,
+            sample_rate,
+            num_samples: Some(num_samples),
             marker: PhantomData,
         }
     }
@@ -30,7 +41,16 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<S> {
-        Some(S::zero_value())
+        if let Some(num_samples) = self.num_samples {
+            if num_samples > 0 {
+                self.num_samples = Some(num_samples - 1);
+                Some(S::zero_value())
+            } else {
+                None
+            }
+        } else {
+            Some(S::zero_value())
+        }
     }
 }
 
@@ -40,7 +60,7 @@ where
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        None
+        self.num_samples
     }
 
     #[inline]

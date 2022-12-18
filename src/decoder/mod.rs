@@ -19,7 +19,7 @@ use ::symphonia::core::io::{MediaSource, MediaSourceStream};
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
 mod flac;
 #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-mod mp3;
+pub mod mp3;
 #[cfg(feature = "symphonia")]
 mod read_seek_source;
 #[cfg(feature = "symphonia")]
@@ -33,16 +33,16 @@ mod wav;
 ///
 /// Supports MP3, WAV, Vorbis and Flac.
 pub struct Decoder<R>(DecoderImpl<R>)
-where
-    R: Read + Seek;
+    where
+        R: Read + Seek;
 
 pub struct LoopedDecoder<R>(DecoderImpl<R>)
-where
-    R: Read + Seek;
+    where
+        R: Read + Seek;
 
 enum DecoderImpl<R>
-where
-    R: Read + Seek,
+    where
+        R: Read + Seek,
 {
     #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
     Wav(wav::WavDecoder<R>),
@@ -58,8 +58,8 @@ where
 }
 
 impl<R> Decoder<R>
-where
-    R: Read + Seek + Send + Sync + 'static,
+    where
+        R: Read + Seek + Send + Sync + 'static,
 {
     /// Builds a new decoder.
     ///
@@ -67,7 +67,7 @@ where
     #[allow(unused_variables)]
     pub fn new(data: R) -> Result<Decoder<R>, DecoderError> {
         #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-        let data = match wav::WavDecoder::new(data) {
+            let data = match wav::WavDecoder::new(data) {
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Wav(decoder)));
@@ -75,7 +75,7 @@ where
         };
 
         #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-        let data = match flac::FlacDecoder::new(data) {
+            let data = match flac::FlacDecoder::new(data) {
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Flac(decoder)));
@@ -83,7 +83,7 @@ where
         };
 
         #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-        let data = match vorbis::VorbisDecoder::new(data) {
+            let data = match vorbis::VorbisDecoder::new(data) {
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Vorbis(decoder)));
@@ -91,7 +91,7 @@ where
         };
 
         #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-        let data = match mp3::Mp3Decoder::new(data) {
+            let data = match mp3::Mp3Decoder::new(data) {
             Err(data) => data,
             Ok(decoder) => {
                 return Ok(Decoder(DecoderImpl::Mp3(decoder)));
@@ -245,8 +245,8 @@ impl fmt::Display for Mp4Type {
 }
 
 impl<R> LoopedDecoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read + Seek,
 {
     fn new(decoder: Decoder<R>) -> LoopedDecoder<R> {
         Self(decoder.0)
@@ -254,8 +254,8 @@ where
 }
 
 impl<R> Iterator for Decoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read + Seek,
 {
     type Item = i16;
 
@@ -295,8 +295,8 @@ where
 }
 
 impl<R> Source for Decoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read + Seek,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -368,8 +368,8 @@ where
 }
 
 impl<R> Iterator for LoopedDecoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read + Seek,
 {
     type Item = i16;
 
@@ -461,8 +461,8 @@ where
 }
 
 impl<R> Source for LoopedDecoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read + Seek,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

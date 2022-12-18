@@ -6,8 +6,8 @@ use crate::Source;
 use minimp3::{Decoder, Frame};
 
 pub struct Mp3Decoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read,
 {
     decoder: Decoder<R>,
     current_frame: Frame,
@@ -15,8 +15,8 @@ where
 }
 
 impl<R> Mp3Decoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read,
 {
     pub fn new(mut data: R) -> Result<Self, R> {
         if !is_mp3(data.by_ref()) {
@@ -37,8 +37,8 @@ where
 }
 
 impl<R> Source for Mp3Decoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -62,8 +62,8 @@ where
 }
 
 impl<R> Iterator for Mp3Decoder<R>
-where
-    R: Read + Seek,
+    where
+        R: Read,
 {
     type Item = i16;
 
@@ -86,13 +86,14 @@ where
 
 /// Returns true if the stream contains mp3 data, then resets it to where it was.
 fn is_mp3<R>(mut data: R) -> bool
-where
-    R: Read + Seek,
+    where
+        R: Read,
 {
-    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
-    let mut decoder = Decoder::new(data.by_ref());
-    let ok = decoder.next_frame().is_ok();
-    data.seek(SeekFrom::Start(stream_pos)).unwrap();
-
-    ok
+    // let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+    // let mut decoder = Decoder::new(data.by_ref());
+    // let ok = decoder.next_frame().is_ok();
+    // data.seek(SeekFrom::Start(stream_pos)).unwrap();
+    //
+    // ok
+    true
 }

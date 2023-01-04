@@ -64,6 +64,14 @@ impl Sink {
         S::Item: Sample,
         S::Item: Send,
     {
+        // Wait for queue to flush then resume stopped playback
+        if self.controls.stopped.load(Ordering::SeqCst) {
+            while self.sound_count.load(Ordering::SeqCst) > 0 {
+                self.sleep_until_end();
+            }
+            self.controls.stopped.store(false, Ordering::SeqCst);
+        }
+
         let controls = self.controls.clone();
 
         let source = source

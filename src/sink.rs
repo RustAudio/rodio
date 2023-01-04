@@ -206,9 +206,9 @@ impl Drop for Sink {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
     use crate::buffer::SamplesBuffer;
     use crate::{Sink, Source};
+    use std::sync::atomic::Ordering;
 
     #[test]
     fn test_pause_and_stop() {
@@ -248,19 +248,19 @@ mod tests {
         let v = vec![10i16, -10, 20, -20, 30, -30];
 
         sink.append(SamplesBuffer::new(1, 1, v.clone()));
-        let mut src = SamplesBuffer::new(1, 1, v.clone()).convert_samples(); 
-        
+        let mut src = SamplesBuffer::new(1, 1, v.clone()).convert_samples();
+
         assert_eq!(queue_rx.next(), src.next());
         assert_eq!(queue_rx.next(), src.next());
-        
+
         sink.stop();
 
         assert!(sink.controls.stopped.load(Ordering::SeqCst));
         assert_eq!(queue_rx.next(), Some(0.0));
-        
-        src = SamplesBuffer::new(1, 1, v.clone()).convert_samples(); 
+
+        src = SamplesBuffer::new(1, 1, v.clone()).convert_samples();
         sink.append(SamplesBuffer::new(1, 1, v));
-        
+
         assert!(!sink.controls.stopped.load(Ordering::SeqCst));
         // Flush silence
         let mut queue_rx = queue_rx.skip_while(|v| *v == 0.0);

@@ -8,7 +8,9 @@ fn main() {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
 
-    // Create four unique sources.
+    // Create four unique sources. The frequencies used here correspond
+    // notes in the key of C and in octave 4: C4, or middle C on a piano,
+    // E4, G4, and A4 respectively.
     let source_c = SineWave::new(261.63)
         .take_duration(Duration::from_secs_f32(1.))
         .amplify(0.20);

@@ -1,6 +1,8 @@
 use std::f32;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
+
+use pinboard::NonEmptyPinboard;
 
 use crate::source::Spatial;
 use crate::stream::{OutputStreamHandle, PlayError};
@@ -8,13 +10,13 @@ use crate::{Sample, Sink, Source};
 
 pub struct SpatialSink {
     sink: Sink,
-    positions: Arc<Mutex<SoundPositions>>,
+    positions: Arc<SoundPositions>,
 }
 
 struct SoundPositions {
-    emitter_position: [f32; 3],
-    left_ear: [f32; 3],
-    right_ear: [f32; 3],
+    emitter_position: NonEmptyPinboard<[f32; 3]>,
+    left_ear: NonEmptyPinboard<[f32; 3]>,
+    right_ear: NonEmptyPinboard<[f32; 3]>,
 }
 
 impl SpatialSink {
@@ -27,27 +29,27 @@ impl SpatialSink {
     ) -> Result<SpatialSink, PlayError> {
         Ok(SpatialSink {
             sink: Sink::try_new(stream)?,
-            positions: Arc::new(Mutex::new(SoundPositions {
-                emitter_position,
-                left_ear,
-                right_ear,
-            })),
+            positions: Arc::new(SoundPositions {
+                emitter_position: NonEmptyPinboard::new(emitter_position),
+                left_ear: NonEmptyPinboard::new(left_ear),
+                right_ear: NonEmptyPinboard::new(right_ear),
+            }),
         })
     }
 
     /// Sets the position of the sound emitter in 3 dimensional space.
     pub fn set_emitter_position(&self, pos: [f32; 3]) {
-        self.positions.lock().unwrap().emitter_position = pos;
+        self.positions.emitter_position.set(pos);
     }
 
     /// Sets the position of the left ear in 3 dimensional space.
     pub fn set_left_ear_position(&self, pos: [f32; 3]) {
-        self.positions.lock().unwrap().left_ear = pos;
+        self.positions.left_ear.set(pos);
     }
 
     /// Sets the position of the right ear in 3 dimensional space.
     pub fn set_right_ear_position(&self, pos: [f32; 3]) {
-        self.positions.lock().unwrap().right_ear = pos;
+        self.positions.right_ear.set(pos);
     }
 
     /// Appends a sound to the queue of sounds to play.
@@ -58,16 +60,18 @@ impl SpatialSink {
         S::Item: Sample + Send,
     {
         let positions = self.positions.clone();
-        let pos_lock = self.positions.lock().unwrap();
         let source = Spatial::new(
             source,
-            pos_lock.emitter_position,
-            pos_lock.left_ear,
-            pos_lock.right_ear,
+            positions.emitter_position.read(),
+            positions.left_ear.read(),
+            positions.right_ear.read(),
         )
         .periodic_access(Duration::from_millis(10), move |i| {
-            let pos = positions.lock().unwrap();
-            i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
+            i.set_positions(
+                positions.emitter_position.read(),
+                positions.left_ear.read(),
+                positions.right_ear.read(),
+            );
         });
         self.sink.append(source);
     }

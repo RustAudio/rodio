@@ -219,6 +219,7 @@ impl CpalDeviceExt for cpal::Device {
                         .for_each(|d| *d = mixer_rx.next().unwrap_or(0f32))
                 },
                 error_callback,
+                None
             ),
             cpal::SampleFormat::I16 => self.build_output_stream::<i16, _, _>(
                 &format.config(),
@@ -227,6 +228,7 @@ impl CpalDeviceExt for cpal::Device {
                         .for_each(|d| *d = mixer_rx.next().map(|s| s.to_i16()).unwrap_or(0i16))
                 },
                 error_callback,
+                None
             ),
             cpal::SampleFormat::U16 => self.build_output_stream::<u16, _, _>(
                 &format.config(),
@@ -239,6 +241,7 @@ impl CpalDeviceExt for cpal::Device {
                     })
                 },
                 error_callback,
+                None
             ),
         }
         .map(|stream| (mixer_tx, stream))

@@ -3,12 +3,13 @@ use std::time::Duration;
 
 use crate::source::uniform::UniformSourceIterator;
 use crate::{Sample, Source};
+use cpal::{FromSample, Sample as CpalSample};
 
 /// Internal function that builds a `Mix` object.
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
 where
     I1: Source,
-    I1::Item: Sample,
+    I1::Item: FromSample<I2::Item> + Sample,
     I2: Source,
     I2::Item: Sample,
 {
@@ -26,18 +27,18 @@ where
 pub struct Mix<I1, I2>
 where
     I1: Source,
-    I1::Item: Sample,
+    I1::Item: FromSample<I2::Item> + Sample,
     I2: Source,
     I2::Item: Sample,
 {
     input1: UniformSourceIterator<I1, I1::Item>,
-    input2: UniformSourceIterator<I2, I1::Item>,
+    input2: UniformSourceIterator<I2, I2::Item>,
 }
 
 impl<I1, I2> Iterator for Mix<I1, I2>
 where
     I1: Source,
-    I1::Item: Sample,
+    I1::Item: FromSample<I2::Item> + Sample,
     I2: Source,
     I2::Item: Sample,
 {
@@ -49,9 +50,9 @@ where
         let s2 = self.input2.next();
 
         match (s1, s2) {
-            (Some(s1), Some(s2)) => Some(s1.saturating_add(s2)),
+            (Some(s1), Some(s2)) => Some(s1.saturating_add(CpalSample::from_sample(s2))),
             (Some(s1), None) => Some(s1),
-            (None, Some(s2)) => Some(s2),
+            (None, Some(s2)) => Some(CpalSample::from_sample(s2)),
             (None, None) => None,
         }
     }
@@ -74,7 +75,7 @@ where
 impl<I1, I2> ExactSizeIterator for Mix<I1, I2>
 where
     I1: Source + ExactSizeIterator,
-    I1::Item: Sample,
+    I1::Item: FromSample<I2::Item> + Sample,
     I2: Source + ExactSizeIterator,
     I2::Item: Sample,
 {
@@ -83,7 +84,7 @@ where
 impl<I1, I2> Source for Mix<I1, I2>
 where
     I1: Source,
-    I1::Item: Sample,
+    I1::Item: FromSample<I2::Item> + Sample,
     I2: Source,
     I2::Item: Sample,
 {

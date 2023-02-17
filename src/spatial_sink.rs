@@ -2,6 +2,8 @@ use std::f32;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use cpal::FromSample;
+
 use crate::source::Spatial;
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{Sample, Sink, Source};
@@ -55,6 +57,7 @@ impl SpatialSink {
     pub fn append<S>(&self, source: S)
     where
         S: Source + Send + 'static,
+        f32: FromSample<S::Item>,
         S::Item: Sample + Send,
     {
         let positions = self.positions.clone();

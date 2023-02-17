@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 use crate::{Sample, Source};
-use cpal::Sample as CpalSample;
+use cpal::{FromSample, Sample as CpalSample};
 
 /// An iterator that reads from a `Source` and converts the samples to a specific rate and
 /// channels count.
@@ -47,13 +47,13 @@ impl<I, D> Iterator for SamplesConverter<I, D>
 where
     I: Source,
     I::Item: Sample,
-    D: Sample,
+    D: FromSample<I::Item> + Sample,
 {
     type Item = D;
 
     #[inline]
     fn next(&mut self) -> Option<D> {
-        self.inner.next().map(|s| CpalSample::from(&s))
+        self.inner.next().map(|s| CpalSample::from_sample(s))
     }
 
     #[inline]
@@ -66,7 +66,7 @@ impl<I, D> ExactSizeIterator for SamplesConverter<I, D>
 where
     I: Source + ExactSizeIterator,
     I::Item: Sample,
-    D: Sample,
+    D: FromSample<I::Item> + Sample,
 {
 }
 
@@ -74,7 +74,7 @@ impl<I, D> Source for SamplesConverter<I, D>
 where
     I: Source,
     I::Item: Sample,
-    D: Sample,
+    D: FromSample<I::Item> + Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

@@ -1,6 +1,8 @@
 use std::cmp;
 use std::time::Duration;
 
+use cpal::FromSample;
+
 use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
 use crate::{Sample, Source};
 
@@ -77,7 +79,7 @@ impl<I, D> Iterator for UniformSourceIterator<I, D>
 where
     I: Source,
     I::Item: Sample,
-    D: Sample,
+    D: FromSample<I::Item> + Sample,
 {
     type Item = D;
 
@@ -114,7 +116,7 @@ impl<I, D> Source for UniformSourceIterator<I, D>
 where
     I: Iterator + Source,
     I::Item: Sample,
-    D: Sample,
+    D: FromSample<I::Item> + Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

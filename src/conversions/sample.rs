@@ -1,4 +1,4 @@
-use cpal::Sample as CpalSample;
+use cpal::{FromSample, Sample as CpalSample};
 use std::marker::PhantomData;
 
 /// Converts the samples data type to `O`.
@@ -29,13 +29,13 @@ impl<I, O> Iterator for DataConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample,
-    O: Sample,
+    O: FromSample<I::Item> + Sample,
 {
     type Item = O;
 
     #[inline]
     fn next(&mut self) -> Option<O> {
-        self.input.next().map(|s| CpalSample::from(&s))
+        self.input.next().map(|s| CpalSample::from_sample(s))
     }
 
     #[inline]
@@ -48,7 +48,7 @@ impl<I, O> ExactSizeIterator for DataConverter<I, O>
 where
     I: ExactSizeIterator,
     I::Item: Sample,
-    O: Sample,
+    O: FromSample<I::Item> + Sample,
 {
 }
 
@@ -93,7 +93,7 @@ impl Sample for u16 {
 
     #[inline]
     fn amplify(self, value: f32) -> u16 {
-        self.to_i16().amplify(value).to_u16()
+        ((self as f32) * value) as u16
     }
 
     #[inline]

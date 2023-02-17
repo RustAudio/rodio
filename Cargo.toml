@@ -11,7 +11,7 @@ exclude = ["assets/**", "tests/**"]
 edition = "2018"
 
 [dependencies]
-cpal = "0.14"
+cpal = "0.15"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.3.1", optional = true }
 lewton = { version = "0.10", optional = true }

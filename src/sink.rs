@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
+use cpal::FromSample;
 
 /// Handle to an device that outputs sounds.
 ///
@@ -61,8 +62,8 @@ impl Sink {
     pub fn append<S>(&self, source: S)
     where
         S: Source + Send + 'static,
-        S::Item: Sample,
-        S::Item: Send,
+        f32: FromSample<S::Item>,
+        S::Item: Sample + Send,
     {
         let controls = self.controls.clone();
 

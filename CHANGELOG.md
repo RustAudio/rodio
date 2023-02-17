@@ -1,3 +1,8 @@
+# Version 0.17.0 (2022-09-14)
+
+- Update `cpal` to [0.15](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0150-2022-01-29).
+- Default to `symphonia` for mp3 decoding.
+
 # Version 0.16.0 (2022-09-14)
 
 - Update `cpal` to [0.14](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0140-2022-08-22).
@@ -15,7 +20,7 @@
 # Version 0.14.0 (2021-05-21)
 
 - Re-export `cpal` in full.
-- Replace panics when calling `OutputStream::try_default`, `OutputStream::try_from_device` with new 
+- Replace panics when calling `OutputStream::try_default`, `OutputStream::try_from_device` with new
   `StreamError` variants.
 - `OutputStream::try_default` will now fallback to non-default output devices if an `OutputStream`
   cannot be created from the default device.

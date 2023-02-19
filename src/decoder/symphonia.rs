@@ -83,7 +83,7 @@ impl SymphoniaDecoder {
 
         // Calculate duration if possible
         let mut duration = None;
-        if let Some(time_base) = &dbg!(&stream.codec_params).time_base {
+        if let Some(time_base) = &stream.codec_params.time_base {
             if let Some(n_frames) = stream.codec_params.n_frames {
                 let time = time_base.calc_time(n_frames);
                 duration =

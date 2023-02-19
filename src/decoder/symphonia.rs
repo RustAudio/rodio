@@ -28,6 +28,7 @@ pub struct SymphoniaDecoder {
     format: Box<dyn FormatReader>,
     buffer: SampleBuffer<i16>,
     spec: SignalSpec,
+    duration: Option<Duration>,
 }
 
 impl SymphoniaDecoder {
@@ -80,6 +81,16 @@ impl SymphoniaDecoder {
             },
         )?;
 
+        // Calculate duration if possible
+        let mut duration = None;
+        if let Some(time_base) = &dbg!(&stream.codec_params).time_base {
+            if let Some(n_frames) = stream.codec_params.n_frames {
+                let time = time_base.calc_time(n_frames);
+                duration =
+                    Some(Duration::from_secs(time.seconds) + Duration::from_secs_f64(time.frac));
+            }
+        }
+
         let mut decode_errors: usize = 0;
         let decoded = loop {
             let current_frame = probed.format.next_packet()?;
@@ -107,6 +118,7 @@ impl SymphoniaDecoder {
             format: probed.format,
             buffer,
             spec,
+            duration,
         }));
     }
 
@@ -137,7 +149,7 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        None
+        self.duration
     }
 }
 

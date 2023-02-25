@@ -1,6 +1,6 @@
 [package]
 name = "rodio"
-version = "0.17.0"
+version = "0.17.1"
 license = "MIT OR Apache-2.0"
 description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]

@@ -1,4 +1,8 @@
-# Version 0.17.0 (2022-09-14)
+# Version 0.17.1 (2023-02-25)
+
+- Disable `symphonia`'s default features.
+
+# Version 0.17.0 (2023-02-17)
 
 - Update `cpal` to [0.15](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0150-2022-01-29).
 - Default to `symphonia` for mp3 decoding.

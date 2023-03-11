@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-/// A source which execute a callback function
+/// An empty source which executes a callback function
 pub struct EmptyCallback<S> {
     pub phantom_data: PhantomData<S>,
     pub callback: Box<dyn Send + Fn()>,

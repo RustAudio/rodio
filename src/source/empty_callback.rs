@@ -4,22 +4,22 @@ use std::time::Duration;
 use crate::{Sample, Source};
 
 /// A source which execute a callback function
-pub struct Callback<S> {
+pub struct EmptyCallback<S> {
     pub phantom_data: PhantomData<S>,
     pub callback: Box<dyn Send + Fn()>,
 }
 
-impl<S> Callback<S> {
+impl<S> EmptyCallback<S> {
     #[inline]
-    pub fn new(callback: Box<dyn Send + Fn()>) -> Callback<S> {
-        Callback {
+    pub fn new(callback: Box<dyn Send + Fn()>) -> EmptyCallback<S> {
+        EmptyCallback {
             phantom_data: PhantomData,
             callback,
         }
     }
 }
 
-impl<S> Iterator for Callback<S> {
+impl<S> Iterator for EmptyCallback<S> {
     type Item = S;
 
     #[inline]
@@ -29,7 +29,7 @@ impl<S> Iterator for Callback<S> {
     }
 }
 
-impl<S> Source for Callback<S>
+impl<S> Source for EmptyCallback<S>
 where
     S: Sample,
 {

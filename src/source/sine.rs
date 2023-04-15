@@ -17,7 +17,7 @@ impl SineWave {
     #[inline]
     pub fn new(freq: f32) -> SineWave {
         SineWave {
-            freq: freq,
+            freq,
             num_sample: 0,
         }
     }

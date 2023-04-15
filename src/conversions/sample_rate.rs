@@ -47,7 +47,10 @@ where
         to: cpal::SampleRate,
         num_channels: cpal::ChannelCount,
     ) -> SampleRateConverter<I> {
-        let from = from.0;
+        let from = match from.0 {
+            0 => to.0,
+            n => n,
+        };
         let to = to.0;
 
         assert!(from >= 1);

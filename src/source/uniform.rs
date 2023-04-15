@@ -56,7 +56,10 @@ where
         // Limit the frame length to something reasonable
         let frame_len = input.current_frame_len().map(|x| x.min(32768));
 
-        let from_channels = input.channels();
+        let from_channels = match input.channels() {
+            n if n == 0 => target_channels,
+            n => n,
+        };
         let from_sample_rate = input.sample_rate();
 
         let input = Take {

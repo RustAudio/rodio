@@ -26,7 +26,6 @@ struct Controls {
     volume: Mutex<f32>,
     stopped: AtomicBool,
     speed: Mutex<f32>,
-    do_skip: AtomicBool,
     to_clear: Mutex<u32>,
 }
 
@@ -52,7 +51,6 @@ impl Sink {
                 volume: Mutex::new(1.0),
                 stopped: AtomicBool::new(false),
                 speed: Mutex::new(1.0),
-                do_skip: AtomicBool::new(false),
                 to_clear: Mutex::new(0),
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
@@ -79,6 +77,8 @@ impl Sink {
 
         let controls = self.controls.clone();
 
+        let start_played = AtomicBool::new(false);
+
         let source = source
             .speed(1.0)
             .pausable(false)
@@ -89,13 +89,10 @@ impl Sink {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
                 }
-                if controls.do_skip.load(Ordering::SeqCst) {
-                    let _ = src.inner_mut().skip();
+                {
                     let mut to_clear = controls.to_clear.lock().unwrap();
-                    if *to_clear == 1 {
-                        controls.do_skip.store(false, Ordering::SeqCst);
-                        *to_clear = 0;
-                    } else if *to_clear > 0 {
+                    if *to_clear > 0 {
+                        let _ = src.inner_mut().skip();
                         *to_clear -= 1;
                     }
                 }
@@ -106,6 +103,7 @@ impl Sink {
                 amp.inner_mut()
                     .inner_mut()
                     .set_factor(*controls.speed.lock().unwrap());
+                start_played.store(true, Ordering::SeqCst);
             })
             .convert_samples();
         self.sound_count.fetch_add(1, Ordering::Relaxed);
@@ -180,7 +178,7 @@ impl Sink {
     pub fn clear(&self) {
         let len = self.sound_count.load(Ordering::SeqCst) as u32;
         *self.controls.to_clear.lock().unwrap() = len;
-        self.skip_one();
+        self.sleep_until_end();
         self.pause();
     }
 
@@ -190,7 +188,11 @@ impl Sink {
     /// it will play the next one. Otherwise, the `Sink` will finish as if
     /// it had finished playing a `Source` all the way through.
     pub fn skip_one(&self) {
-        self.controls.do_skip.store(true, Ordering::SeqCst);
+        let len = self.sound_count.load(Ordering::SeqCst) as u32;
+        let mut to_clear = self.controls.to_clear.lock().unwrap();
+        if len > *to_clear {
+            *to_clear += 1;
+        }
     }
 
     /// Stops the sink by emptying the queue.

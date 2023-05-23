@@ -19,6 +19,7 @@ pub use self::fadein::FadeIn;
 pub use self::fadeout::FadeOut;
 pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
+pub use self::linear_ramp::LinearGainRamp;
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
@@ -47,6 +48,7 @@ mod fadein;
 mod fadeout;
 mod from_factory;
 mod from_iter;
+mod linear_ramp;
 mod mix;
 mod pausable;
 mod periodic;
@@ -247,6 +249,16 @@ where
     {
         fadein::fadein(self, duration)
     }
+    
+    /// Applies a linear gain ramp to the sound
+    #[inline]
+    fn linear_gain_ramp(self, duration: Duration, start_value: f32, end_value: f32) -> LinearGainRamp<Self> 
+    where 
+        Self: Sized 
+    {
+        linear_ramp::linear_gain_ramp(self, duration, start_value, end_value)
+    }
+
 
     /// Fades out the sound.
     #[inline]

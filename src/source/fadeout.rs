@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use Sample;
-use Source;
+use crate::{Sample,Source};
 
 /// Internal function that builds a `FadeOut` object.
 pub fn fadeout<I>(input: I, duration: Duration) -> FadeOut<I> {

@@ -84,7 +84,7 @@ where
 impl<I> Source for FadeIn<I>
 where
     I: Source,
-I::Item: Sample,
+    I::Item: Sample,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

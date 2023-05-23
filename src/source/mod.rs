@@ -16,6 +16,7 @@ pub use self::done::Done;
 pub use self::empty::Empty;
 pub use self::empty_callback::EmptyCallback;
 pub use self::fadein::FadeIn;
+pub use self::fadeout::FadeOut;
 pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
 pub use self::mix::Mix;
@@ -43,6 +44,7 @@ mod done;
 mod empty;
 mod empty_callback;
 mod fadein;
+mod fadeout;
 mod from_factory;
 mod from_iter;
 mod mix;
@@ -244,6 +246,15 @@ where
         Self: Sized,
     {
         fadein::fadein(self, duration)
+    }
+
+    /// Fades out the sound.
+    #[inline]
+    fn fade_out(self, duration: Duration) -> FadeOut<Self>
+    where
+        Self: Sized,
+    {
+        fadeout::fadeout(self, duration)
     }
 
     /// Calls the `access` closure on `Self` the first time the source is iterated and every

@@ -18,6 +18,7 @@ pub use self::empty_callback::EmptyCallback;
 pub use self::fadein::FadeIn;
 pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
+pub use self::linear_ramp::LinearGainRamp;
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
@@ -45,6 +46,7 @@ mod empty_callback;
 mod fadein;
 mod from_factory;
 mod from_iter;
+mod linear_ramp;
 mod mix;
 mod pausable;
 mod periodic;
@@ -245,6 +247,16 @@ where
     {
         fadein::fadein(self, duration)
     }
+    
+    /// Applies a linear gain ramp to the sound
+    #[inline]
+    fn linear_gain_ramp(self, duration: Duration, start_value: f32, end_value: f32) -> LinearGainRamp<Self> 
+    where 
+        Self: Sized 
+    {
+        linear_ramp::linear_gain_ramp(self, duration, start_value, end_value)
+    }
+
 
     /// Calls the `access` closure on `Self` the first time the source is iterated and every
     /// time `period` elapses.

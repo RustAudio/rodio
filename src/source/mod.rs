@@ -247,16 +247,20 @@ where
     {
         fadein::fadein(self, duration)
     }
-    
+
     /// Applies a linear gain ramp to the sound
     #[inline]
-    fn linear_gain_ramp(self, duration: Duration, start_value: f32, end_value: f32) -> LinearGainRamp<Self> 
-    where 
-        Self: Sized 
+    fn linear_gain_ramp(
+        self,
+        duration: Duration,
+        start_value: f32,
+        end_value: f32,
+    ) -> LinearGainRamp<Self>
+    where
+        Self: Sized,
     {
         linear_ramp::linear_gain_ramp(self, duration, start_value, end_value)
     }
-
 
     /// Calls the `access` closure on `Self` the first time the source is iterated and every
     /// time `period` elapses.

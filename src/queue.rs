@@ -1,12 +1,16 @@
 //! Queue that plays sounds one after the other.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::source::{Empty, Source, Zero};
 use crate::Sample;
+
+#[cfg(feature = "crossbeam-channel")]
+use crossbeam_channel::{unbounded as channel, Receiver, Sender};
+#[cfg(not(feature = "crossbeam-channel"))]
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 /// Builds a new queue. It consists of an input and an output.
 ///
@@ -66,12 +70,14 @@ where
     /// Adds a new source to the end of the queue.
     ///
     /// The `Receiver` will be signalled when the sound has finished playing.
+    ///
+    /// Enable the feature flag `crossbeam-channel` in rodio to use a `crossbeam_channel::Receiver` instead.
     #[inline]
     pub fn append_with_signal<T>(&self, source: T) -> Receiver<()>
     where
         T: Source<Item = S> + Send + 'static,
     {
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = channel();
         self.next_sounds
             .lock()
             .unwrap()

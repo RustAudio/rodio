@@ -14,7 +14,7 @@ cpal = "0.15"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.3.1", optional = true }
 lewton = { version = "0.10", optional = true }
-minimp3 = { version = "0.5.0", optional = true }
+minimp3-rs = { git = "https://github.com/BOB450/minimp3-rs.git", branch = "main", optional = true}
 symphonia = { version = "0.5.2", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.8", optional = true }
 

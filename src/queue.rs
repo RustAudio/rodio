@@ -12,6 +12,14 @@ use crossbeam_channel::{unbounded as channel, Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::{channel, Receiver, Sender};
 
+type BoxedSource<S> = Box<dyn Source<Item = S> + Send>;
+
+trait InputQueue<S> {
+    fn keep_alive_if_empty(&self) -> bool;
+    fn has_next(&self) -> bool;
+    fn next(&self) -> Option<(BoxedSource<S>, Option<Sender<()>>)>;
+}
+
 /// Builds a new queue. It consists of an input and an output.
 ///
 /// The input can be used to add sounds to the end of the queue, while the output implements
@@ -45,7 +53,7 @@ where
 
 /// The input of the queue.
 pub struct SourcesQueueInput<S> {
-    next_sounds: Mutex<Vec<(Box<dyn Source<Item = S> + Send>, Option<Sender<()>>)>>,
+    next_sounds: Mutex<Vec<(BoxedSource<S>, Option<Sender<()>>)>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
@@ -101,6 +109,24 @@ where
         len
     }
 }
+
+impl<S> InputQueue<S> for SourcesQueueInput<S>
+where
+    S: Sample + Send + 'static,
+{
+    fn keep_alive_if_empty(&self) -> bool {
+        self.keep_alive_if_empty.load(Ordering::Acquire)
+    }
+    
+    fn has_next(&self) -> bool {
+        false
+    }
+
+    fn next(&self) -> Option<(BoxedSource<S>, Option<Sender<()>>)> {
+        None
+    }
+}
+
 /// The output of the queue. Implements `Source`.
 pub struct SourcesQueueOutput<S> {
     // The current iterator that produces samples.
@@ -110,7 +136,7 @@ pub struct SourcesQueueOutput<S> {
     signal_after_end: Option<Sender<()>>,
 
     // The next sounds.
-    input: Arc<SourcesQueueInput<S>>,
+    input: Arc<dyn InputQueue<S> + Send + Sync>,
 }
 
 const THRESHOLD: usize = 512;
@@ -135,9 +161,7 @@ where
         if let Some(val) = self.current.current_frame_len() {
             if val != 0 {
                 return Some(val);
-            } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
-                && self.input.next_sounds.lock().unwrap().is_empty()
-            {
+            } else if self.input.keep_alive_if_empty() && self.input.has_next() {
                 // The next source will be a filler silence which will have the length of `THRESHOLD`
                 return Some(THRESHOLD);
             }
@@ -212,19 +236,16 @@ where
             let _ = signal_after_end.send(());
         }
 
-        let (next, signal_after_end) = {
-            let mut next = self.input.next_sounds.lock().unwrap();
-
-            if next.len() == 0 {
+        let (next, signal_after_end) = match self.input.next() {
+            Some(t) => t,
+            None => {
                 let silence = Box::new(Zero::<S>::new_samples(1, 44100, THRESHOLD)) as Box<_>;
-                if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
+                if self.input.keep_alive_if_empty() {
                     // Play a short silence in order to avoid spinlocking.
                     (silence, None)
                 } else {
                     return Err(());
                 }
-            } else {
-                next.remove(0)
             }
         };
 

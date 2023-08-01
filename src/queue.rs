@@ -119,11 +119,16 @@ where
     }
     
     fn has_next(&self) -> bool {
-        false
+        self.next_sounds.lock().unwrap().len() > 0
     }
 
     fn next(&self) -> Option<(BoxedSource<S>, Option<Sender<()>>)> {
-        None
+        let mut next = self.next_sounds.lock().unwrap();
+        if next.len() > 0 {
+            Some(next.remove(0))
+        } else {
+            None
+        }
     }
 }
 

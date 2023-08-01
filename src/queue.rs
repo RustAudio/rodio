@@ -50,10 +50,12 @@ where
     (input, output)
 }
 
-pub fn id_queue<S, I>(keep_alive_if_empty: bool) -> (Arc<SourcesIdQueueInput<S, I>>, SourcesQueueOutput<S>)
+pub fn id_queue<S, I>(
+    keep_alive_if_empty: bool,
+) -> (Arc<SourcesIdQueueInput<S, I>>, SourcesQueueOutput<S>)
 where
-  S: Sample + Send + 'static,
-  I: Eq + PartialEq + Send + 'static,
+    S: Sample + Send + 'static,
+    I: Eq + PartialEq + Send + 'static,
 {
     let input = Arc::new(SourcesIdQueueInput {
         next_sounds: Mutex::new(Vec::new()),
@@ -137,7 +139,7 @@ where
     fn keep_alive_if_empty(&self) -> bool {
         self.keep_alive_if_empty.load(Ordering::Acquire)
     }
-    
+
     fn has_next(&self) -> bool {
         self.next_sounds.lock().unwrap().len() > 0
     }
@@ -216,7 +218,7 @@ where
             } else if index_b.is_none() && *id == id_b {
                 index_b = Some(p);
             }
-            p+=1;
+            p += 1;
         }
         if let (Some(index_a), Some(index_b)) = (index_a, index_b) {
             next_sounds.swap(index_a, index_b);
@@ -231,7 +233,7 @@ where
     fn keep_alive_if_empty(&self) -> bool {
         self.keep_alive_if_empty.load(Ordering::Acquire)
     }
-    
+
     fn has_next(&self) -> bool {
         self.next_sounds.lock().unwrap().len() > 0
     }
@@ -456,7 +458,6 @@ mod tests {
         }
     }
 
-    
     #[test]
     fn immediate_end() {
         let (_, mut rx) = queue::queue::<i16>(false);

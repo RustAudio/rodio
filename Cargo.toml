@@ -1,11 +1,11 @@
 [package]
 name = "rodio"
-version = "0.17.0"
+version = "0.17.1"
 license = "MIT OR Apache-2.0"
 description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]
 repository = "https://github.com/RustAudio/rodio"
-documentation = "http://docs.rs/rodio"
+documentation = "https://docs.rs/rodio"
 exclude = ["assets/**", "tests/**"]
 edition = "2021"
 
@@ -14,8 +14,9 @@ cpal = "0.15"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.3.1", optional = true }
 lewton = { version = "0.10", optional = true }
-minimp3 = { version = "0.5.0", optional = true }
-symphonia = {version = "0.5.2", optional = true }
+minimp3_fixed = { version = "0.5.4", optional = true}
+symphonia = { version = "0.5.2", optional = true, default-features = false }
+crossbeam-channel = { version = "0.5.8", optional = true }
 
 [features]
 default = ["flac", "vorbis", "wav", "mp3"]
@@ -24,7 +25,7 @@ flac = ["claxon"]
 vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["symphonia-mp3"]
-minimp3 = ["dep:minimp3"]
+minimp3 = ["dep:minimp3_fixed"]
 wasm-bindgen = ["cpal/wasm-bindgen"]
 symphonia-aac = ["symphonia/aac"]
 symphonia-all = ["symphonia-aac", "symphonia-flac", "symphonia-isomp4", "symphonia-mp3", "symphonia-vorbis", "symphonia-wav"]

@@ -14,6 +14,7 @@ pub use self::crossfade::Crossfade;
 pub use self::delay::Delay;
 pub use self::done::Done;
 pub use self::empty::Empty;
+pub use self::empty_callback::EmptyCallback;
 pub use self::fadein::FadeIn;
 pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
@@ -24,6 +25,7 @@ pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
 pub use self::skip::SkipDuration;
+pub use self::skippable::Skippable;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
@@ -39,6 +41,7 @@ mod crossfade;
 mod delay;
 mod done;
 mod empty;
+mod empty_callback;
 mod fadein;
 mod from_factory;
 mod from_iter;
@@ -49,6 +52,7 @@ mod repeat;
 mod samples_converter;
 mod sine;
 mod skip;
+mod skippable;
 mod spatial;
 mod speed;
 mod stoppable;
@@ -319,6 +323,13 @@ where
         Self: Sized,
     {
         stoppable::stoppable(self)
+    }
+
+    fn skippable(self) -> Skippable<Self>
+    where
+        Self: Sized,
+    {
+        skippable::skippable(self)
     }
 
     /// Applies a low-pass filter to the source.

@@ -1,7 +1,11 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+#[cfg(feature = "crossbeam-channel")]
+use crossbeam_channel::Receiver;
+#[cfg(not(feature = "crossbeam-channel"))]
+use std::sync::mpsc::Receiver;
 
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
@@ -26,6 +30,7 @@ struct Controls {
     volume: Mutex<f32>,
     stopped: AtomicBool,
     speed: Mutex<f32>,
+    to_clear: Mutex<u32>,
 }
 
 impl Sink {
@@ -50,6 +55,7 @@ impl Sink {
                 volume: Mutex::new(1.0),
                 stopped: AtomicBool::new(false),
                 speed: Mutex::new(1.0),
+                to_clear: Mutex::new(0),
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
@@ -75,24 +81,33 @@ impl Sink {
 
         let controls = self.controls.clone();
 
+        let start_played = AtomicBool::new(false);
+
         let source = source
             .speed(1.0)
             .pausable(false)
             .amplify(1.0)
+            .skippable()
             .stoppable()
             .periodic_access(Duration::from_millis(5), move |src| {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
-                } else {
-                    src.inner_mut().set_factor(*controls.volume.lock().unwrap());
-                    src.inner_mut()
-                        .inner_mut()
-                        .set_paused(controls.pause.load(Ordering::SeqCst));
-                    src.inner_mut()
-                        .inner_mut()
-                        .inner_mut()
-                        .set_factor(*controls.speed.lock().unwrap());
                 }
+                {
+                    let mut to_clear = controls.to_clear.lock().unwrap();
+                    if *to_clear > 0 {
+                        let _ = src.inner_mut().skip();
+                        *to_clear -= 1;
+                    }
+                }
+                let amp = src.inner_mut().inner_mut();
+                amp.set_factor(*controls.volume.lock().unwrap());
+                amp.inner_mut()
+                    .set_paused(controls.pause.load(Ordering::SeqCst));
+                amp.inner_mut()
+                    .inner_mut()
+                    .set_factor(*controls.speed.lock().unwrap());
+                start_played.store(true, Ordering::SeqCst);
             })
             .convert_samples();
         self.sound_count.fetch_add(1, Ordering::Relaxed);
@@ -159,6 +174,29 @@ impl Sink {
     /// sink is paused.
     pub fn is_paused(&self) -> bool {
         self.controls.pause.load(Ordering::SeqCst)
+    }
+
+    /// Removes all currently loaded `Source`s from the `Sink`, and pauses it.
+    ///
+    /// See `pause()` for information about pausing a `Sink`.
+    pub fn clear(&self) {
+        let len = self.sound_count.load(Ordering::SeqCst) as u32;
+        *self.controls.to_clear.lock().unwrap() = len;
+        self.sleep_until_end();
+        self.pause();
+    }
+
+    /// Skips to the next `Source` in the `Sink`
+    ///
+    /// If there are more `Source`s appended to the `Sink` at the time,
+    /// it will play the next one. Otherwise, the `Sink` will finish as if
+    /// it had finished playing a `Source` all the way through.
+    pub fn skip_one(&self) {
+        let len = self.sound_count.load(Ordering::SeqCst) as u32;
+        let mut to_clear = self.controls.to_clear.lock().unwrap();
+        if len > *to_clear {
+            *to_clear += 1;
+        }
     }
 
     /// Stops the sink by emptying the queue.

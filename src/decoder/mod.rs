@@ -70,7 +70,7 @@ where
 pub struct DecoderInfo {
     channels: u16,
     sample_rate: u32,
-    pub(crate) samples_elapsed: AtomicUsize,
+    samples_elapsed: AtomicUsize,
 }
 
 impl DecoderInfo {

@@ -15,7 +15,7 @@ claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.3.1", optional = true }
 lewton = { version = "0.10", optional = true }
 # minimp3_fixed = { version = "0.5.4", optional = true}
-minimp3_fixed = { package = "minimp3", git = "https://github.com/dvdsk/minimp3-rs.git", optional = true }
+minimp3 = { git = "https://github.com/dvdsk/minimp3-rs.git", optional = true }
 symphonia = { version = "0.5.2", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.8", optional = true }
 
@@ -26,7 +26,7 @@ flac = ["claxon"]
 vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["symphonia-mp3"]
-minimp3 = ["dep:minimp3_fixed"]
+minimp3 = ["dep:minimp3"]
 wasm-bindgen = ["cpal/wasm-bindgen"]
 symphonia-aac = ["symphonia/aac"]
 symphonia-all = ["symphonia-aac", "symphonia-flac", "symphonia-isomp4", "symphonia-mp3", "symphonia-vorbis", "symphonia-wav"]

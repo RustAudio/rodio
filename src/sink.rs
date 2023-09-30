@@ -8,7 +8,7 @@ use crossbeam_channel::Receiver;
 use std::sync::mpsc::Receiver;
 
 use crate::stream::{OutputStreamHandle, PlayError};
-use crate::{queue, source::Done, Sample, Source, SourceExt};
+use crate::{queue, source::Done, Sample, Source, SeekableSource};
 use cpal::FromSample;
 
 /// Handle to an device that outputs sounds.
@@ -31,7 +31,7 @@ struct Controls {
     stopped: AtomicBool,
     speed: Mutex<f32>,
     to_clear: Mutex<u32>,
-    set_pos: Mutex<Option<f32>>,
+    seek: Mutex<Option<Duration>>,
 }
 
 impl Sink {
@@ -57,7 +57,7 @@ impl Sink {
                 stopped: AtomicBool::new(false),
                 speed: Mutex::new(1.0),
                 to_clear: Mutex::new(0),
-                set_pos: Mutex::new(None),
+                seek: Mutex::new(None),
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
@@ -121,7 +121,7 @@ impl Sink {
     #[inline]
     pub fn append_seekable<S>(&self, source: S)
     where
-        S: Source + SourceExt + Send + 'static,
+        S: Source + SeekableSource + Send + 'static,
         f32: FromSample<S::Item>,
         S::Item: Sample + Send,
     {
@@ -162,8 +162,8 @@ impl Sink {
                     .inner_mut()
                     .set_factor(*controls.speed.lock().unwrap());
                 let seekable = amp.inner_mut().inner_mut().inner_mut();
-                if let Some(pos) = controls.set_pos.lock().unwrap().take() {
-                    seekable.request_pos(pos);
+                if let Some(pos) = controls.seek.lock().unwrap().take() {
+                    seekable.seek(pos);
                 }
                 start_played.store(true, Ordering::SeqCst);
             })
@@ -220,8 +220,8 @@ impl Sink {
     /// Set position
     ///
     /// No effect if source does not implement `SourceExt`
-    pub fn set_pos(&self, pos: f32) {
-        *self.controls.set_pos.lock().unwrap() = Some(pos);
+    pub fn seek(&self, pos: Duration) {
+        *self.controls.seek.lock().unwrap() = Some(pos);
     }
 
     /// Pauses playback of this sink.

@@ -10,7 +10,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use crate::Source;
-use crate::SourceExt;
+use crate::SeekableSource;
 
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
@@ -368,44 +368,23 @@ where
     }
 }
 
-impl<R> Decoder<R>
-where 
-    R: Read + Seek,
-{
-    fn request_pos(&mut self, pos: f32) -> bool {
-        match &mut self.0 {
-            #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-            DecoderImpl::Wav(_) => false,
-            #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-            DecoderImpl::Vorbis(_) => false,
-            #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-            DecoderImpl::Flac(_) => false,
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-            DecoderImpl::Mp3(source) => source.request_pos(pos),
-            #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(_) => false,
-            DecoderImpl::None(_) => false,
-        }
-    }
-}
-
-impl<R> SourceExt for Decoder<R>
+impl<R> SeekableSource for Decoder<R>
 where
     R: Read + Seek,
 {
-    fn request_pos(&mut self, pos: f32) -> bool {
+    fn seek(&mut self, pos: Duration) {
         match &mut self.0 {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-            DecoderImpl::Wav(_) => false,
+            DecoderImpl::Wav(_) => (),
             #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-            DecoderImpl::Vorbis(_) => false,
+            DecoderImpl::Vorbis(_) => (),
             #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-            DecoderImpl::Flac(_) => false,
+            DecoderImpl::Flac(_) => (),
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-            DecoderImpl::Mp3(source) => source.request_pos(pos),
+            DecoderImpl::Mp3(source) => source.seek(pos),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(_) => false,
-            DecoderImpl::None(_) => false,
+            DecoderImpl::Symphonia(source) => source.seek(pos),
+            DecoderImpl::None(_) => (),
         }
     }
 }

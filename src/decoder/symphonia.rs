@@ -8,12 +8,12 @@ use symphonia::{
         io::MediaSourceStream,
         meta::MetadataOptions,
         probe::Hint,
-        units,
+        units::{self, Time},
     },
     default::get_probe,
 };
 
-use crate::Source;
+use crate::{SeekableSource, Source};
 
 use super::DecoderError;
 
@@ -116,6 +116,23 @@ impl SymphoniaDecoder {
         let mut buffer = SampleBuffer::<i16>::new(duration, spec.clone());
         buffer.copy_interleaved_ref(decoded);
         return buffer;
+    }
+}
+
+impl SeekableSource for SymphoniaDecoder {
+    fn seek(&mut self, pos: Duration) {
+        use symphonia::core::formats::{SeekMode, SeekTo};
+
+        let pos_fract = 1f64 / pos.subsec_nanos() as f64;
+        self.format
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: Time::new(pos.as_secs(), pos_fract),
+                    track_id: None,
+                },
+            )
+            .unwrap();
     }
 }
 

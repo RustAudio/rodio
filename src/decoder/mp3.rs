@@ -1,16 +1,16 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use crate::{Source, SourceExt};
+use crate::{SeekableSource, Source};
 
 use minimp3::Frame;
-use minimp3::SeekDecoder as Decoder;
+use minimp3::{Decoder, SeekDecoder};
 
 pub struct Mp3Decoder<R>
 where
     R: Read + Seek,
 {
-    decoder: Decoder<R>,
+    decoder: SeekDecoder<R>,
     current_frame: Frame,
     current_frame_offset: usize,
 }
@@ -23,10 +23,14 @@ where
         if !is_mp3(data.by_ref()) {
             return Err(data);
         }
-        let mut decoder = Decoder::new(data).map_err(|_| ())?;
-        // TODO: figure out decode_frame vs next_frame <dvdsk noreply@davidsk.dev> 
-        // let current_frame = decoder.next_frame().unwrap();
-        let current_frame = decoder.decode_frame().map_err(|_| ())?;
+        let mut decoder = SeekDecoder::new(data)
+            // paramaters are correct and minimp3 is used correctly 
+            // thus if we crash here one of these invariants is broken:
+            .expect("should be able to allocate memory, perform IO");
+        let current_frame = decoder.decode_frame()
+            // the reader makes enough data availible therefore 
+            // if we crash here the invariant broken is:
+            .expect("data should not corrupt");
 
         Ok(Mp3Decoder {
             decoder,
@@ -64,15 +68,14 @@ where
     }
 }
 
-impl<R> SourceExt for Mp3Decoder<R>
-where 
+impl<R> SeekableSource for Mp3Decoder<R>
+where
     R: Read + Seek,
 {
-    fn request_pos(&mut self, pos: f32) -> bool {
-        let pos = (pos * self.sample_rate() as f32) as u64;
+    fn seek(&mut self, pos: Duration) -> bool {
+        let pos = (pos.as_secs_f32() * self.sample_rate() as f32) as u64;
         // do not trigger a sample_rate, channels and frame len update
         // as the seek only takes effect after the current frame is done
-        dbg!("seek");
         self.decoder.seek_samples(pos).is_ok()
     }
 }

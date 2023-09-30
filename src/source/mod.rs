@@ -428,7 +428,7 @@ where
     }
 }
 
-pub trait SourceExt {
+pub trait SeekableSource {
     /// Seek to pos and whether the seek succeeded
-    fn request_pos(&mut self, pos: f32) -> bool;
+    fn seek(&mut self, pos: Duration);
 }

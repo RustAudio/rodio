@@ -129,6 +129,6 @@ pub mod static_buffer;
 pub use crate::conversions::Sample;
 pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
-pub use crate::source::{Source, SourceExt};
+pub use crate::source::{Source, SeekableSource};
 pub use crate::spatial_sink::SpatialSink;
 pub use crate::stream::{OutputStream, OutputStreamHandle, PlayError, StreamError};

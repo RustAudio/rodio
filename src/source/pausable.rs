@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{Sample, Source, SourceExt};
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Pausable` object.
 pub fn pausable<I>(source: I, paused: bool) -> Pausable<I>
@@ -114,16 +114,5 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
-    }
-}
-
-impl<I> SourceExt for Pausable<I>
-where
-    I: Source,
-    I: SourceExt,
-    I::Item: Sample,
-{
-    fn request_pos(&mut self, pos: f32) -> bool {
-        self.input.request_pos(pos)
     }
 }

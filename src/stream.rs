@@ -342,7 +342,7 @@ impl CpalDeviceExt for cpal::Device {
             ),
             _ => return Err(cpal::BuildStreamError::StreamConfigNotSupported),
         }
-            .map(|stream| (mixer_tx, stream))
+        .map(|stream| (mixer_tx, stream))
     }
 
     fn try_new_output_stream_config(

@@ -13,7 +13,7 @@ use symphonia::{
     default::get_probe,
 };
 
-use crate::{SeekableSource, Source};
+use crate::{Source, source::SeekNotSupported};
 
 use super::DecoderError;
 
@@ -119,23 +119,6 @@ impl SymphoniaDecoder {
     }
 }
 
-impl SeekableSource for SymphoniaDecoder {
-    fn seek(&mut self, pos: Duration) {
-        use symphonia::core::formats::{SeekMode, SeekTo};
-
-        let pos_fract = 1f64 / pos.subsec_nanos() as f64;
-        self.format
-            .seek(
-                SeekMode::Accurate,
-                SeekTo::Time {
-                    time: Time::new(pos.as_secs(), pos_fract),
-                    track_id: None,
-                },
-            )
-            .unwrap();
-    }
-}
-
 impl Source for SymphoniaDecoder {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
@@ -155,6 +138,22 @@ impl Source for SymphoniaDecoder {
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+        use symphonia::core::formats::{SeekMode, SeekTo};
+
+        let pos_fract = 1f64 / pos.subsec_nanos() as f64;
+        self.format
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: Time::new(pos.as_secs(), pos_fract),
+                    track_id: None,
+                },
+            )
+            .unwrap();
+        Ok(())
     }
 }
 

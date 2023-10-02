@@ -10,7 +10,6 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use crate::Source;
-use crate::SeekableSource;
 
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
@@ -364,27 +363,6 @@ where
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.total_duration(),
             DecoderImpl::None(_) => Some(Duration::default()),
-        }
-    }
-}
-
-impl<R> SeekableSource for Decoder<R>
-where
-    R: Read + Seek,
-{
-    fn seek(&mut self, pos: Duration) {
-        match &mut self.0 {
-            #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-            DecoderImpl::Wav(_) => (),
-            #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-            DecoderImpl::Vorbis(_) => (),
-            #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-            DecoderImpl::Flac(_) => (),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-            DecoderImpl::Mp3(source) => source.seek(pos),
-            #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.seek(pos),
-            DecoderImpl::None(_) => (),
         }
     }
 }

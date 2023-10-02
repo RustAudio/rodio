@@ -1,5 +1,7 @@
 //! Sources of sound and various filters.
 
+use std::fmt;
+use std::error::Error;
 use std::time::Duration;
 
 use cpal::FromSample;
@@ -151,6 +153,7 @@ where
     fn total_duration(&self) -> Option<Duration>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
+
     #[inline]
     fn buffered(self) -> Buffered<Self>
     where
@@ -351,7 +354,24 @@ where
     {
         blt::high_pass(self, freq)
     }
+
+    /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not 
+    /// supported by the current source.
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
+        Err(SeekNotSupported)
+    }
 }
+
+#[derive(Debug, Clone)]
+pub struct SeekNotSupported;
+
+impl fmt::Display for SeekNotSupported {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Seeking is not supported on this source")
+    }
+}
+
+impl Error for SeekNotSupported {}
 
 impl<S> Source for Box<dyn Source<Item = S>>
 where
@@ -428,7 +448,3 @@ where
     }
 }
 
-pub trait SeekableSource {
-    /// Seek to pos and whether the seek succeeded
-    fn seek(&mut self, pos: Duration);
-}

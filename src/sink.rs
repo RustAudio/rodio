@@ -8,7 +8,7 @@ use crossbeam_channel::Receiver;
 use std::sync::mpsc::Receiver;
 
 use crate::stream::{OutputStreamHandle, PlayError};
-use crate::{queue, source::Done, Sample, Source, SeekableSource};
+use crate::{queue, source::Done, Sample, Source};
 use cpal::FromSample;
 
 /// Handle to an device that outputs sounds.
@@ -121,7 +121,7 @@ impl Sink {
     #[inline]
     pub fn append_seekable<S>(&self, source: S)
     where
-        S: Source + SeekableSource + Send + 'static,
+        S: Source + Send + 'static,
         f32: FromSample<S::Item>,
         S::Item: Sample + Send,
     {
@@ -163,7 +163,7 @@ impl Sink {
                     .set_factor(*controls.speed.lock().unwrap());
                 let seekable = amp.inner_mut().inner_mut().inner_mut();
                 if let Some(pos) = controls.seek.lock().unwrap().take() {
-                    seekable.seek(pos);
+                    seekable.try_seek(pos).unwrap();
                 }
                 start_played.store(true, Ordering::SeqCst);
             })

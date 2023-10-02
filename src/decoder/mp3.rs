@@ -1,7 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use crate::{SeekableSource, Source};
+use crate::Source;
 
 use minimp3::Frame;
 use minimp3::{Decoder, SeekDecoder};
@@ -66,17 +66,13 @@ where
     fn total_duration(&self) -> Option<Duration> {
         None
     }
-}
 
-impl<R> SeekableSource for Mp3Decoder<R>
-where
-    R: Read + Seek,
-{
-    fn seek(&mut self, pos: Duration) -> bool {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
         let pos = (pos.as_secs_f32() * self.sample_rate() as f32) as u64;
         // do not trigger a sample_rate, channels and frame len update
         // as the seek only takes effect after the current frame is done
-        self.decoder.seek_samples(pos).is_ok()
+        self.decoder.seek_samples(pos).is_ok();
+        Ok(())
     }
 }
 

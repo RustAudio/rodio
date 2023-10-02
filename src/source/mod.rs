@@ -355,6 +355,8 @@ where
         blt::high_pass(self, freq)
     }
 
+    /// Set position
+    ///
     /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not 
     /// supported by the current source.
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
@@ -362,7 +364,7 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SeekNotSupported;
 
 impl fmt::Display for SeekNotSupported {
@@ -396,6 +398,11 @@ where
     fn total_duration(&self) -> Option<Duration> {
         (**self).total_duration()
     }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+        (**self).try_seek(pos)
+    }
 }
 
 impl<S> Source for Box<dyn Source<Item = S> + Send>
@@ -421,6 +428,11 @@ where
     fn total_duration(&self) -> Option<Duration> {
         (**self).total_duration()
     }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+        (**self).try_seek(pos)
+    }
 }
 
 impl<S> Source for Box<dyn Source<Item = S> + Send + Sync>
@@ -445,6 +457,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         (**self).total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+        (**self).try_seek(pos)
     }
 }
 

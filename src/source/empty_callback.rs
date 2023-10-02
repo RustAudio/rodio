@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekNotSupported;
+
 /// An empty source which executes a callback function
 pub struct EmptyCallback<S> {
     pub phantom_data: PhantomData<S>,
@@ -51,5 +53,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         Some(Duration::new(0, 0))
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
+        Err(SeekNotSupported)
     }
 }

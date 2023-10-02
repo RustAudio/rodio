@@ -23,6 +23,12 @@ impl<I, O> DataConverter<I, O> {
     pub fn into_inner(self) -> I {
         self.input
     }
+
+    /// get mutable access to the iterator
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
 }
 
 impl<I, O> Iterator for DataConverter<I, O>

@@ -1,6 +1,7 @@
 use std::cmp;
 use std::time::Duration;
 
+use crate::source::SeekNotSupported;
 use crate::source::uniform::UniformSourceIterator;
 use crate::{Sample, Source};
 use cpal::{FromSample, Sample as CpalSample};
@@ -118,5 +119,11 @@ where
             (Some(f1), Some(f2)) => Some(cmp::max(f1, f2)),
             _ => None,
         }
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+        self.input1.try_seek(pos)?;
+        self.input1.try_seek(pos)
     }
 }

@@ -3,10 +3,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 #[cfg(feature = "crossbeam-channel")]
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, Sender};
 
+use crate::source::SeekNotSupported;
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
 use cpal::FromSample;
@@ -25,13 +26,44 @@ pub struct Sink {
     detached: bool,
 }
 
+struct SeekOrder {
+    pos: Duration,
+    feedback: Sender<Result<(), SeekNotSupported>>,
+}
+
+impl SeekOrder {
+    fn new(pos: Duration) -> (Self, Receiver<Result<(), SeekNotSupported>>) {
+        #[cfg(not(feature = "crossbeam-channel"))]
+        let (tx, rx) = {
+            use std::sync::mpsc;
+            mpsc::channel()
+        };
+
+        #[cfg(feature = "crossbeam-channel")]
+        let (tx, rx) = {
+            use crossbeam_channel::bounded;
+            bounded(1)
+        };
+        (Self { pos, feedback: tx }, rx)
+    }
+
+    fn attempt<S>(self, maybe_seekable: &mut S)
+    where
+        S: Source,
+        S::Item: Sample + Send,
+    {
+        let res = maybe_seekable.try_seek(self.pos);
+        let _ignore_reciever_dropped = self.feedback.send(res);
+    }
+}
+
 struct Controls {
     pause: AtomicBool,
     volume: Mutex<f32>,
     stopped: AtomicBool,
     speed: Mutex<f32>,
     to_clear: Mutex<u32>,
-    seek: Mutex<Option<Duration>>,
+    seek: Mutex<Option<SeekOrder>>,
 }
 
 impl Sink {
@@ -109,61 +141,8 @@ impl Sink {
                 amp.inner_mut()
                     .inner_mut()
                     .set_factor(*controls.speed.lock().unwrap());
-                start_played.store(true, Ordering::SeqCst);
-            })
-            .convert_samples();
-        self.sound_count.fetch_add(1, Ordering::Relaxed);
-        let source = Done::new(source, self.sound_count.clone());
-        *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
-    }
-
-    /// Appends a sound to the queue of sounds to play.
-    #[inline]
-    pub fn append_seekable<S>(&self, source: S)
-    where
-        S: Source + Send + 'static,
-        f32: FromSample<S::Item>,
-        S::Item: Sample + Send,
-    {
-        // Wait for queue to flush then resume stopped playback
-        if self.controls.stopped.load(Ordering::SeqCst) {
-            if self.sound_count.load(Ordering::SeqCst) > 0 {
-                self.sleep_until_end();
-            }
-            self.controls.stopped.store(false, Ordering::SeqCst);
-        }
-
-        let controls = self.controls.clone();
-
-        let start_played = AtomicBool::new(false);
-
-        let source = source
-            .speed(1.0)
-            .pausable(false)
-            .amplify(1.0)
-            .skippable()
-            .stoppable()
-            .periodic_access(Duration::from_millis(5), move |src| {
-                if controls.stopped.load(Ordering::SeqCst) {
-                    src.stop();
-                }
-                {
-                    let mut to_clear = controls.to_clear.lock().unwrap();
-                    if *to_clear > 0 {
-                        let _ = src.inner_mut().skip();
-                        *to_clear -= 1;
-                    }
-                }
-                let amp = src.inner_mut().inner_mut();
-                amp.set_factor(*controls.volume.lock().unwrap());
-                amp.inner_mut()
-                    .set_paused(controls.pause.load(Ordering::SeqCst));
-                amp.inner_mut()
-                    .inner_mut()
-                    .set_factor(*controls.speed.lock().unwrap());
-                let seekable = amp.inner_mut().inner_mut().inner_mut();
-                if let Some(pos) = controls.seek.lock().unwrap().take() {
-                    seekable.try_seek(pos).unwrap();
+                if let Some(seek) = controls.seek.lock().unwrap().take() {
+                    seek.attempt(amp)
                 }
                 start_played.store(true, Ordering::SeqCst);
             })
@@ -219,9 +198,18 @@ impl Sink {
 
     /// Set position
     ///
-    /// No effect if source does not implement `SourceExt`
-    pub fn seek(&self, pos: Duration) {
-        *self.controls.seek.lock().unwrap() = Some(pos);
+    /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not
+    /// supported by the current source.
+    pub fn try_seek(&self, pos: Duration) -> Result<(), SeekNotSupported> {
+        let (order, feedback) = SeekOrder::new(pos);
+        *self.controls.seek.lock().unwrap() = Some(order);
+        match feedback.recv() {
+            Ok(seek_res) => seek_res,
+            // The feedback channel closed. Probably another seekorder was set 
+            // invalidating this one and closing the feedback channel
+            // ... or the audio thread panicked. 
+            Err(_) => Ok(()),
+        }
     }
 
     /// Pauses playback of this sink.

@@ -44,6 +44,12 @@ where
     pub fn into_inner(self) -> I {
         self.input
     }
+
+    /// Get mutable access to the iterator
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
 }
 
 impl<I> Iterator for ChannelCountConverter<I>

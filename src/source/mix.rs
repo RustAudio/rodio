@@ -123,7 +123,8 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+        todo!("should check if both inputs support seeking");
         self.input1.try_seek(pos)?;
-        self.input1.try_seek(pos)
+        self.input2.try_seek(pos)
     }
 }

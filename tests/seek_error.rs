@@ -11,7 +11,7 @@ fn seek_not_supported_returns_err() {
     let file = std::fs::File::open("assets/music.wav").unwrap();
     sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
     let res = sink.try_seek(Duration::from_secs(5));
-    assert_eq!(res, Err(rodio::source::SeekNotSupported));
+    assert_eq!(res, Err(rodio::source::SeekNotSupported { source: "test" }));
 }
 
 // mp3 decoder does support seeking

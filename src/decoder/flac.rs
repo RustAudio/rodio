@@ -4,6 +4,7 @@ use std::mem;
 use std::time::Duration;
 
 use crate::Source;
+use crate::source::SeekNotSupported;
 
 use claxon::FlacReader;
 
@@ -78,6 +79,11 @@ where
         // so we do not divide by `self.channels` here.
         self.samples
             .map(|s| Duration::from_micros(s * 1_000_000 / self.sample_rate as u64))
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
+        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
     }
 }
 

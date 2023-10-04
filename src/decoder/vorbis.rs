@@ -3,6 +3,7 @@ use std::time::Duration;
 use std::vec;
 
 use crate::Source;
+use crate::source::SeekNotSupported;
 
 use lewton::inside_ogg::OggStreamReader;
 
@@ -72,6 +73,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
+        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
     }
 }
 

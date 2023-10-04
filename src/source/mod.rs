@@ -359,13 +359,11 @@ where
     ///
     /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not 
     /// supported by the current source.
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
-        Err(SeekNotSupported)
-    }
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SeekNotSupported;
+pub struct SeekNotSupported{ pub source: &'static str }
 
 impl fmt::Display for SeekNotSupported {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

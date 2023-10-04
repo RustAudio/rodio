@@ -13,6 +13,7 @@
 use std::slice::Iter as SliceIter;
 use std::time::Duration;
 
+use crate::source::SeekNotSupported;
 use crate::{Sample, Source};
 
 /// A buffer of samples treated as a source.
@@ -83,6 +84,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         Some(self.duration)
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
+        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
     }
 }
 

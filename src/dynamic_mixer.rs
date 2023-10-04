@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{Source, UniformSourceIterator};
+use crate::source::{SeekNotSupported, Source, UniformSourceIterator};
 use crate::Sample;
 
 /// Builds a new mixer.
@@ -105,6 +105,16 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+        todo!("needs Source::can_seek")
+        // if self.current_sources.iter().all(Source::can_seek) {
+        //     for source in self.current_sources {
+        //         source.try_seek().expect("we just verified they can")
+        //     }
+        // }
     }
 }
 

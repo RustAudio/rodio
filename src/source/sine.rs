@@ -63,6 +63,6 @@ impl Source for SineWave {
         // It is possible to write an implementation that skips the right
         // amount of samples to get into the right phase. I do not think there
         // is a use case for that however.
-        Err(SeekNotSupported)
+        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
     }
 }

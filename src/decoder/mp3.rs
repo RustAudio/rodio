@@ -71,7 +71,7 @@ where
         let pos = (pos.as_secs_f32() * self.sample_rate() as f32) as u64;
         // do not trigger a sample_rate, channels and frame len update
         // as the seek only takes effect after the current frame is done
-        self.decoder.seek_samples(pos).is_ok();
+        let ignore_err = self.decoder.seek_samples(pos);
         Ok(())
     }
 }

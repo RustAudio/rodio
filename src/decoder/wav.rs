@@ -2,6 +2,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
 use crate::Source;
+use crate::source::SeekNotSupported;
 
 use hound::{SampleFormat, WavReader};
 
@@ -127,6 +128,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         Some(self.total_duration)
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
+        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
     }
 }
 

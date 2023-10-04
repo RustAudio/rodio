@@ -244,7 +244,7 @@ where
 
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
-        Err(SeekNotSupported)
+        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
     }
 }
 

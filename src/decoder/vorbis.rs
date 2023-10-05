@@ -76,8 +76,11 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
-        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+        // number of PCM samples per channel
+        let samples = pos.as_secs_f32() * self.sample_rate() as f32;
+        self.stream_reader.seek_absgp_pg(samples as u64).unwrap();
+        Ok(())
     }
 }
 

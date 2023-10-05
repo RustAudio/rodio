@@ -4,24 +4,6 @@ use std::time::Duration;
 
 use rodio::source::SeekNotSupported;
 
-// hound wav decoder does not support seeking
-#[cfg(feature = "hound")]
-#[test]
-fn seek_not_supported_returns_err() {
-    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-    let sink = rodio::Sink::try_new(&handle).unwrap();
-
-    let file = std::fs::File::open("assets/music.wav").unwrap();
-    sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
-    let res = sink.try_seek(Duration::from_secs(5));
-
-    let Err(rodio::source::SeekNotSupported { source }) = res else {
-        panic!("result of try_seek should be error SourceNotSupported")
-    };
-
-    assert!(source.starts_with("rodio::decoder::wav::WavDecoder"));
-}
-
 fn play_and_seek(asset_path: &Path) -> Result<(), SeekNotSupported> {
     let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
     let sink = rodio::Sink::try_new(&handle).unwrap();
@@ -33,17 +15,28 @@ fn play_and_seek(asset_path: &Path) -> Result<(), SeekNotSupported> {
 
 #[test]
 fn seek_returns_err_if_unsupported() {
-    let formats = ["mp3", "wav", "ogg", "flac", "m4a"].into_iter();
-    #[cfg(not(feature = "symphonia"))]
-    let supported = [true, false, false, false, false].into_iter();
-    #[cfg(feature = "symphonia")]
-    let supported = [true, true, true, true, true].into_iter();
-    #[cfg(not(feature = "symphonia"))]
-    let decoder = ["minimp3", "hound", "lewton", "claxon", "_"].into_iter();
-    #[cfg(feature = "symphonia")]
-    let decoder = ["symphonia"].into_iter().cycle();
+    let formats = [
+        #[cfg(feature = "minimp3")]
+        ("mp3", true, "minimp3"),
+        #[cfg(feature = "symphonia-mp3")]
+        ("mp3", true, "symphonia"),
+        #[cfg(feature = "hound")]
+        ("wav", false, "hound"),
+        #[cfg(feature = "symphonia-wav")]
+        ("wav", true, "symphonia"),
+        #[cfg(feature = "lewton")]
+        ("ogg", false, "lewton"),
+        #[cfg(feature = "symphonia-vorbis")]
+        ("ogg", true, "symphonia"),
+        #[cfg(feature = "claxon")]
+        ("flac", false, "claxon"),
+        #[cfg(feature = "symphonia-flac")]
+        ("flac", true, "symphonia"),
+        #[cfg(feature = "symphonia-isomp4")]
+        ("m4a", true, "_"),
+    ];
 
-    for ((format, supported), decoder) in formats.zip(supported).zip(decoder) {
+    for (format, supported, decoder) in formats {
         println!("trying: {format} by {decoder}, should support seek: {supported}");
         let asset = Path::new("assets/music").with_extension(format);
         let res = play_and_seek(&asset);

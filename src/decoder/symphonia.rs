@@ -13,7 +13,7 @@ use symphonia::{
     default::get_probe,
 };
 
-use crate::{Source, source::SeekNotSupported};
+use crate::{source::SeekNotSupported, Source};
 
 use super::DecoderError;
 
@@ -143,12 +143,17 @@ impl Source for SymphoniaDecoder {
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
         use symphonia::core::formats::{SeekMode, SeekTo};
 
-        let pos_fract = 1f64 / pos.subsec_nanos() as f64;
+        let pos_fract = if pos.subsec_nanos() == 0 {
+            0f64
+        } else {
+            1f64 / pos.subsec_nanos() as f64
+        };
+
         self.format
             .seek(
                 SeekMode::Accurate,
                 SeekTo::Time {
-                    time: Time::new(pos.as_secs(), pos_fract),
+                    time: Time::new(pos.as_secs(), dbg!(pos_fract)),
                     track_id: None,
                 },
             )

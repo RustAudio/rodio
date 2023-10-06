@@ -335,21 +335,38 @@ where
     /// Applies a low-pass filter to the source.
     /// **Warning**: Probably buggy.
     #[inline]
-    fn low_pass(self, freq: u32, q: f32) -> BltFilter<Self>
+    fn low_pass(self, freq: u32) -> BltFilter<Self>
     where
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::low_pass(self, freq, q)
+        blt::low_pass(self, freq)
     }
 
     #[inline]
-    fn high_pass(self, freq: u32, q: f32) -> BltFilter<Self>
+    fn high_pass(self, freq: u32) -> BltFilter<Self>
     where
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::high_pass(self, freq, q)
+        blt::high_pass(self, freq)
+    }
+
+    fn low_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
+    where
+        Self: Sized,
+        Self: Source<Item = f32>,
+    {
+        blt::low_pass_with_q(self, freq, q)
+    }
+
+    #[inline]
+    fn high_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
+    where
+        Self: Sized,
+        Self: Source<Item = f32>,
+    {
+        blt::high_pass_with_q(self, freq, q)
     }
 }
 

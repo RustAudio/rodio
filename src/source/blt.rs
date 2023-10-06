@@ -6,13 +6,13 @@ use crate::Source;
 // Implemented following http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 
 /// Internal function that builds a `BltFilter` object.
-pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
+pub fn low_pass<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
 where
     I: Source<Item = f32>,
 {
     BltFilter {
         input,
-        formula: BltFormula::LowPass { freq, q: 0.5 },
+        formula: BltFormula::LowPass { freq, q },
         applier: None,
         x_n1: 0.0,
         x_n2: 0.0,
@@ -21,13 +21,13 @@ where
     }
 }
 
-pub fn high_pass<I>(input: I, freq: u32) -> BltFilter<I>
+pub fn high_pass<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
 where
     I: Source<Item = f32>,
 {
     BltFilter {
         input,
-        formula: BltFormula::HighPass { freq, q: 0.5 },
+        formula: BltFormula::HighPass { freq, q },
         applier: None,
         x_n1: 0.0,
         x_n2: 0.0,
@@ -49,14 +49,14 @@ pub struct BltFilter<I> {
 
 impl<I> BltFilter<I> {
     /// Modifies this filter so that it becomes a low-pass filter.
-    pub fn to_low_pass(&mut self, freq: u32) {
-        self.formula = BltFormula::LowPass { freq, q: 0.5 };
+    pub fn to_low_pass(&mut self, freq: u32, q: f32) {
+        self.formula = BltFormula::LowPass { freq, q };
         self.applier = None;
     }
 
     /// Modifies this filter so that it becomes a high-pass filter
-    pub fn to_high_pass(&mut self, freq: u32) {
-        self.formula = BltFormula::HighPass { freq, q: 0.5 };
+    pub fn to_high_pass(&mut self, freq: u32, q: f32) {
+        self.formula = BltFormula::HighPass { freq, q };
         self.applier = None;
     }
 

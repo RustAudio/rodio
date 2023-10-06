@@ -10,30 +10,14 @@ pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
 where
     I: Source<Item = f32>,
 {
-    BltFilter {
-        input,
-        formula: BltFormula::LowPass { freq, q: 0.5 },
-        applier: None,
-        x_n1: 0.0,
-        x_n2: 0.0,
-        y_n1: 0.0,
-        y_n2: 0.0,
-    }
+    low_pass_with_q(input, freq, 0.5)
 }
 
 pub fn high_pass<I>(input: I, freq: u32) -> BltFilter<I>
 where
     I: Source<Item = f32>,
 {
-    BltFilter {
-        input,
-        formula: BltFormula::HighPass { freq, q: 0.5 },
-        applier: None,
-        x_n1: 0.0,
-        x_n2: 0.0,
-        y_n1: 0.0,
-        y_n2: 0.0,
-    }
+    high_pass_with_q(input, freq, 0.5)
 }
 
 /// Same as low_pass but allows the q value (bandwidth) to be changed
@@ -82,14 +66,12 @@ pub struct BltFilter<I> {
 impl<I> BltFilter<I> {
     /// Modifies this filter so that it becomes a low-pass filter.
     pub fn to_low_pass(&mut self, freq: u32) {
-        self.formula = BltFormula::LowPass { freq, q: 0.5 };
-        self.applier = None;
+        self.to_low_pass_with_q(freq, 0.5);
     }
 
     /// Modifies this filter so that it becomes a high-pass filter
     pub fn to_high_pass(&mut self, freq: u32) {
-        self.formula = BltFormula::HighPass { freq, q: 0.5 };
-        self.applier = None;
+        self.to_high_pass_with_q(freq, 0.5);
     }
 
     /// Same as to_low_pass but allows the q value (bandwidth) to be changed

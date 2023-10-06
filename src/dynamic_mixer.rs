@@ -109,12 +109,22 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
-        todo!("needs Source::can_seek")
-        // if self.current_sources.iter().all(Source::can_seek) {
-        //     for source in self.current_sources {
-        //         source.try_seek().expect("we just verified they can")
-        //     }
-        // }
+        for source in &self.current_sources {
+            if !source.can_seek() {
+                return Err(SeekNotSupported {
+                    source: "unknown, one of the sources added to the DynamicMixer",
+                });
+            }
+        }
+        for source in &mut self.current_sources {
+            source.try_seek(pos).expect("we just verified they can")
+        }
+        Ok(())
+    }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        self.current_sources.iter().all(Source::can_seek)
     }
 }
 

@@ -96,4 +96,9 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
         self.input.try_seek(pos)
     }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        self.input.can_seek()
+    }
 }

@@ -84,4 +84,9 @@ where
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
         Ok(())
     }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        true
+    }
 }

@@ -85,6 +85,11 @@ where
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
         Err(SeekNotSupported { source: std::any::type_name::<Self>() })
     }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        true
+    }
 }
 
 impl<R> Iterator for FlacDecoder<R>

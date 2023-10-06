@@ -91,6 +91,11 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
         self.inner.try_seek(pos)
     }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        self.inner.can_seek()
+    }
 }
 
 impl<I> Clone for Repeat<I>

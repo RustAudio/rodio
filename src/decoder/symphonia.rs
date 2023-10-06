@@ -160,6 +160,11 @@ impl Source for SymphoniaDecoder {
             .unwrap();
         Ok(())
     }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        true
+    }
 }
 
 impl Iterator for SymphoniaDecoder {

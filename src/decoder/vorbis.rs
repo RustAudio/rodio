@@ -2,8 +2,8 @@ use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 use std::vec;
 
-use crate::Source;
 use crate::source::SeekNotSupported;
+use crate::Source;
 
 use lewton::inside_ogg::OggStreamReader;
 
@@ -78,9 +78,16 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
         // number of PCM samples per channel
+
+        // number of PCM samples per channel
         let samples = pos.as_secs_f32() * self.sample_rate() as f32;
         self.stream_reader.seek_absgp_pg(samples as u64).unwrap();
         Ok(())
+    }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        true
     }
 }
 

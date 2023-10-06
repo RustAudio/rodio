@@ -360,6 +360,10 @@ where
     /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not 
     /// supported by the current source.
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported>;
+
+    /// Returns if seeking is possible. If it is not [`try_seek`] will return
+    /// Err([`SeekNotSupported`])
+    fn can_seek(&self) -> bool;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -401,6 +405,11 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
         (**self).try_seek(pos)
     }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        (**self).can_seek()
+    }
 }
 
 impl<S> Source for Box<dyn Source<Item = S> + Send>
@@ -431,6 +440,11 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
         (**self).try_seek(pos)
     }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        (**self).can_seek()
+    }
 }
 
 impl<S> Source for Box<dyn Source<Item = S> + Send + Sync>
@@ -460,6 +474,11 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
         (**self).try_seek(pos)
+    }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        (**self).can_seek()
     }
 }
 

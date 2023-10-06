@@ -21,7 +21,7 @@ fn seek_returns_err_if_unsupported() {
         #[cfg(feature = "symphonia-mp3")]
         ("mp3", true, "symphonia"),
         #[cfg(feature = "hound")]
-        ("wav", false, "hound"),
+        ("wav", true, "hound"),
         #[cfg(feature = "symphonia-wav")]
         ("wav", true, "symphonia"),
         #[cfg(feature = "lewton")]

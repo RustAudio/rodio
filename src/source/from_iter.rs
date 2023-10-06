@@ -146,6 +146,17 @@ where
             Ok(())
         }
     }
+
+    #[inline]
+    fn can_seek(&self) -> bool {
+        if let Some(source) = &self.current_source {
+            source.can_seek()
+        } else {
+            // no seeking would happen in this case,
+            // so the seek operation cant fail
+            true
+        }
+    }
 }
 
 #[cfg(test)]

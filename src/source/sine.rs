@@ -60,9 +60,14 @@ impl Source for SineWave {
 
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
-        // It is possible to write an implementation that skips the right
-        // amount of samples to get into the right phase. I do not think there
-        // is a use case for that however.
-        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
+        // This is a constant sound, normal seeking would not have any effect. 
+        // While changing the phase of the sine wave could change how it sounds in 
+        // combination with another sound (beating) such precision is not the intend 
+        // of seeking
+        Ok(())
+    }
+    #[inline]
+    fn can_seek(&self) -> bool {
+        true
     }
 }

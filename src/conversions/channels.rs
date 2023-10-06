@@ -50,6 +50,12 @@ where
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input
     }
+
+    /// Get a reference to the iterator
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
 }
 
 impl<I> Iterator for ChannelCountConverter<I>

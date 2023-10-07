@@ -352,6 +352,7 @@ where
         blt::high_pass(self, freq)
     }
 
+#[inline]
     fn low_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
     where
         Self: Sized,

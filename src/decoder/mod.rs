@@ -9,7 +9,7 @@ use std::mem;
 use std::str::FromStr;
 use std::time::Duration;
 
-use crate::source::SeekNotSupported;
+use crate::source::SeekError;
 use crate::Source;
 
 #[cfg(feature = "symphonia")]
@@ -162,7 +162,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.try_seek(pos),
@@ -174,8 +174,8 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.try_seek(pos),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.try_seek(pos),
-            DecoderImpl::None(_) => Err(SeekNotSupported {
-                source: "DecoderImpl::None",
+            DecoderImpl::None(_) => Err(SeekError::NotSupported {
+                underlying_source: "DecoderImpl::None",
             }),
         }
     }
@@ -434,7 +434,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.0.try_seek(pos)
     }
 
@@ -537,7 +537,7 @@ where
         None
     }
 
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.0.try_seek(pos)
     }
 

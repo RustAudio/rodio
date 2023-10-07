@@ -13,7 +13,7 @@ use symphonia::{
     default::get_probe,
 };
 
-use crate::{source::SeekNotSupported, Source};
+use crate::{source::SeekError, Source};
 
 use super::DecoderError;
 
@@ -140,7 +140,8 @@ impl Source for SymphoniaDecoder {
         None
     }
 
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    // TODO: do we return till where we seeked? <dvdsk noreply@davidsk.dev>
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         use symphonia::core::formats::{SeekMode, SeekTo};
 
         let pos_fract = if pos.subsec_nanos() == 0 {
@@ -149,15 +150,13 @@ impl Source for SymphoniaDecoder {
             1f64 / pos.subsec_nanos() as f64
         };
 
-        self.format
-            .seek(
-                SeekMode::Accurate,
-                SeekTo::Time {
-                    time: Time::new(pos.as_secs(), pos_fract),
-                    track_id: None,
-                },
-            )
-            .unwrap();
+        self.format.seek(
+            SeekMode::Accurate,
+            SeekTo::Time {
+                time: Time::new(pos.as_secs(), pos_fract),
+                track_id: None,
+            },
+        )?;
         Ok(())
     }
 

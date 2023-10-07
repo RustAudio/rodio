@@ -6,7 +6,7 @@ use cpal::FromSample;
 use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
 use crate::{Sample, Source};
 
-use super::SeekNotSupported;
+use super::SeekError;
 
 /// An iterator that reads from a `Source` and converts the samples to a specific rate and
 /// channels count.
@@ -141,7 +141,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         if let Some(input) = self.inner.as_mut() {
             input
                 .inner_mut()

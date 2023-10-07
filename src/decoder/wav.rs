@@ -1,7 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use crate::source::SeekNotSupported;
+use crate::source::SeekError;
 use crate::Source;
 
 use hound::{SampleFormat, WavReader};
@@ -131,10 +131,9 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let samples = pos.as_secs_f32() * self.sample_rate() as f32;
-        self.reader.reader.seek(samples as u32).unwrap();
-        Ok(())
+        self.reader.reader.seek(samples as u32).map_err(SeekError::Hound)
     }
 
     #[inline]

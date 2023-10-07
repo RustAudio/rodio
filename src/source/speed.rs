@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-use super::SeekNotSupported;
+use super::SeekError;
 
 /// Internal function that builds a `Speed` object.
 pub fn speed<I>(input: I, factor: f32) -> Speed<I> {
@@ -97,7 +97,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         /* TODO: This might be wrong, I do not know how speed achieves its speedup
          * so I can not reason about the correctness.
          * <dvdsk noreply@davidsk.dev> */

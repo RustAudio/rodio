@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::source::ChannelVolume;
 use crate::{Sample, Source};
 
-use super::SeekNotSupported;
+use super::SeekError;
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -121,7 +121,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
     }
 

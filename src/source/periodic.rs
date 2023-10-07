@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-use super::SeekNotSupported;
+use super::SeekError;
 
 /// Internal function that builds a `PeriodicAccess` object.
 pub fn periodic<I, F>(source: I, period: Duration, modifier: F) -> PeriodicAccess<I, F>
@@ -121,7 +121,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
     }
 

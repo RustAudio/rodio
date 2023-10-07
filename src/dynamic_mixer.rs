@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{SeekNotSupported, Source, UniformSourceIterator};
+use crate::source::{SeekError, Source, UniformSourceIterator};
 use crate::Sample;
 
 /// Builds a new mixer.
@@ -108,11 +108,11 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         for source in &self.current_sources {
             if !source.can_seek() {
-                return Err(SeekNotSupported {
-                    source: "unknown, one of the sources added to the DynamicMixer",
+                return Err(SeekError::NotSupported {
+                    underlying_source: "unknown, one of the sources added to the DynamicMixer",
                 });
             }
         }

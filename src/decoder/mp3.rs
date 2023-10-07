@@ -2,6 +2,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
 use crate::Source;
+use crate::source::SeekError;
 
 use minimp3::Frame;
 use minimp3::{Decoder, SeekDecoder};
@@ -67,12 +68,16 @@ where
         None
     }
 
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let pos = (pos.as_secs_f32() * self.sample_rate() as f32) as u64;
         // do not trigger a sample_rate, channels and frame len update
         // as the seek only takes effect after the current frame is done
-        let ignore_err = self.decoder.seek_samples(pos);
+        self.decoder.seek_samples(pos)?;
         Ok(())
+    }
+
+    fn can_seek(&self) -> bool {
+        true
     }
 }
 

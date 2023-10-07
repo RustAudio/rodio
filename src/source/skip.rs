@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-use super::SeekNotSupported;
+use super::SeekError;
 
 const NS_PER_SECOND: u128 = 1_000_000_000;
 
@@ -161,7 +161,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
     }
 

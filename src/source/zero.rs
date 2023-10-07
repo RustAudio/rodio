@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-use super::SeekNotSupported;
+use super::SeekError;
 
 /// An infinite source that produces zero.
 #[derive(Clone, Debug)]
@@ -81,7 +81,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
         Ok(())
     }
 

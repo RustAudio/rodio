@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-use super::SeekNotSupported;
+use super::SeekError;
 
 /// Internal function that builds a `Delay` object.
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
@@ -109,7 +109,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let pos_without_delay = pos.saturating_sub(self.requested_duration);
         self.input.try_seek(pos_without_delay)
     }

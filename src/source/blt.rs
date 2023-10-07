@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crate::Source;
 
-use super::SeekNotSupported;
+use super::SeekError;
 
 // Implemented following http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 
@@ -151,7 +151,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
     }
 

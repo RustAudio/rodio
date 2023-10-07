@@ -7,7 +7,7 @@ use crossbeam_channel::{Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::source::SeekNotSupported;
+use crate::source::SeekError;
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
 use cpal::FromSample;
@@ -28,11 +28,11 @@ pub struct Sink {
 
 struct SeekOrder {
     pos: Duration,
-    feedback: Sender<Result<(), SeekNotSupported>>,
+    feedback: Sender<Result<(), SeekError>>,
 }
 
 impl SeekOrder {
-    fn new(pos: Duration) -> (Self, Receiver<Result<(), SeekNotSupported>>) {
+    fn new(pos: Duration) -> (Self, Receiver<Result<(), SeekError>>) {
         #[cfg(not(feature = "crossbeam-channel"))]
         let (tx, rx) = {
             use std::sync::mpsc;
@@ -206,7 +206,7 @@ impl Sink {
     /// actually seeking the sink can switch to a new source that potentially does not
     /// support seeking. If you find a reason you need `Sink::can_seek()` here please
     /// open an issue
-    pub fn try_seek(&self, pos: Duration) -> Result<(), SeekNotSupported> {
+    pub fn try_seek(&self, pos: Duration) -> Result<(), SeekError> {
         let (order, feedback) = SeekOrder::new(pos);
         *self.controls.seek.lock().unwrap() = Some(order);
         match feedback.recv() {

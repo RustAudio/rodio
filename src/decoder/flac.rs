@@ -4,7 +4,7 @@ use std::mem;
 use std::time::Duration;
 
 use crate::Source;
-use crate::source::SeekNotSupported;
+use crate::source::SeekError;
 
 use claxon::FlacReader;
 
@@ -82,8 +82,8 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported> {
-        Err(SeekNotSupported { source: std::any::type_name::<Self>() })
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported { underlying_source: std::any::type_name::<Self>() })
     }
 
     #[inline]

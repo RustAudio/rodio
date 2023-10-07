@@ -2,7 +2,7 @@ use std::cmp;
 use std::time::Duration;
 
 use crate::source::uniform::UniformSourceIterator;
-use crate::source::SeekNotSupported;
+use crate::source::SeekError;
 use crate::{Sample, Source};
 use cpal::{FromSample, Sample as CpalSample};
 
@@ -123,15 +123,17 @@ where
 
     /// Will only attempt a seek if both underlying sources support seek.
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
-        if self.can_seek() {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        // if a source can not seek we call try_seek only on that source
+        // such that we get its SeekError::NotSupported error
+        if !self.input1.can_seek() {
+            self.input1.try_seek(pos)
+        } else if !self.input2.can_seek() {
+            self.input2.try_seek(pos)
+        } else {
             self.input1.try_seek(pos)?;
             self.input2.try_seek(pos)?;
             Ok(())
-        } else {
-            Err(SeekNotSupported {
-                source: std::any::type_name::<Self>(),
-            })
         }
     }
 

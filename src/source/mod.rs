@@ -1,7 +1,5 @@
 //! Sources of sound and various filters.
 
-use std::fmt;
-use std::error::Error;
 use std::time::Duration;
 
 use cpal::FromSample;
@@ -357,25 +355,34 @@ where
 
     /// Set position
     ///
-    /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not 
+    /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not
     /// supported by the current source.
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekNotSupported>;
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError>;
 
     /// Returns if seeking is possible. If it is not [`try_seek`] will return
     /// Err([`SeekNotSupported`])
     fn can_seek(&self) -> bool;
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SeekNotSupported{ pub source: &'static str }
-
-impl fmt::Display for SeekNotSupported {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Seeking is not supported on this source")
-    }
+// we might add decoders requiring new error types, would non_exhaustive
+// this would break users builds
+#[non_exhaustive]
+#[derive(Debug, thiserror::Error)]
+pub enum SeekError {
+    #[error("Streaming is not supported by source: {underlying_source}")]
+    NotSupported { underlying_source: &'static str },
+    #[cfg(feature = "symphonia")]
+    #[error("Error seeking: {0}")]
+    SymphoniaSeekFailed(#[from] symphonia::core::errors::Error),
+    #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
+    #[error("Error seeking in wav source: {0}")]
+    Hound(std::io::Error),
+    #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
+    #[error("Error seeking in ogg source: {0}")]
+    Lewton(#[from] lewton::VorbisError),
+    #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+    #[error("Error seeking in mp3 source: {0}")]
+    Minimp3(#[from] minimp3::Error),
 }
-
-impl Error for SeekNotSupported {}
 
 impl<S> Source for Box<dyn Source<Item = S>>
 where
@@ -402,7 +409,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         (**self).try_seek(pos)
     }
 
@@ -437,7 +444,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         (**self).try_seek(pos)
     }
 
@@ -472,7 +479,7 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekNotSupported> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         (**self).try_seek(pos)
     }
 
@@ -481,4 +488,3 @@ where
         (**self).can_seek()
     }
 }
-

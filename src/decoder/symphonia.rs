@@ -153,7 +153,7 @@ impl Source for SymphoniaDecoder {
             .seek(
                 SeekMode::Accurate,
                 SeekTo::Time {
-                    time: Time::new(pos.as_secs(), dbg!(pos_fract)),
+                    time: Time::new(pos.as_secs(), pos_fract),
                     track_id: None,
                 },
             )

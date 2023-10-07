@@ -88,7 +88,7 @@ where
 
     #[inline]
     fn can_seek(&self) -> bool {
-        true
+        false
     }
 }
 

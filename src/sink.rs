@@ -201,19 +201,19 @@ impl Sink {
     /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not
     /// supported by the current source.
     ///
-    /// We do not expose a `can_seek()` method here on purpose as its impossible to 
+    /// We do not expose a `can_seek()` method here on purpose as its impossible to
     /// use correctly. In between checking if the playing source supports seeking and
-    /// actually seeking the sink can switch to a new source that potentially does not 
-    /// support seeking. If you find a reason you need `Sink::can_seek()` here please 
+    /// actually seeking the sink can switch to a new source that potentially does not
+    /// support seeking. If you find a reason you need `Sink::can_seek()` here please
     /// open an issue
     pub fn try_seek(&self, pos: Duration) -> Result<(), SeekNotSupported> {
         let (order, feedback) = SeekOrder::new(pos);
         *self.controls.seek.lock().unwrap() = Some(order);
         match feedback.recv() {
             Ok(seek_res) => seek_res,
-            // The feedback channel closed. Probably another seekorder was set 
+            // The feedback channel closed. Probably another seekorder was set
             // invalidating this one and closing the feedback channel
-            // ... or the audio thread panicked. 
+            // ... or the audio thread panicked.
             Err(_) => Ok(()),
         }
     }

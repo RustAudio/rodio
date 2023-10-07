@@ -36,7 +36,7 @@ where
     }
 }
 
-/// Same as low_pass but allows the q value (bandwidth) to be changed
+/// Same as high_pass but allows the q value (bandwidth) to be changed
 pub fn high_pass_with_q<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
 where
     I: Source<Item = f32>,

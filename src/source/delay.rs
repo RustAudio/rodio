@@ -114,8 +114,6 @@ where
         self.input.try_seek(pos_without_delay)
     }
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        self.input.can_seek()
-    }
+    
+    
 }

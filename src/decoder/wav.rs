@@ -135,11 +135,6 @@ where
         let samples = pos.as_secs_f32() * self.sample_rate() as f32;
         self.reader.reader.seek(samples as u32).map_err(SeekError::HoundDecoder)
     }
-
-    #[inline]
-    fn can_seek(&self) -> bool {
-        true
-    }
 }
 
 impl<R> Iterator for WavDecoder<R>

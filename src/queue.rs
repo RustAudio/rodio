@@ -174,11 +174,6 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.current.try_seek(pos)
     }
-
-    #[inline]
-    fn can_seek(&self) -> bool {
-        self.current.can_seek()
-    }
 }
 
 impl<S> Iterator for SourcesQueueOutput<S>

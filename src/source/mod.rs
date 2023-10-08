@@ -358,11 +358,8 @@ where
     /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not
     /// supported by the current source.
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError>;
-
-    /// Returns if seeking is possible. If it is not [`try_seek`] will return
-    /// Err([`SeekNotSupported`])
-    fn can_seek(&self) -> bool;
 }
+
 // we might add decoders requiring new error types, would non_exhaustive
 // this would break users builds
 #[non_exhaustive]
@@ -413,10 +410,8 @@ where
         (**self).try_seek(pos)
     }
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        (**self).can_seek()
-    }
+    
+    
 }
 
 impl<S> Source for Box<dyn Source<Item = S> + Send>
@@ -448,10 +443,8 @@ where
         (**self).try_seek(pos)
     }
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        (**self).can_seek()
-    }
+    
+    
 }
 
 impl<S> Source for Box<dyn Source<Item = S> + Send + Sync>
@@ -483,8 +476,6 @@ where
         (**self).try_seek(pos)
     }
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        (**self).can_seek()
-    }
+    
+    
 }

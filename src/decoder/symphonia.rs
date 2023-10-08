@@ -166,11 +166,6 @@ impl Source for SymphoniaDecoder {
             Ok(_) => Ok(()),
         }
     }
-
-    #[inline]
-    fn can_seek(&self) -> bool {
-        true
-    }
 }
 
 impl Iterator for SymphoniaDecoder {

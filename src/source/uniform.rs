@@ -153,15 +153,6 @@ where
             Ok(())
         }
     }
-
-    #[inline]
-    fn can_seek(&self) -> bool {
-        if let Some(input) = self.inner.as_ref() {
-            input.inner().inner().inner().inner().can_seek()
-        } else {
-            true
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -174,11 +165,6 @@ impl<I> Take<I> {
     #[inline]
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.iter
-    }
-
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.iter
     }
 }
 

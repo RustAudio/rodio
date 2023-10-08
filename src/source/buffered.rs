@@ -247,10 +247,8 @@ where
         Err(SeekError::NotSupported { underlying_source: std::any::type_name::<Self>() })
     }
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        true
-    }
+    
+    
 }
 
 impl<I> Clone for Buffered<I>

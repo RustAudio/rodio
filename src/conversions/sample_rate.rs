@@ -108,12 +108,6 @@ where
         &mut self.input
     }
 
-    /// get a reference to the iterator
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
     fn next_input_frame(&mut self) {
         self.current_frame_pos_in_chunk += 1;
 

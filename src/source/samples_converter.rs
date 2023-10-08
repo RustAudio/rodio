@@ -103,8 +103,6 @@ where
         self.inner.try_seek(pos)
     }
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        self.inner.can_seek()
-    }
+    
+    
 }

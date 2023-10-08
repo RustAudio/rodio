@@ -84,11 +84,6 @@ where
         self.stream_reader.seek_absgp_pg(samples as u64)?;
         Ok(())
     }
-
-    #[inline]
-    fn can_seek(&self) -> bool {
-        true
-    }
 }
 
 impl<R> Iterator for VorbisDecoder<R>

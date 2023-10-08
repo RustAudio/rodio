@@ -108,23 +108,37 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        for source in &self.current_sources {
-            if !source.can_seek() {
-                return Err(SeekError::NotSupported {
-                    underlying_source: "unknown, one of the sources added to the DynamicMixer",
-                });
-            }
-        }
-        for source in &mut self.current_sources {
-            source.try_seek(pos).expect("we just verified they can")
-        }
-        Ok(())
-    }
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported { underlying_source: std::any::type_name::<Self>() })
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        self.current_sources.iter().all(Source::can_seek)
+        // uncomment when #510 is implemented (query position of playback)
+
+        // let mut org_positions = Vec::with_capacity(self.current_sources.len());
+        // let mut encounterd_err = None;
+        //
+        // for source in &mut self.current_sources {
+        //     let pos = /* source.playback_pos() */ todo!();
+        //     if let Err(e) = source.try_seek(pos) {
+        //         encounterd_err = Some(e);
+        //         break;
+        //     } else {
+        //         // store pos in case we need to roll back
+        //         org_positions.push(pos);
+        //     }
+        // }
+        //
+        // if let Some(e) = encounterd_err {
+        //     // rollback seeks that happend before err
+        //     for (pos, source) in org_positions
+        //         .into_iter()
+        //         .zip(self.current_sources.iter_mut())
+        //     {
+        //         source.try_seek(pos)?;
+        //     }
+        //     Err(e)
+        // } else {
+        //     Ok(())
+        // }
     }
 }
 

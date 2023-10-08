@@ -96,8 +96,6 @@ where
         self.input.try_seek(pos)
     }
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        self.input.can_seek()
-    }
+    
+    
 }

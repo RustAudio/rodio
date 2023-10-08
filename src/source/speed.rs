@@ -107,8 +107,6 @@ where
         self.input.try_seek(pos_accounting_for_speedup)
     }
 
-    #[inline]
-    fn can_seek(&self) -> bool {
-        true
-    }
+    
+    
 }

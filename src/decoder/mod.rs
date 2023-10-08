@@ -179,22 +179,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
             }),
         }
     }
-
-    fn can_seek(&self) -> bool {
-        match self {
-            #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-            DecoderImpl::Wav(source) => source.can_seek(),
-            #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-            DecoderImpl::Vorbis(source) => source.can_seek(),
-            #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-            DecoderImpl::Flac(source) => source.can_seek(),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-            DecoderImpl::Mp3(source) => source.can_seek(),
-            #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.can_seek(),
-            DecoderImpl::None(_) => false,
-        }
-    }
 }
 
 impl<R> Decoder<R>
@@ -437,11 +421,6 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.0.try_seek(pos)
     }
-
-    #[inline]
-    fn can_seek(&self) -> bool {
-        self.0.can_seek()
-    }
 }
 
 impl<R> Iterator for LoopedDecoder<R>
@@ -539,11 +518,6 @@ where
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.0.try_seek(pos)
-    }
-
-    #[inline]
-    fn can_seek(&self) -> bool {
-        self.0.can_seek()
     }
 }
 

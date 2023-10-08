@@ -74,11 +74,6 @@ where
         // as the seek only takes effect after the current frame is done
         self.decoder.seek_samples(pos)?;
         Ok(())
-    }
-
-    fn can_seek(&self) -> bool {
-        true
-    }
 }
 
 impl<R> Iterator for Mp3Decoder<R>

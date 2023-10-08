@@ -29,12 +29,6 @@ impl<I, O> DataConverter<I, O> {
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input
     }
-
-    /// get a reference to the iterator
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
 }
 
 impl<I, O> Iterator for DataConverter<I, O>

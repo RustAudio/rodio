@@ -66,8 +66,6 @@ impl Source for SineWave {
         // of seeking
         Ok(())
     }
-    #[inline]
-    fn can_seek(&self) -> bool {
-        true
-    }
+    
+    
 }

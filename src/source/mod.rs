@@ -372,16 +372,16 @@ pub enum SeekError {
     NotSupported { underlying_source: &'static str },
     #[cfg(feature = "symphonia")]
     #[error("Error seeking: {0}")]
-    SymphoniaSeekFailed(#[from] symphonia::core::errors::Error),
+    SymphoniaDecoder(#[from] symphonia::core::errors::Error),
     #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
     #[error("Error seeking in wav source: {0}")]
-    Hound(std::io::Error),
+    HoundDecoder(std::io::Error),
     #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
     #[error("Error seeking in ogg source: {0}")]
-    Lewton(#[from] lewton::VorbisError),
+    LewtonDecoder(#[from] lewton::VorbisError),
     #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
     #[error("Error seeking in mp3 source: {0}")]
-    Minimp3(#[from] minimp3::Error),
+    Minimp3Decorder(#[from] minimp3::Error),
 }
 
 impl<S> Source for Box<dyn Source<Item = S>>

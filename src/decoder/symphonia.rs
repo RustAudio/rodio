@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{io::ErrorKind, time::Duration};
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
@@ -142,6 +142,7 @@ impl Source for SymphoniaDecoder {
 
     // TODO: do we return till where we seeked? <dvdsk noreply@davidsk.dev>
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        use symphonia::core::errors::SeekErrorKind;
         use symphonia::core::formats::{SeekMode, SeekTo};
 
         let pos_fract = if pos.subsec_nanos() == 0 {
@@ -150,14 +151,20 @@ impl Source for SymphoniaDecoder {
             1f64 / pos.subsec_nanos() as f64
         };
 
-        self.format.seek(
+        let res = self.format.seek(
             SeekMode::Accurate,
             SeekTo::Time {
                 time: Time::new(pos.as_secs(), pos_fract),
                 track_id: None,
             },
-        )?;
-        Ok(())
+        );
+
+        match res {
+            Err(Error::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => Ok(()),
+            Err(Error::SeekError(SeekErrorKind::OutOfRange)) => Ok(()),
+            Err(e) => Err(SeekError::SymphoniaDecoder(e)),
+            Ok(_) => Ok(()),
+        }
     }
 
     #[inline]

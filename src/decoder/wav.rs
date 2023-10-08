@@ -133,7 +133,7 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let samples = pos.as_secs_f32() * self.sample_rate() as f32;
-        self.reader.reader.seek(samples as u32).map_err(SeekError::Hound)
+        self.reader.reader.seek(samples as u32).map_err(SeekError::HoundDecoder)
     }
 
     #[inline]

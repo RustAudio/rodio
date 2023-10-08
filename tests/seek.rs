@@ -1,7 +1,7 @@
 use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use std::sync::Once;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
@@ -58,7 +58,6 @@ fn seek_returns_err_if_unsupported() {
     for (format, supported, decoder) in format_decoder_info().iter().cloned() {
         println!("trying: {format},\t\tby: {decoder},\t\tshould support seek: {supported}");
         let (sink, decoder) = sink_and_decoder(format);
-        assert_eq!(decoder.can_seek(), supported);
         sink.append(decoder);
         let res = sink.try_seek(Duration::from_secs(2));
         assert_eq!(res.is_ok(), supported);
@@ -67,13 +66,53 @@ fn seek_returns_err_if_unsupported() {
 
 #[test]
 fn seek_beyond_end_does_not_crash() {
-    for (format, _, decoder_name) in format_decoder_info().iter().cloned() {
+    for (format, _, decoder_name) in format_decoder_info()
+        .iter()
+        .cloned()
+        .filter(|(_, supported, _)| *supported)
+    {
         let (sink, decoder) = sink_and_decoder(format);
-        if !decoder.can_seek() {
-            continue;
-        }
-        println!("seeking beyond end for: {format}\t decoded by: {decoder_name}");
+        println!("seeking beyond end in: {format}\t decoded by: {decoder_name}");
         sink.append(decoder);
         sink.try_seek(Duration::from_secs(999)).unwrap();
+    }
+}
+
+#[ignore]
+#[test] // in the future use PR #510 (playback position) to speed this up
+fn seek_results_in_correct_remaining_playtime() {
+    for (format, _, decoder_name) in format_decoder_info()
+        .iter()
+        .cloned()
+        .filter(|(_, supported, _)| *supported)
+    {
+        let (sink, decoder) = sink_and_decoder(format);
+        println!("checking seek time in: {format}\t decoded by: {decoder_name}");
+        let total_duration = match decoder.total_duration() {
+            Some(d) => d,
+            None => {
+                let now = Instant::now();
+                sink.append(decoder);
+                sink.sleep_until_end();
+                now.elapsed()
+            }
+        };
+
+        let (sink, decoder) = sink_and_decoder(format);
+        sink.append(decoder);
+
+        const SEEK_BEFORE_END: Duration = Duration::from_secs(5);
+        sink.try_seek(total_duration - SEEK_BEFORE_END).unwrap();
+
+        let now = Instant::now();
+        sink.sleep_until_end();
+        let elapsed = now.elapsed();
+        let expected = SEEK_BEFORE_END;
+
+        if elapsed.as_millis().abs_diff(expected.as_millis()) > 250 {
+            panic!("Seek did not result in expected leftover playtime
+    leftover time: {elapsed:?}
+    expected time left in source: {SEEK_BEFORE_END:?}");
+        }
     }
 }

@@ -148,39 +148,40 @@ impl Source for SymphoniaDecoder {
             .map(|Time { seconds, frac }| Duration::new(seconds, (1f64 / frac) as u32))
     }
 
-    // TODO: do we return till where we seeked? <dvdsk noreply@davidsk.dev>
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        use symphonia::core::errors::SeekErrorKind;
         use symphonia::core::formats::{SeekMode, SeekTo};
 
-        let pos_fract = if pos.subsec_nanos() == 0 {
-            0f64
+        let seek_beyond_end = self
+            .total_duration()
+            .is_some_and(|dur| dur.saturating_sub(pos).as_millis() < 1);
+
+        if seek_beyond_end {
+            self.format.seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: self.total_duration.unwrap(),
+                    track_id: None,
+                },
+            )?;
         } else {
-            1f64 / pos.subsec_nanos() as f64
-        };
-
-        let mut seek_to_time = Time::new(pos.as_secs(), pos_fract);
-        if let Some(total_duration) = self.total_duration() {
-            if total_duration.saturating_sub(pos).as_millis() < 1 {
-                seek_to_time = self.total_duration.unwrap();
-            }
+            let frac = if pos.subsec_nanos() == 0 {
+                0f64
+            } else {
+                1f64 / pos.subsec_nanos() as f64
+            };
+            self.format.seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: Time {
+                        seconds: pos.as_secs(),
+                        frac,
+                    },
+                    track_id: None,
+                },
+            )?;
         }
 
-        let res = self.format.seek(
-            SeekMode::Accurate,
-            SeekTo::Time {
-                time: seek_to_time,
-                track_id: None,
-            },
-        );
-        assert!(self.total_duration().is_some());
-
-        match res {
-            Err(Error::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => Ok(()),
-            Err(Error::SeekError(SeekErrorKind::OutOfRange)) => Ok(()),
-            Err(e) => Err(SeekError::SymphoniaDecoder(e)),
-            Ok(_) => Ok(()),
-        }
+        Ok(())
     }
 }
 

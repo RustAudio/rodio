@@ -26,6 +26,7 @@ pub struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
     current_frame_offset: usize,
     format: Box<dyn FormatReader>,
+    total_duration: Option<Time>,
     buffer: SampleBuffer<i16>,
     spec: SignalSpec,
 }
@@ -79,6 +80,11 @@ impl SymphoniaDecoder {
                 ..Default::default()
             },
         )?;
+        let total_duration = stream
+            .codec_params
+            .time_base
+            .zip(stream.codec_params.n_frames)
+            .map(|(base, frames)| base.calc_time(frames));
 
         let mut decode_errors: usize = 0;
         let decoded = loop {
@@ -105,6 +111,7 @@ impl SymphoniaDecoder {
             decoder,
             current_frame_offset: 0,
             format: probed.format,
+            total_duration,
             buffer,
             spec,
         }));
@@ -137,7 +144,8 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        None
+        self.total_duration
+            .map(|Time { seconds, frac }| Duration::new(seconds, (1f64 / frac) as u32))
     }
 
     // TODO: do we return till where we seeked? <dvdsk noreply@davidsk.dev>
@@ -151,13 +159,21 @@ impl Source for SymphoniaDecoder {
             1f64 / pos.subsec_nanos() as f64
         };
 
+        let mut seek_to_time = Time::new(pos.as_secs(), pos_fract);
+        if let Some(total_duration) = self.total_duration() {
+            if total_duration.saturating_sub(pos).as_millis() < 1 {
+                seek_to_time = self.total_duration.unwrap();
+            }
+        }
+
         let res = self.format.seek(
             SeekMode::Accurate,
             SeekTo::Time {
-                time: Time::new(pos.as_secs(), pos_fract),
+                time: seek_to_time,
                 track_id: None,
             },
         );
+        assert!(self.total_duration().is_some());
 
         match res {
             Err(Error::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => Ok(()),

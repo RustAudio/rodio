@@ -30,6 +30,10 @@ fn sink_and_decoder(format: &str) -> (Sink, Decoder<impl Read + Seek>) {
     (sink, decoder)
 }
 
+// run the following to get the other configuration: 
+// cargo test --no-default-features
+// --features symphonia-wav --features symphonia-vorbis
+// --features symphonia-flac --features symphonia-isomp4 --features minimp3
 fn format_decoder_info() -> &'static [(&'static str, bool, &'static str)] {
     &[
         #[cfg(feature = "minimp3")]
@@ -42,14 +46,16 @@ fn format_decoder_info() -> &'static [(&'static str, bool, &'static str)] {
         ("wav", true, "symphonia"),
         #[cfg(feature = "lewton")]
         ("ogg", true, "lewton"),
-        #[cfg(feature = "symphonia-vorbis")]
-        ("ogg", true, "symphonia"),
+        // note: disabled, symphonia returns error unsupported format
+        // #[cfg(feature = "symphonia-vorbis")]
+        // ("ogg", true, "symphonia"),
         #[cfg(feature = "claxon")]
         ("flac", false, "claxon"),
         #[cfg(feature = "symphonia-flac")]
         ("flac", true, "symphonia"),
-        #[cfg(feature = "symphonia-isomp4")]
-        ("m4a", true, "_"),
+        // note: disabled, symphonia returns error unsupported format
+        // #[cfg(feature = "symphonia-isomp4")]
+        // ("m4a", true, "symphonia"),
     ]
 }
 
@@ -64,17 +70,38 @@ fn seek_returns_err_if_unsupported() {
     }
 }
 
-#[test]
-fn seek_beyond_end_does_not_crash() {
+// #[ignore]
+#[test] // in the future use PR #510 (playback position) to speed this up
+fn seek_beyond_end_saturates() {
     for (format, _, decoder_name) in format_decoder_info()
         .iter()
         .cloned()
         .filter(|(_, supported, _)| *supported)
     {
         let (sink, decoder) = sink_and_decoder(format);
-        println!("seeking beyond end in: {format}\t decoded by: {decoder_name}");
         sink.append(decoder);
-        sink.try_seek(Duration::from_secs(999)).unwrap();
+
+        println!("seeking beyond end for: {format}\t decoded by: {decoder_name}");
+        let res = sink.try_seek(Duration::from_secs(999));
+        assert!(res.is_ok());
+
+        let now = Instant::now();
+        sink.sleep_until_end();
+        let elapsed = now.elapsed();
+        assert!(elapsed.as_secs() < 1);
+    }
+}
+
+fn total_duration(format: &'static str) -> Duration {
+    let (sink, decoder) = sink_and_decoder(format);
+    match decoder.total_duration() {
+        Some(d) => d,
+        None => {
+            let now = Instant::now();
+            sink.append(decoder);
+            sink.sleep_until_end();
+            now.elapsed()
+        }
     }
 }
 
@@ -86,23 +113,14 @@ fn seek_results_in_correct_remaining_playtime() {
         .cloned()
         .filter(|(_, supported, _)| *supported)
     {
-        let (sink, decoder) = sink_and_decoder(format);
-        println!("checking seek time in: {format}\t decoded by: {decoder_name}");
-        let total_duration = match decoder.total_duration() {
-            Some(d) => d,
-            None => {
-                let now = Instant::now();
-                sink.append(decoder);
-                sink.sleep_until_end();
-                now.elapsed()
-            }
-        };
+        println!("checking seek duration for: {format}\t decoded by: {decoder_name}");
 
         let (sink, decoder) = sink_and_decoder(format);
         sink.append(decoder);
 
         const SEEK_BEFORE_END: Duration = Duration::from_secs(5);
-        sink.try_seek(total_duration - SEEK_BEFORE_END).unwrap();
+        sink.try_seek(total_duration(format) - SEEK_BEFORE_END)
+            .unwrap();
 
         let now = Instant::now();
         sink.sleep_until_end();
@@ -110,9 +128,11 @@ fn seek_results_in_correct_remaining_playtime() {
         let expected = SEEK_BEFORE_END;
 
         if elapsed.as_millis().abs_diff(expected.as_millis()) > 250 {
-            panic!("Seek did not result in expected leftover playtime
+            panic!(
+                "Seek did not result in expected leftover playtime
     leftover time: {elapsed:?}
-    expected time left in source: {SEEK_BEFORE_END:?}");
+    expected time left in source: {SEEK_BEFORE_END:?}"
+            );
         }
     }
 }

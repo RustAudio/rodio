@@ -357,7 +357,10 @@ where
     ///
     /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not
     /// supported by the current source.
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError>;
+    ///
+    /// If the duration of the source is known and the seek position lies beyond 
+    /// it the saturates, that is the position is then at the end of the source.
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError>;
 }
 
 // we might add decoders requiring new error types, would non_exhaustive

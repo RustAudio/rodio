@@ -37,7 +37,7 @@ fn sink_and_decoder(format: &str) -> (Sink, Decoder<impl Read + Seek>) {
 fn format_decoder_info() -> &'static [(&'static str, bool, &'static str)] {
     &[
         #[cfg(feature = "minimp3")]
-        ("mp3", true, "minimp3"),
+        ("mp3", false, "minimp3"),
         #[cfg(feature = "symphonia-mp3")]
         ("mp3", true, "symphonia"),
         #[cfg(feature = "hound")]

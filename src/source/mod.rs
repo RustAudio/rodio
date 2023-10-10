@@ -398,7 +398,7 @@ pub enum SeekError {
     LewtonDecoder(#[from] lewton::VorbisError),
     #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
     #[error("Error seeking in mp3 source: {0}")]
-    Minimp3Decorder(#[from] minimp3::Error),
+    Minimp3Decorder(#[from] minimp3_fixed::Error),
     #[error("An error occured")]
     Other(Box<dyn std::error::Error + Send>),
 }

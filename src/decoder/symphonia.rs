@@ -1,4 +1,4 @@
-use std::{io::ErrorKind, time::Duration};
+use std::time::Duration;
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},

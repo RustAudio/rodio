@@ -353,17 +353,34 @@ where
         blt::high_pass(self, freq)
     }
 
-    /// Set position
+    // There is no `can_seek()` method as its impossible to use correctly. Between
+    // checking if a source supports seeking and actually seeking the sink can
+    // switch to a new source.
+
+    /// Attempts to seek to a given position in the current source.
     ///
-    /// Try to seek to a pos, returns [`SeekNotSupported`] if seeking is not
-    /// supported by the current source.
+    /// As long as the duration of the source is known seeking saturates. That is
+    /// when you seek beyong the sources length this function will seek to the
+    /// end of the source instead.
     ///
-    /// If the duration of the source is known and the seek position lies beyond 
+    /// If the duration of the source is known and the seek position lies beyond
     /// it the saturates, that is the position is then at the end of the source.
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError>;
+    ///
+    /// # Errors
+    /// This function will return [`SeekError::NotSupported`] if one of the underlying
+    /// sources does not support seeking.
+    ///
+    /// Seeking beyond the end of a source might return an error if the total duration of
+    /// the source is not known.
+    #[allow(unused_variables)]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
+    }
 }
 
-// we might add decoders requiring new error types, would non_exhaustive
+// We might add decoders requiring new error types, without non_exhaustive
 // this would break users builds
 #[non_exhaustive]
 #[derive(Debug, thiserror::Error)]
@@ -382,6 +399,8 @@ pub enum SeekError {
     #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
     #[error("Error seeking in mp3 source: {0}")]
     Minimp3Decorder(#[from] minimp3::Error),
+    #[error("An error occured")]
+    Other(Box<dyn std::error::Error + Send>),
 }
 
 impl<S> Source for Box<dyn Source<Item = S>>
@@ -412,9 +431,6 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         (**self).try_seek(pos)
     }
-
-    
-    
 }
 
 impl<S> Source for Box<dyn Source<Item = S> + Send>
@@ -445,9 +461,6 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         (**self).try_seek(pos)
     }
-
-    
-    
 }
 
 impl<S> Source for Box<dyn Source<Item = S> + Send + Sync>
@@ -478,7 +491,4 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         (**self).try_seek(pos)
     }
-
-    
-    
 }

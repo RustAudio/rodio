@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use cpal::FromSample;
 
-use crate::source::Spatial;
+use crate::source::{Spatial, SeekError};
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{Sample, Sink, Source};
 
@@ -163,5 +163,29 @@ impl SpatialSink {
     #[inline]
     pub fn len(&self) -> usize {
         self.sink.len()
+    }
+
+    /// Attempts to seek to a given position in the current source.
+    ///
+    /// This blocks between 0 and ~5 milliseconds.
+    ///
+    /// As long as the *duration of the source is known* seeking saturates. This means
+    /// when you try to seek beyong the length of the source this function will seek 
+    /// to the end of the source instead.
+    ///
+    /// If the duration of the source is known and the seek position lies beyond
+    /// it the saturates, that is the position is then at the end of the source.
+    ///
+    /// # Errors
+    /// This function will return [`SeekError::NotSupported`] if one of the underlying
+    /// sources does not support seeking.  
+    ///
+    /// It will return an error if an implementation ran
+    /// into one during the seek.  
+    ///
+    /// When seeking beyond the end of a source this
+    /// function might return an error if the duration of the source is not known.
+    pub fn try_seek(&self, pos: Duration) -> Result<(), SeekError> {
+        self.sink.try_seek(pos)
     }
 }

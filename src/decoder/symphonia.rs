@@ -155,34 +155,45 @@ impl Source for SymphoniaDecoder {
             .total_duration()
             .is_some_and(|dur| dur.saturating_sub(pos).as_millis() < 1);
 
-        if seek_beyond_end {
-            self.format.seek(
-                SeekMode::Accurate,
-                SeekTo::Time {
-                    time: self.total_duration.unwrap(),
-                    track_id: None,
-                },
-            )?;
+        let time = if seek_beyond_end {
+            let time = self.total_duration.expect("if guarentees this is Some");
+            adjust_down_a_bit(time) // some decoders can only seek to just before the end
         } else {
             let frac = if pos.subsec_nanos() == 0 {
                 0f64
             } else {
-                1f64 / pos.subsec_nanos() as f64
+                let res = pos.subsec_nanos() as f64 / 1_000_000_000.0;
+                res
             };
-            self.format.seek(
-                SeekMode::Accurate,
-                SeekTo::Time {
-                    time: Time {
-                        seconds: pos.as_secs(),
-                        frac,
-                    },
-                    track_id: None,
-                },
-            )?;
-        }
+            Time {
+                seconds: pos.as_secs(),
+                frac,
+            }
+        };
 
+        self.format.seek(
+            SeekMode::Accurate,
+            SeekTo::Time {
+                time,
+                track_id: None,
+            },
+        )?;
         Ok(())
     }
+}
+
+fn adjust_down_a_bit(
+    Time {
+        mut seconds,
+        mut frac,
+    }: Time,
+) -> Time {
+    frac -= 0.0001;
+    if frac < 0.0 {
+        seconds = seconds.saturating_sub(1);
+        frac = 1.0 - frac;
+    }
+    Time { seconds, frac }
 }
 
 impl Iterator for SymphoniaDecoder {

@@ -36,37 +36,37 @@ fn sink_and_decoder(format: &str) -> (Sink, Decoder<impl Read + Seek>) {
 // --features symphonia-flac --features symphonia-isomp4 --features minimp3
 fn format_decoder_info() -> &'static [(&'static str, bool, &'static str)] {
     &[
-        #[cfg(feature = "minimp3")]
+        #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
         ("mp3", false, "minimp3"),
         #[cfg(feature = "symphonia-mp3")]
         ("mp3", true, "symphonia"),
-        #[cfg(feature = "hound")]
+        #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
         ("wav", true, "hound"),
         #[cfg(feature = "symphonia-wav")]
         ("wav", true, "symphonia"),
-        #[cfg(feature = "lewton")]
+        #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
         ("ogg", true, "lewton"),
-        // note: disabled, symphonia returns error unsupported format
+        // note: disabled, broken decoder see issue: #516
         // #[cfg(feature = "symphonia-vorbis")]
         // ("ogg", true, "symphonia"),
-        #[cfg(feature = "claxon")]
+        #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
         ("flac", false, "claxon"),
         #[cfg(feature = "symphonia-flac")]
         ("flac", true, "symphonia"),
         // note: disabled, symphonia returns error unsupported format
-        // #[cfg(feature = "symphonia-isomp4")]
-        // ("m4a", true, "symphonia"),
+        #[cfg(feature = "symphonia-isomp4")]
+        ("m4a", true, "symphonia"),
     ]
 }
 
 #[test]
 fn seek_returns_err_if_unsupported() {
-    for (format, supported, decoder) in format_decoder_info().iter().cloned() {
-        println!("trying: {format},\t\tby: {decoder},\t\tshould support seek: {supported}");
+    for (format, supported, decoder_name) in format_decoder_info().iter().cloned() {
+        println!("trying: {format},\t\tby: {decoder_name},\t\tshould support seek: {supported}");
         let (sink, decoder) = sink_and_decoder(format);
         sink.append(decoder);
-        let res = sink.try_seek(Duration::from_secs(2));
-        assert_eq!(res.is_ok(), supported);
+        let res = sink.try_seek(Duration::from_millis(2500));
+        assert_eq!(res.is_ok(), supported, "decoder: {decoder_name}");
     }
 }
 
@@ -83,7 +83,7 @@ fn seek_beyond_end_saturates() {
 
         println!("seeking beyond end for: {format}\t decoded by: {decoder_name}");
         let res = sink.try_seek(Duration::from_secs(999));
-        assert!(res.is_ok());
+        assert!(dbg!(res).is_ok());
 
         let now = Instant::now();
         sink.sleep_until_end();

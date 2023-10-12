@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use std::sync::Once;
@@ -20,6 +21,13 @@ fn global_stream_handle() -> &'static OutputStreamHandle {
         });
         STREAM_HANDLE.as_ref().unwrap()
     }
+}
+
+fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
+    let rate = decoder.sample_rate() as f64;
+    let n_channels = decoder.channels() as f64;
+    let n_samples = decoder.into_iter().count() as f64;
+    Duration::from_secs_f64(n_samples / rate / n_channels)
 }
 
 fn sink_and_decoder(format: &str) -> (Sink, Decoder<impl Read + Seek>) {
@@ -92,21 +100,7 @@ fn seek_beyond_end_saturates() {
     }
 }
 
-fn total_duration(format: &'static str) -> Duration {
-    let (sink, decoder) = sink_and_decoder(format);
-    match decoder.total_duration() {
-        Some(d) => d,
-        None => {
-            let now = Instant::now();
-            sink.append(decoder);
-            sink.sleep_until_end();
-            now.elapsed()
-        }
-    }
-}
-
-#[ignore]
-#[test] // in the future use PR #510 (playback position) to speed this up
+#[test]
 fn seek_results_in_correct_remaining_playtime() {
     for (format, _, decoder_name) in format_decoder_info()
         .iter()
@@ -115,22 +109,20 @@ fn seek_results_in_correct_remaining_playtime() {
     {
         println!("checking seek duration for: {format}\t decoded by: {decoder_name}");
 
-        let (sink, decoder) = sink_and_decoder(format);
-        sink.append(decoder);
+        let (_, decoder) = sink_and_decoder(format);
+        let total_duration = time_remaining(decoder);
 
         const SEEK_BEFORE_END: Duration = Duration::from_secs(5);
-        sink.try_seek(total_duration(format) - SEEK_BEFORE_END)
-            .unwrap();
+        let (_, mut decoder) = sink_and_decoder(format);
+        decoder.try_seek(total_duration - SEEK_BEFORE_END).unwrap();
 
-        let now = Instant::now();
-        sink.sleep_until_end();
-        let elapsed = now.elapsed();
+        let after_seek = time_remaining(decoder);
         let expected = SEEK_BEFORE_END;
 
-        if elapsed.as_millis().abs_diff(expected.as_millis()) > 250 {
+        if after_seek.as_millis().abs_diff(expected.as_millis()) > 250 {
             panic!(
                 "Seek did not result in expected leftover playtime
-    leftover time: {elapsed:?}
+    leftover time: {after_seek:?}
     expected time left in source: {SEEK_BEFORE_END:?}"
             );
         }

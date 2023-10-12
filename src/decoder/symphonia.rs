@@ -157,18 +157,9 @@ impl Source for SymphoniaDecoder {
 
         let time = if seek_beyond_end {
             let time = self.total_duration.expect("if guarentees this is Some");
-            adjust_down_a_bit(time) // some decoders can only seek to just before the end
+            skip_back_a_tiny_bit(time) // some decoders can only seek to just before the end
         } else {
-            let frac = if pos.subsec_nanos() == 0 {
-                0f64
-            } else {
-                let res = pos.subsec_nanos() as f64 / 1_000_000_000.0;
-                res
-            };
-            Time {
-                seconds: pos.as_secs(),
-                frac,
-            }
+            time_from_duration(pos)
         };
 
         self.format.seek(
@@ -182,7 +173,20 @@ impl Source for SymphoniaDecoder {
     }
 }
 
-fn adjust_down_a_bit(
+fn time_from_duration(dur: Duration) -> Time {
+    let frac = if dur.subsec_nanos() == 0 {
+        0f64
+    } else {
+        let res = dur.subsec_nanos() as f64 / 1_000_000_000.0;
+        res
+    };
+    Time {
+        seconds: dur.as_secs(),
+        frac,
+    }
+}
+
+fn skip_back_a_tiny_bit(
     Time {
         mut seconds,
         mut frac,

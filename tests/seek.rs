@@ -1,27 +1,8 @@
-use std::fs::File;
 use std::io::{BufReader, Read, Seek};
 use std::path::Path;
-use std::sync::Once;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
-
-static mut STREAM: Option<OutputStream> = None;
-static mut STREAM_HANDLE: Option<OutputStreamHandle> = None;
-static INIT: Once = Once::new();
-
-fn global_stream_handle() -> &'static OutputStreamHandle {
-    // mutable global access is guarded by Once therefore
-    // can only happen Once and will not race
-    unsafe {
-        INIT.call_once(|| {
-            let (stream, handle) = rodio::OutputStream::try_default().unwrap();
-            STREAM = Some(stream);
-            STREAM_HANDLE = Some(handle);
-        });
-        STREAM_HANDLE.as_ref().unwrap()
-    }
-}
+use rodio::{Decoder, Source};
 
 fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
     let rate = decoder.sample_rate() as f64;
@@ -30,18 +11,16 @@ fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
     Duration::from_secs_f64(n_samples / rate / n_channels)
 }
 
-fn sink_and_decoder(format: &str) -> (Sink, Decoder<impl Read + Seek>) {
-    let sink = rodio::Sink::try_new(global_stream_handle()).unwrap();
+fn get_decoder(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/music").with_extension(format);
     let file = std::fs::File::open(asset).unwrap();
     let decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    (sink, decoder)
+    decoder
 }
 
-// run the following to get the other configuration:
-// cargo test --no-default-features
-// --features symphonia-wav --features symphonia-vorbis
-// --features symphonia-flac --features symphonia-isomp4 --features minimp3
+// run tests twice to test all decoders
+// cargo test 
+// cargo test --features symphonia-all
 fn format_decoder_info() -> &'static [(&'static str, bool, &'static str)] {
     &[
         #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
@@ -71,9 +50,8 @@ fn format_decoder_info() -> &'static [(&'static str, bool, &'static str)] {
 fn seek_returns_err_if_unsupported() {
     for (format, supported, decoder_name) in format_decoder_info().iter().cloned() {
         println!("trying: {format},\t\tby: {decoder_name},\t\tshould support seek: {supported}");
-        let (sink, decoder) = sink_and_decoder(format);
-        sink.append(decoder);
-        let res = sink.try_seek(Duration::from_millis(2500));
+        let mut decoder = get_decoder(format);
+        let res = decoder.try_seek(Duration::from_millis(2500));
         assert_eq!(res.is_ok(), supported, "decoder: {decoder_name}");
     }
 }
@@ -86,17 +64,13 @@ fn seek_beyond_end_saturates() {
         .cloned()
         .filter(|(_, supported, _)| *supported)
     {
-        let (sink, decoder) = sink_and_decoder(format);
-        sink.append(decoder);
+        let mut decoder = get_decoder(format);
 
         println!("seeking beyond end for: {format}\t decoded by: {decoder_name}");
-        let res = sink.try_seek(Duration::from_secs(999));
+        let res = decoder.try_seek(Duration::from_secs(999));
         assert!(res.is_ok());
 
-        let now = Instant::now();
-        sink.sleep_until_end();
-        let elapsed = now.elapsed();
-        assert!(elapsed.as_secs() < 1);
+        assert!(time_remaining(decoder) < Duration::from_secs(1));
     }
 }
 
@@ -109,11 +83,11 @@ fn seek_results_in_correct_remaining_playtime() {
     {
         println!("checking seek duration for: {format}\t decoded by: {decoder_name}");
 
-        let (_, decoder) = sink_and_decoder(format);
+        let decoder = get_decoder(format);
         let total_duration = time_remaining(decoder);
 
         const SEEK_BEFORE_END: Duration = Duration::from_secs(5);
-        let (_, mut decoder) = sink_and_decoder(format);
+        let mut decoder = get_decoder(format);
         decoder.try_seek(total_duration - SEEK_BEFORE_END).unwrap();
 
         let after_seek = time_remaining(decoder);

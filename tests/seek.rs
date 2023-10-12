@@ -19,7 +19,7 @@ fn get_decoder(format: &str) -> Decoder<impl Read + Seek> {
 }
 
 // run tests twice to test all decoders
-// cargo test 
+// cargo test
 // cargo test --features symphonia-all
 fn format_decoder_info() -> &'static [(&'static str, bool, &'static str)] {
     &[

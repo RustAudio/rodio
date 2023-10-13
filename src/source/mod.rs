@@ -360,7 +360,7 @@ where
     /// Attempts to seek to a given position in the current source.
     ///
     /// As long as the duration of the source is known seeking saturates. That is
-    /// when you seek beyong the sources length this function will seek to the
+    /// when you seek beyond the sources length this function will seek to the
     /// end of the source instead.
     ///
     /// If the duration of the source is known and the seek position lies beyond

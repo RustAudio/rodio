@@ -206,7 +206,7 @@ impl Sink {
     /// This blocks between 0 and ~5 milliseconds.
     ///
     /// As long as the *duration of the source is known* seeking saturates. This means
-    /// when you try to seek beyong the length of the source this function will seek 
+    /// when you try to seek beyond the length of the source this function will seek
     /// to the end of the source instead.
     ///
     /// If the duration of the source is known and the seek position lies beyond

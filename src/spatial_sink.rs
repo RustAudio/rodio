@@ -173,8 +173,10 @@ impl SpatialSink {
     /// when you try to seek beyong the length of the source this function will seek
     /// to the end of the source instead.
     ///
-    /// If the duration of the source is known and the seek position lies beyond
-    /// it the saturates, that is the position is then at the end of the source.
+    /// As long as the duration of the source is known seek is guarenteed to saturate
+    /// at the end of the source. For example given a source that reports a total duration
+    /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
+    /// 42 seconds.
     ///
     /// # Errors
     /// This function will return [`SeekError::NotSupported`] if one of the underlying

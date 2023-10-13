@@ -113,7 +113,4 @@ where
         let pos_without_delay = pos.saturating_sub(self.requested_duration);
         self.input.try_seek(pos_without_delay)
     }
-
-    
-    
 }

@@ -60,12 +60,10 @@ impl Source for SineWave {
 
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        // This is a constant sound, normal seeking would not have any effect. 
-        // While changing the phase of the sine wave could change how it sounds in 
-        // combination with another sound (beating) such precision is not the intend 
+        // This is a constant sound, normal seeking would not have any effect.
+        // While changing the phase of the sine wave could change how it sounds in
+        // combination with another sound (beating) such precision is not the intend
         // of seeking
         Ok(())
     }
-    
-    
 }

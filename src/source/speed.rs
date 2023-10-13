@@ -106,7 +106,4 @@ where
         let pos_accounting_for_speedup = pos.mul_f32(self.factor);
         self.input.try_seek(pos_accounting_for_speedup)
     }
-
-    
-    
 }

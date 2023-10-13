@@ -4,9 +4,9 @@ use std::time::Duration;
 use crate::source::SeekError;
 use crate::Source;
 
-use minimp3_fixed as minimp3;
-use minimp3::Frame;
 use minimp3::Decoder;
+use minimp3::Frame;
+use minimp3_fixed as minimp3;
 // use minimp3::{Decoder, SeekDecoder};
 
 pub struct Mp3Decoder<R>
@@ -29,9 +29,9 @@ where
         }
         // let mut decoder = SeekDecoder::new(data)
         let mut decoder = Decoder::new(data);
-            // paramaters are correct and minimp3 is used correctly 
-            // thus if we crash here one of these invariants is broken:
-            // .expect("should be able to allocate memory, perform IO");
+        // paramaters are correct and minimp3 is used correctly
+        // thus if we crash here one of these invariants is broken:
+        // .expect("should be able to allocate memory, perform IO");
         // let current_frame = decoder.decode_frame()
         let current_frame = decoder.next_frame()
             // the reader makes enough data availible therefore 
@@ -97,7 +97,7 @@ where
     fn next(&mut self) -> Option<i16> {
         if self.current_frame_offset == self.current_frame_len().unwrap() {
             if let Ok(frame) = self.decoder.next_frame() {
-            // if let Ok(frame) = self.decoder.decode_frame() {
+                // if let Ok(frame) = self.decoder.decode_frame() {
                 self.current_frame = frame;
                 self.current_frame_offset = 0;
             } else {

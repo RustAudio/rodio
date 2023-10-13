@@ -3,8 +3,8 @@ use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::time::Duration;
 
-use crate::Source;
 use crate::source::SeekError;
+use crate::Source;
 
 use claxon::FlacReader;
 
@@ -83,7 +83,9 @@ where
 
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported { underlying_source: std::any::type_name::<Self>() })
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
     }
 }
 

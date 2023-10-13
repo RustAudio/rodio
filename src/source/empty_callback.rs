@@ -57,9 +57,8 @@ where
 
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported { underlying_source: std::any::type_name::<Self>() })
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
     }
-
-    
-    
 }

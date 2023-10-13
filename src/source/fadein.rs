@@ -112,7 +112,4 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
     }
-
-    
-    
 }

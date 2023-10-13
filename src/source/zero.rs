@@ -84,7 +84,4 @@ where
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
         Ok(())
     }
-
-    
-    
 }

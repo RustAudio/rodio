@@ -30,7 +30,7 @@ fn sink_and_decoder(format: &str) -> (Sink, Decoder<impl Read + Seek>) {
     (sink, decoder)
 }
 
-// run the following to get the other configuration: 
+// run the following to get the other configuration:
 // cargo test --no-default-features
 // --features symphonia-wav --features symphonia-vorbis
 // --features symphonia-flac --features symphonia-isomp4 --features minimp3
@@ -83,7 +83,7 @@ fn seek_beyond_end_saturates() {
 
         println!("seeking beyond end for: {format}\t decoded by: {decoder_name}");
         let res = sink.try_seek(Duration::from_secs(999));
-        assert!(dbg!(res).is_ok());
+        assert!(res.is_ok());
 
         let now = Instant::now();
         sink.sleep_until_end();

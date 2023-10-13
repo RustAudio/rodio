@@ -169,11 +169,7 @@ impl SpatialSink {
     ///
     /// This blocks between 0 and ~5 milliseconds.
     ///
-    /// As long as the *duration of the source is known* seeking saturates. This means
-    /// when you try to seek beyong the length of the source this function will seek
-    /// to the end of the source instead.
-    ///
-    /// As long as the duration of the source is known seek is guarenteed to saturate
+    /// As long as the duration of the source is known seek is guaranteed to saturate
     /// at the end of the source. For example given a source that reports a total duration
     /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
     /// 42 seconds.

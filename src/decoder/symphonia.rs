@@ -156,7 +156,7 @@ impl Source for SymphoniaDecoder {
             .is_some_and(|dur| dur.saturating_sub(pos).as_millis() < 1);
 
         let time = if seek_beyond_end {
-            let time = self.total_duration.expect("if guarentees this is Some");
+            let time = self.total_duration.expect("if guarantees this is Some");
             skip_back_a_tiny_bit(time) // some decoders can only seek to just before the end
         } else {
             pos.as_secs_f64().into()

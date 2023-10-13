@@ -56,7 +56,6 @@ fn seek_returns_err_if_unsupported() {
     }
 }
 
-// #[ignore]
 #[test] // in the future use PR #510 (playback position) to speed this up
 fn seek_beyond_end_saturates() {
     for (format, _, decoder_name) in format_decoder_info()

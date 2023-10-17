@@ -344,6 +344,7 @@ where
         blt::low_pass(self, freq)
     }
 
+    /// Applies a high-pass filter to the source.
     #[inline]
     fn high_pass(self, freq: u32) -> BltFilter<Self>
     where
@@ -351,6 +352,26 @@ where
         Self: Source<Item = f32>,
     {
         blt::high_pass(self, freq)
+    }
+
+    /// Applies a low-pass filter to the source while allowing the q (badnwidth) to be changed.
+    #[inline]
+    fn low_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
+    where
+        Self: Sized,
+        Self: Source<Item = f32>,
+    {
+        blt::low_pass_with_q(self, freq, q)
+    }
+
+    /// Applies a high-pass filter to the source while allowing the q (badnwidth) to be changed.
+    #[inline]
+    fn high_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
+    where
+        Self: Sized,
+        Self: Source<Item = f32>,
+    {
+        blt::high_pass_with_q(self, freq, q)
     }
 
     // There is no `can_seek()` method as its impossible to use correctly. Between

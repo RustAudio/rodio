@@ -1,3 +1,10 @@
+# Version 0.17.2 (2023-10-17)
+
+- Add `EmptyCallback` source.
+- Fix index out of bounds bug.
+- Use non-vulnerable `minimp3` fork.
+- Add filter functions with additional q parameter.
+
 # Version 0.17.1 (2023-02-25)
 
 - Disable `symphonia`'s default features.

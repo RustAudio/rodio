@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crate::Source;
 
-use minimp3::{Decoder, Frame};
+use minimp3_fixed::{Decoder, Frame};
 
 pub struct Mp3Decoder<R>
 where

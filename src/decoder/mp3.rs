@@ -4,10 +4,9 @@ use std::time::Duration;
 use crate::source::SeekError;
 use crate::Source;
 
+use minimp3_fixed as minimp3;
 use minimp3::Decoder;
 use minimp3::Frame;
-use minimp3_fixed as minimp3;
-// use minimp3::{Decoder, SeekDecoder};
 
 pub struct Mp3Decoder<R>
 where

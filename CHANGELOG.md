@@ -1,3 +1,7 @@
+# Version 0.17.3 (2023-10-23)
+
+- Build fix for `minimp3` backend.
+
 # Version 0.17.2 (2023-10-17)
 
 - Add `EmptyCallback` source.

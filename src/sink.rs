@@ -11,7 +11,7 @@ use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
 use cpal::FromSample;
 
-/// Handle to an device that outputs sounds.
+/// Handle to a device that outputs sounds.
 ///
 /// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
 /// playing.

@@ -374,77 +374,36 @@ where
     }
 }
 
-impl<S> Source for Box<dyn Source<Item = S>>
-where
-    S: Sample,
-{
-    #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        (**self).current_frame_len()
-    }
+macro_rules! source_pointer_impl {
+    ($($sig:tt)+) => {
+        impl $($sig)+ {
+            #[inline]
+            fn current_frame_len(&self) -> Option<usize> {
+                (**self).current_frame_len()
+            }
 
-    #[inline]
-    fn channels(&self) -> u16 {
-        (**self).channels()
-    }
+            #[inline]
+            fn channels(&self) -> u16 {
+                (**self).channels()
+            }
 
-    #[inline]
-    fn sample_rate(&self) -> u32 {
-        (**self).sample_rate()
-    }
+            #[inline]
+            fn sample_rate(&self) -> u32 {
+                (**self).sample_rate()
+            }
 
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        (**self).total_duration()
-    }
+            #[inline]
+            fn total_duration(&self) -> Option<Duration> {
+                (**self).total_duration()
+            }
+        }
+    };
 }
 
-impl<S> Source for Box<dyn Source<Item = S> + Send>
-where
-    S: Sample,
-{
-    #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        (**self).current_frame_len()
-    }
+source_pointer_impl!(<S> Source for Box<dyn Source<Item = S>> where S: Sample,);
 
-    #[inline]
-    fn channels(&self) -> u16 {
-        (**self).channels()
-    }
+source_pointer_impl!(<S> Source for Box<dyn Source<Item = S> + Send> where S: Sample,);
 
-    #[inline]
-    fn sample_rate(&self) -> u32 {
-        (**self).sample_rate()
-    }
+source_pointer_impl!(<S> Source for Box<dyn Source<Item = S> + Send + Sync> where S: Sample,);
 
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        (**self).total_duration()
-    }
-}
-
-impl<S> Source for Box<dyn Source<Item = S> + Send + Sync>
-where
-    S: Sample,
-{
-    #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        (**self).current_frame_len()
-    }
-
-    #[inline]
-    fn channels(&self) -> u16 {
-        (**self).channels()
-    }
-
-    #[inline]
-    fn sample_rate(&self) -> u32 {
-        (**self).sample_rate()
-    }
-
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        (**self).total_duration()
-    }
-}
+source_pointer_impl!(<'a, S, C> Source for &'a mut C where S: Sample, C: Source<Item = S>,);

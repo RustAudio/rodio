@@ -354,7 +354,7 @@ where
         blt::high_pass(self, freq)
     }
 
-    /// Applies a low-pass filter to the source while allowing the q (badnwidth) to be changed.
+    /// Applies a low-pass filter to the source while allowing the q (bandwidth) to be changed.
     #[inline]
     fn low_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
     where
@@ -364,7 +364,7 @@ where
         blt::low_pass_with_q(self, freq, q)
     }
 
-    /// Applies a high-pass filter to the source while allowing the q (badnwidth) to be changed.
+    /// Applies a high-pass filter to the source while allowing the q (bandwidth) to be changed.
     #[inline]
     fn high_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
     where
@@ -420,8 +420,8 @@ pub enum SeekError {
     LewtonDecoder(#[from] lewton::VorbisError),
     #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
     #[error("Error seeking in mp3 source: {0}")]
-    Minimp3Decorder(#[from] minimp3_fixed::Error),
-    #[error("An error occured")]
+    Minimp3Decoder(#[from] minimp3_fixed::Error),
+    #[error("An error occurred")]
     Other(Box<dyn std::error::Error + Send>),
 }
 

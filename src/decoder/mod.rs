@@ -282,6 +282,12 @@ where
         }
     }
 
+    /// Builds a new decoder from vorbis data.
+    #[cfg(feature = "symphonia-vorbis")]
+    pub fn new_vorbis(data: R) -> Result<Decoder<R>, DecoderError> {
+        Decoder::new_symphonia(data, "ogg")
+    }
+
     /// Builds a new decoder from mp3 data.
     #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
     pub fn new_mp3(data: R) -> Result<Decoder<R>, DecoderError> {

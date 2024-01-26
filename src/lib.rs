@@ -20,7 +20,7 @@
 //! use std::io::BufReader;
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
-//! // Get a output stream handle to the default physical sound device
+//! // Get an output stream handle to the default physical sound device
 //! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 //! // Load a sound from a file, using a path relative to Cargo.toml
 //! let file = BufReader::new(File::open("examples/music.ogg").unwrap());

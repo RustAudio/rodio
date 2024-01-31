@@ -374,7 +374,7 @@ where
         blt::high_pass_with_q(self, freq, q)
     }
 
-    // There is no `can_seek()` method as its impossible to use correctly. Between
+    // There is no `can_seek()` method as it is impossible to use correctly. Between
     // checking if a source supports seeking and actually seeking the sink can
     // switch to a new source.
 

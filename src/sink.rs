@@ -197,7 +197,7 @@ impl Sink {
         self.controls.pause.store(false, Ordering::SeqCst);
     }
 
-    // There is no `can_seek()` method as its impossible to use correctly. Between
+    // There is no `can_seek()` method as it is impossible to use correctly. Between
     // checking if a source supports seeking and actually seeking the sink can
     // switch to a new source.
 

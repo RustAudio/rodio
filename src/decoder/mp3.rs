@@ -28,12 +28,12 @@ where
         }
         // let mut decoder = SeekDecoder::new(data)
         let mut decoder = Decoder::new(data);
-        // paramaters are correct and minimp3 is used correctly
+        // parameters are correct and minimp3 is used correctly
         // thus if we crash here one of these invariants is broken:
         // .expect("should be able to allocate memory, perform IO");
         // let current_frame = decoder.decode_frame()
         let current_frame = decoder.next_frame()
-            // the reader makes enough data availible therefore 
+            // the reader makes enough data available therefore 
             // if we crash here the invariant broken is:
             .expect("data should not corrupt");
 

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::sync::{Arc, Weak};
@@ -10,12 +11,12 @@ use crate::source::Source;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Sample, SupportedStreamConfig};
 
-/// `cpal::Stream` container. Also see the more useful `OutputStreamHandle`.
+/// Hosted stream container, usually a wrapper around `cpal::Stream`. Also see the more useful `OutputStreamHandle`.
 ///
 /// If this is dropped playback will end & attached `OutputStreamHandle`s will no longer work.
-pub struct OutputStream {
+pub struct OutputStream<S: ?Sized = cpal::Stream> {
     mixer: Arc<DynamicMixerController<f32>>,
-    _stream: cpal::Stream,
+    _stream: S,
 }
 
 /// More flexible handle to a `OutputStream` that provides playback.
@@ -44,11 +45,7 @@ impl OutputStream {
     ) -> Result<(Self, OutputStreamHandle), StreamError> {
         let (mixer, _stream) = device.try_new_output_stream_config(config)?;
         _stream.play()?;
-        let out = Self { mixer, _stream };
-        let handle = OutputStreamHandle {
-            mixer: Arc::downgrade(&out.mixer),
-        };
-        Ok((out, handle))
+        Ok(Self::new(mixer, _stream))
     }
 
     /// Return a new stream & handle using the default output device.
@@ -72,6 +69,34 @@ impl OutputStream {
                 .find_map(|d| Self::try_from_device(&d).ok())
                 .ok_or(original_err)
         })
+    }
+}
+
+impl<T> OutputStream<T> {
+    /// Create a new `OutputStream` from a mixer controller, plus any data that should be dropped when this stream is dropped.
+    ///
+    /// This can be used to create an output stream that writes to an intermediate mixer.
+    pub fn new(
+        mixer: Arc<DynamicMixerController<f32>>,
+        extra_data: T,
+    ) -> (Self, OutputStreamHandle) {
+        let out = Self {
+            mixer,
+            _stream: extra_data,
+        };
+        let handle = OutputStreamHandle {
+            mixer: Arc::downgrade(&out.mixer),
+        };
+        (out, handle)
+    }
+}
+
+impl<T> OutputStream<T>
+where
+    T: 'static,
+{
+    pub fn into_any(self) -> Box<OutputStream<dyn Any>> {
+        Box::new(self) as _
     }
 }
 

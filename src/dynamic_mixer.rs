@@ -7,6 +7,8 @@ use std::time::Duration;
 use crate::source::{Source, UniformSourceIterator};
 use crate::Sample;
 
+type DynSource<S> = Box<dyn Source<Item = S> + Send + Sync + 'static>;
+
 /// Builds a new mixer.
 ///
 /// You can choose the characteristics of the output thanks to this constructor. All the sounds
@@ -18,7 +20,7 @@ pub fn mixer<S>(
     sample_rate: u32,
 ) -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + Sync + 'static,
 {
     let input = Arc::new(DynamicMixerController {
         has_pending: AtomicBool::new(false),
@@ -44,7 +46,7 @@ pub trait Mixer: Iterator {
     fn drain_sources(
         &mut self,
         sample_count: usize,
-        sources: &mut Vec<Box<dyn Source<Item = Self::Item> + Send>>,
+        sources: &mut Vec<DynSource<Self::Item>>,
     );
 }
 
@@ -52,20 +54,20 @@ pub trait Mixer: Iterator {
 pub struct DynamicMixerController<S> {
     has_pending: AtomicBool,
     // TODO: Make this configurable - we can probably use a lockfree queue
-    pending_sources: Mutex<Vec<Box<dyn Source<Item = S> + Send + 'static>>>,
+    pending_sources: Mutex<Vec<DynSource<S>>>,
     channels: u16,
     sample_rate: u32,
 }
 
 impl<S> DynamicMixerController<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + Sync + 'static,
 {
     /// Adds a new source to mix to the existing ones.
     #[inline]
     pub fn add<T>(&self, source: T)
     where
-        T: Source<Item = S> + Send + 'static,
+        T: Source<Item = S> + Send + Sync + 'static,
     {
         let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
         self.pending_sources
@@ -81,13 +83,13 @@ pub type DynamicMixer<S> = MixerDriver<S, BasicMixer<S>>;
 /// A basic summing mixer.
 pub struct BasicMixer<S> {
     // The current iterator that produces samples.
-    current_sources: Vec<Box<dyn Source<Item = S> + Send>>,
+    current_sources: Vec<DynSource<S>>,
 
     // A temporary vec used in start_pending_sources.
-    still_pending: Vec<Box<dyn Source<Item = S> + Send>>,
+    still_pending: Vec<DynSource<S>>,
 
     // A temporary vec used in sum_current_sources.
-    still_current: Vec<Box<dyn Source<Item = S> + Send>>,
+    still_current: Vec<DynSource<S>>,
 }
 
 impl<S> Default for BasicMixer<S> {
@@ -210,7 +212,7 @@ where
 
 impl<S> Iterator for BasicMixer<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + Sync + 'static,
 {
     type Item = S;
 
@@ -233,7 +235,7 @@ where
 
 impl<S> Mixer for BasicMixer<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + Sync + 'static,
 {
     // Samples from the #next() function are interlaced for each of the channels.
     // We need to ensure we start playing sources so that their samples are
@@ -242,7 +244,7 @@ where
     fn drain_sources(
         &mut self,
         sample_count: usize,
-        pending: &mut Vec<Box<dyn Source<Item = S> + Send>>,
+        pending: &mut Vec<DynSource<S>>,
     ) {
         for source in pending.drain(..) {
             let in_step = sample_count % source.channels() as usize == 0;
@@ -259,7 +261,7 @@ where
 
 impl<S> BasicMixer<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + Sync + 'static,
 {
     fn sum_current_sources(&mut self) -> S {
         let mut sum = S::zero_value();

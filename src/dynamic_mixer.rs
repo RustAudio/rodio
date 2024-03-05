@@ -7,7 +7,7 @@ use std::time::Duration;
 use crate::source::{Source, UniformSourceIterator};
 use crate::Sample;
 
-type DynSource<S> = Box<dyn Source<Item = S> + Send + Sync + 'static>;
+type DynSource<S> = Box<dyn Source<Item = S> + Send + 'static>;
 
 /// Builds a new mixer.
 ///
@@ -20,7 +20,7 @@ pub fn mixer<S>(
     sample_rate: u32,
 ) -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
 where
-    S: Sample + Send + Sync + 'static,
+    S: Sample + Send + 'static,
 {
     let input = Arc::new(DynamicMixerController {
         has_pending: AtomicBool::new(false),
@@ -61,13 +61,13 @@ pub struct DynamicMixerController<S> {
 
 impl<S> DynamicMixerController<S>
 where
-    S: Sample + Send + Sync + 'static,
+    S: Sample + Send + 'static,
 {
     /// Adds a new source to mix to the existing ones.
     #[inline]
     pub fn add<T>(&self, source: T)
     where
-        T: Source<Item = S> + Send + Sync + 'static,
+        T: Source<Item = S> + Send + 'static,
     {
         let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
         self.pending_sources
@@ -212,7 +212,7 @@ where
 
 impl<S> Iterator for BasicMixer<S>
 where
-    S: Sample + Send + Sync + 'static,
+    S: Sample + Send + 'static,
 {
     type Item = S;
 
@@ -235,7 +235,7 @@ where
 
 impl<S> Mixer for BasicMixer<S>
 where
-    S: Sample + Send + Sync + 'static,
+    S: Sample + Send + 'static,
 {
     // Samples from the #next() function are interlaced for each of the channels.
     // We need to ensure we start playing sources so that their samples are
@@ -261,7 +261,7 @@ where
 
 impl<S> BasicMixer<S>
 where
-    S: Sample + Send + Sync + 'static,
+    S: Sample + Send + 'static,
 {
     fn sum_current_sources(&mut self) -> S {
         let mut sum = S::zero_value();

@@ -107,9 +107,7 @@ where
 
             match symphonia::SymphoniaDecoder::new(mss, None) {
                 Err(e) => Err(e),
-                Ok(decoder) => {
-                    return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
-                }
+                Ok(decoder) => Ok(Decoder(DecoderImpl::Symphonia(decoder))),
             }
         }
         #[cfg(not(feature = "symphonia"))]
@@ -200,9 +198,7 @@ where
 
         match symphonia::SymphoniaDecoder::new(mss, Some(hint)) {
             Err(e) => Err(e),
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
-            }
+            Ok(decoder) => Ok(Decoder(DecoderImpl::Symphonia(decoder))),
         }
     }
 }

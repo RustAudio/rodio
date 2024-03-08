@@ -100,14 +100,13 @@ impl SymphoniaDecoder {
         };
         let spec = decoded.spec().to_owned();
         let buffer = SymphoniaDecoder::get_buffer(decoded, &spec);
-
-        return Ok(Some(SymphoniaDecoder {
+        Ok(Some(SymphoniaDecoder {
             decoder,
             current_frame_offset: 0,
             format: probed.format,
             buffer,
             spec,
-        }));
+        }))
     }
 
     #[inline]
@@ -115,7 +114,7 @@ impl SymphoniaDecoder {
         let duration = units::Duration::from(decoded.capacity() as u64);
         let mut buffer = SampleBuffer::<i16>::new(duration, spec.clone());
         buffer.copy_interleaved_ref(decoded);
-        return buffer;
+        buffer
     }
 }
 

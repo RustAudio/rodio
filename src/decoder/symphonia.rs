@@ -112,7 +112,7 @@ impl SymphoniaDecoder {
     #[inline]
     fn get_buffer(decoded: AudioBufferRef, spec: &SignalSpec) -> SampleBuffer<i16> {
         let duration = units::Duration::from(decoded.capacity() as u64);
-        let mut buffer = SampleBuffer::<i16>::new(duration, spec.clone());
+        let mut buffer = SampleBuffer::<i16>::new(duration, *spec);
         buffer.copy_interleaved_ref(decoded);
         buffer
     }

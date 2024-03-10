@@ -124,7 +124,7 @@ fn is_flac<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+    let stream_pos = data.stream_position().unwrap();
 
     if FlacReader::new(data.by_ref()).is_err() {
         data.seek(SeekFrom::Start(stream_pos)).unwrap();

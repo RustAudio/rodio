@@ -135,6 +135,14 @@ impl SpatialSink {
         self.sink.is_paused()
     }
 
+    /// Removes all currently loaded `Source`s from the `SpatialSink` and pauses it.
+    ///
+    /// See `pause()` for information about pausing a `Sink`.
+    #[inline]
+    pub fn clear(&self) {
+        self.sink.clear();
+    }
+
     /// Stops the sink by emptying the queue.
     #[inline]
     pub fn stop(&self) {

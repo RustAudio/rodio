@@ -102,7 +102,7 @@ where
                     Ordering::Equal => raw_val as i16,
                     Ordering::Greater => (raw_val >> (self.bits_per_sample - 16)) as i16,
                 };
-                return Some(real_val as i16);
+                return Some(real_val);
             }
 
             // Load the next block.

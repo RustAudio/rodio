@@ -48,7 +48,7 @@ where
             return;
         }
 
-        skip_samples(input, frame_len as usize);
+        skip_samples(input, frame_len);
 
         duration -= Duration::from_nanos((frame_len * ns_per_sample as usize) as u64);
     }

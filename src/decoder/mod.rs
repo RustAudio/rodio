@@ -4,7 +4,6 @@ use std::error::Error;
 use std::fmt;
 #[allow(unused_imports)]
 use std::io::{Read, Seek, SeekFrom};
-use std::marker::Sync;
 use std::mem;
 use std::str::FromStr;
 use std::time::Duration;

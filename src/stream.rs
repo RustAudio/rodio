@@ -1,5 +1,4 @@
 use std::io::{Read, Seek};
-use std::marker::Sync;
 use std::sync::{Arc, Weak};
 use std::{error, fmt};
 

@@ -5,6 +5,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// Internal function that builds a `Buffered` object.
 #[inline]
 pub fn buffered<I>(input: I) -> Buffered<I>
@@ -238,6 +240,13 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.total_duration
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
     }
 }
 

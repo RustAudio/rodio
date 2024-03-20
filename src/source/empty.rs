@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// An empty source.
 #[derive(Debug, Copy, Clone)]
 pub struct Empty<S>(PhantomData<S>);
@@ -52,5 +54,12 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         Some(Duration::new(0, 0))
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
     }
 }

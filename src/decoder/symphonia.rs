@@ -8,12 +8,12 @@ use symphonia::{
         io::MediaSourceStream,
         meta::MetadataOptions,
         probe::Hint,
-        units,
+        units::{self, Time},
     },
     default::get_probe,
 };
 
-use crate::Source;
+use crate::{source::SeekError, Source};
 
 use super::DecoderError;
 
@@ -26,6 +26,7 @@ pub struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
     current_frame_offset: usize,
     format: Box<dyn FormatReader>,
+    total_duration: Option<Time>,
     buffer: SampleBuffer<i16>,
     spec: SignalSpec,
 }
@@ -79,6 +80,11 @@ impl SymphoniaDecoder {
                 ..Default::default()
             },
         )?;
+        let total_duration = stream
+            .codec_params
+            .time_base
+            .zip(stream.codec_params.n_frames)
+            .map(|(base, frames)| base.calc_time(frames));
 
         let mut decode_errors: usize = 0;
         let decoded = loop {
@@ -104,6 +110,7 @@ impl SymphoniaDecoder {
             decoder,
             current_frame_offset: 0,
             format: probed.format,
+            total_duration,
             buffer,
             spec,
         }))
@@ -136,8 +143,47 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        None
+        self.total_duration
+            .map(|Time { seconds, frac }| Duration::new(seconds, (1f64 / frac) as u32))
     }
+
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        use symphonia::core::formats::{SeekMode, SeekTo};
+
+        let seek_beyond_end = self
+            .total_duration()
+            .is_some_and(|dur| dur.saturating_sub(pos).as_millis() < 1);
+
+        let time = if seek_beyond_end {
+            let time = self.total_duration.expect("if guarantees this is Some");
+            skip_back_a_tiny_bit(time) // some decoders can only seek to just before the end
+        } else {
+            pos.as_secs_f64().into()
+        };
+
+        self.format.seek(
+            SeekMode::Accurate,
+            SeekTo::Time {
+                time,
+                track_id: None,
+            },
+        )?;
+        Ok(())
+    }
+}
+
+fn skip_back_a_tiny_bit(
+    Time {
+        mut seconds,
+        mut frac,
+    }: Time,
+) -> Time {
+    frac -= 0.0001;
+    if frac < 0.0 {
+        seconds = seconds.saturating_sub(1);
+        frac = 1.0 - frac;
+    }
+    Time { seconds, frac }
 }
 
 impl Iterator for SymphoniaDecoder {

@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{Empty, Source, Zero};
+use crate::source::{Empty, SeekError, Source, Zero};
 use crate::Sample;
 
 #[cfg(feature = "crossbeam-channel")]
@@ -168,6 +168,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.current.try_seek(pos)
     }
 }
 

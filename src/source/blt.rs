@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use crate::Source;
 
+use super::SeekError;
+
 // Implemented following http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 
 /// Internal function that builds a `BltFilter` object.
@@ -172,6 +174,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }
 

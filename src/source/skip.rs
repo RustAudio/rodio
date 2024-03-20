@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 const NS_PER_SECOND: u128 = 1_000_000_000;
 
 /// Internal function that builds a `SkipDuration` object.
@@ -156,6 +158,11 @@ where
             val.checked_sub(self.skipped_duration)
                 .unwrap_or_else(|| Duration::from_secs(0))
         })
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }
 

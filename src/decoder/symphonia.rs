@@ -72,13 +72,8 @@ impl SymphoniaDecoder {
             None => return Ok(None),
         };
 
-        let mut decoder = symphonia::default::get_codecs().make(
-            &stream.codec_params,
-            &DecoderOptions {
-                verify: true,
-                ..Default::default()
-            },
-        )?;
+        let mut decoder = symphonia::default::get_codecs()
+            .make(&stream.codec_params, &DecoderOptions { verify: true })?;
 
         let mut decode_errors: usize = 0;
         let decoded = loop {

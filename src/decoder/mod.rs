@@ -430,7 +430,7 @@ where
                 }
                 #[cfg(feature = "symphonia")]
                 DecoderImpl::Symphonia(source) => {
-                    let mut reader = Box::new(source).into_inner();
+                    let mut reader = source.into_inner();
                     reader.seek(SeekFrom::Start(0)).ok()?;
                     let mut source = symphonia::SymphoniaDecoder::new(reader, None).ok()?;
                     let sample = source.next();

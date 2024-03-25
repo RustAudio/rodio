@@ -48,7 +48,7 @@ impl SymphoniaDecoder {
         }
     }
 
-    pub fn into_inner(self: Box<Self>) -> MediaSourceStream {
+    pub fn into_inner(self) -> MediaSourceStream {
         self.format.into_inner()
     }
 

@@ -7,7 +7,7 @@ where
     input: I,
     from: cpal::ChannelCount,
     to: cpal::ChannelCount,
-    sample_repeat: Option<I::Item>,
+    sample_repeat: Vec<Option<I::Item>>,
     next_output_sample_pos: cpal::ChannelCount,
 }
 
@@ -34,7 +34,11 @@ where
             input,
             from,
             to,
-            sample_repeat: None,
+            sample_repeat: {
+                let mut vec = Vec::with_capacity(from as usize);
+                vec.resize_with(from as usize, || None);
+                vec
+            },
             next_output_sample_pos: 0,
         }
     }
@@ -54,14 +58,12 @@ where
     type Item = I::Item;
 
     fn next(&mut self) -> Option<I::Item> {
-        let result = if self.next_output_sample_pos == self.from - 1 {
+        let result = if self.next_output_sample_pos < self.from {
             let value = self.input.next();
-            self.sample_repeat = value.clone();
+            self.sample_repeat[self.next_output_sample_pos as usize] = value.clone();
             value
-        } else if self.next_output_sample_pos < self.from {
-            self.input.next()
         } else {
-            self.sample_repeat.clone()
+            self.sample_repeat[(self.next_output_sample_pos % self.from) as usize].clone()
         };
 
         self.next_output_sample_pos += 1;
@@ -106,36 +108,36 @@ mod test {
 
     #[test]
     fn remove_channels() {
-        let input = vec![1u16, 2, 3, 1, 2, 3];
+        let input = vec![1u16, 2, 3, 4, 5, 6];
         let output = ChannelCountConverter::new(input.into_iter(), 3, 2).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 1, 2]);
+        assert_eq!(output, [1, 2, 4, 5]);
 
-        let input = vec![1u16, 2, 3, 4, 1, 2, 3, 4];
+        let input = vec![1u16, 2, 3, 4, 5, 6, 7, 8];
         let output = ChannelCountConverter::new(input.into_iter(), 4, 1).collect::<Vec<_>>();
-        assert_eq!(output, [1, 1]);
+        assert_eq!(output, [1, 5]);
     }
 
     #[test]
     fn add_channels() {
-        let input = vec![1u16, 2, 1, 2];
+        let input = vec![1u16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 3).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 2, 1, 2, 2]);
+        assert_eq!(output, [1, 2, 1, 3, 4, 3]);
 
-        let input = vec![1u16, 2, 1, 2];
+        let input = vec![1u16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 4).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 2, 2, 1, 2, 2, 2]);
+        assert_eq!(output, [1, 2, 1, 2, 3, 4, 3, 4]);
     }
 
     #[test]
     fn len_more() {
-        let input = vec![1u16, 2, 1, 2];
+        let input = vec![1u16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 3);
         assert_eq!(output.len(), 6);
     }
 
     #[test]
     fn len_less() {
-        let input = vec![1u16, 2, 1, 2];
+        let input = vec![1u16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 1);
         assert_eq!(output.len(), 2);
     }

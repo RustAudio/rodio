@@ -226,6 +226,7 @@ impl Sink {
     }
 
     /// Returns the number of sounds currently in the queue.
+    #[allow(clippy::len_without_is_empty)]
     #[inline]
     pub fn len(&self) -> usize {
         self.sound_count.load(Ordering::Relaxed)

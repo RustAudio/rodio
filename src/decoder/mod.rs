@@ -39,6 +39,9 @@ pub struct LoopedDecoder<R>(DecoderImpl<R>)
 where
     R: Read + Seek;
 
+// can not really reduce the size of the VorbisDecoder. There are not any
+// arrays just a lot of struct fields.
+#[allow(clippy::large_enum_variant)]
 enum DecoderImpl<R>
 where
     R: Read + Seek,

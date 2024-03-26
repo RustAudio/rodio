@@ -43,9 +43,12 @@ where
 
 // TODO: consider reimplementing this with `from_factory`
 
+type Sound<S> = Box<dyn Source<Item = S> + Send>;
+type SignalDone = Option<Sender<()>>;
+
 /// The input of the queue.
 pub struct SourcesQueueInput<S> {
-    next_sounds: Mutex<Vec<(Box<dyn Source<Item = S> + Send>, Option<Sender<()>>)>>,
+    next_sounds: Mutex<Vec<(Sound<S>, SignalDone)>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,

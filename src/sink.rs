@@ -96,7 +96,7 @@ impl Sink {
                 {
                     let mut to_clear = controls.to_clear.lock().unwrap();
                     if *to_clear > 0 {
-                        let _ = src.inner_mut().skip();
+                        src.inner_mut().skip();
                         *to_clear -= 1;
                     }
                 }

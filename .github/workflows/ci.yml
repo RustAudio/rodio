@@ -43,12 +43,8 @@ jobs:
           # Don't use a 'components:' entry--we don't need them with beta/nightly, plus nightly often doesn't have them
           override: true
 
-      # This block can be uncommented to add clippy to CI, but first the existing clippy warnings need to be fixed!
-      # - name: clippy
-      #   run: |
-      #     rustup component add clippy
-      #     cargo clippy -- -D warnings
-      #   if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
+      - run: cargo clippy -- -D warnings
+        if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
 
       - run: |
           rustup component add rustfmt

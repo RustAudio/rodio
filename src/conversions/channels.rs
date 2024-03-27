@@ -87,11 +87,14 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
 
-        let min =
-            (min / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize;
-        let max = max.map(|max| {
-            (max / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize
-        });
+        let consumed = std::cmp::min(self.from, self.next_output_sample_pos) as usize;
+        let calculate = |size| {
+            (size + consumed) / self.from as usize * self.to as usize
+                - self.next_output_sample_pos as usize
+        };
+
+        let min = calculate(min);
+        let max = max.map(calculate);
 
         (min, max)
     }
@@ -120,14 +123,11 @@ mod test {
     }
 
     #[test]
-    fn mono_to_stereo() {
+    fn add_channels() {
         let input = vec![1i16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 1, 2).collect::<Vec<_>>();
         assert_eq!(output, [1, 1, 2, 2, 3, 3, 4, 4]);
-    }
 
-    #[test]
-    fn add_channels() {
         let input = vec![1i16, 2];
         let output = ChannelCountConverter::new(input.into_iter(), 1, 4).collect::<Vec<_>>();
         assert_eq!(output, [1, 1, 0, 0, 2, 2, 0, 0]);
@@ -135,6 +135,28 @@ mod test {
         let input = vec![1i16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 4).collect::<Vec<_>>();
         assert_eq!(output, [1, 2, 0, 0, 3, 4, 0, 0]);
+    }
+
+    #[test]
+    fn size_hint() {
+        fn test(input: &[i16], from: cpal::ChannelCount, to: cpal::ChannelCount) {
+            let input = input.to_vec();
+            let scaled_len = input.len() / from as usize * to as usize;
+            let mut converter = ChannelCountConverter::new(input.into_iter(), from, to);
+            for i in 0..scaled_len {
+                assert_eq!(
+                    converter.size_hint(),
+                    (scaled_len - i, Some(scaled_len - i))
+                );
+                converter.next();
+            }
+        }
+
+        test(&[1i16, 2, 3], 1, 2);
+        test(&[1i16, 2, 3, 4], 2, 4);
+        test(&[1i16, 2, 3, 4], 4, 2);
+        test(&[1i16, 2, 3, 4, 5, 6], 3, 8);
+        test(&[1i16, 2, 3, 4, 5, 6, 7, 8], 4, 1);
     }
 
     #[test]

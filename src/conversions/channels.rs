@@ -21,7 +21,7 @@ where
     ///
     /// # Panic
     ///
-    /// Panicks if `from` or `to` are equal to 0.
+    /// Panics if `from` or `to` are equal to 0.
     ///
     #[inline]
     pub fn new(
@@ -71,7 +71,7 @@ where
         self.next_output_sample_pos += 1;
 
         if self.next_output_sample_pos == self.to {
-            self.next_output_sample_pos -= self.to;
+            self.next_output_sample_pos = 0;
 
             if self.from > self.to {
                 for _ in self.to..self.from {

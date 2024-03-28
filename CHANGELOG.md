@@ -1,3 +1,23 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+- `Source` trait is now also implemented for `Box<dyn Source>` and `&mut Source`
+- `fn new_vorbis` is now also available when the `symphonia-vorbis` feature is enabled
+
+### Added 
+- Adds `SpatialSink::clear()` bringing it in line with `Sink`
+
+### Fixed
+- `mp3::is_mp3()` no longer changes the position in the stream when the stream
+  is mp3
+
 # Version 0.17.3 (2023-10-23)
 
 - Build fix for `minimp3` backend.

@@ -68,7 +68,9 @@ where
             _ => Some(I::Item::EQUILIBRIUM),
         };
 
-        self.next_output_sample_pos += 1;
+        if result.is_some() {
+            self.next_output_sample_pos += 1;
+        }
 
         if self.next_output_sample_pos == self.to {
             self.next_output_sample_pos = 0;
@@ -140,16 +142,14 @@ mod test {
     #[test]
     fn size_hint() {
         fn test(input: &[i16], from: cpal::ChannelCount, to: cpal::ChannelCount) {
-            let input = input.to_vec();
-            let scaled_len = input.len() / from as usize * to as usize;
-            let mut converter = ChannelCountConverter::new(input.into_iter(), from, to);
-            for i in 0..scaled_len {
-                assert_eq!(
-                    converter.size_hint(),
-                    (scaled_len - i, Some(scaled_len - i))
-                );
+            let mut converter = ChannelCountConverter::new(input.iter().copied(), from, to);
+            let count = converter.clone().count();
+            for left_in_iter in (0..=count).rev() {
+                println!("left_in_iter = {}", left_in_iter);
+                assert_eq!(converter.size_hint(), (left_in_iter, Some(left_in_iter)));
                 converter.next();
             }
+            assert_eq!(converter.size_hint(), (0, Some(0)));
         }
 
         test(&[1i16, 2, 3], 1, 2);

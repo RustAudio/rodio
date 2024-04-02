@@ -111,28 +111,35 @@ fn seek_does_not_break_channel_order() {
     let sample_rate = source.sample_rate() as usize;
     let samples: Vec<f32> = source.convert_samples().collect();
 
-    const MARGIN: usize = 30;
+    const WINDOW: usize = 50;
     let beep_starts = samples
-        .iter()
+        .chunks_exact(WINDOW)
         .enumerate()
-        .find(|(_, s)| s.abs() > 0.001)
+        .map(|(idx, chunk)| (idx * WINDOW, chunk))
+        .find(|(_, s)| s.iter().skip(1).step_by(2).map(|s| s.abs()).sum::<f32>() > 0.1)
         .expect("track should not be silent")
-        .0
-        + MARGIN;
+        .0;
 
     const BASICALLY_ZERO: f32 = 0.00001;
     let beep_ends = samples
-        .chunks_exact(8)
+        .chunks_exact(WINDOW)
         .enumerate()
-        .map(|(idx, chunk)| (idx * 8, chunk))
-        .skip(beep_starts / 8)
-        .find(|(_, s)| s.iter().skip(1).step_by(2).all(|s| s.abs() < BASICALLY_ZERO))
+        .map(|(idx, chunk)| (idx * WINDOW, chunk))
+        .skip(beep_starts / WINDOW)
+        .find(|(_, s)| {
+            s.iter()
+                .skip(1)
+                .step_by(2)
+                .all(|s| s.abs() < BASICALLY_ZERO)
+        })
         .expect("beep should end")
-        .0
-        - MARGIN;
+        .0;
 
     dbg!(beep_starts, beep_ends);
-    let beep_duration = (beep_ends - beep_starts) as f32 / sample_rate as f32;
+    dbg!(Duration::from_secs_f32(
+        beep_starts as f32 / sample_rate as f32 / channels as f32
+    ));
+    let beep_duration = (beep_ends - beep_starts) as f32 / sample_rate as f32 / channels as f32;
     let beep_duration = Duration::from_secs_f32(beep_duration);
     let beep = &samples[beep_starts..beep_ends];
 

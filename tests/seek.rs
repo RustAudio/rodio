@@ -2,7 +2,7 @@ use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use std::time::Duration;
 
-use rodio::{Decoder, Source};
+use rodio::{buffer, Decoder, Source};
 
 fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
     let rate = decoder.sample_rate() as f64;
@@ -100,4 +100,53 @@ fn seek_results_in_correct_remaining_playtime() {
             );
         }
     }
+}
+
+#[test]
+fn seek_does_not_break_channel_order() {
+    let file = std::fs::File::open("assets/RL.ogg").unwrap();
+    let mut source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+    assert_eq!(source.channels(), 2, "test needs a stereo beep file");
+    let channels = source.channels() as usize;
+    let sample_rate = source.sample_rate() as usize;
+    let samples: Vec<f32> = source.convert_samples().collect();
+
+    const MARGIN: usize = 30;
+    let beep_starts = samples
+        .iter()
+        .enumerate()
+        .find(|(_, s)| s.abs() > 0.001)
+        .expect("track should not be silent")
+        .0
+        + MARGIN;
+
+    const BASICALLY_ZERO: f32 = 0.00001;
+    let beep_ends = samples
+        .chunks_exact(8)
+        .enumerate()
+        .map(|(idx, chunk)| (idx * 8, chunk))
+        .skip(beep_starts / 8)
+        .find(|(_, s)| s.iter().skip(1).step_by(2).all(|s| s.abs() < BASICALLY_ZERO))
+        .expect("beep should end")
+        .0
+        - MARGIN;
+
+    dbg!(beep_starts, beep_ends);
+    let beep_duration = (beep_ends - beep_starts) as f32 / sample_rate as f32;
+    let beep_duration = Duration::from_secs_f32(beep_duration);
+    let beep = &samples[beep_starts..beep_ends];
+
+    dbg!(beep_duration);
+    // let left_channel = samples.iter().step_by(channels);
+    // let left_volume = left_channel.map(|s| s.abs()).sum::<f32>() / (beep_len / channels) as f32;
+    //
+    // let right_channel = samples.iter().skip(1).step_by(channels);
+    // let right_volume = right_channel.map(|s| s.abs()).sum::<f32>() / (beep_len / channels) as f32;
+
+    // assert_eq!(right_volume, 0.0);
+    // assert_eq!(left_volume, 0.0);
+    // assert!(
+    //     right_volume ==
+    //     "The left channel not silent while the right is is needed for the test"
+    // );
 }

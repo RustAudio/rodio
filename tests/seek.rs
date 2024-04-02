@@ -102,23 +102,29 @@ fn seek_results_in_correct_remaining_playtime() {
     }
 }
 
-#[test]
-fn seek_does_not_break_channel_order() {
-    let file = std::fs::File::open("assets/RL.ogg").unwrap();
-    let mut source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    assert_eq!(source.channels(), 2, "test needs a stereo beep file");
+fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize>
+where
+    R: Iterator<Item = f32>,
+{
     let channels = source.channels() as usize;
-    let sample_rate = source.sample_rate() as usize;
-    let samples: Vec<f32> = source.convert_samples().collect();
+    let samples: Vec<f32> = source.by_ref().collect();
 
     const WINDOW: usize = 50;
     let beep_starts = samples
         .chunks_exact(WINDOW)
         .enumerate()
         .map(|(idx, chunk)| (idx * WINDOW, chunk))
-        .find(|(_, s)| s.iter().skip(1).step_by(2).map(|s| s.abs()).sum::<f32>() > 0.1)
+        .find(|(_, s)| {
+            s.iter()
+                .skip(1)
+                .step_by(channels)
+                .map(|s| s.abs())
+                .sum::<f32>()
+                > 0.1
+        })
         .expect("track should not be silent")
         .0;
+    let beep_starts = beep_starts.next_multiple_of(channels);
 
     const BASICALLY_ZERO: f32 = 0.00001;
     let beep_ends = samples
@@ -129,31 +135,54 @@ fn seek_does_not_break_channel_order() {
         .find(|(_, s)| {
             s.iter()
                 .skip(1)
-                .step_by(2)
+                .step_by(channels)
                 .all(|s| s.abs() < BASICALLY_ZERO)
         })
         .expect("beep should end")
         .0;
+    let beep_ends = beep_ends.next_multiple_of(channels);
 
-    dbg!(beep_starts, beep_ends);
-    dbg!(Duration::from_secs_f32(
-        beep_starts as f32 / sample_rate as f32 / channels as f32
-    ));
-    let beep_duration = (beep_ends - beep_starts) as f32 / sample_rate as f32 / channels as f32;
-    let beep_duration = Duration::from_secs_f32(beep_duration);
-    let beep = &samples[beep_starts..beep_ends];
+    beep_starts..beep_ends
+}
 
-    dbg!(beep_duration);
-    // let left_channel = samples.iter().step_by(channels);
-    // let left_volume = left_channel.map(|s| s.abs()).sum::<f32>() / (beep_len / channels) as f32;
-    //
-    // let right_channel = samples.iter().skip(1).step_by(channels);
-    // let right_volume = right_channel.map(|s| s.abs()).sum::<f32>() / (beep_len / channels) as f32;
+fn is_silent<R: rodio::Source>(source: &mut R) -> bool
+where
+    R: Iterator<Item = f32>,
+{
+    const WINDOW: usize = 100;
+    let channels = source.channels() as usize;
+    let channel: Vec<f32> = source.step_by(channels).take(WINDOW).collect();
+    // let channel2_volume = channel2.map(|s| s.abs()).sum::<f32>() as f32 / WINDOW as f32;
 
-    // assert_eq!(right_volume, 0.0);
-    // assert_eq!(left_volume, 0.0);
-    // assert!(
-    //     right_volume ==
-    //     "The left channel not silent while the right is is needed for the test"
-    // );
+    dbg!(channel);
+    todo!();
+}
+
+#[test]
+fn seek_does_not_break_channel_order() {
+    let file = std::fs::File::open("assets/RL.ogg").unwrap();
+    let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+    let mut source = source.convert_samples();
+    assert_eq!(source.channels(), 2, "test needs a stereo beep file");
+
+    let beep_range = second_channel_beep_range(source.by_ref());
+    let beep_start = Duration::from_secs_f32(
+        beep_range.start as f32 / source.channels() as f32 / source.sample_rate() as f32,
+    );
+
+    for i in 0..10 {
+        let offset = Duration::from_millis(i * 100);
+        source.try_seek(beep_start + offset).unwrap();
+        is_silent(source.by_ref());
+    }
+}
+
+#[test]
+fn seek_possible_after_finishing() {
+    let file = std::fs::File::open("assets/RL.ogg").unwrap();
+    let mut source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+    while source.next().is_some() {}
+
+    source.try_seek(Duration::from_secs(0)).unwrap();
+    assert!(source.next().is_some());
 }

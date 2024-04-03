@@ -1,6 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
-use std::vec;
 
 use crate::source::SeekError;
 use crate::Source;
@@ -13,7 +12,8 @@ where
     R: Read + Seek,
 {
     stream_reader: OggStreamReader<R>,
-    current_data: vec::IntoIter<i16>,
+    current_data: Vec<i16>,
+    next: usize,
 }
 
 impl<R> VorbisDecoder<R>
@@ -43,7 +43,8 @@ where
 
         VorbisDecoder {
             stream_reader,
-            current_data: data.into_iter(),
+            current_data: data,
+            next: 0,
         }
     }
     pub fn into_inner(self) -> OggStreamReader<R> {
@@ -83,13 +84,20 @@ where
         // first few frames (packets) sometimes fail to decode, if
         // that happens just retry a few times.
         let mut last_err = None;
-        for _ in 0..10 { // 10 seemed to work best in testing
+        for _ in 0..10 {
+            // 10 seemed to work best in testing
             let res = self.stream_reader.read_dec_packet_itl();
             match res {
                 Ok(data) => {
                     match data {
-                        Some(d) => self.current_data = d.into_iter(),
-                        None => self.current_data = Vec::new().into_iter(),
+                        Some(d) => self.current_data = d,
+                        None => self.current_data = Vec::new(),
+                    }
+                    // make sure the next seek returns the
+                    // sample for the correct speaker
+                    let to_skip = self.next % self.channels() as usize;
+                    for _ in 0..to_skip {
+                        self.next();
                     }
                     return Ok(());
                 }
@@ -111,24 +119,29 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<i16> {
-        if let Some(sample) = self.current_data.next() {
+        if let Some(sample) = self.current_data.get(self.next).copied() {
+            self.next += 1;
             if self.current_data.len() == 0 {
                 if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
-                    self.current_data = data.into_iter();
+                    self.current_data = data;
+                    self.next = 0;
                 }
             }
             Some(sample)
         } else {
             if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
-                self.current_data = data.into_iter();
+                self.current_data = data;
+                self.next = 0;
             }
-            self.current_data.next()
+            let sample = self.current_data.get(self.next).copied();
+            self.next += 1;
+            sample
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.current_data.size_hint().0, None)
+        (self.current_data.len(), None)
     }
 }
 

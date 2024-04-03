@@ -77,10 +77,29 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        // number of PCM samples per channel
-        let samples = pos.as_secs_f32() * self.sample_rate() as f32;
+        let samples = pos.as_secs_f32() * self.sample_rate() as f32 * self.channels() as f32;
         self.stream_reader.seek_absgp_pg(samples as u64)?;
-        Ok(())
+
+        // first few frames (packets) sometimes fail to decode, if
+        // that happens just retry a few times.
+        let mut last_err = None;
+        for _ in 0..10 { // 10 seemed to work best in testing
+            let res = self.stream_reader.read_dec_packet_itl();
+            match res {
+                Ok(data) => {
+                    match data {
+                        Some(d) => self.current_data = d.into_iter(),
+                        None => self.current_data = Vec::new().into_iter(),
+                    }
+                    return Ok(());
+                }
+                Err(e) => last_err = Some(e),
+            }
+        }
+
+        Err(SeekError::LewtonDecoder(
+            last_err.expect("is set if we get out of the for loop"),
+        ))
     }
 }
 

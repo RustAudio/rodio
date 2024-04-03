@@ -415,12 +415,6 @@ pub enum SeekError {
     #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
     #[error("Error seeking in wav source: {0}")]
     HoundDecoder(std::io::Error),
-    #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-    #[error("Error seeking in ogg source: {0}")]
-    LewtonDecoder(#[from] lewton::VorbisError),
-    #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-    #[error("Error seeking in mp3 source: {0}")]
-    Minimp3Decoder(#[from] minimp3_fixed::Error),
     #[error("An error occurred")]
     Other(Box<dyn std::error::Error + Send>),
 }

@@ -76,16 +76,38 @@ where
         None
     }
 
-    /// vorbis decoder only supports seeking to a number of samples
-    /// from the start. Since the samplerate can change in between frames
-    /// we can not reliably and efficiently calculate where to seek to.
-    ///
-    /// recommendation: use symphonia if you want seeking in ogg files
     #[inline]
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
-            underlying_source: std::any::type_name::<Self>(),
-        })
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        let samples = pos.as_secs_f32() * self.sample_rate() as f32;
+        self.stream_reader.seek_absgp_pg(samples as u64)?;
+
+        // first few frames (packets) sometimes fail to decode, if
+        // that happens just retry a few times.
+        let mut last_err = None;
+        for _ in 0..10 {
+            // 10 seemed to work best in testing
+            let res = self.stream_reader.read_dec_packet_itl();
+            match res {
+                Ok(data) => {
+                    match data {
+                        Some(d) => self.current_data = d,
+                        None => self.current_data = Vec::new(),
+                    }
+                    // make sure the next seek returns the
+                    // sample for the correct speaker
+                    let to_skip = self.next % self.channels() as usize;
+                    for _ in 0..to_skip {
+                        self.next();
+                    }
+                    return Ok(());
+                }
+                Err(e) => last_err = Some(e),
+            }
+        }
+
+        Err(SeekError::LewtonDecoder(
+            last_err.expect("is set if we get out of the for loop"),
+        ))
     }
 }
 

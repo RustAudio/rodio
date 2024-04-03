@@ -78,7 +78,7 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        let samples = pos.as_secs_f32() * self.sample_rate() as f32 * self.channels() as f32;
+        let samples = pos.as_secs_f32() * self.sample_rate() as f32;
         self.stream_reader.seek_absgp_pg(samples as u64)?;
 
         // first few frames (packets) sometimes fail to decode, if

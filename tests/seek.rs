@@ -8,6 +8,7 @@ fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
     let rate = decoder.sample_rate() as f64;
     let n_channels = decoder.channels() as f64;
     let n_samples = decoder.into_iter().count() as f64;
+    dbg!(n_samples);
     Duration::from_secs_f64(n_samples / rate / n_channels)
 }
 
@@ -84,6 +85,7 @@ fn seek_results_in_correct_remaining_playtime() {
 
         let decoder = get_decoder(format);
         let total_duration = time_remaining(decoder);
+        dbg!(total_duration);
 
         const SEEK_BEFORE_END: Duration = Duration::from_secs(5);
         let mut decoder = get_decoder(format);

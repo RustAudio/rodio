@@ -76,39 +76,20 @@ where
         None
     }
 
+    /// seek is broken, https://github.com/RustAudio/lewton/issues/73. 
+    // We could work around it by:
+    //  - using unsafe to create an instance of Self
+    //  - use mem::swap to turn the &mut self into a mut self
+    //  - take out the underlying Read+Seek
+    //  - make a new self and seek
+    //
+    // If this issue is fixed use the implementation in
+    // commit: 3bafe32388b4eb7a48c6701e6c65044dc8c555e6
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        // note sample rate in vorbis encoding is constant
-        let samples = pos.as_secs_f32() * self.sample_rate() as f32;
-        self.stream_reader.seek_absgp_pg(samples as u64)?;
-
-        // first few frames (packets) sometimes fail to decode, if
-        // that happens just retry a few times.
-        let mut last_err = None;
-        for _ in 0..10 {
-            // 10 seemed to work best in testing
-            let res = self.stream_reader.read_dec_packet_itl();
-            match res {
-                Ok(data) => {
-                    match data {
-                        Some(d) => self.current_data = d,
-                        None => self.current_data = Vec::new(),
-                    }
-                    // make sure the next seek returns the
-                    // sample for the correct speaker
-                    let to_skip = self.next % self.channels() as usize;
-                    for _ in 0..to_skip {
-                        self.next();
-                    }
-                    return Ok(());
-                }
-                Err(e) => last_err = Some(e),
-            }
-        }
-
-        Err(SeekError::LewtonDecoder(
-            last_err.expect("is set if we get out of the for loop"),
-        ))
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
     }
 }
 

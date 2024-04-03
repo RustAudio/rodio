@@ -193,17 +193,25 @@ fn seek_does_not_break_channel_order() {
         source.next(); // WINDOW is even, make the amount of calls to next
                        // uneven to force issues with channels alternating
                        // between seek to surface
-        channel_offset = (channel_offset + 1) % 1;
+        channel_offset = (channel_offset + 1) % 2;
 
         source.try_seek(beep_start + offset).unwrap();
         let samples: Vec<_> = source.by_ref().take(WINDOW).collect();
+        let channel0 = 0 + channel_offset;
         assert!(
-            !is_silent(&samples, source.channels(), 0 + channel_offset),
-            "{channel_offset}, {offset:?}: {samples:?}"
+            is_silent(&samples, source.channels(), channel0),
+            "channel0 should be silent, 
+    channel0 starts at idx: {channel0}
+    seek offset: {offset:?}
+    samples: {samples:?}"
         );
+        let channel1 = (1 + channel_offset) % 2;
         assert!(
-            !is_silent(&samples, source.channels(), 1 + channel_offset),
-            "{channel_offset}, {offset:?}: {samples:?}"
+            !is_silent(&samples, source.channels(), channel1),
+            "channel1 should not be silent, 
+    channel1; starts at idx: {channel1}
+    seek offset: {offset:?}
+    samples: {samples:?}"
         );
     }
 }

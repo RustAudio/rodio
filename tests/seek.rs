@@ -2,7 +2,7 @@ use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use std::time::Duration;
 
-use rodio::{buffer, Decoder, Source};
+use rodio::{Decoder, Source};
 
 fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
     let rate = decoder.sample_rate() as f64;
@@ -145,43 +145,76 @@ where
     beep_starts..beep_ends
 }
 
-fn is_silent<R: rodio::Source>(source: &mut R) -> bool
-where
-    R: Iterator<Item = f32>,
-{
-    const WINDOW: usize = 100;
-    let channels = source.channels() as usize;
-    let channel: Vec<f32> = source.step_by(channels).take(WINDOW).collect();
-    // let channel2_volume = channel2.map(|s| s.abs()).sum::<f32>() as f32 / WINDOW as f32;
+fn is_silent(samples: &[f32], channels: u16, channel: usize) -> bool {
+    assert_eq!(samples.len(), 100);
+    // dbg!(samples);
+    let channel = samples.iter().skip(channel).step_by(channels as usize);
+    let volume =
+        channel.map(|s| s.abs()).sum::<f32>() as f32 / samples.len() as f32 * channels as f32;
 
-    dbg!(channel);
-    todo!();
+    const BASICALLY_ZERO: f32 = 0.0001;
+    volume < BASICALLY_ZERO
 }
 
+// TODO test all decoders
 #[test]
 fn seek_does_not_break_channel_order() {
     let file = std::fs::File::open("assets/RL.ogg").unwrap();
-    let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    let mut source = source.convert_samples();
-    assert_eq!(source.channels(), 2, "test needs a stereo beep file");
+    let mut source = rodio::Decoder::new(BufReader::new(file))
+        .unwrap()
+        .convert_samples();
+    let channels = source.channels();
+    assert_eq!(channels, 2, "test needs a stereo beep file");
 
-    let beep_range = second_channel_beep_range(source.by_ref());
+    let beep_range = second_channel_beep_range(&mut source);
     let beep_start = Duration::from_secs_f32(
         beep_range.start as f32 / source.channels() as f32 / source.sample_rate() as f32,
     );
 
-    for i in 0..10 {
-        let offset = Duration::from_millis(i * 100);
+    let file = std::fs::File::open("assets/RL.ogg").unwrap();
+    let mut source = rodio::Decoder::new(BufReader::new(file))
+        .unwrap()
+        .convert_samples();
+
+    const WINDOW: usize = 100;
+    let samples: Vec<_> = source
+        .by_ref()
+        .skip(beep_range.start)
+        .take(WINDOW)
+        .collect();
+    assert!(is_silent(&samples, channels, 0), "{samples:?}");
+    assert!(!is_silent(&samples, channels, 1), "{samples:?}");
+
+    let mut channel_offset = 0;
+    for offset in [1, 4, 7, 40, 41, 120, 179]
+        .map(|offset| offset as f32 / (source.sample_rate() as f32))
+        .map(Duration::from_secs_f32)
+    {
+        source.next(); // WINDOW is even, make the amount of calls to next
+                       // uneven to force issues with channels alternating
+                       // between seek to surface
+        channel_offset = (channel_offset + 1) % 1;
+
         source.try_seek(beep_start + offset).unwrap();
-        is_silent(source.by_ref());
+        let samples: Vec<_> = source.by_ref().take(WINDOW).collect();
+        assert!(
+            !is_silent(&samples, source.channels(), 0 + channel_offset),
+            "{channel_offset}, {offset:?}: {samples:?}"
+        );
+        assert!(
+            !is_silent(&samples, source.channels(), 1 + channel_offset),
+            "{channel_offset}, {offset:?}: {samples:?}"
+        );
     }
 }
 
+// TODO test all decoders
 #[test]
-fn seek_possible_after_finishing() {
+fn seek_possible_after_exausting_source() {
     let file = std::fs::File::open("assets/RL.ogg").unwrap();
     let mut source = rodio::Decoder::new(BufReader::new(file)).unwrap();
     while source.next().is_some() {}
+    assert!(source.next().is_none());
 
     source.try_seek(Duration::from_secs(0)).unwrap();
     assert!(source.next().is_some());

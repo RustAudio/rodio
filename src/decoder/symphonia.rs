@@ -195,23 +195,19 @@ impl Iterator for SymphoniaDecoder {
         if self.current_frame_offset == self.buffer.len() {
             let mut decode_errors: usize = 0;
             let decoded = loop {
-                match self.format.next_packet() {
-                    Ok(packet) => match self.decoder.decode(&packet) {
-                        Ok(decoded) => break decoded,
-                        Err(e) => match e {
-                            Error::DecodeError(_) => {
-                                decode_errors += 1;
-                                if decode_errors > MAX_DECODE_ERRORS {
-                                    return None;
-                                } else {
-                                    continue;
-                                }
-                            }
-                            _ => return None,
-                        },
-                    },
+                let packet = self.format.next_packet().ok()?;
+                match self.decoder.decode(&packet) {
+                    Ok(decoded) => break decoded,
+                    Err(Error::DecodeError(_)) => {
+                        decode_errors += 1;
+                        if decode_errors > MAX_DECODE_ERRORS {
+                            return None;
+                        } else {
+                            continue;
+                        }
+                    }
                     Err(_) => return None,
-                }
+                };
             };
             self.spec = decoded.spec().to_owned();
             self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);

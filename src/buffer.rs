@@ -91,14 +91,16 @@ where
     // and due to the constant sample_rate we can jump to the right
     // sample directly
     //
-    /// This skips samples until it arrives at `pos`. It makes sure the next
-    /// sample is for the next channel
+    /// This jumps in memory till the sample for `pos`.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let curr_channel = self.pos % self.channels() as usize;
         let new_pos = pos.as_secs_f32() * self.sample_rate() as f32 * self.channels() as f32;
+        // saturate pos at the end of the source
         let new_pos = new_pos as usize;
         let new_pos = new_pos.min(self.data.len());
+
+        // make sure the next sample is for the right channel
         let new_pos = new_pos.next_multiple_of(self.channels() as usize);
         let new_pos = new_pos - curr_channel;
 

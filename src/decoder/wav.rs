@@ -57,7 +57,7 @@ where
     R: Read + Seek,
 {
     reader: WavReader<R>,
-    samples_read: u32,
+    samples_read: u32, // wav header is u32 so this suffices
 }
 
 impl<R> Iterator for SamplesIterator<R>
@@ -132,11 +132,26 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        let samples = pos.as_secs_f32() * self.sample_rate() as f32;
+        let file_len = self.reader.reader.duration();
+
+        let new_pos = pos.as_secs_f32() * self.sample_rate() as f32;
+        let new_pos = new_pos as u32;
+        let new_pos = new_pos.min(file_len); // saturate pos at the end of the source
+
+        // make sure the next sample is for the right channel
+        let to_skip = self.reader.samples_read % self.channels() as u32;
+
         self.reader
             .reader
-            .seek(samples as u32)
-            .map_err(SeekError::HoundDecoder)
+            .seek(new_pos as u32)
+            .map_err(SeekError::HoundDecoder)?;
+        self.reader.samples_read = new_pos * self.channels() as u32;
+
+        for _ in 0..to_skip {
+            self.next();
+        }
+
+        Ok(())
     }
 }
 

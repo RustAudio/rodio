@@ -205,7 +205,7 @@ impl Sink {
     ///
     /// This blocks between 0 and ~5 milliseconds.
     ///
-    /// As long as the duration of the source is known seek is guaranteed to saturate
+    /// As long as the duration of the source is known, seek is guaranteed to saturate
     /// at the end of the source. For example given a source that reports a total duration
     /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
     /// 42 seconds.

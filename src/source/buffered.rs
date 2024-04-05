@@ -242,6 +242,8 @@ where
         self.total_duration
     }
 
+    /// Can not support seek, in the end state we lose the underlying source
+    /// which makes seeking back impossible.
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
         Err(SeekError::NotSupported {

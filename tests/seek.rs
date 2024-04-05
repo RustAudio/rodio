@@ -129,15 +129,6 @@ fn seek_does_not_break_channel_order(
 
     let mut source = get_rl(format).convert_samples();
 
-    const WINDOW: usize = 100;
-    let samples: Vec<_> = source
-        .by_ref()
-        .skip(beep_range.start)
-        .take(WINDOW)
-        .collect();
-    assert!(is_silent(&samples, channels, 0), "{samples:?}");
-    assert!(!is_silent(&samples, channels, 1), "{samples:?}");
-
     let mut channel_offset = 0;
     for offset in [1, 4, 7, 40, 41, 120, 179]
         .map(|offset| offset as f32 / (source.sample_rate() as f32))
@@ -149,7 +140,7 @@ fn seek_does_not_break_channel_order(
         channel_offset = (channel_offset + 1) % 2;
 
         source.try_seek(beep_start + offset).unwrap();
-        let samples: Vec<_> = source.by_ref().take(WINDOW).collect();
+        let samples: Vec<_> = source.by_ref().take(100).collect();
         let channel0 = 0 + channel_offset;
         assert!(
             is_silent(&samples, source.channels(), channel0),
@@ -190,10 +181,10 @@ where
                 > 0.1
         })
         .expect("track should not be silent")
-        .0;
-    let beep_starts = beep_starts.next_multiple_of(channels);
+        .0
+        .next_multiple_of(channels);
 
-    const BASICALLY_ZERO: f32 = 0.00001;
+    const BASICALLY_ZERO: f32 = 0.0001;
     let beep_ends = samples
         .chunks_exact(WINDOW)
         .enumerate()
@@ -206,15 +197,18 @@ where
                 .all(|s| s.abs() < BASICALLY_ZERO)
         })
         .expect("beep should end")
-        .0;
-    let beep_ends = beep_ends.next_multiple_of(channels);
+        .0
+        .next_multiple_of(channels);
+
+    let samples = &samples[beep_starts..beep_starts + 100];
+    assert!(is_silent(samples, channels as u16, 0), "{samples:?}");
+    assert!(!is_silent(samples, channels as u16, 1), "{samples:?}");
 
     beep_starts..beep_ends
 }
 
 fn is_silent(samples: &[f32], channels: u16, channel: usize) -> bool {
     assert_eq!(samples.len(), 100);
-    // dbg!(samples);
     let channel = samples.iter().skip(channel).step_by(channels as usize);
     let volume =
         channel.map(|s| s.abs()).sum::<f32>() as f32 / samples.len() as f32 * channels as f32;

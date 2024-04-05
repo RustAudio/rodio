@@ -13,7 +13,7 @@ use symphonia::{
     default::get_probe,
 };
 
-use crate::{source::SeekError, Source};
+use crate::{source, Source};
 
 use super::DecoderError;
 
@@ -22,7 +22,7 @@ use super::DecoderError;
 // But a decode error in more than 3 consecutive packets is fatal.
 const MAX_DECODE_RETRIES: usize = 3;
 
-pub struct SymphoniaDecoder {
+pub(crate) struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
     current_frame_offset: usize,
     format: Box<dyn FormatReader>,
@@ -32,7 +32,7 @@ pub struct SymphoniaDecoder {
 }
 
 impl SymphoniaDecoder {
-    pub fn new(mss: MediaSourceStream, extension: Option<&str>) -> Result<Self, DecoderError> {
+    pub(crate) fn new(mss: MediaSourceStream, extension: Option<&str>) -> Result<Self, DecoderError> {
         match SymphoniaDecoder::init(mss, extension) {
             Err(e) => match e {
                 Error::IoError(e) => Err(DecoderError::IoError(e.to_string())),
@@ -49,7 +49,7 @@ impl SymphoniaDecoder {
         }
     }
 
-    pub fn into_inner(self: Box<Self>) -> MediaSourceStream {
+    pub(crate) fn into_inner(self: Box<Self>) -> MediaSourceStream {
         self.format.into_inner()
     }
 
@@ -148,7 +148,7 @@ impl Source for SymphoniaDecoder {
             .map(|Time { seconds, frac }| Duration::new(seconds, (1f64 / frac) as u32))
     }
 
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+    fn try_seek(&mut self, pos: Duration) -> Result<(), source::SeekError> {
         use symphonia::core::formats::{SeekMode, SeekTo};
 
         let seek_beyond_end = self
@@ -171,7 +171,7 @@ impl Source for SymphoniaDecoder {
                 time,
                 track_id: None,
             },
-        )?;
+        ).map_err(SeekError::BaseSeek)?;
 
         self.refine_position(seek_res)?;
         self.current_frame_offset += to_skip;
@@ -180,15 +180,27 @@ impl Source for SymphoniaDecoder {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum SeekError {
+    #[error("Could not get next packet while refining seek position: {0:?}")]
+    Refining(symphonia::core::errors::Error),
+    #[error("Format reader failed to seek: {0:?}")]
+    BaseSeek(symphonia::core::errors::Error),
+    #[error("Decoding failed retrying on the next packet failed: {0:?}")]
+    Retrying(symphonia::core::errors::Error),
+    #[error("Decoding failed on multiple consecutive packets: {0:?}")]
+    Decoding(symphonia::core::errors::Error),
+}
+
 impl SymphoniaDecoder {
     /// note frame offset must be set after
-    fn refine_position(&mut self, seek_res: SeekedTo) -> Result<(), SeekError> {
+    fn refine_position(&mut self, seek_res: SeekedTo) -> Result<(), source::SeekError> {
         let mut samples_to_pass = seek_res.required_ts - seek_res.actual_ts;
-        loop {
+        let packet = loop {
             let candidate = self
                 .format
                 .next_packet()
-                .map_err(SeekError::SymphoniaDecoder)?;
+                .map_err(SeekError::Refining)?;
             if candidate.dur() > samples_to_pass {
                 break candidate;
             } else {
@@ -196,16 +208,15 @@ impl SymphoniaDecoder {
             }
         };
 
-        let packet = self.format.next_packet()?;
         let mut decoded = self.decoder.decode(&packet);
         for _ in 0..MAX_DECODE_RETRIES {
             if decoded.is_err() {
-                let packet = self.format.next_packet()?;
+                let packet = self.format.next_packet().map_err(SeekError::Retrying)?;
                 decoded = self.decoder.decode(&packet);
             }
         }
 
-        let decoded = decoded?;
+        let decoded = decoded.map_err(SeekError::Decoding)?;
         self.spec = decoded.spec().to_owned();
         self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
         self.current_frame_offset = samples_to_pass as usize * self.channels() as usize;

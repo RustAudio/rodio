@@ -129,6 +129,7 @@ where
         })
 
         // uncomment when #510 is implemented (query position of playback)
+        // TODO use source_intact to check if rollback makes sense
 
         // let org_pos = self.input1.playback_pos();
         // self.input1.try_seek(pos)?;

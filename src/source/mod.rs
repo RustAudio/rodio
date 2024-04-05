@@ -411,18 +411,23 @@ pub enum SeekError {
     NotSupported { underlying_source: &'static str },
     #[cfg(feature = "symphonia")]
     #[error("Error seeking: {0}")]
-    SymphoniaDecoder(#[from] symphonia::core::errors::Error),
+    SymphoniaDecoder(#[from] crate::decoder::symphonia::SeekError),
     #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
     #[error("Error seeking in wav source: {0}")]
     HoundDecoder(std::io::Error),
-    #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-    #[error("Error seeking in ogg source: {0}")]
-    LewtonDecoder(#[from] lewton::VorbisError),
-    #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-    #[error("Error seeking in mp3 source: {0}")]
-    Minimp3Decoder(#[from] minimp3_fixed::Error),
     #[error("An error occurred")]
     Other(Box<dyn std::error::Error + Send>),
+}
+
+impl SeekError {
+    pub fn source_intact(&self) -> bool {
+        match self {
+            SeekError::NotSupported { .. } => true,
+            SeekError::SymphoniaDecoder(_) => false,
+            SeekError::HoundDecoder(_) => false,
+            SeekError::Other(_) => false,
+        }
+    }
 }
 
 macro_rules! source_pointer_impl {

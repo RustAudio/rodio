@@ -66,7 +66,7 @@ fn seek_beyond_end_saturates(#[case] format: &'static str, #[case] decoder_name:
     println!("seeking beyond end for: {format}\t decoded by: {decoder_name}");
     let res = decoder.try_seek(Duration::from_secs(999));
 
-    assert!(res.is_ok());
+    assert!(res.is_ok(), "err: {res:?}");
     assert!(time_remaining(decoder) < Duration::from_secs(1));
 }
 

@@ -24,7 +24,7 @@ mod mp3;
 #[cfg(feature = "symphonia")]
 mod read_seek_source;
 #[cfg(feature = "symphonia")]
-mod symphonia;
+pub mod symphonia;
 #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
 mod vorbis;
 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]

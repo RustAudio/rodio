@@ -4,7 +4,7 @@ use symphonia::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
         codecs::{Decoder, DecoderOptions},
         errors::Error,
-        formats::{FormatOptions, FormatReader},
+        formats::{FormatOptions, FormatReader, SeekedTo},
         io::MediaSourceStream,
         meta::MetadataOptions,
         probe::Hint,
@@ -20,7 +20,7 @@ use super::DecoderError;
 // Decoder errors are not considered fatal.
 // The correct action is to just get a new packet and try again.
 // But a decode error in more than 3 consecutive packets is fatal.
-const MAX_DECODE_ERRORS: usize = 3;
+const MAX_DECODE_RETRIES: usize = 3;
 
 pub struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
@@ -94,7 +94,7 @@ impl SymphoniaDecoder {
                 Err(e) => match e {
                     Error::DecodeError(_) => {
                         decode_errors += 1;
-                        if decode_errors > MAX_DECODE_ERRORS {
+                        if decode_errors > MAX_DECODE_RETRIES {
                             return Err(e);
                         } else {
                             continue;
@@ -162,13 +162,53 @@ impl Source for SymphoniaDecoder {
             pos.as_secs_f64().into()
         };
 
-        self.format.seek(
+        // make sure the next sample is for the right channel
+        let to_skip = self.current_frame_offset % self.channels() as usize;
+
+        let seek_res = self.format.seek(
             SeekMode::Accurate,
             SeekTo::Time {
                 time,
                 track_id: None,
             },
         )?;
+
+        self.refine_position(seek_res)?;
+        self.current_frame_offset += to_skip;
+
+        Ok(())
+    }
+}
+
+impl SymphoniaDecoder {
+    /// note frame offset must be set after
+    fn refine_position(&mut self, seek_res: SeekedTo) -> Result<(), SeekError> {
+        let mut samples_to_pass = seek_res.required_ts - seek_res.actual_ts;
+        loop {
+            let candidate = self
+                .format
+                .next_packet()
+                .map_err(SeekError::SymphoniaDecoder)?;
+            if candidate.dur() > samples_to_pass {
+                break candidate;
+            } else {
+                samples_to_pass -= candidate.dur();
+            }
+        };
+
+        let packet = self.format.next_packet()?;
+        let mut decoded = self.decoder.decode(&packet);
+        for _ in 0..MAX_DECODE_RETRIES {
+            if decoded.is_err() {
+                let packet = self.format.next_packet()?;
+                decoded = self.decoder.decode(&packet);
+            }
+        }
+
+        let decoded = decoded?;
+        self.spec = decoded.spec().to_owned();
+        self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
+        self.current_frame_offset = samples_to_pass as usize * self.channels() as usize;
         Ok(())
     }
 }

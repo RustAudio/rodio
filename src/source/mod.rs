@@ -412,7 +412,7 @@ pub enum SeekError {
     #[cfg(feature = "symphonia")]
     #[error("Error seeking: {0}")]
     SymphoniaDecoder(#[from] crate::decoder::symphonia::SeekError),
-    #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
+    #[cfg(feature = "wav")]
     #[error("Error seeking in wav source: {0}")]
     HoundDecoder(std::io::Error),
     #[error("An error occurred")]

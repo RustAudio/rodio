@@ -2,6 +2,7 @@ use std::cmp;
 use std::time::Duration;
 
 use crate::source::uniform::UniformSourceIterator;
+use crate::source::SeekError;
 use crate::{Sample, Source};
 use cpal::{FromSample, Sample as CpalSample};
 
@@ -118,5 +119,26 @@ where
             (Some(f1), Some(f2)) => Some(cmp::max(f1, f2)),
             _ => None,
         }
+    }
+
+    /// Will only attempt a seek if both underlying sources support seek.
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
+
+        // uncomment when #510 is implemented (query position of playback)
+        // TODO use source_intact to check if rollback makes sense
+
+        // let org_pos = self.input1.playback_pos();
+        // self.input1.try_seek(pos)?;
+        //
+        // let res = self.input2.try_seek(pos);
+        // if res.is_err() { // rollback seek in input1
+        //     self.input1.try_seek(org_pos)?;
+        // }
+        //
+        // res
     }
 }

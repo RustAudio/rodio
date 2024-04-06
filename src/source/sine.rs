@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use crate::Source;
 
+use super::SeekError;
+
 /// An infinite source that produces a sine.
 ///
 /// Always has a rate of 48kHz and one channel.
@@ -54,5 +56,14 @@ impl Source for SineWave {
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        // This is a constant sound, normal seeking would not have any effect.
+        // While changing the phase of the sine wave could change how it sounds in
+        // combination with another sound (beating) such precision is not the intend
+        // of seeking
+        Ok(())
     }
 }

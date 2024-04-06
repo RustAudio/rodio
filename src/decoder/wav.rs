@@ -1,6 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
+use crate::source::SeekError;
 use crate::Source;
 
 use hound::{SampleFormat, WavReader};
@@ -56,7 +57,7 @@ where
     R: Read + Seek,
 {
     reader: WavReader<R>,
-    samples_read: u32,
+    samples_read: u32, // wav header is u32 so this suffices
 }
 
 impl<R> Iterator for SamplesIterator<R>
@@ -127,6 +128,30 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         Some(self.total_duration)
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        let file_len = self.reader.reader.duration();
+
+        let new_pos = pos.as_secs_f32() * self.sample_rate() as f32;
+        let new_pos = new_pos as u32;
+        let new_pos = new_pos.min(file_len); // saturate pos at the end of the source
+
+        // make sure the next sample is for the right channel
+        let to_skip = self.reader.samples_read % self.channels() as u32;
+
+        self.reader
+            .reader
+            .seek(new_pos)
+            .map_err(SeekError::HoundDecoder)?;
+        self.reader.samples_read = new_pos * self.channels() as u32;
+
+        for _ in 0..to_skip {
+            self.next();
+        }
+
+        Ok(())
     }
 }
 

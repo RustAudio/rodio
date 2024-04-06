@@ -151,6 +151,7 @@ where
     fn total_duration(&self) -> Option<Duration>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
+
     #[inline]
     fn buffered(self) -> Buffered<Self>
     where
@@ -353,7 +354,7 @@ where
         blt::high_pass(self, freq)
     }
 
-    /// Applies a low-pass filter to the source while allowing the q (badnwidth) to be changed.
+    /// Applies a low-pass filter to the source while allowing the q (bandwidth) to be changed.
     #[inline]
     fn low_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
     where
@@ -363,7 +364,7 @@ where
         blt::low_pass_with_q(self, freq, q)
     }
 
-    /// Applies a high-pass filter to the source while allowing the q (badnwidth) to be changed.
+    /// Applies a high-pass filter to the source while allowing the q (bandwidth) to be changed.
     #[inline]
     fn high_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
     where
@@ -371,6 +372,61 @@ where
         Self: Source<Item = f32>,
     {
         blt::high_pass_with_q(self, freq, q)
+    }
+
+    // There is no `can_seek()` method as it is impossible to use correctly. Between
+    // checking if a source supports seeking and actually seeking the sink can
+    // switch to a new source.
+
+    /// Attempts to seek to a given position in the current source.
+    ///
+    /// As long as the duration of the source is known seek is guaranteed to saturate
+    /// at the end of the source. For example given a source that reports a total duration
+    /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
+    /// 42 seconds.
+    ///
+    /// # Errors
+    /// This function will return [`SeekError::NotSupported`] if one of the underlying
+    /// sources does not support seeking.
+    ///
+    /// It will return an error if an implementation ran
+    /// into one during the seek.  
+    ///
+    /// Seeking beyond the end of a source might return an error if the total duration of
+    /// the source is not known.
+    #[allow(unused_variables)]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
+    }
+}
+
+// We might add decoders requiring new error types, without non_exhaustive
+// this would break users builds
+#[non_exhaustive]
+#[derive(Debug, thiserror::Error)]
+pub enum SeekError {
+    #[error("Streaming is not supported by source: {underlying_source}")]
+    NotSupported { underlying_source: &'static str },
+    #[cfg(feature = "symphonia")]
+    #[error("Error seeking: {0}")]
+    SymphoniaDecoder(#[from] crate::decoder::symphonia::SeekError),
+    #[cfg(feature = "wav")]
+    #[error("Error seeking in wav source: {0}")]
+    HoundDecoder(std::io::Error),
+    #[error("An error occurred")]
+    Other(Box<dyn std::error::Error + Send>),
+}
+
+impl SeekError {
+    pub fn source_intact(&self) -> bool {
+        match self {
+            SeekError::NotSupported { .. } => true,
+            SeekError::SymphoniaDecoder(_) => false,
+            SeekError::HoundDecoder(_) => false,
+            SeekError::Other(_) => false,
+        }
     }
 }
 
@@ -395,6 +451,11 @@ macro_rules! source_pointer_impl {
             #[inline]
             fn total_duration(&self) -> Option<Duration> {
                 (**self).total_duration()
+            }
+
+            #[inline]
+            fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+                (**self).try_seek(pos)
             }
         }
     };

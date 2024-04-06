@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Adds a new method `try_seek` to all sources. It returns either an error or
+  seeks to the given position. A few sources are "unsupported" they return the
+  error `Unsupported`.
 - `Source` trait is now also implemented for `Box<dyn Source>` and `&mut Source`
 - `fn new_vorbis` is now also available when the `symphonia-vorbis` feature is enabled
 

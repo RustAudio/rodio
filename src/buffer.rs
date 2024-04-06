@@ -104,7 +104,7 @@ where
         let new_pos = new_pos.next_multiple_of(self.channels() as usize);
         let new_pos = new_pos - curr_channel;
 
-        self.pos = new_pos as usize;
+        self.pos = new_pos;
         Ok(())
     }
 }
@@ -172,8 +172,8 @@ mod tests {
 
     #[cfg(test)]
     mod try_seek {
-        use std::time::Duration;
         use super::*;
+        use std::time::Duration;
 
         #[test]
         fn channel_order_stays_correct() {

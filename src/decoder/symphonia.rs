@@ -32,7 +32,10 @@ pub(crate) struct SymphoniaDecoder {
 }
 
 impl SymphoniaDecoder {
-    pub(crate) fn new(mss: MediaSourceStream, extension: Option<&str>) -> Result<Self, DecoderError> {
+    pub(crate) fn new(
+        mss: MediaSourceStream,
+        extension: Option<&str>,
+    ) -> Result<Self, DecoderError> {
         match SymphoniaDecoder::init(mss, extension) {
             Err(e) => match e {
                 Error::IoError(e) => Err(DecoderError::IoError(e.to_string())),
@@ -73,13 +76,8 @@ impl SymphoniaDecoder {
             None => return Ok(None),
         };
 
-        let mut decoder = symphonia::default::get_codecs().make(
-            &stream.codec_params,
-            &DecoderOptions {
-                verify: true,
-                ..Default::default()
-            },
-        )?;
+        let mut decoder = symphonia::default::get_codecs()
+            .make(&stream.codec_params, &DecoderOptions { verify: true })?;
         let total_duration = stream
             .codec_params
             .time_base
@@ -164,13 +162,16 @@ impl Source for SymphoniaDecoder {
         // make sure the next sample is for the right channel
         let to_skip = self.current_frame_offset % self.channels() as usize;
 
-        let seek_res = self.format.seek(
-            SeekMode::Accurate,
-            SeekTo::Time {
-                time,
-                track_id: None,
-            },
-        ).map_err(SeekError::BaseSeek)?;
+        let seek_res = self
+            .format
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time,
+                    track_id: None,
+                },
+            )
+            .map_err(SeekError::BaseSeek)?;
 
         self.refine_position(seek_res)?;
         self.current_frame_offset += to_skip;
@@ -196,10 +197,7 @@ impl SymphoniaDecoder {
     fn refine_position(&mut self, seek_res: SeekedTo) -> Result<(), source::SeekError> {
         let mut samples_to_pass = seek_res.required_ts - seek_res.actual_ts;
         let packet = loop {
-            let candidate = self
-                .format
-                .next_packet()
-                .map_err(SeekError::Refining)?;
+            let candidate = self.format.next_packet().map_err(SeekError::Refining)?;
             if candidate.dur() > samples_to_pass {
                 break candidate;
             } else {

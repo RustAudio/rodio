@@ -180,7 +180,7 @@ where
     // We would then however need to enable seeking backwards across sources too.
     // That no longer seems in line with the queue behaviour.
     //
-    // A final pain point is that we would need the total duration for the 
+    // A final pain point is that we would need the total duration for the
     // next few songs.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {

@@ -143,7 +143,7 @@ where
 
         self.reader
             .reader
-            .seek(new_pos as u32)
+            .seek(new_pos)
             .map_err(SeekError::HoundDecoder)?;
         self.reader.samples_read = new_pos * self.channels() as u32;
 

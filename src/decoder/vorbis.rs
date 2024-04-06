@@ -76,7 +76,7 @@ where
         None
     }
 
-    /// seek is broken, https://github.com/RustAudio/lewton/issues/73. 
+    /// seek is broken, https://github.com/RustAudio/lewton/issues/73.
     // We could work around it by:
     //  - using unsafe to create an instance of Self
     //  - use mem::swap to turn the &mut self into a mut self
@@ -103,7 +103,7 @@ where
     fn next(&mut self) -> Option<i16> {
         if let Some(sample) = self.current_data.get(self.next).copied() {
             self.next += 1;
-            if self.current_data.len() == 0 {
+            if self.current_data.is_empty() {
                 if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
                     self.current_data = data;
                     self.next = 0;

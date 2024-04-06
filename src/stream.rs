@@ -348,11 +348,11 @@ fn supported_output_formats(
     Ok(supported.into_iter().flat_map(|sf| {
         let max_rate = sf.max_sample_rate();
         let min_rate = sf.min_sample_rate();
-        let mut formats = vec![sf.clone().with_max_sample_rate()];
+        let mut formats = vec![sf.with_max_sample_rate()];
         if HZ_44100 < max_rate && HZ_44100 > min_rate {
-            formats.push(sf.clone().with_sample_rate(HZ_44100))
+            formats.push(sf.with_sample_rate(HZ_44100))
         }
-        formats.push(sf.clone().with_sample_rate(min_rate));
+        formats.push(sf.with_sample_rate(min_rate));
         formats
     }))
 }

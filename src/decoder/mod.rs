@@ -4,7 +4,6 @@ use std::error::Error;
 use std::fmt;
 #[allow(unused_imports)]
 use std::io::{Read, Seek, SeekFrom};
-use std::marker::Sync;
 use std::mem;
 use std::str::FromStr;
 use std::time::Duration;
@@ -41,6 +40,9 @@ pub struct LoopedDecoder<R>(DecoderImpl<R>)
 where
     R: Read + Seek;
 
+// can not really reduce the size of the VorbisDecoder. There are not any
+// arrays just a lot of struct fields.
+#[allow(clippy::large_enum_variant)]
 enum DecoderImpl<R>
 where
     R: Read + Seek,
@@ -231,9 +233,7 @@ where
 
             match symphonia::SymphoniaDecoder::new(mss, None) {
                 Err(e) => Err(e),
-                Ok(decoder) => {
-                    return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
-                }
+                Ok(decoder) => Ok(Decoder(DecoderImpl::Symphonia(decoder))),
             }
         }
         #[cfg(not(feature = "symphonia"))]
@@ -324,9 +324,7 @@ where
 
         match symphonia::SymphoniaDecoder::new(mss, Some(hint)) {
             Err(e) => Err(e),
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Symphonia(decoder)));
-            }
+            Ok(decoder) => Ok(Decoder(DecoderImpl::Symphonia(decoder))),
         }
     }
 }
@@ -479,7 +477,7 @@ where
                 }
                 #[cfg(feature = "symphonia")]
                 DecoderImpl::Symphonia(source) => {
-                    let mut reader = Box::new(source).into_inner();
+                    let mut reader = source.into_inner();
                     reader.seek(SeekFrom::Start(0)).ok()?;
                     let mut source = symphonia::SymphoniaDecoder::new(reader, None).ok()?;
                     let sample = source.next();

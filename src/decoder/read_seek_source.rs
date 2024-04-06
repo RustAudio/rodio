@@ -1,5 +1,4 @@
 use std::io::{Read, Result, Seek, SeekFrom};
-use std::marker::Sync;
 
 use symphonia::core::io::MediaSource;
 

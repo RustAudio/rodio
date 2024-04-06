@@ -122,7 +122,7 @@ where
             None
         } else if let Some(sample) = self.input.next() {
             let sample = match &self.filter {
-                Some(filter) => filter.apply(sample, &self),
+                Some(filter) => filter.apply(sample, self),
                 None => sample,
             };
 

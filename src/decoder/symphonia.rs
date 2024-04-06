@@ -49,7 +49,7 @@ impl SymphoniaDecoder {
         }
     }
 
-    pub(crate) fn into_inner(self: Box<Self>) -> MediaSourceStream {
+    pub(crate) fn into_inner(self) -> MediaSourceStream {
         self.format.into_inner()
     }
 
@@ -106,23 +106,22 @@ impl SymphoniaDecoder {
         };
         let spec = decoded.spec().to_owned();
         let buffer = SymphoniaDecoder::get_buffer(decoded, &spec);
-
-        return Ok(Some(SymphoniaDecoder {
+        Ok(Some(SymphoniaDecoder {
             decoder,
             current_frame_offset: 0,
             format: probed.format,
             total_duration,
             buffer,
             spec,
-        }));
+        }))
     }
 
     #[inline]
     fn get_buffer(decoded: AudioBufferRef, spec: &SignalSpec) -> SampleBuffer<i16> {
         let duration = units::Duration::from(decoded.capacity() as u64);
-        let mut buffer = SampleBuffer::<i16>::new(duration, spec.clone());
+        let mut buffer = SampleBuffer::<i16>::new(duration, *spec);
         buffer.copy_interleaved_ref(decoded);
-        return buffer;
+        buffer
     }
 }
 

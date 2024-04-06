@@ -1,5 +1,4 @@
 use std::io::{Read, Seek};
-use std::marker::Sync;
 use std::sync::{Arc, Weak};
 use std::{error, fmt};
 
@@ -353,7 +352,7 @@ fn supported_output_formats(
         if HZ_44100 < max_rate && HZ_44100 > min_rate {
             formats.push(sf.clone().with_sample_rate(HZ_44100))
         }
-        formats.push(sf.with_sample_rate(min_rate));
+        formats.push(sf.clone().with_sample_rate(min_rate));
         formats
     }))
 }

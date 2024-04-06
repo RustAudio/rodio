@@ -110,12 +110,12 @@ where
                     Ordering::Equal => raw_val as i16,
                     Ordering::Greater => (raw_val >> (self.bits_per_sample - 16)) as i16,
                 };
-                return Some(real_val as i16);
+                return Some(real_val);
             }
 
             // Load the next block.
             self.current_block_off = 0;
-            let buffer = mem::replace(&mut self.current_block, Vec::new());
+            let buffer = mem::take(&mut self.current_block);
             match self.reader.blocks().read_next_or_eof(buffer) {
                 Ok(Some(block)) => {
                     self.current_block_channel_len = (block.len() / block.channels()) as usize;
@@ -132,7 +132,7 @@ fn is_flac<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+    let stream_pos = data.stream_position().unwrap();
 
     if FlacReader::new(data.by_ref()).is_err() {
         data.seek(SeekFrom::Start(stream_pos)).unwrap();

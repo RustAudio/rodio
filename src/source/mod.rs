@@ -423,7 +423,9 @@ impl SeekError {
     pub fn source_intact(&self) -> bool {
         match self {
             SeekError::NotSupported { .. } => true,
+            #[cfg(feature = "symphonia")]
             SeekError::SymphoniaDecoder(_) => false,
+            #[cfg(feature = "wav")]
             SeekError::HoundDecoder(_) => false,
             SeekError::Other(_) => false,
         }

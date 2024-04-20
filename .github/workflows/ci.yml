@@ -36,12 +36,7 @@ jobs:
 
       - name: install ${{ matrix.toolchain }} toolchain
         id: install_toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          profile: minimal
-          # Don't use a 'components:' entry--we don't need them with beta/nightly, plus nightly often doesn't have them
-          override: true
+        run: rustup toolchain install ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
 
       - run: cargo clippy -- -D warnings
         if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'

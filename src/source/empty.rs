@@ -43,7 +43,7 @@ where
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        Some(0)
+        None
     }
 
     #[inline]

@@ -50,7 +50,7 @@
 //! use std::time::Duration;
 //! use rodio::{Decoder, OutputStream, Sink};
 //! use rodio::source::{SineWave, Source};
-//! 
+//!
 //! // _stream must live as long as the sink
 //! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 //! let sink = Sink::try_new(&stream_handle).unwrap();
@@ -69,8 +69,8 @@
 //! sounds to play simultaneously, you should create multiple [`Sink`]s.
 //!
 //! The [`Sink`] type also provides utilities such as playing/pausing or controlling the volume.
-//! 
-//! **Please note that the [`Sink`] requires the [`OutputStream`], thus ensuring that it has to live as long as the sink.**
+//!
+//! **Please note that the [`Sink`] requires the [`OutputStream`], make sure that the outputstream is not dropped before the sink.**
 //!
 //! ## Filters
 //!

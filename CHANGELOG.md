@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+# Version 0.18.0 (2024-05-05)
 
 ### Changed
 - `Source` trait is now also implemented for `Box<dyn Source>` and `&mut Source`

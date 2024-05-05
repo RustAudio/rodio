@@ -214,7 +214,7 @@ impl SymphoniaDecoder {
         }
 
         let decoded = decoded.map_err(SeekError::Decoding)?;
-        self.spec = decoded.spec().to_owned();
+        decoded.spec().clone_into(&mut self.spec);
         self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
         self.current_frame_offset = samples_to_pass as usize * self.channels() as usize;
         Ok(())
@@ -250,7 +250,7 @@ impl Iterator for SymphoniaDecoder {
                 }
             }
             let decoded = decoded.ok()?;
-            self.spec = decoded.spec().to_owned();
+            decoded.spec().clone_into(&mut self.spec);
             self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
             self.current_frame_offset = 0;
         }

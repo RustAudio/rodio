@@ -15,4 +15,8 @@ fn main() {
     sink.try_seek(Duration::from_secs(4)).unwrap();
 
     sink.sleep_until_end();
+
+    // wont do anything since the sound has ended already
+    sink.try_seek(Duration::from_secs(5)).unwrap();
+    println!("seek example ended");
 }

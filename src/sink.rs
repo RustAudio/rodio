@@ -53,7 +53,7 @@ impl SeekOrder {
         S::Item: Sample + Send,
     {
         let res = maybe_seekable.try_seek(self.pos);
-        let _ignore_reciever_dropped = self.feedback.send(res);
+        let _ignore_receiver_dropped = self.feedback.send(res);
     }
 }
 
@@ -222,6 +222,12 @@ impl Sink {
     pub fn try_seek(&self, pos: Duration) -> Result<(), SeekError> {
         let (order, feedback) = SeekOrder::new(pos);
         *self.controls.seek.lock().unwrap() = Some(order);
+
+        if self.sound_count.load(Ordering::Acquire) == 0 {
+            // No sound is playing, seek will not be performed
+            return Ok(());
+        }
+
         match feedback.recv() {
             Ok(seek_res) => seek_res,
             // The feedback channel closed. Probably another seekorder was set

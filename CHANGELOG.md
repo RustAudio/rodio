@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+# Version 0.18.1 (2024-05-23)
+
+### Fixed
+- Seek no longer hangs if the sink is empty.
+
 # Version 0.18.0 (2024-05-05)
 
 ### Changed

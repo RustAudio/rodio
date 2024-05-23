@@ -225,7 +225,7 @@ impl Sink {
 
         if self.sound_count.load(Ordering::Acquire) == 0 {
             // No sound is playing, seek will not be performed
-            return Ok(())
+            return Ok(());
         }
 
         match feedback.recv() {

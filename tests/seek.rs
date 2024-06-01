@@ -24,7 +24,7 @@ use rstest_reuse::{self, *};
 )]
 #[cfg_attr(feature = "symphonia-mp3", case("mp3", true, "symphonia"))]
 // note: disabled, broken decoder see issue: #577
-// #[cfg_attr(feature = "symphonia-isomp4", case("m4a", true, "symphonia"))]
+#[cfg_attr(feature = "symphonia-isomp4", case("m4a", true, "symphonia"))]
 #[cfg_attr(feature = "symphonia-wav", case("wav", true, "symphonia"))]
 #[cfg_attr(feature = "symphonia-flac", case("flac", true, "symphonia"))]
 fn all_decoders(
@@ -44,7 +44,7 @@ fn all_decoders(
 )]
 #[cfg_attr(feature = "symphonia-mp3", case("mp3", "symphonia"))]
 // note: disabled, broken decoder see issue: #577
-// #[cfg_attr(feature = "symphonia-isomp4", case("m4a", "symphonia"))]
+#[cfg_attr(feature = "symphonia-isomp4", case("m4a", "symphonia"))]
 #[cfg_attr(feature = "symphonia-wav", case("wav", "symphonia"))]
 #[cfg_attr(feature = "symphonia-flac", case("flac", "symphonia"))]
 fn supported_decoders(#[case] format: &'static str, #[case] decoder_name: &'static str) {}

@@ -2,7 +2,7 @@ use std::time::Duration;
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
-        codecs::{Decoder, DecoderOptions},
+        codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
         errors::Error,
         formats::{FormatOptions, FormatReader, SeekedTo},
         io::MediaSourceStream,
@@ -76,8 +76,18 @@ impl SymphoniaDecoder {
             None => return Ok(None),
         };
 
+        // Select the first supported track
+        let track_id = probed.format.tracks()
+            .iter()
+            .find(|t| t.codec_params.codec != CODEC_TYPE_NULL).unwrap().id;
+
+        let decode_opts =
+            DecoderOptions { verify: false, ..Default::default() };
+
+        let track = probed.format.tracks().iter().find(|track| track.id == track_id).unwrap();
+
         let mut decoder = symphonia::default::get_codecs()
-            .make(&stream.codec_params, &DecoderOptions { verify: true })?;
+            .make(&track.codec_params, &decode_opts)?;
         let total_duration = stream
             .codec_params
             .time_base
@@ -86,7 +96,16 @@ impl SymphoniaDecoder {
 
         let mut decode_errors: usize = 0;
         let decoded = loop {
-            let current_frame = probed.format.next_packet()?;
+            let current_frame = match probed.format.next_packet() {
+                Ok(packet) => packet,
+                Err(_) => break decoder.last_decoded() // IoError end of stream is expected
+            };
+
+            // If the packet does not belong to the selected track, skip over it
+            if current_frame.track_id() != track_id {
+                continue;
+            }
+
             match decoder.decode(&current_frame) {
                 Ok(decoded) => break decoded,
                 Err(e) => match e {

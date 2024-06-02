@@ -2,7 +2,7 @@ use std::time::Duration;
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
-        codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
+        codecs::{Decoder, CODEC_TYPE_NULL},
         errors::Error,
         formats::{FormatOptions, FormatReader, SeekedTo},
         io::MediaSourceStream,
@@ -81,8 +81,7 @@ impl SymphoniaDecoder {
             .iter()
             .find(|t| t.codec_params.codec != CODEC_TYPE_NULL).unwrap().id;
 
-        let decode_opts =
-            DecoderOptions { verify: false, ..Default::default() };
+        let decode_opts = Default::default();
 
         let track = probed.format.tracks().iter().find(|track| track.id == track_id).unwrap();
 

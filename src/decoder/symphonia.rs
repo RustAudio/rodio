@@ -77,16 +77,23 @@ impl SymphoniaDecoder {
         };
 
         // Select the first supported track
-        let track_id = probed.format.tracks()
+        let track_id = probed
+            .format
+            .tracks()
             .iter()
-            .find(|t| t.codec_params.codec != CODEC_TYPE_NULL).unwrap().id;
+            .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+            .unwrap()
+            .id;
 
-        let decode_opts = Default::default();
+        let track = probed
+            .format
+            .tracks()
+            .iter()
+            .find(|track| track.id == track_id)
+            .unwrap();
 
-        let track = probed.format.tracks().iter().find(|track| track.id == track_id).unwrap();
-
-        let mut decoder = symphonia::default::get_codecs()
-            .make(&track.codec_params, &decode_opts)?;
+        let mut decoder =
+            symphonia::default::get_codecs().make(&track.codec_params, &Default::default())?;
         let total_duration = stream
             .codec_params
             .time_base
@@ -97,7 +104,10 @@ impl SymphoniaDecoder {
         let decoded = loop {
             let current_frame = match probed.format.next_packet() {
                 Ok(packet) => packet,
-                Err(_) => break decoder.last_decoded() // IoError end of stream is expected
+                Err(e) => match e {
+                    Error::IoError(_) => break decoder.last_decoded(),
+                    _ => return Err(e),
+                },
             };
 
             // If the packet does not belong to the selected track, skip over it

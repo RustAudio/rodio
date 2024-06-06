@@ -1,3 +1,4 @@
+#![cfg(all(feature = "symphonia-aac", feature = "symphonia-isomp4"))]
 use std::io::BufReader;
 
 #[test]

@@ -77,19 +77,15 @@ impl SymphoniaDecoder {
         };
 
         // Select the first supported track
-        let track_id = match probed
+        let track_id = probed
             .format
             .tracks()
             .iter()
             .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-        {
-            Some(track) => track.id,
-            None => {
-                return Err(symphonia::core::errors::Error::Unsupported(
-                    "No track with supported codec",
-                ))
-            }
-        };
+            .ok_or(symphonia::core::errors::Error::Unsupported(
+                "No track with supported codec",
+            ))?
+            .id;
 
         let track = probed
             .format

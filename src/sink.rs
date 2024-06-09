@@ -64,6 +64,7 @@ struct Controls {
     speed: Mutex<f32>,
     to_clear: Mutex<u32>,
     seek: Mutex<Option<SeekOrder>>,
+    position: Mutex<f64>,
 }
 
 impl Sink {
@@ -90,6 +91,7 @@ impl Sink {
                 speed: Mutex::new(1.0),
                 to_clear: Mutex::new(0),
                 seek: Mutex::new(None),
+                position: Mutex::new(0.0),
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
@@ -119,6 +121,7 @@ impl Sink {
 
         let source = source
             .speed(1.0)
+            .trackable()
             .pausable(false)
             .amplify(1.0)
             .skippable()
@@ -127,12 +130,16 @@ impl Sink {
             .periodic_access(Duration::from_millis(5), move |src| {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
+                    *controls.position.lock().unwrap() = 0.0;
                 }
                 {
                     let mut to_clear = controls.to_clear.lock().unwrap();
                     if *to_clear > 0 {
                         src.inner_mut().skip();
                         *to_clear -= 1;
+                        *controls.position.lock().unwrap() = 0.0;
+                    } else {
+                        *controls.position.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
                     }
                 }
                 let amp = src.inner_mut().inner_mut();
@@ -140,6 +147,7 @@ impl Sink {
                 amp.inner_mut()
                     .set_paused(controls.pause.load(Ordering::SeqCst));
                 amp.inner_mut()
+                    .inner_mut()
                     .inner_mut()
                     .set_factor(*controls.speed.lock().unwrap());
                 if let Some(seek) = controls.seek.lock().unwrap().take() {
@@ -308,6 +316,12 @@ impl Sink {
     #[inline]
     pub fn len(&self) -> usize {
         self.sound_count.load(Ordering::Relaxed)
+    }
+
+    /// Returns the position of the sound that's being played.
+    #[inline]
+    pub fn get_pos(&self) -> f64 {
+        *self.controls.position.lock().unwrap()
     }
 }
 

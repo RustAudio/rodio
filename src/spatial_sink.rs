@@ -195,4 +195,10 @@ impl SpatialSink {
     pub fn try_seek(&self, pos: Duration) -> Result<(), SeekError> {
         self.sink.try_seek(pos)
     }
+
+    /// Returns the position of the sound that's being played.
+    #[inline]
+    pub fn get_pos(&self) -> f64 {
+        self.sink.get_pos()
+    }
 }

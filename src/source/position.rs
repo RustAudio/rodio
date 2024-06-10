@@ -8,14 +8,22 @@ use super::SeekError;
 pub fn trackable<I>(source: I) -> TrackPosition<I> {
     TrackPosition {
         input: source,
-        samples_elapsed: 0,
+        samples_collected: 0,
+        offset_duration: 0.0,
+        current_frame_sample_rate: 0,
+        current_frame_channels: 0,
+        current_frame_len: None,
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct TrackPosition<I> {
     input: I,
-    samples_elapsed: usize,
+    samples_collected: usize,
+    offset_duration: f64,
+    current_frame_sample_rate: u32,
+    current_frame_channels: u16,
+    current_frame_len: Option<usize>,
 }
 
 impl<I> TrackPosition<I> {
@@ -43,10 +51,20 @@ where
     I: Source,
     I::Item: Sample,
 {
-    /// Returns the inner source.
+    /// Returns the position of the source.
     #[inline]
     pub fn get_pos(&self) -> f64 {
-        self.samples_elapsed as f64 / self.input.sample_rate() as f64 / self.input.channels() as f64
+        self.samples_collected as f64
+            / self.input.sample_rate() as f64
+            / self.input.channels() as f64
+            + self.offset_duration
+    }
+
+    #[inline]
+    fn set_current_frame(&mut self) {
+        self.current_frame_len = self.current_frame_len();
+        self.current_frame_sample_rate = self.sample_rate();
+        self.current_frame_channels = self.channels();
     }
 }
 
@@ -59,9 +77,28 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
+        // This should only be executed once at the first call to next.
+        if self.current_frame_len.is_none() {
+            self.set_current_frame();
+        }
+
         let item = self.input.next();
         if item.is_some() {
-            self.samples_elapsed += 1;
+            self.samples_collected += 1;
+
+            // At the end of a frame add the duration of this frame to
+            // offset_duration and start collecting samples again.
+            if let Some(frame_len) = self.current_frame_len() {
+                if self.samples_collected == frame_len {
+                    self.offset_duration += self.samples_collected as f64
+                        / self.current_frame_sample_rate as f64
+                        / self.current_frame_channels as f64;
+
+                    // Reset.
+                    self.samples_collected = 0;
+                    self.set_current_frame();
+                };
+            };
         };
         item
     }
@@ -101,9 +138,7 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let result = self.input.try_seek(pos);
         if result.is_ok() {
-            self.samples_elapsed = (pos.as_secs_f64()
-                * self.input.sample_rate() as f64
-                * self.input.channels() as f64) as usize;
+            self.offset_duration = pos.as_secs_f64();
         }
         result
     }

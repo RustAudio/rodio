@@ -21,6 +21,7 @@ pub use self::from_iter::{from_iter, FromIter};
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
+pub use self::position::TrackPosition;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
@@ -48,6 +49,7 @@ mod from_iter;
 mod mix;
 mod pausable;
 mod periodic;
+mod position;
 mod repeat;
 mod samples_converter;
 mod sine;
@@ -331,6 +333,13 @@ where
         Self: Sized,
     {
         skippable::skippable(self)
+    }
+
+    fn track_position(self) -> TrackPosition<Self>
+    where
+        Self: Sized,
+    {
+        position::track_position(self)
     }
 
     /// Applies a low-pass filter to the source.

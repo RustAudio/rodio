@@ -335,11 +335,11 @@ where
         skippable::skippable(self)
     }
 
-    fn trackable(self) -> TrackPosition<Self>
+    fn track_position(self) -> TrackPosition<Self>
     where
         Self: Sized,
     {
-        position::trackable(self)
+        position::track_position(self)
     }
 
     /// Applies a low-pass filter to the source.

@@ -5,7 +5,7 @@ use crate::{Sample, Source};
 use super::SeekError;
 
 /// Internal function that builds a `TrackPosition` object.
-pub fn trackable<I>(source: I) -> TrackPosition<I> {
+pub fn track_position<I>(source: I) -> TrackPosition<I> {
     TrackPosition {
         input: source,
         samples_counted: 0,
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_position() {
         let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
-        let mut source = inner.trackable();
+        let mut source = inner.track_position();
 
         assert_eq!(source.get_pos(), 0.0);
         source.next();

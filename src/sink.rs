@@ -121,7 +121,7 @@ impl Sink {
 
         let source = source
             .speed(1.0)
-            .trackable()
+            .track_position()
             .pausable(false)
             .amplify(1.0)
             .skippable()

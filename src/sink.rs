@@ -121,7 +121,8 @@ impl Sink {
 
         let source = source
             .speed(1.0)
-            .track_position()
+            // must be placed before pausable but after speed & delay
+            .track_position() 
             .pausable(false)
             .amplify(1.0)
             .skippable()
@@ -319,6 +320,12 @@ impl Sink {
     }
 
     /// Returns the position of the sound that's being played.
+    ///
+    /// This takes into account any speedup or delay applied.
+    ///
+    /// Example: if you apply a speedup of *2* to an mp3 decoder source and
+    /// [`get_pos()`](Sink::get_pos) returns *5s* then the position in the mp3
+    /// recording is *10s* from its start.
     #[inline]
     pub fn get_pos(&self) -> f64 {
         *self.controls.position.lock().unwrap()

@@ -4,7 +4,8 @@ use crate::{Sample, Source};
 
 use super::SeekError;
 
-/// Internal function that builds a `TrackPosition` object.
+/// Internal function that builds a `TrackPosition` object. See trait docs for
+/// details
 pub fn track_position<I>(source: I) -> TrackPosition<I> {
     TrackPosition {
         input: source,
@@ -51,7 +52,16 @@ where
     I: Source,
     I::Item: Sample,
 {
-    /// Returns the position of the source.
+    /// Returns the position of the underlying source relative to its start.
+    ///
+    /// If a speedup and or delay is applied after applying a
+    /// [`Source::track_position`] it will not be reflected in the position
+    /// returned by [`get_pos`](TrackPosition::get_pos).
+    ///
+    /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
+    /// together with [`Source::try_seek()`] as the the latter does take all
+    /// speedup's and delay's into account. Its recommended therefore to apply
+    /// track_position after speedup's and delay's.
     #[inline]
     pub fn get_pos(&self) -> f64 {
         self.samples_counted as f64 / self.input.sample_rate() as f64 / self.input.channels() as f64

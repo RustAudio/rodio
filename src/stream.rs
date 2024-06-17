@@ -272,7 +272,7 @@ impl CpalDeviceExt for cpal::Device {
                         *d = mixer_rx
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u8::max_value() / 2)
+                            .unwrap_or(u8::MAX / 2)
                     })
                 },
                 error_callback,
@@ -285,7 +285,7 @@ impl CpalDeviceExt for cpal::Device {
                         *d = mixer_rx
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u16::max_value() / 2)
+                            .unwrap_or(u16::MAX / 2)
                     })
                 },
                 error_callback,
@@ -298,7 +298,7 @@ impl CpalDeviceExt for cpal::Device {
                         *d = mixer_rx
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u32::max_value() / 2)
+                            .unwrap_or(u32::MAX / 2)
                     })
                 },
                 error_callback,
@@ -311,7 +311,7 @@ impl CpalDeviceExt for cpal::Device {
                         *d = mixer_rx
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u64::max_value() / 2)
+                            .unwrap_or(u64::MAX / 2)
                     })
                 },
                 error_callback,

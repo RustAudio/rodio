@@ -196,7 +196,7 @@ where
 /// audiable when actually playing?
 fn f32_to_i16(f: f32) -> i16 {
     // prefer to clip the input rather than be excessively loud.
-    (f.max(-1.0).min(1.0) * i16::max_value() as f32) as i16
+    (f.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
 }
 
 /// Returns an 8-bit WAV int as an i16. This scales the sample value by a factor

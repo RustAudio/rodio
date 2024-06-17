@@ -122,7 +122,7 @@ impl Sink {
         let source = source
             .speed(1.0)
             // must be placed before pausable but after speed & delay
-            .track_position() 
+            .track_position()
             .pausable(false)
             .amplify(1.0)
             .skippable()

@@ -1,11 +1,9 @@
 //! Sources of sound and various filters.
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use cpal::FromSample;
 
-use crate::sink::AtomicF64;
 use crate::Sample;
 
 pub use self::amplify::Amplify;
@@ -337,11 +335,11 @@ where
         skippable::skippable(self)
     }
 
-    fn trackable(self, position: Arc<AtomicF64>) -> TrackPosition<Self>
+    fn trackable(self) -> TrackPosition<Self>
     where
         Self: Sized,
     {
-        position::trackable(self, position)
+        position::trackable(self)
     }
 
     /// Applies a low-pass filter to the source.

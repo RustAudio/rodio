@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -12,28 +12,6 @@ use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
 use cpal::FromSample;
 
-#[derive(Debug)]
-pub struct AtomicF64 {
-    storage: AtomicU64,
-}
-
-impl AtomicF64 {
-    pub fn new(value: f64) -> Self {
-        let as_u64 = value.to_bits();
-        Self {
-            storage: AtomicU64::new(as_u64),
-        }
-    }
-    pub fn store(&self, value: f64, ordering: Ordering) {
-        let as_u64 = value.to_bits();
-        self.storage.store(as_u64, ordering)
-    }
-    pub fn load(&self, ordering: Ordering) -> f64 {
-        let as_u64 = self.storage.load(ordering);
-        f64::from_bits(as_u64)
-    }
-}
-
 /// Handle to a device that outputs sounds.
 ///
 /// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
@@ -44,7 +22,6 @@ pub struct Sink {
 
     controls: Arc<Controls>,
     sound_count: Arc<AtomicUsize>,
-    position: Arc<AtomicF64>,
 
     detached: bool,
 }
@@ -87,6 +64,7 @@ struct Controls {
     speed: Mutex<f32>,
     to_clear: Mutex<u32>,
     seek: Mutex<Option<SeekOrder>>,
+    position: Mutex<f64>,
 }
 
 impl Sink {
@@ -113,9 +91,9 @@ impl Sink {
                 speed: Mutex::new(1.0),
                 to_clear: Mutex::new(0),
                 seek: Mutex::new(None),
+                position: Mutex::new(0.0),
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
-            position: Arc::new(AtomicF64::new(0.0)),
             detached: false,
         };
         (sink, queue_rx)
@@ -143,7 +121,7 @@ impl Sink {
 
         let source = source
             .speed(1.0)
-            .trackable(self.position.clone())
+            .trackable()
             .pausable(false)
             .amplify(1.0)
             .skippable()
@@ -152,12 +130,16 @@ impl Sink {
             .periodic_access(Duration::from_millis(5), move |src| {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
+                                        *controls.position.lock().unwrap() = 0.0;
                 }
                 {
                     let mut to_clear = controls.to_clear.lock().unwrap();
                     if *to_clear > 0 {
                         src.inner_mut().skip();
                         *to_clear -= 1;
+                        *controls.position.lock().unwrap() = 0.0;
+                    } else {
+                        *controls.position.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
                     }
                 }
                 let amp = src.inner_mut().inner_mut();
@@ -339,7 +321,7 @@ impl Sink {
     /// Returns the position of the sound that's being played.
     #[inline]
     pub fn get_pos(&self) -> f64 {
-        self.position.load(Ordering::Relaxed)
+        *self.controls.position.lock().unwrap()
     }
 }
 

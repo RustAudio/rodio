@@ -1,19 +1,15 @@
-use std::{
-    sync::{atomic::Ordering, Arc},
-    time::Duration,
-};
+use std::time::Duration;
 
-use crate::{sink::AtomicF64, Sample, Source};
+use crate::{Sample, Source};
 
 use super::SeekError;
 
 /// Internal function that builds a `TrackPosition` object.
-pub fn trackable<I>(source: I, position: Arc<AtomicF64>) -> TrackPosition<I> {
+pub fn trackable<I>(source: I) -> TrackPosition<I> {
     TrackPosition {
         input: source,
         samples_counted: 0,
         offset_duration: 0.0,
-        position,
         current_frame_sample_rate: 0,
         current_frame_channels: 0,
         current_frame_len: None,
@@ -25,7 +21,6 @@ pub struct TrackPosition<I> {
     input: I,
     samples_counted: usize,
     offset_duration: f64,
-    position: Arc<AtomicF64>,
     current_frame_sample_rate: u32,
     current_frame_channels: u16,
     current_frame_len: Option<usize>,
@@ -58,7 +53,7 @@ where
 {
     /// Returns the position of the source.
     #[inline]
-    fn get_pos(&self) -> f64 {
+    pub fn get_pos(&self) -> f64 {
         self.samples_counted as f64 / self.input.sample_rate() as f64 / self.input.channels() as f64
             + self.offset_duration
     }
@@ -101,7 +96,6 @@ where
                 self.set_current_frame();
             };
         };
-        self.position.store(self.get_pos(), Ordering::Relaxed);
         item
     }
 
@@ -145,7 +139,6 @@ where
             // starts again at the beginning of a frame. Which is the case with
             // symphonia.
             self.samples_counted = 0;
-            self.position.store(self.get_pos(), Ordering::Relaxed);
         }
         result
     }
@@ -153,28 +146,24 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
-    use std::sync::Arc;
     use std::time::Duration;
 
     use crate::buffer::SamplesBuffer;
-    use crate::sink::AtomicF64;
     use crate::source::Source;
 
     #[test]
     fn test_position() {
         let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
-        let position = Arc::new(AtomicF64::new(0.0));
-        let mut source = inner.trackable(position.clone());
+        let mut source = inner.trackable();
 
-        assert_eq!(position.load(Ordering::Relaxed), 0.0);
+        assert_eq!(source.get_pos(), 0.0);
         source.next();
-        assert_eq!(position.load(Ordering::Relaxed), 1.0);
+        assert_eq!(source.get_pos(), 1.0);
 
         source.next();
-        assert_eq!(position.load(Ordering::Relaxed), 2.0);
+        assert_eq!(source.get_pos(), 2.0);
 
         assert_eq!(source.try_seek(Duration::new(1, 0)).is_ok(), true);
-        assert_eq!(position.load(Ordering::Relaxed), 1.0);
+        assert_eq!(source.get_pos(), 1.0);
     }
 }

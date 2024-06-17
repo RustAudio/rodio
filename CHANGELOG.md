@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Adds a new source `track_position`. It keeps track of duration since the
+  beginning of the underlying source.
+
 ### Fixed
 - Mp4a with decodable tracks after undecodable tracks now play. This matches
   VLC's behaviour.

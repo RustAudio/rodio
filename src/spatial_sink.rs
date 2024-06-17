@@ -204,7 +204,7 @@ impl SpatialSink {
     /// [`get_pos()`](Sink::get_pos) returns *5s* then the position in the mp3
     /// recording is *10s* from its start.
     #[inline]
-    pub fn get_pos(&self) -> f64 {
+    pub fn get_pos(&self) -> Duration {
         self.sink.get_pos()
     }
 }

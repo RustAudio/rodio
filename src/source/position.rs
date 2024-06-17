@@ -63,9 +63,12 @@ where
     /// speedup's and delay's into account. Its recommended therefore to apply
     /// track_position after speedup's and delay's.
     #[inline]
-    pub fn get_pos(&self) -> f64 {
-        self.samples_counted as f64 / self.input.sample_rate() as f64 / self.input.channels() as f64
-            + self.offset_duration
+    pub fn get_pos(&self) -> Duration {
+        let seconds = self.samples_counted as f64
+            / self.input.sample_rate() as f64
+            / self.input.channels() as f64
+            + self.offset_duration;
+        Duration::from_secs_f64(seconds)
     }
 
     #[inline]
@@ -166,14 +169,30 @@ mod tests {
         let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
         let mut source = inner.track_position();
 
-        assert_eq!(source.get_pos(), 0.0);
+        assert_eq!(source.get_pos().as_secs_f32(), 0.0);
         source.next();
-        assert_eq!(source.get_pos(), 1.0);
+        assert_eq!(source.get_pos().as_secs_f32(), 1.0);
 
         source.next();
-        assert_eq!(source.get_pos(), 2.0);
+        assert_eq!(source.get_pos().as_secs_f32(), 2.0);
 
         assert_eq!(source.try_seek(Duration::new(1, 0)).is_ok(), true);
-        assert_eq!(source.get_pos(), 1.0);
+        assert_eq!(source.get_pos().as_secs_f32(), 1.0);
+    }
+
+    #[test]
+    fn test_position_in_presence_of_speedup() {
+        let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
+        let mut source = inner.speed(2.0).track_position();
+
+        assert_eq!(source.get_pos().as_secs_f32(), 0.0);
+        source.next();
+        assert_eq!(source.get_pos().as_secs_f32(), 0.5);
+
+        source.next();
+        assert_eq!(source.get_pos().as_secs_f32(), 1.0);
+
+        assert_eq!(source.try_seek(Duration::new(1, 0)).is_ok(), true);
+        assert_eq!(source.get_pos().as_secs_f32(), 1.0);
     }
 }

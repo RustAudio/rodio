@@ -6,6 +6,9 @@ use crate::{Sample, Source};
 use super::SeekError;
 
 /// An empty source.
+///
+/// The empty source is special in that it will never return any data.
+/// It also reports 0 channels, a sample rate of 0, and a Duration of 0.
 #[derive(Debug, Copy, Clone)]
 pub struct Empty<S>(PhantomData<S>);
 
@@ -43,12 +46,12 @@ where
 
     #[inline]
     fn channels(&self) -> u16 {
-        1
+        0
     }
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        48000
+        0
     }
 
     #[inline]

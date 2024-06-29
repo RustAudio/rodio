@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+# Version 0.19.0 (2024-06-29)
+
 ### Added
 - Adds a new source `track_position`. It keeps track of duration since the
   beginning of the underlying source.

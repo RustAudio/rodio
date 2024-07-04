@@ -90,10 +90,9 @@ where
                 self.samples_read += 1;
                 i32_to_i16(value.unwrap_or(0))
             }),
-            (sample_format, bits_per_sample) => panic!(
-                "Unimplemented wav spec: {:?}, {}",
-                sample_format, bits_per_sample
-            ),
+            (sample_format, bits_per_sample) => {
+                panic!("Unimplemented wav spec: {sample_format:?}, {bits_per_sample}")
+            }
         }
     }
 

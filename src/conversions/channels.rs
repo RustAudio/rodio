@@ -151,7 +151,7 @@ mod test {
             let mut converter = ChannelCountConverter::new(input.iter().copied(), from, to);
             let count = converter.clone().count();
             for left_in_iter in (0..=count).rev() {
-                println!("left_in_iter = {}", left_in_iter);
+                println!("left_in_iter = {left_in_iter}");
                 assert_eq!(converter.size_hint(), (left_in_iter, Some(left_in_iter)));
                 converter.next();
             }

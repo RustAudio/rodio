@@ -352,7 +352,7 @@ impl FromStr for Mp4Type {
             "m4r" => Ok(Mp4Type::M4r),
             "m4v" => Ok(Mp4Type::M4v),
             "mov" => Ok(Mp4Type::Mov),
-            _ => Err(format!("{} is not a valid mp4 extension", input)),
+            _ => Err(format!("{input} is not a valid mp4 extension")),
         }
     }
 }
@@ -368,7 +368,7 @@ impl fmt::Display for Mp4Type {
             Mp4Type::M4v => "m4v",
             Mp4Type::Mov => "mov",
         };
-        write!(f, "{}", text)
+        write!(f, "{text}")
     }
 }
 
@@ -568,7 +568,7 @@ impl fmt::Display for DecoderError {
             #[cfg(feature = "symphonia")]
             DecoderError::NoStreams => "No streams",
         };
-        write!(f, "{}", text)
+        write!(f, "{text}")
     }
 }
 

@@ -11,6 +11,62 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  create-tags-for-past-releases:
+    name: Create tags for past releases
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if WORKFLOW_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.WORKFLOW_TOKEN }}" ]; then
+            echo "Personal access token WORKFLOW_TOKEN is not set"
+            exit 1
+          else
+            echo "Checked `WORKFLOW_TOKEN` is set"
+          fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to access all commits
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+      - name: Install linux deps
+        run: |
+          # Check if jq is installed, if not install it
+          if [ $(dpkg-query -W -f='${Status}' jq 2>/dev/null | grep -c "ok installed") -eq 0 ];
+          then
+            sudo apt update
+            sudo apt install -y jq
+          fi
+      - name: Create tags for past releases
+        run: |
+          # This variables contains a table of all the versions of Rodio and their respective commits
+          json_data='[{"version":"0.1.0","commit":"803c9ac192d8c63671ccbf2d40c0f50c907c5fa0"},{"version":"0.1.1","commit":"0d38c2a6f1776119ff26e757c29c0a2bc2c58d65"},{"version":"0.1.2","commit":"338f8bb7c8ecc4c993aed189156c486965f18f59"},{"version":"0.1.3","commit":"2971f524bdb9df0d5fec75615cf7d058a923adf0"},{"version":"0.1.4","commit":"da4842d18017f03e24a53bb7eb23252ce63a3af4"},{"version":"0.1.5","commit":"2056935e84e0972da81f5ef280a56bc0b55ff61d"},{"version":"0.1.6","commit":"a5c0d6673c4a29b0f0b83fd9ed1462bd6a476869"},{"version":"0.1.7","commit":"d920872bb1e3cbed347ed15344f5c2d590e0af0d"},{"version":"0.1.8","commit":"8d4618098611fbc49010f6191956e655d6ae2f48"},{"version":"0.2.0","commit":"fc9be67753e97c71064815f994ae52c7d7198651"},{"version":"0.2.1","commit":"62bbe89f585e95a47c00e3e7d55fc14458437d49"},{"version":"0.2.2","commit":"642d025e02418299a6d423a6f6514b6e928ce569"},{"version":"0.3.0","commit":"ba61fb8f6c857069250ead77d54a9587c96e8984"},{"version":"0.3.1","commit":"c264d1b5265e6f8fadda22a5193a15fc99d36208"},{"version":"0.3.2","commit":"ca9e3bfb367c22a35eef710b3b44b0a065a4580c"},{"version":"0.3.3","commit":"37b647cc4fa8ff633dced9892c6c44c7a8536db4"},{"version":"0.4.0","commit":"4e8845779310c749c08429231d34a8b5b3b5fb41"},{"version":"0.4.1","commit":"a0d7d6ba79e5918c0e4de504de0772cddc16c849"},{"version":"0.4.2","commit":"d44c581707f5747e7589b4f395aca15d04708be7"},{"version":"0.4.3","commit":"39d7a4812542439f8e215715d5c161ce1580404b"},{"version":"0.5.0","commit":"0e0e33de17f2544009f8194c8dba609818ae0eb0"},{"version":"0.5.1","commit":"59bd1f66f710da62805a09a29d03a9b6dabcacf9"},{"version":"0.5.2","commit":"4ca81f7c5f51bfdda60029c87c8430361653be6b"},{"version":"0.5.3","commit":"aa5d64339cc63afb204398cabcf314f266d923c2"},{"version":"0.6.0","commit":"ec3e39bbf2fec85e380f16413a27b63fe70ec3af"},{"version":"0.7.0","commit":"a5ad6ffe3fb66e947caa018abd8774ed63dfa48c"},{"version":"0.8.0","commit":"ae2137001993456ec864f0f4a46286645e70805c"},{"version":"0.8.1","commit":"a82eba1abedf72e0baf7d11efc294b5c4417d097"},{"version":"0.9.0","commit":"655d05100f1ba695bcc93b8733216de37d0c5432"},{"version":"0.10.0","commit":"7f9eff3cc893461b662d3d54e5d09bc31ae5e5fc"},{"version":"0.11.0","commit":"7bf8ba5cb629d419a2bd003f8e8e387b1db1f717"},{"version":"0.12.0","commit":"566e979203ec05a26cc86607472fdd3f7172dfa1"},{"version":"0.13.0","commit":"73857e3d51e38d9f92dfe9fe909b7c1b6693d8ae"},{"version":"0.13.1","commit":"c397a4d8d18402badefddea89b53ed42226adb5e"},{"version":"0.14.0","commit":"f6af938d8dfb8c8e9f979c87a7638395a31b92f9"},{"version":"0.15.0","commit":"9ba6836e372ac1a136f6377e9e6574490211fba8"},{"version":"0.16.0","commit":"e7faaf7506250b6f11f468682eee7e2006946397"},{"version":"0.17.0","commit":"56360d789c8bab547c47cfddcdcf737e8dae56b1"},{"version":"0.17.1","commit":"d5b9ae3467dab4316ee77b260a5b7432f74866b0"},{"version":"0.17.2","commit":"6a255fe70aac2c214fb8741f9a4d580452360042"},{"version":"0.17.3","commit":"4973f330e07be8480c35f145c9da84dc60e2184c"},{"version":"0.18.0","commit":"2eb62468845be5521a64e68612cecb98829dd2ba"},{"version":"0.18.1","commit":"ee73f6d97d9ffca450f497f5ac0eff266dfb9fc7"},{"version":"0.19.0","commit":"27f2b424060ff4a977285ff83ecd6c076205c121"}]'
+
+          # Use 'magic' email and username for the github-actions bot
+          # https://github.com/orgs/community/discussions/26560#discussioncomment-3531273
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          # Iterate over the versions and commits and tag each commit with the respective version
+          jq -r '.[] | "\(.version) \(.commit)" ' <<< "$json_data" | while IFS= read -r line
+          do
+            # Extract the version and commit from the line
+            version=$(echo "$line" | cut -d ' ' -f 1)
+            commit=$(echo "$line" | cut -d ' ' -f 2)
+
+            # Check if that tag already exists:
+            if git rev-parse "refs/tags/v$version" >/dev/null 2>&1; then
+              echo "Tag v$version already exists"
+              continue
+            fi
+
+            # Tag the commit with the version
+            git tag -a "v$version" -m "Release for v$version" "$commit"
+
+            echo "Tagged commit $commit with version v$version."
+          done
+
+          git push origin --tags
   tests:
     name: Tests
     runs-on: ${{ matrix.os }}
@@ -72,3 +128,47 @@ jobs:
           grep -q '[^[:space:]]' < $RODIO_TMP || empty=1
           [ $empty -eq 0 ] && cat $RODIO_TMP
           [ $empty -eq 1 ] || grep -q "is already uploaded" < $RODIO_TMP
+
+  create-git-tag:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check if WORKFLOW_TOKEN is set
+      run: |
+        if [ -z "${{ secrets.WORKFLOW_TOKEN }}" ]; then
+          echo "Personal access token WORKFLOW_TOKEN is not set"
+          exit 1
+        else
+          echo "Checked `WORKFLOW_TOKEN` is set"
+        fi
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.WORKFLOW_TOKEN }}
+    - name: Extract version from Cargo.toml
+      id: extract_version
+      run: |
+        version=$(awk '/\[package\]/,/^version/ { if ($1 == "version") { gsub(/"/, "", $3); print $3 } }' Cargo.toml)
+        echo "Version value found: $version"
+        echo "version=$version" >> $GITHUB_OUTPUT
+    - name: Check if tag exists
+      id: check_tag
+      run: |
+        version=${{ steps.extract_version.outputs.version }}
+        version_name="v$version"
+        if git rev-parse "refs/tags/$version_name" >/dev/null 2>&1; then
+          echo "Tag $version_name already exists"
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Tag $version_name does not exist"
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
+        fi
+    - name: Create and push tag
+      if: steps.check_tag.outputs.tag_exists == 'false'
+      run: |
+        version=${{ steps.extract_version.outputs.version }}
+        git config --global user.name 'github-actions'
+        git config --global user.email 'github-actions@github.com'
+        version_name="v$version"
+        git tag -a "$version_name" -m "Release for $version_name"
+        git push origin $version_name

@@ -13,6 +13,7 @@ env:
 jobs:
   create-tags-for-past-releases:
     name: Create tags for past releases
+    # This job has to be removed once it is ran succesfully
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
@@ -130,6 +131,7 @@ jobs:
           [ $empty -eq 1 ] || grep -q "is already uploaded" < $RODIO_TMP
 
   create-git-tag:
+    needs: create-tags-for-past-releases # This line needs to be removed once the `create-tags-for-past-releases` job is removed
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
@@ -144,6 +146,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
+        fetch-depth: 0  # Fetch all history to list all existing tags
         token: ${{ secrets.WORKFLOW_TOKEN }}
     - name: Extract version from Cargo.toml
       id: extract_version

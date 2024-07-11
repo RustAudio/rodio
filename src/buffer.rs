@@ -16,6 +16,7 @@ use crate::source::SeekError;
 use crate::{Sample, Source};
 
 /// A buffer of samples treated as a source.
+#[derive(Debug, Clone)]
 pub struct SamplesBuffer<S> {
     data: Vec<S>,
     pos: usize,

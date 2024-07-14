@@ -139,3 +139,8 @@ where
         self.input.try_seek(pos)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    
+}

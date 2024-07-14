@@ -15,8 +15,8 @@ where
     I: Source,
     I::Item: Sample,
 {
-    let duration_nanos = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-    assert!(duration_nanos > 0);
+    let duration_nanos = duration.as_secs_f32();
+    assert!(duration_nanos > 0.0f32);
 
     LinearGainRamp {
         input,

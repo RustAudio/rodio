@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::{Sample, Source};
+use super::SeekError;
 
 /// Internal function that builds a `LinearRamp` object.
 pub fn linear_gain_ramp<I>(
@@ -101,7 +102,7 @@ impl<I> Source for LinearGainRamp<I>
 where
     I: Source,
     I::Item: Sample,
-{
+{ 
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         self.input.current_frame_len()
@@ -120,5 +121,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

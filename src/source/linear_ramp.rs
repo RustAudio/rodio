@@ -20,8 +20,8 @@ where
 
     LinearGainRamp {
         input,
-        elapsed_ns: duration_nanos as f32,
-        total_ns: duration_nanos as f32,
+        elapsed_ns: 0.0f32,
+        total_ns: duration_nanos,
         start_gain,
         end_gain,
         clamp_end,

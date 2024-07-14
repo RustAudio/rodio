@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
 where
@@ -120,7 +122,7 @@ where
             None
         } else if let Some(sample) = self.input.next() {
             let sample = match &self.filter {
-                Some(filter) => filter.apply(sample, &self),
+                Some(filter) => filter.apply(sample, self),
                 None => sample,
             };
 
@@ -175,5 +177,10 @@ where
         } else {
             None
         }
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

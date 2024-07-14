@@ -102,6 +102,12 @@ where
         self.input
     }
 
+    /// get mutable access to the iterator
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
+
     fn next_input_frame(&mut self) {
         self.current_frame_pos_in_chunk += 1;
 

@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// Internal function that builds a `FadeIn` object.
 pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
 where
@@ -104,5 +106,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

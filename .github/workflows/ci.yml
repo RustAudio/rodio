@@ -26,7 +26,7 @@ jobs:
           - os: windows-latest
           - os: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install linux deps
         run: |
@@ -36,19 +36,10 @@ jobs:
 
       - name: install ${{ matrix.toolchain }} toolchain
         id: install_toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          profile: minimal
-          # Don't use a 'components:' entry--we don't need them with beta/nightly, plus nightly often doesn't have them
-          override: true
+        run: rustup toolchain install ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
 
-      # This block can be uncommented to add clippy to CI, but first the existing clippy warnings need to be fixed!
-      # - name: clippy
-      #   run: |
-      #     rustup component add clippy
-      #     cargo clippy -- -D warnings
-      #   if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
+      - run: cargo clippy -- -D warnings
+        if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
 
       - run: |
           rustup component add rustfmt
@@ -63,7 +54,7 @@ jobs:
       CRATESIO_TOKEN: ${{ secrets.CRATESIO_TOKEN }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Update apt
         run: sudo apt update
       - name: Install alsa
@@ -81,3 +72,48 @@ jobs:
           grep -q '[^[:space:]]' < $RODIO_TMP || empty=1
           [ $empty -eq 0 ] && cat $RODIO_TMP
           [ $empty -eq 1 ] || grep -q "is already uploaded" < $RODIO_TMP
+
+  create-git-tag:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check if WORKFLOW_TOKEN is set
+      run: |
+        if [ -z "${{ secrets.WORKFLOW_TOKEN }}" ]; then
+          echo "Personal access token WORKFLOW_TOKEN is not set"
+          exit 1
+        else
+          echo "Checked `WORKFLOW_TOKEN` is set"
+        fi
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history to list all existing tags
+        token: ${{ secrets.WORKFLOW_TOKEN }}
+    - name: Extract version from Cargo.toml
+      id: extract_version
+      run: |
+        version=$(awk '/\[package\]/,/^version/ { if ($1 == "version") { gsub(/"/, "", $3); print $3 } }' Cargo.toml)
+        echo "Version value found: $version"
+        echo "version=$version" >> $GITHUB_OUTPUT
+    - name: Check if tag exists
+      id: check_tag
+      run: |
+        version=${{ steps.extract_version.outputs.version }}
+        version_name="v$version"
+        if git rev-parse "refs/tags/$version_name" >/dev/null 2>&1; then
+          echo "Tag $version_name already exists"
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Tag $version_name does not exist"
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
+        fi
+    - name: Create and push tag
+      if: steps.check_tag.outputs.tag_exists == 'false'
+      run: |
+        version=${{ steps.extract_version.outputs.version }}
+        git config --global user.name 'github-actions'
+        git config --global user.email 'github-actions@github.com'
+        version_name="v$version"
+        git tag -a "$version_name" -m "Release for $version_name"
+        git push origin $version_name

@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// An infinite source that produces zero.
 #[derive(Clone, Debug)]
 pub struct Zero<S> {
@@ -76,5 +78,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Ok(())
     }
 }

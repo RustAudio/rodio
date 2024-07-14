@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use cpal::FromSample;
 
-use crate::source::Spatial;
+use crate::source::{SeekError, Spatial};
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{Sample, Sink, Source};
 
@@ -135,6 +135,14 @@ impl SpatialSink {
         self.sink.is_paused()
     }
 
+    /// Removes all currently loaded `Source`s from the `SpatialSink` and pauses it.
+    ///
+    /// See `pause()` for information about pausing a `Sink`.
+    #[inline]
+    pub fn clear(&self) {
+        self.sink.clear();
+    }
+
     /// Stops the sink by emptying the queue.
     #[inline]
     pub fn stop(&self) {
@@ -160,8 +168,43 @@ impl SpatialSink {
     }
 
     /// Returns the number of sounds currently in the queue.
+    #[allow(clippy::len_without_is_empty)]
     #[inline]
     pub fn len(&self) -> usize {
         self.sink.len()
+    }
+
+    /// Attempts to seek to a given position in the current source.
+    ///
+    /// This blocks between 0 and ~5 milliseconds.
+    ///
+    /// As long as the duration of the source is known seek is guaranteed to saturate
+    /// at the end of the source. For example given a source that reports a total duration
+    /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
+    /// 42 seconds.
+    ///
+    /// # Errors
+    /// This function will return [`SeekError::NotSupported`] if one of the underlying
+    /// sources does not support seeking.  
+    ///
+    /// It will return an error if an implementation ran
+    /// into one during the seek.  
+    ///
+    /// When seeking beyond the end of a source this
+    /// function might return an error if the duration of the source is not known.
+    pub fn try_seek(&self, pos: Duration) -> Result<(), SeekError> {
+        self.sink.try_seek(pos)
+    }
+
+    /// Returns the position of the sound that's being played.
+    ///
+    /// This takes into account any speedup or delay applied.
+    ///
+    /// Example: if you apply a speedup of *2* to an mp3 decoder source and
+    /// [`get_pos()`](Sink::get_pos) returns *5s* then the position in the mp3
+    /// recording is *10s* from its start.
+    #[inline]
+    pub fn get_pos(&self) -> Duration {
+        self.sink.get_pos()
     }
 }

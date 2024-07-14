@@ -1,6 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
+use crate::source::SeekError;
 use crate::Source;
 
 use hound::{SampleFormat, WavReader};
@@ -56,7 +57,7 @@ where
     R: Read + Seek,
 {
     reader: WavReader<R>,
-    samples_read: u32,
+    samples_read: u32, // wav header is u32 so this suffices
 }
 
 impl<R> Iterator for SamplesIterator<R>
@@ -89,10 +90,9 @@ where
                 self.samples_read += 1;
                 i32_to_i16(value.unwrap_or(0))
             }),
-            (sample_format, bits_per_sample) => panic!(
-                "Unimplemented wav spec: {:?}, {}",
-                sample_format, bits_per_sample
-            ),
+            (sample_format, bits_per_sample) => {
+                panic!("Unimplemented wav spec: {sample_format:?}, {bits_per_sample}")
+            }
         }
     }
 
@@ -128,6 +128,30 @@ where
     fn total_duration(&self) -> Option<Duration> {
         Some(self.total_duration)
     }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        let file_len = self.reader.reader.duration();
+
+        let new_pos = pos.as_secs_f32() * self.sample_rate() as f32;
+        let new_pos = new_pos as u32;
+        let new_pos = new_pos.min(file_len); // saturate pos at the end of the source
+
+        // make sure the next sample is for the right channel
+        let to_skip = self.reader.samples_read % self.channels() as u32;
+
+        self.reader
+            .reader
+            .seek(new_pos)
+            .map_err(SeekError::HoundDecoder)?;
+        self.reader.samples_read = new_pos * self.channels() as u32;
+
+        for _ in 0..to_skip {
+            self.next();
+        }
+
+        Ok(())
+    }
 }
 
 impl<R> Iterator for WavDecoder<R>
@@ -154,7 +178,7 @@ fn is_wave<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+    let stream_pos = data.stream_position().unwrap();
 
     if WavReader::new(data.by_ref()).is_err() {
         data.seek(SeekFrom::Start(stream_pos)).unwrap();
@@ -171,7 +195,7 @@ where
 /// audiable when actually playing?
 fn f32_to_i16(f: f32) -> i16 {
     // prefer to clip the input rather than be excessively loud.
-    (f.max(-1.0).min(1.0) * i16::max_value() as f32) as i16
+    (f.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
 }
 
 /// Returns an 8-bit WAV int as an i16. This scales the sample value by a factor

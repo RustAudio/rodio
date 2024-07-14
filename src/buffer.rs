@@ -11,13 +11,15 @@
 //!
 
 use std::time::Duration;
-use std::vec::IntoIter as VecIntoIter;
 
+use crate::source::SeekError;
 use crate::{Sample, Source};
 
 /// A buffer of samples treated as a source.
+#[derive(Debug, Clone)]
 pub struct SamplesBuffer<S> {
-    data: VecIntoIter<S>,
+    data: Vec<S>,
+    pos: usize,
     channels: u16,
     sample_rate: u32,
     duration: Duration,
@@ -53,7 +55,8 @@ where
         );
 
         SamplesBuffer {
-            data: data.into_iter(),
+            data,
+            pos: 0,
             channels,
             sample_rate,
             duration,
@@ -84,6 +87,27 @@ where
     fn total_duration(&self) -> Option<Duration> {
         Some(self.duration)
     }
+
+    // this is fast because all the samples are in memory already
+    // and due to the constant sample_rate we can jump to the right
+    // sample directly
+    //
+    /// This jumps in memory till the sample for `pos`.
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        let curr_channel = self.pos % self.channels() as usize;
+        let new_pos = pos.as_secs_f32() * self.sample_rate() as f32 * self.channels() as f32;
+        // saturate pos at the end of the source
+        let new_pos = new_pos as usize;
+        let new_pos = new_pos.min(self.data.len());
+
+        // make sure the next sample is for the right channel
+        let new_pos = new_pos.next_multiple_of(self.channels() as usize);
+        let new_pos = new_pos - curr_channel;
+
+        self.pos = new_pos;
+        Ok(())
+    }
 }
 
 impl<S> Iterator for SamplesBuffer<S>
@@ -94,12 +118,14 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<S> {
-        self.data.next()
+        let sample = self.data.get(self.pos)?;
+        self.pos += 1;
+        Some(*sample)
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.data.size_hint()
+        (self.data.len(), Some(self.data.len()))
     }
 }
 
@@ -143,5 +169,33 @@ mod tests {
         assert_eq!(buf.next(), Some(5));
         assert_eq!(buf.next(), Some(6));
         assert_eq!(buf.next(), None);
+    }
+
+    #[cfg(test)]
+    mod try_seek {
+        use super::*;
+        use std::time::Duration;
+
+        #[test]
+        fn channel_order_stays_correct() {
+            const SAMPLE_RATE: u32 = 100;
+            const CHANNELS: u16 = 2;
+            let mut buf = SamplesBuffer::new(
+                CHANNELS,
+                SAMPLE_RATE,
+                (0..2000i16).into_iter().collect::<Vec<_>>(),
+            );
+            buf.try_seek(Duration::from_secs(5)).unwrap();
+            assert_eq!(
+                buf.next(),
+                Some(5i16 * SAMPLE_RATE as i16 * CHANNELS as i16)
+            );
+
+            assert!(buf.next().is_some_and(|s| s % 2 == 1));
+            assert!(buf.next().is_some_and(|s| s % 2 == 0));
+
+            buf.try_seek(Duration::from_secs(6)).unwrap();
+            assert!(buf.next().is_some_and(|s| s % 2 == 1),);
+        }
     }
 }

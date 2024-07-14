@@ -20,7 +20,7 @@ where
 
     LinearGainRamp {
         input,
-        remaining_ns: duration_nanos as f32,
+        elapsed_ns: duration_nanos as f32,
         total_ns: duration_nanos as f32,
         start_gain,
         end_gain,
@@ -32,7 +32,7 @@ where
 #[derive(Clone, Debug)]
 pub struct LinearGainRamp<I> {
     input: I,
-    remaining_ns: f32,
+    elapsed_ns: f32,
     total_ns: f32,
     start_gain: f32,
     end_gain: f32,
@@ -73,8 +73,9 @@ where
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
         let factor: f32;
+        let remaining_ns = self.total_ns - self.elapsed_ns;
 
-        if self.remaining_ns <= 0.0 {
+        if remaining_ns <= 0.0 {
             if self.clamp_end {
                 factor = self.end_gain;
             } else {
@@ -84,13 +85,12 @@ where
             factor = f32::lerp(
                 self.start_gain,
                 self.end_gain,
-                self.remaining_ns as u32,
+                remaining_ns as u32,
                 self.total_ns as u32,
             );
         }
 
-        self.remaining_ns -=
-            1000000000.0 / (self.input.sample_rate() as f32 * self.channels() as f32);
+        self.elapsed_ns += 1000000000.0 / (self.input.sample_rate() as f32 * self.channels() as f32);
 
         self.input.next().map(|value| value.amplify(factor))
     }

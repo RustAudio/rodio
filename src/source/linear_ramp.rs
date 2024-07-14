@@ -25,6 +25,7 @@ where
         start_gain,
         end_gain,
         clamp_end,
+        sample_idx: 0u64,
     }
 }
 
@@ -37,6 +38,7 @@ pub struct LinearGainRamp<I> {
     start_gain: f32,
     end_gain: f32,
     clamp_end: bool,
+    sample_idx: u64
 }
 
 impl<I> LinearGainRamp<I>
@@ -82,6 +84,8 @@ where
                 factor = 1.0f32;
             }
         } else {
+            self.sample_idx += 1;
+
             factor = f32::lerp(
                 self.start_gain,
                 self.end_gain,
@@ -90,8 +94,11 @@ where
             );
         }
 
-        self.elapsed_ns +=
-            1000000000.0 / (self.input.sample_rate() as f32 * self.channels() as f32);
+        if self.sample_idx % (self.channels() as u64) == 0 {
+            self.elapsed_ns +=
+                1000000000.0 / (self.input.sample_rate() as f32);
+        }
+
 
         self.input.next().map(|value| value.amplify(factor))
     }

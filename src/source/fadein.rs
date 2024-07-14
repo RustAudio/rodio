@@ -11,14 +11,14 @@ where
     I::Item: Sample,
 {
     FadeIn {
-        ramp: linear_gain_ramp(input, duration, 0.0f32, 1.0f32, false),
+        input: linear_gain_ramp(input, duration, 0.0f32, 1.0f32, false),
     }
 }
 
 /// Filter that modifies raises the volume from silence over a time period.
 #[derive(Clone, Debug)]
 pub struct FadeIn<I> {
-    ramp: LinearGainRamp<I>
+    input: LinearGainRamp<I>
 }
 
 impl<I> FadeIn<I>
@@ -29,19 +29,19 @@ where
     /// Returns a reference to the inner source.
     #[inline]
     pub fn inner(&self) -> &I {
-        self.ramp.inner()
+        self.input.inner()
     }
 
     /// Returns a mutable reference to the inner source.
     #[inline]
     pub fn inner_mut(&mut self) -> &mut I {
-        self.ramp.inner_mut()
+        self.input.inner_mut()
     }
 
     /// Returns the inner source.
     #[inline]
     pub fn into_inner(self) -> I {
-        self.ramp.into_inner()
+        self.input.into_inner()
     }
 }
 

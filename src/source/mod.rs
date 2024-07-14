@@ -254,7 +254,7 @@ where
     /// Applies a linear gain ramp to the sound.
     ///
     /// If `clamp_end` is `true`, all samples subsequent to the end of the ramp
-    /// will be scaled by the `end_value`. If `clamp_end` is `false`, all 
+    /// will be scaled by the `end_value`. If `clamp_end` is `false`, all
     /// subsequent samples will not have any scaling applied.
     #[inline]
     fn linear_gain_ramp(
@@ -262,7 +262,7 @@ where
         duration: Duration,
         start_value: f32,
         end_value: f32,
-        clamp_end: bool
+        clamp_end: bool,
     ) -> LinearGainRamp<Self>
     where
         Self: Sized,

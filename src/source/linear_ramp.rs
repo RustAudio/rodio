@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
 use super::SeekError;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `LinearRamp` object.
 pub fn linear_gain_ramp<I>(
@@ -9,7 +9,7 @@ pub fn linear_gain_ramp<I>(
     duration: Duration,
     start_gain: f32,
     end_gain: f32,
-    clamp_end: bool
+    clamp_end: bool,
 ) -> LinearGainRamp<I>
 where
     I: Source,
@@ -24,7 +24,7 @@ where
         total_ns: duration_nanos as f32,
         start_gain,
         end_gain,
-        clamp_end
+        clamp_end,
     }
 }
 
@@ -72,7 +72,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        let factor: f32; 
+        let factor: f32;
 
         if self.remaining_ns <= 0.0 {
             if self.clamp_end {
@@ -112,7 +112,7 @@ impl<I> Source for LinearGainRamp<I>
 where
     I: Source,
     I::Item: Sample,
-{ 
+{
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         self.input.current_frame_len()

@@ -94,6 +94,9 @@ where
             );
         }
 
+        // FIXME: the way this use to work was calculating a new elapsed value for every sample,
+        // but this is not exactly correct for multichannel inputs. This is a new implementation
+        // but it is presently causing the crossfade unit tests to fail.
         if self.sample_idx % (self.channels() as u64) == 0 {
             self.elapsed_ns +=
                 1000000000.0 / (self.input.sample_rate() as f32);

@@ -112,7 +112,7 @@ impl Sink {
 
     /// Appends a sound to the queue of sounds to play
     ///
-    /// When using the feature flag `crossbeam-channel` in rodio the `crossbeam_channel::Receiver` will be returned when the sound has finished playing. 
+    /// When using the feature flag `crossbeam-channel` in rodio the `crossbeam_channel::Receiver` will be returned when the sound has finished playing.
     #[inline]
     pub fn append_with_signal<S>(&self, source: S) -> Option<Receiver<()>>
     where

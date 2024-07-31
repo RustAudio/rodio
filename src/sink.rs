@@ -107,6 +107,19 @@ impl Sink {
         f32: FromSample<S::Item>,
         S::Item: Sample + Send,
     {
+        self.append_with_signal(source);
+    }
+
+    /// Appends a sound to the queue of sounds to play
+    ///
+    /// When using the feature flag `crossbeam-channel` in rodio the `crossbeam_channel::Receiver` will be returned when the sound has finished playing. 
+    #[inline]
+    pub fn append_with_signal<S>(&self, source: S) -> Option<Receiver<()>>
+    where
+        S: Source + Send + 'static,
+        f32: FromSample<S::Item>,
+        S::Item: Sample + Send,
+    {
         // Wait for queue to flush then resume stopped playback
         if self.controls.stopped.load(Ordering::SeqCst) {
             if self.sound_count.load(Ordering::SeqCst) > 0 {
@@ -159,7 +172,19 @@ impl Sink {
             .convert_samples();
         self.sound_count.fetch_add(1, Ordering::Relaxed);
         let source = Done::new(source, self.sound_count.clone());
-        *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
+        let rx = self.queue_tx.append_with_signal(source);
+
+        #[cfg(not(feature = "crossbeam-channel"))]
+        {
+            *self.sleep_until_end.lock().unwrap() = Some(rx);
+            None
+        }
+
+        #[cfg(feature = "crossbeam-channel")]
+        {
+            *self.sleep_until_end.lock().unwrap() = Some(rx.clone());
+            Some(rx)
+        }
     }
 
     /// Gets the volume of the sound.

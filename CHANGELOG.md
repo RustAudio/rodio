@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for *ALAC/AIFF* 
+
+### Changed
+- `SamplesBuffer` is now `Clone`
+
 # Version 0.19.0 (2024-06-29)
 
 ### Added

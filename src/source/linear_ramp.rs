@@ -15,7 +15,7 @@ where
     I: Source,
     I::Item: Sample,
 {
-    let duration_nanos = duration.as_secs_f32();
+    let duration_nanos = duration.as_nanos() as f32;
     assert!(duration_nanos > 0.0f32);
 
     LinearGainRamp {
@@ -77,7 +77,7 @@ where
         let factor: f32;
         let remaining_ns = self.total_ns - self.elapsed_ns;
 
-        if remaining_ns <= 0.0 {
+        if remaining_ns < 0.0 {
             if self.clamp_end {
                 factor = self.end_gain;
             } else {
@@ -85,18 +85,14 @@ where
             }
         } else {
             self.sample_idx += 1;
-
-            factor = f32::lerp(
-                self.start_gain,
-                self.end_gain,
-                remaining_ns as u32,
-                self.total_ns as u32,
-            );
+            
+            let p = self.elapsed_ns / self.total_ns;
+            factor = self.start_gain * (1.0f32 - p)  + self.end_gain * p;
         }
 
-        // FIXME: the way this use to work was calculating a new elapsed value for every sample,
-        // but this is not exactly correct for multichannel inputs. This is a new implementation
-        // but it is presently causing the crossfade unit tests to fail.
+        println!("Factor: {}, remaining: {}, total: {}", factor, remaining_ns, 
+                 self.total_ns);
+
         if self.sample_idx % (self.channels() as u64) == 0 {
             self.elapsed_ns +=
                 1000000000.0 / (self.input.sample_rate() as f32);
@@ -152,5 +148,52 @@ where
 
 #[cfg(test)]
 mod tests {
-    
+    use super::*;
+    use crate::buffer::SamplesBuffer;
+
+    fn dummysource(length: u8) -> SamplesBuffer<f32> {
+        // shamelessly copied from crossfade.rs
+        let data: Vec<f32> = (1..=length).map(f32::from).collect();
+        SamplesBuffer::new(1, 1, data)
+    }
+
+    #[test]
+    fn test_linearramp() {
+        let source1 = dummysource(10);
+        let mut faded = linear_gain_ramp(source1, 
+                                         Duration::from_secs(4), 
+                                         0.0, 1.0, true);
+
+        assert_eq!(faded.next(), Some(0.0));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(1.5));
+        assert_eq!(faded.next(), Some(3.0));
+        assert_eq!(faded.next(), Some(5.0));
+        assert_eq!(faded.next(), Some(6.0));
+        assert_eq!(faded.next(), Some(7.0));
+        assert_eq!(faded.next(), Some(8.0));
+        assert_eq!(faded.next(), Some(9.0));
+        assert_eq!(faded.next(), Some(10.0));
+        assert_eq!(faded.next(), None);
+    }
+
+    #[test]
+    fn test_linearramp_clamped() {
+        let source1 = dummysource(10);
+        let mut faded = linear_gain_ramp(source1, 
+                                         Duration::from_secs(4), 
+                                         0.0, 0.5, true);
+
+        assert_eq!(faded.next(), Some(0.0));
+        assert_eq!(faded.next(), Some(0.25));
+        assert_eq!(faded.next(), Some(0.75));
+        assert_eq!(faded.next(), Some(1.5));
+        assert_eq!(faded.next(), Some(2.5));
+        assert_eq!(faded.next(), Some(3.0));
+        assert_eq!(faded.next(), Some(3.5));
+        assert_eq!(faded.next(), Some(4.0));
+        assert_eq!(faded.next(), Some(4.5));
+        assert_eq!(faded.next(), Some(5.0));
+        assert_eq!(faded.next(), None);
+    }
 }

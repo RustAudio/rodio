@@ -54,12 +54,12 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        self.inner_mut().next()
+        self.input.next()
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner().size_hint()
+        self.input.size_hint()
     }
 }
 

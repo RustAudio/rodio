@@ -38,7 +38,7 @@ pub struct LinearGainRamp<I> {
     start_gain: f32,
     end_gain: f32,
     clamp_end: bool,
-    sample_idx: u64
+    sample_idx: u64,
 }
 
 impl<I> LinearGainRamp<I>
@@ -85,16 +85,14 @@ where
             }
         } else {
             self.sample_idx += 1;
-            
+
             let p = self.elapsed_ns / self.total_ns;
-            factor = self.start_gain * (1.0f32 - p)  + self.end_gain * p;
+            factor = self.start_gain * (1.0f32 - p) + self.end_gain * p;
         }
 
         if self.sample_idx % (self.channels() as u64) == 0 {
-            self.elapsed_ns +=
-                1000000000.0 / (self.input.sample_rate() as f32);
+            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate() as f32);
         }
-
 
         self.input.next().map(|value| value.amplify(factor))
     }
@@ -157,9 +155,7 @@ mod tests {
     #[test]
     fn test_linearramp() {
         let source1 = dummysource(10);
-        let mut faded = linear_gain_ramp(source1, 
-                                         Duration::from_secs(4), 
-                                         0.0, 1.0, true);
+        let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 1.0, true);
 
         assert_eq!(faded.next(), Some(0.0));
         assert_eq!(faded.next(), Some(0.5));
@@ -177,9 +173,7 @@ mod tests {
     #[test]
     fn test_linearramp_clamped() {
         let source1 = dummysource(10);
-        let mut faded = linear_gain_ramp(source1, 
-                                         Duration::from_secs(4), 
-                                         0.0, 0.5, true);
+        let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 0.5, true);
 
         assert_eq!(faded.next(), Some(0.0));
         assert_eq!(faded.next(), Some(0.25));

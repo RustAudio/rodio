@@ -90,9 +90,6 @@ where
             factor = self.start_gain * (1.0f32 - p)  + self.end_gain * p;
         }
 
-        println!("Factor: {}, remaining: {}, total: {}", factor, remaining_ns, 
-                 self.total_ns);
-
         if self.sample_idx % (self.channels() as u64) == 0 {
             self.elapsed_ns +=
                 1000000000.0 / (self.input.sample_rate() as f32);

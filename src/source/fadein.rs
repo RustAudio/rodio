@@ -18,7 +18,7 @@ where
 /// Filter that modifies raises the volume from silence over a time period.
 #[derive(Clone, Debug)]
 pub struct FadeIn<I> {
-    input: LinearGainRamp<I>
+    input: LinearGainRamp<I>,
 }
 
 impl<I> FadeIn<I>

@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-
 use super::SeekError;
 use crate::{Sample, Source};
 

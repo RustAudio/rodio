@@ -1,5 +1,5 @@
 use rodio::source::{SineWave, Source};
-use rodio::{dynamic_mixer, OutputStream, Sink, queue};
+use rodio::{dynamic_mixer, queue, OutputStream, Sink};
 use std::time::Duration;
 
 fn main() {
@@ -16,7 +16,7 @@ fn main() {
 
     notes.into_iter().for_each(|f| {
         let note_source = SineWave::new(f);
-        
+
         let (tx, rx) = queue::queue(false);
 
         let note_body = note_source
@@ -31,7 +31,7 @@ fn main() {
             .take_duration(Duration::from_secs_f32(1.0))
             .amplify(0.20)
             .linear_gain_ramp(Duration::from_secs_f32(1.0), 1.0, 0.0, true);
-        
+
         tx.append(note_body);
         tx.append(note_end);
 

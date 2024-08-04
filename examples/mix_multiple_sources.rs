@@ -1,5 +1,5 @@
 use rodio::source::{SineWave, Source};
-use rodio::{dynamic_mixer, OutputStream, Sink};
+use rodio::{dynamic_mixer, OutputStream, Sink, queue};
 use std::time::Duration;
 
 fn main() {
@@ -11,24 +11,32 @@ fn main() {
     // Create four unique sources. The frequencies used here correspond
     // notes in the key of C and in octave 4: C4, or middle C on a piano,
     // E4, G4, and A4 respectively.
-    let source_c = SineWave::new(261.63)
-        .take_duration(Duration::from_secs_f32(1.))
-        .amplify(0.20);
-    let source_e = SineWave::new(329.63)
-        .take_duration(Duration::from_secs_f32(1.))
-        .amplify(0.20);
-    let source_g = SineWave::new(392.0)
-        .take_duration(Duration::from_secs_f32(1.))
-        .amplify(0.20);
-    let source_a = SineWave::new(440.0)
-        .take_duration(Duration::from_secs_f32(1.))
-        .amplify(0.20);
 
-    // Add sources C, E, G, and A to the mixer controller.
-    controller.add(source_c);
-    controller.add(source_e);
-    controller.add(source_g);
-    controller.add(source_a);
+    let notes = vec![261.63, 329.63, 392.0, 440.0];
+
+    notes.into_iter().for_each(|f| {
+        let note_source = SineWave::new(f);
+        
+        let (tx, rx) = queue::queue(false);
+
+        let note_body = note_source
+            .clone()
+            .take_duration(Duration::from_secs_f32(1.0))
+            .amplify(0.20)
+            .fade_in(Duration::from_secs_f32(0.1));
+
+        let note_end = note_source
+            .clone()
+            .skip_duration(Duration::from_secs_f32(1.0))
+            .take_duration(Duration::from_secs_f32(1.0))
+            .amplify(0.20)
+            .linear_gain_ramp(Duration::from_secs_f32(1.0), 1.0, 0.0, true);
+        
+        tx.append(note_body);
+        tx.append(note_end);
+
+        controller.add(rx);
+    });
 
     // Append the dynamic mixer to the sink to play a C major 6th chord.
     sink.append(mixer);

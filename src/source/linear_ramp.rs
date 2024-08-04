@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+
 use super::SeekError;
 use crate::{Sample, Source};
 
@@ -169,7 +170,7 @@ mod tests {
         let source1 = const_source(10, 1.0f32);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 1.0, true);
 
-        assert_eq!(faded.next(), Some(0.0));
+        assert_float_absolute_eq!(faded.next().unwrap(), 0.0);
         assert_eq!(faded.next(), Some(0.25));
         assert_eq!(faded.next(), Some(0.5));
         assert_eq!(faded.next(), Some(0.75));
@@ -205,13 +206,13 @@ mod tests {
         let source1 = cycle_source(20, vec![0.0f32, 0.4f32, 0.8f32]);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(10), 0.0, 1.0, true);
 
-        assert_eq!(faded.next(), Some(0.0)); // source value 0
-        assert_eq!(faded.next(), Some(0.04)); // source value 0.4, ramp gain 0.1
-        assert_eq!(faded.next(), Some(0.16)); // source value 0.8, ramp gain 0.2
+        assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0
+        assert_float_absolute_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
+        assert_float_absolute_eq!(faded.next().unwrap(), 0.16); // source value 0.8, ramp gain 0.2
         if let Ok(_result) = faded.try_seek(Duration::from_secs(5)) {
-            assert_eq!(faded.next(), Some(0.64)); // source value 0.8, ramp gain 0.8
-            assert_eq!(faded.next(), Some(0.0)); // source value 0, ramp gain 0.9
-            assert_eq!(faded.next(), Some(0.4)); // source value 0.4. ramp gain 1.0
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.64); // source value 0.8, ramp gain 0.8
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.9
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.4); // source value 0.4. ramp gain 1.0
         } else {
             panic!("try_seek failed!");
         }

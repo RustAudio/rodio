@@ -139,4 +139,4 @@ pub use crate::stream::{OutputStream, OutputStreamHandle, PlayError, StreamError
 
 #[cfg(test)]
 #[macro_use]
-extern crate assert_float_eq;
+extern crate approx;

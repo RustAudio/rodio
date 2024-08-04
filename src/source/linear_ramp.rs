@@ -205,30 +205,30 @@ mod tests {
         let source1 = cycle_source(20, vec![0.0f32, 0.4f32, 0.8f32]);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(10), 0.0, 1.0, true);
 
-        assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0
-        assert_float_absolute_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
-        assert_float_absolute_eq!(faded.next().unwrap(), 0.16); // source value 0.8, ramp gain 0.2
+        assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0
+        assert_abs_diff_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
+        assert_abs_diff_eq!(faded.next().unwrap(), 0.16); // source value 0.8, ramp gain 0.2
 
         if let Ok(_result) = faded.try_seek(Duration::from_secs(5)) {
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.40); // source value 0.8, ramp gain 0.5
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.6
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.28); // source value 0.4. ramp gain 0.7
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.40); // source value 0.8, ramp gain 0.5
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.6
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.28); // source value 0.4. ramp gain 0.7
         } else {
             panic!("try_seek() failed!");
         }
 
         if let Ok(_result) = faded.try_seek(Duration::from_secs(0)) {
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.0
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.16); // source value 0.8. ramp gain 0.2
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.0
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.16); // source value 0.8. ramp gain 0.2
         } else {
             panic!("try_seek() failed!");
         }
 
         if let Ok(_result) = faded.try_seek(Duration::from_secs(10)) {
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.4); // source value 0.4, ramp gain 1.0
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.8); // source value 0.8, ramp gain 1.0
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0. ramp gain 1.0
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.4); // source value 0.4, ramp gain 1.0
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.8); // source value 0.8, ramp gain 1.0
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0. ramp gain 1.0
         } else {
             panic!("try_seek() failed!");
         }

@@ -169,7 +169,7 @@ mod tests {
         let source1 = const_source(10, 1.0f32);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 1.0, true);
 
-        assert_float_absolute_eq!(faded.next().unwrap(), 0.0);
+        assert_eq!(faded.next(), Some(0.0));
         assert_eq!(faded.next(), Some(0.25));
         assert_eq!(faded.next(), Some(0.5));
         assert_eq!(faded.next(), Some(0.75));

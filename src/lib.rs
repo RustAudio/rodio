@@ -118,10 +118,6 @@ pub use cpal::{
     SupportedStreamConfig,
 };
 
-#[cfg(test)]
-#[macro_use]
-extern crate assert_float_eq;
-
 mod conversions;
 mod sink;
 mod spatial_sink;
@@ -140,3 +136,7 @@ pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
 pub use crate::stream::{OutputStream, OutputStreamHandle, PlayError, StreamError};
+
+#[cfg(test)]
+#[macro_use]
+extern crate assert_float_eq;

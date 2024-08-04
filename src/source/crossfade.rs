@@ -5,10 +5,10 @@ use cpal::FromSample;
 use crate::source::{FadeIn, Mix, TakeDuration};
 use crate::{Sample, Source};
 
-/// Mixes one sound fading out with another sound fading in for the given 
+/// Mixes one sound fading out with another sound fading in for the given
 /// duration.
 ///
-/// Only the crossfaded portion (beginning of fadeout, beginning of fadein) is 
+/// Only the crossfaded portion (beginning of fadeout, beginning of fadein) is
 /// returned.
 pub fn crossfade<I1, I2>(
     input_fadeout: I1,

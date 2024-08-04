@@ -137,6 +137,7 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.elapsed_ns += pos.as_nanos() as f32;
         self.input.try_seek(pos)
     }
 }
@@ -146,16 +147,10 @@ mod tests {
     use super::*;
     use crate::buffer::SamplesBuffer;
 
-<<<<<<< HEAD
     /// Create a SamplesBuffer of identical samples with value `value`.
     /// Returned buffer is one channel and has s sample rate of 1 hz.
     fn const_source(length: u8, value: f32) -> SamplesBuffer<f32> {
         let data: Vec<f32> = (1..=length).map(|_| value).collect();
-=======
-    fn dummysource(length: u8) -> SamplesBuffer<f32> {
-        // shamelessly copied from crossfade.rs
-        let data: Vec<f32> = (1..=length).map(f32::from).collect();
->>>>>>> parent of d5c9e0d (Code review stuff...)
         SamplesBuffer::new(1, 1, data)
     }
 
@@ -170,48 +165,38 @@ mod tests {
     }
 
     #[test]
-<<<<<<< HEAD
     fn test_linear_ramp() {
         let source1 = const_source(10, 1.0f32);
-=======
-    fn test_linearramp() {
-        let source1 = dummysource(10);
->>>>>>> parent of d5c9e0d (Code review stuff...)
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 1.0, true);
 
         assert_eq!(faded.next(), Some(0.0));
+        assert_eq!(faded.next(), Some(0.25));
         assert_eq!(faded.next(), Some(0.5));
-        assert_eq!(faded.next(), Some(1.5));
-        assert_eq!(faded.next(), Some(3.0));
-        assert_eq!(faded.next(), Some(5.0));
-        assert_eq!(faded.next(), Some(6.0));
-        assert_eq!(faded.next(), Some(7.0));
-        assert_eq!(faded.next(), Some(8.0));
-        assert_eq!(faded.next(), Some(9.0));
-        assert_eq!(faded.next(), Some(10.0));
+        assert_eq!(faded.next(), Some(0.75));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
         assert_eq!(faded.next(), None);
     }
 
     #[test]
-<<<<<<< HEAD
     fn test_linear_ramp_clamped() {
         let source1 = const_source(10, 1.0f32);
-=======
-    fn test_linearramp_clamped() {
-        let source1 = dummysource(10);
->>>>>>> parent of d5c9e0d (Code review stuff...)
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 0.5, true);
 
-        assert_eq!(faded.next(), Some(0.0));
+        assert_eq!(faded.next(), Some(0.0)); // fading in...
+        assert_eq!(faded.next(), Some(0.125));
         assert_eq!(faded.next(), Some(0.25));
-        assert_eq!(faded.next(), Some(0.75));
-        assert_eq!(faded.next(), Some(1.5));
-        assert_eq!(faded.next(), Some(2.5));
-        assert_eq!(faded.next(), Some(3.0));
-        assert_eq!(faded.next(), Some(3.5));
-        assert_eq!(faded.next(), Some(4.0));
-        assert_eq!(faded.next(), Some(4.5));
-        assert_eq!(faded.next(), Some(5.0));
+        assert_eq!(faded.next(), Some(0.375));
+        assert_eq!(faded.next(), Some(0.5)); // fade is done
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.5));
         assert_eq!(faded.next(), None);
     }
 

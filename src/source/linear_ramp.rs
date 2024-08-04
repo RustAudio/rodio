@@ -147,13 +147,25 @@ mod tests {
     use super::*;
     use crate::buffer::SamplesBuffer;
 
+    /// Create a SamplesBuffer of identical samples with value `value`.
+    /// Returned buffer is one channel and has s sample rate of 1 hz.
     fn const_source(length: u8, value: f32) -> SamplesBuffer<f32> {
         let data: Vec<f32> = (1..=length).map(|_| value).collect();
         SamplesBuffer::new(1, 1, data)
     }
 
+    /// Create a SamplesBuffer of repeating sample values from `values`.
+    fn cycle_source(length: u8, values: Vec<f32>) -> SamplesBuffer<f32> {
+        let data: Vec<f32> = (1..=length)
+            .enumerate()
+            .map(|(i, _)| values[i % values.len()])
+            .collect();
+
+        SamplesBuffer::new(1, 1, data)
+    }
+
     #[test]
-    fn test_linearramp() {
+    fn test_linear_ramp() {
         let source1 = const_source(10, 1.0f32);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 1.0, true);
 
@@ -171,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn test_linearramp_clamped() {
+    fn test_linear_ramp_clamped() {
         let source1 = const_source(10, 1.0f32);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 0.5, true);
 
@@ -186,5 +198,22 @@ mod tests {
         assert_eq!(faded.next(), Some(0.5));
         assert_eq!(faded.next(), Some(0.5));
         assert_eq!(faded.next(), None);
+    }
+
+    #[test]
+    fn test_linear_ramp_seek() {
+        let source1 = cycle_source(20, vec![0.0f32, 0.4f32, 0.8f32]);
+        let mut faded = linear_gain_ramp(source1, Duration::from_secs(10), 0.0, 1.0, true);
+
+        assert_eq!(faded.next(), Some(0.0)); // source value 0
+        assert_eq!(faded.next(), Some(0.04)); // source value 0.4, ramp gain 0.1
+        assert_eq!(faded.next(), Some(0.16)); // source value 0.8, ramp gain 0.2
+        if let Ok(_result) = faded.try_seek(Duration::from_secs(5)) {
+            assert_eq!(faded.next(), Some(0.64)); // source value 0.8, ramp gain 0.8
+            assert_eq!(faded.next(), Some(0.0)); // source value 0, ramp gain 0.9
+            assert_eq!(faded.next(), Some(0.4)); // source value 0.4. ramp gain 1.0
+        } else {
+            panic!("try_seek failed!");
+        }
     }
 }

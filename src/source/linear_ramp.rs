@@ -137,7 +137,7 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.elapsed_ns += pos.as_nanos() as f32;
+        self.elapsed_ns = pos.as_nanos() as f32;
         self.input.try_seek(pos)
     }
 }
@@ -148,7 +148,7 @@ mod tests {
     use crate::buffer::SamplesBuffer;
 
     /// Create a SamplesBuffer of identical samples with value `value`.
-    /// Returned buffer is one channel and has s sample rate of 1 hz.
+    /// Returned buffer is one channel and has a sample rate of 1 hz.
     fn const_source(length: u8, value: f32) -> SamplesBuffer<f32> {
         let data: Vec<f32> = (1..=length).map(|_| value).collect();
         SamplesBuffer::new(1, 1, data)
@@ -208,12 +208,29 @@ mod tests {
         assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0
         assert_float_absolute_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
         assert_float_absolute_eq!(faded.next().unwrap(), 0.16); // source value 0.8, ramp gain 0.2
+
         if let Ok(_result) = faded.try_seek(Duration::from_secs(5)) {
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.64); // source value 0.8, ramp gain 0.8
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.9
-            assert_float_absolute_eq!(faded.next().unwrap(), 0.4); // source value 0.4. ramp gain 1.0
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.40); // source value 0.8, ramp gain 0.5
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.6
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.28); // source value 0.4. ramp gain 0.7
         } else {
-            panic!("try_seek failed!");
+            panic!("try_seek() failed!");
+        }
+
+        if let Ok(_result) = faded.try_seek(Duration::from_secs(0)) {
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.0
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.16); // source value 0.8. ramp gain 0.2
+        } else {
+            panic!("try_seek() failed!");
+        }
+
+        if let Ok(_result) = faded.try_seek(Duration::from_secs(10)) {
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.4); // source value 0.4, ramp gain 1.0
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.8); // source value 0.8, ramp gain 1.0
+            assert_float_absolute_eq!(faded.next().unwrap(), 0.0); // source value 0. ramp gain 1.0
+        } else {
+            panic!("try_seek() failed!");
         }
     }
 }

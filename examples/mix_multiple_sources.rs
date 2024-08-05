@@ -30,7 +30,7 @@ fn main() {
             .skip_duration(Duration::from_secs_f32(1.0))
             .take_duration(Duration::from_secs_f32(1.0))
             .amplify(0.20)
-            .linear_gain_ramp(Duration::from_secs_f32(1.0), 1.0, 0.0, true);
+            .fade_out(Duration::from_secs_f32(1.0));
 
         tx.append(note_body);
         tx.append(note_end);

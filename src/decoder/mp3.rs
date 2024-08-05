@@ -1,14 +1,18 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
+use crate::source::SeekError;
 use crate::Source;
 
-use minimp3::{Decoder, Frame};
+use minimp3::Decoder;
+use minimp3::Frame;
+use minimp3_fixed as minimp3;
 
 pub struct Mp3Decoder<R>
 where
     R: Read + Seek,
 {
+    // decoder: SeekDecoder<R>,
     decoder: Decoder<R>,
     current_frame: Frame,
     current_frame_offset: usize,
@@ -22,8 +26,16 @@ where
         if !is_mp3(data.by_ref()) {
             return Err(data);
         }
+        // let mut decoder = SeekDecoder::new(data)
         let mut decoder = Decoder::new(data);
-        let current_frame = decoder.next_frame().unwrap();
+        // parameters are correct and minimp3 is used correctly
+        // thus if we crash here one of these invariants is broken:
+        // .expect("should be able to allocate memory, perform IO");
+        // let current_frame = decoder.decode_frame()
+        let current_frame = decoder.next_frame()
+            // the reader makes enough data available therefore 
+            // if we crash here the invariant broken is:
+            .expect("data should not corrupt");
 
         Ok(Mp3Decoder {
             decoder,
@@ -59,6 +71,20 @@ where
     fn total_duration(&self) -> Option<Duration> {
         None
     }
+
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        // TODO waiting for PR in minimp3_fixed or minimp3
+
+        // let pos = (pos.as_secs_f32() * self.sample_rate() as f32) as u64;
+        // // do not trigger a sample_rate, channels and frame len update
+        // // as the seek only takes effect after the current frame is done
+        // self.decoder.seek_samples(pos)?;
+        // Ok(())
+
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
+    }
 }
 
 impl<R> Iterator for Mp3Decoder<R>
@@ -67,14 +93,15 @@ where
 {
     type Item = i16;
 
-    #[inline]
     fn next(&mut self) -> Option<i16> {
-        if self.current_frame_offset == self.current_frame.data.len() {
-            match self.decoder.next_frame() {
-                Ok(frame) => self.current_frame = frame,
-                _ => return None,
+        if self.current_frame_offset == self.current_frame_len().unwrap() {
+            if let Ok(frame) = self.decoder.next_frame() {
+                // if let Ok(frame) = self.decoder.decode_frame() {
+                self.current_frame = frame;
+                self.current_frame_offset = 0;
+            } else {
+                return None;
             }
-            self.current_frame_offset = 0;
         }
 
         let v = self.current_frame.data[self.current_frame_offset];

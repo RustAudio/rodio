@@ -1,7 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
-use std::vec;
 
+use crate::source::SeekError;
 use crate::Source;
 
 use lewton::inside_ogg::OggStreamReader;
@@ -12,7 +12,8 @@ where
     R: Read + Seek,
 {
     stream_reader: OggStreamReader<R>,
-    current_data: vec::IntoIter<i16>,
+    current_data: Vec<i16>,
+    next: usize,
 }
 
 impl<R> VorbisDecoder<R>
@@ -42,7 +43,8 @@ where
 
         VorbisDecoder {
             stream_reader,
-            current_data: data.into_iter(),
+            current_data: data,
+            next: 0,
         }
     }
     pub fn into_inner(self) -> OggStreamReader<R> {
@@ -73,6 +75,22 @@ where
     fn total_duration(&self) -> Option<Duration> {
         None
     }
+
+    /// seek is broken, https://github.com/RustAudio/lewton/issues/73.
+    // We could work around it by:
+    //  - using unsafe to create an instance of Self
+    //  - use mem::swap to turn the &mut self into a mut self
+    //  - take out the underlying Read+Seek
+    //  - make a new self and seek
+    //
+    // If this issue is fixed use the implementation in
+    // commit: 3bafe32388b4eb7a48c6701e6c65044dc8c555e6
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
+    }
 }
 
 impl<R> Iterator for VorbisDecoder<R>
@@ -83,24 +101,29 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<i16> {
-        if let Some(sample) = self.current_data.next() {
-            if self.current_data.len() == 0 {
+        if let Some(sample) = self.current_data.get(self.next).copied() {
+            self.next += 1;
+            if self.current_data.is_empty() {
                 if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
-                    self.current_data = data.into_iter();
+                    self.current_data = data;
+                    self.next = 0;
                 }
             }
             Some(sample)
         } else {
             if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
-                self.current_data = data.into_iter();
+                self.current_data = data;
+                self.next = 0;
             }
-            self.current_data.next()
+            let sample = self.current_data.get(self.next).copied();
+            self.next += 1;
+            sample
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.current_data.size_hint().0, None)
+        (self.current_data.len(), None)
     }
 }
 
@@ -109,7 +132,7 @@ fn is_vorbis<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+    let stream_pos = data.stream_position().unwrap();
 
     if OggStreamReader::new(data.by_ref()).is_err() {
         data.seek(SeekFrom::Start(stream_pos)).unwrap();

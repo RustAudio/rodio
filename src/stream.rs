@@ -1,5 +1,4 @@
 use std::io::{Read, Seek};
-use std::marker::Sync;
 use std::sync::{Arc, Weak};
 use std::{error, fmt};
 
@@ -209,7 +208,7 @@ impl CpalDeviceExt for cpal::Device {
         let (mixer_tx, mut mixer_rx) =
             dynamic_mixer::mixer::<f32>(format.channels(), format.sample_rate().0);
 
-        let error_callback = |err| eprintln!("an error occurred on output stream: {}", err);
+        let error_callback = |err| eprintln!("an error occurred on output stream: {err}");
 
         match format.sample_format() {
             cpal::SampleFormat::F32 => self.build_output_stream::<f32, _, _>(
@@ -273,7 +272,7 @@ impl CpalDeviceExt for cpal::Device {
                         *d = mixer_rx
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u8::max_value() / 2)
+                            .unwrap_or(u8::MAX / 2)
                     })
                 },
                 error_callback,
@@ -286,7 +285,7 @@ impl CpalDeviceExt for cpal::Device {
                         *d = mixer_rx
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u16::max_value() / 2)
+                            .unwrap_or(u16::MAX / 2)
                     })
                 },
                 error_callback,
@@ -299,7 +298,7 @@ impl CpalDeviceExt for cpal::Device {
                         *d = mixer_rx
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u32::max_value() / 2)
+                            .unwrap_or(u32::MAX / 2)
                     })
                 },
                 error_callback,
@@ -312,7 +311,7 @@ impl CpalDeviceExt for cpal::Device {
                         *d = mixer_rx
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u64::max_value() / 2)
+                            .unwrap_or(u64::MAX / 2)
                     })
                 },
                 error_callback,
@@ -349,9 +348,9 @@ fn supported_output_formats(
     Ok(supported.into_iter().flat_map(|sf| {
         let max_rate = sf.max_sample_rate();
         let min_rate = sf.min_sample_rate();
-        let mut formats = vec![sf.clone().with_max_sample_rate()];
+        let mut formats = vec![sf.with_max_sample_rate()];
         if HZ_44100 < max_rate && HZ_44100 > min_rate {
-            formats.push(sf.clone().with_sample_rate(HZ_44100))
+            formats.push(sf.with_sample_rate(HZ_44100))
         }
         formats.push(sf.with_sample_rate(min_rate));
         formats

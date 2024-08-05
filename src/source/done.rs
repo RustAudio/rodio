@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// When the inner source is empty this decrements an `AtomicUsize`.
 #[derive(Debug, Clone)]
 pub struct Done<I> {
@@ -86,5 +88,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

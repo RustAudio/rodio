@@ -1,3 +1,65 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Support for *ALAC/AIFF* 
+
+### Changed
+- `SamplesBuffer` is now `Clone`
+
+# Version 0.19.0 (2024-06-29)
+
+### Added
+- Adds a new source `track_position`. It keeps track of duration since the
+  beginning of the underlying source.
+
+### Fixed
+- Mp4a with decodable tracks after undecodable tracks now play. This matches
+  VLC's behaviour.
+
+# Version 0.18.1 (2024-05-23)
+
+### Fixed
+- Seek no longer hangs if the sink is empty.
+
+# Version 0.18.0 (2024-05-05)
+
+### Changed
+- `Source` trait is now also implemented for `Box<dyn Source>` and `&mut Source`
+- `fn new_vorbis` is now also available when the `symphonia-vorbis` feature is enabled
+
+### Added 
+- Adds a new method `try_seek` to all sources. It returns either an error or
+  seeks to the given position. A few sources are "unsupported" they return the
+  error `Unsupported`.
+- Adds `SpatialSink::clear()` bringing it in line with `Sink`
+
+### Fixed
+- channel upscaling now follows the 'WAVEFORMATEXTENSIBLE' format and no longer
+  repeats the last source channel on all extra output channels. 
+  Stereo content playing on a 5.1 speaker set will now only use the front left
+  and front right speaker instead of repeating the right sample on all speakers
+  except the front left one.
+- `mp3::is_mp3()` no longer changes the position in the stream when the stream
+  is mp3
+
+# Version 0.17.3 (2023-10-23)
+
+- Build fix for `minimp3` backend.
+
+# Version 0.17.2 (2023-10-17)
+
+- Add `EmptyCallback` source.
+- Fix index out of bounds bug.
+- Use non-vulnerable `minimp3` fork.
+- Add filter functions with additional q parameter.
+
 # Version 0.17.1 (2023-02-25)
 
 - Disable `symphonia`'s default features.

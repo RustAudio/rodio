@@ -23,6 +23,7 @@ pub use self::linear_ramp::LinearGainRamp;
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
+pub use self::position::TrackPosition;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sine::SineWave;
@@ -52,6 +53,7 @@ mod linear_ramp;
 mod mix;
 mod pausable;
 mod periodic;
+mod position;
 mod repeat;
 mod samples_converter;
 mod sine;
@@ -155,6 +157,7 @@ where
     fn total_duration(&self) -> Option<Duration>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
+
     #[inline]
     fn buffered(self) -> Buffered<Self>
     where
@@ -350,6 +353,23 @@ where
         skippable::skippable(self)
     }
 
+    /// Start tracking the elapsed duration since the start of the underlying
+    /// source.
+    ///
+    /// If a speedup and or delay is applied after this that will not be reflected
+    /// in the position returned by [`get_pos`](TrackPosition::get_pos).
+    ///
+    /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
+    /// together with [`Source::try_seek()`] as the the latter does take all
+    /// speedup's and delay's into account. Its recommended therefore to apply
+    /// track_position after speedup's and delay's.
+    fn track_position(self) -> TrackPosition<Self>
+    where
+        Self: Sized,
+    {
+        position::track_position(self)
+    }
+
     /// Applies a low-pass filter to the source.
     /// **Warning**: Probably buggy.
     #[inline]
@@ -361,6 +381,7 @@ where
         blt::low_pass(self, freq)
     }
 
+    /// Applies a high-pass filter to the source.
     #[inline]
     fn high_pass(self, freq: u32) -> BltFilter<Self>
     where
@@ -369,79 +390,120 @@ where
     {
         blt::high_pass(self, freq)
     }
-}
 
-impl<S> Source for Box<dyn Source<Item = S>>
-where
-    S: Sample,
-{
+    /// Applies a low-pass filter to the source while allowing the q (bandwidth) to be changed.
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        (**self).current_frame_len()
+    fn low_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
+    where
+        Self: Sized,
+        Self: Source<Item = f32>,
+    {
+        blt::low_pass_with_q(self, freq, q)
     }
 
+    /// Applies a high-pass filter to the source while allowing the q (bandwidth) to be changed.
     #[inline]
-    fn channels(&self) -> u16 {
-        (**self).channels()
+    fn high_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
+    where
+        Self: Sized,
+        Self: Source<Item = f32>,
+    {
+        blt::high_pass_with_q(self, freq, q)
     }
 
-    #[inline]
-    fn sample_rate(&self) -> u32 {
-        (**self).sample_rate()
-    }
+    // There is no `can_seek()` method as it is impossible to use correctly. Between
+    // checking if a source supports seeking and actually seeking the sink can
+    // switch to a new source.
 
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        (**self).total_duration()
-    }
-}
-
-impl<S> Source for Box<dyn Source<Item = S> + Send>
-where
-    S: Sample,
-{
-    #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        (**self).current_frame_len()
-    }
-
-    #[inline]
-    fn channels(&self) -> u16 {
-        (**self).channels()
-    }
-
-    #[inline]
-    fn sample_rate(&self) -> u32 {
-        (**self).sample_rate()
-    }
-
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        (**self).total_duration()
+    /// Attempts to seek to a given position in the current source.
+    ///
+    /// As long as the duration of the source is known seek is guaranteed to saturate
+    /// at the end of the source. For example given a source that reports a total duration
+    /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
+    /// 42 seconds.
+    ///
+    /// # Errors
+    /// This function will return [`SeekError::NotSupported`] if one of the underlying
+    /// sources does not support seeking.
+    ///
+    /// It will return an error if an implementation ran
+    /// into one during the seek.  
+    ///
+    /// Seeking beyond the end of a source might return an error if the total duration of
+    /// the source is not known.
+    #[allow(unused_variables)]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
     }
 }
 
-impl<S> Source for Box<dyn Source<Item = S> + Send + Sync>
-where
-    S: Sample,
-{
-    #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        (**self).current_frame_len()
-    }
+// We might add decoders requiring new error types, without non_exhaustive
+// this would break users builds
+#[non_exhaustive]
+#[derive(Debug, thiserror::Error)]
+pub enum SeekError {
+    #[error("Streaming is not supported by source: {underlying_source}")]
+    NotSupported { underlying_source: &'static str },
+    #[cfg(feature = "symphonia")]
+    #[error("Error seeking: {0}")]
+    SymphoniaDecoder(#[from] crate::decoder::symphonia::SeekError),
+    #[cfg(feature = "wav")]
+    #[error("Error seeking in wav source: {0}")]
+    HoundDecoder(std::io::Error),
+    #[error("An error occurred")]
+    Other(Box<dyn std::error::Error + Send>),
+}
 
-    #[inline]
-    fn channels(&self) -> u16 {
-        (**self).channels()
-    }
-
-    #[inline]
-    fn sample_rate(&self) -> u32 {
-        (**self).sample_rate()
-    }
-
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        (**self).total_duration()
+impl SeekError {
+    pub fn source_intact(&self) -> bool {
+        match self {
+            SeekError::NotSupported { .. } => true,
+            #[cfg(feature = "symphonia")]
+            SeekError::SymphoniaDecoder(_) => false,
+            #[cfg(feature = "wav")]
+            SeekError::HoundDecoder(_) => false,
+            SeekError::Other(_) => false,
+        }
     }
 }
+
+macro_rules! source_pointer_impl {
+    ($($sig:tt)+) => {
+        impl $($sig)+ {
+            #[inline]
+            fn current_frame_len(&self) -> Option<usize> {
+                (**self).current_frame_len()
+            }
+
+            #[inline]
+            fn channels(&self) -> u16 {
+                (**self).channels()
+            }
+
+            #[inline]
+            fn sample_rate(&self) -> u32 {
+                (**self).sample_rate()
+            }
+
+            #[inline]
+            fn total_duration(&self) -> Option<Duration> {
+                (**self).total_duration()
+            }
+
+            #[inline]
+            fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+                (**self).try_seek(pos)
+            }
+        }
+    };
+}
+
+source_pointer_impl!(<S> Source for Box<dyn Source<Item = S>> where S: Sample,);
+
+source_pointer_impl!(<S> Source for Box<dyn Source<Item = S> + Send> where S: Sample,);
+
+source_pointer_impl!(<S> Source for Box<dyn Source<Item = S> + Send + Sync> where S: Sample,);
+
+source_pointer_impl!(<'a, S, C> Source for &'a mut C where S: Sample, C: Source<Item = S>,);

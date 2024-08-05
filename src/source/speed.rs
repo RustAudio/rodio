@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// Internal function that builds a `Speed` object.
 pub fn speed<I>(input: I, factor: f32) -> Speed<I> {
     Speed { input, factor }
@@ -91,16 +93,17 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        // TODO: the crappy API of duration makes this code difficult to write
-        if let Some(duration) = self.input.total_duration() {
-            let as_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-            let new_val = (as_ns as f32 / self.factor) as u64;
-            Some(Duration::new(
-                new_val / 1000000000,
-                (new_val % 1000000000) as u32,
-            ))
-        } else {
-            None
-        }
+        self.input.total_duration().map(|d| d.mul_f32(self.factor))
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        /* TODO: This might be wrong, I do not know how speed achieves its speedup
+         * so I can not reason about the correctness.
+         * <dvdsk noreply@davidsk.dev> */
+
+        // even after 24 hours of playback f32 has enough precision
+        let pos_accounting_for_speedup = pos.mul_f32(self.factor);
+        self.input.try_seek(pos_accounting_for_speedup)
     }
 }

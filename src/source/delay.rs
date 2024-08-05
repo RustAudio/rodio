@@ -2,19 +2,24 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
+fn remaining_samples(until_playback: Duration, sample_rate: u32, channels: u16) -> usize {
+    let ns = until_playback.as_secs() * 1_000_000_000 + until_playback.subsec_nanos() as u64;
+    let samples = ns * channels as u64 * sample_rate as u64 / 1_000_000_000;
+    samples as usize
+}
+
 /// Internal function that builds a `Delay` object.
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
 where
     I: Source,
     I::Item: Sample,
 {
-    let duration_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-    let samples = duration_ns * input.sample_rate() as u64 / 1000000000 * input.channels() as u64;
-
     Delay {
-        input,
-        remaining_samples: samples as usize,
+        remaining_samples: remaining_samples(duration, input.sample_rate(), input.channels()),
         requested_duration: duration,
+        input,
     }
 }
 
@@ -104,5 +109,30 @@ where
         self.input
             .total_duration()
             .map(|val| val + self.requested_duration)
+    }
+
+    /// Pos is seen from the perspective of the api user.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use std::time::Duration;
+    ///
+    /// let mut source = inner_source.delay(Duration::from_secs(10));
+    /// source.try_seek(Duration::from_secs(15));
+    ///
+    /// // inner_source is now at pos: Duration::from_secs(5);
+    /// ```
+    ///
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        if pos < self.requested_duration {
+            self.input.try_seek(Duration::ZERO)?;
+            let until_playback = self.requested_duration - pos;
+            self.remaining_samples =
+                remaining_samples(until_playback, self.sample_rate(), self.channels());
+        }
+        let compensated_for_delay = pos.saturating_sub(self.requested_duration);
+        self.input.try_seek(compensated_for_delay)
     }
 }

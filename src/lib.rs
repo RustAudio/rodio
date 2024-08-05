@@ -20,7 +20,8 @@
 //! use std::io::BufReader;
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
-//! // Get a output stream handle to the default physical sound device
+//! // Get an output stream handle to the default physical sound device.
+//! // Note that no sound will be played if _stream is dropped
 //! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 //! // Load a sound from a file, using a path relative to Cargo.toml
 //! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
@@ -51,6 +52,7 @@
 //! use rodio::{Decoder, OutputStream, Sink};
 //! use rodio::source::{SineWave, Source};
 //!
+//! // _stream must live as long as the sink
 //! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 //! let sink = Sink::try_new(&stream_handle).unwrap();
 //!
@@ -68,6 +70,8 @@
 //! sounds to play simultaneously, you should create multiple [`Sink`]s.
 //!
 //! The [`Sink`] type also provides utilities such as playing/pausing or controlling the volume.
+//!
+//! **Please note that the [`Sink`] requires the [`OutputStream`], make sure that the outputstream is not dropped before the sink.**
 //!
 //! ## Filters
 //!

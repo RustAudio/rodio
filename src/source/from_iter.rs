@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// Builds a source that chains sources provided by an iterator.
 ///
 /// The `iterator` parameter is an iterator that produces a source. The source is then played.
@@ -134,6 +136,15 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        if let Some(source) = self.current_source.as_mut() {
+            source.try_seek(pos)
+        } else {
+            Ok(())
+        }
     }
 }
 

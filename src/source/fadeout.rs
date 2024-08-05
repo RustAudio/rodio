@@ -15,7 +15,7 @@ where
     }
 }
 
-/// Filter that modifies raises the volume from silence over a time period.
+/// Filter that modifies lowers the volume to silence over a time period.
 #[derive(Clone, Debug)]
 pub struct FadeOut<I> {
     input: LinearGainRamp<I>,

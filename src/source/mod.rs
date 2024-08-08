@@ -30,7 +30,7 @@ pub use self::skippable::Skippable;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
-pub use self::synth_waveforms::SynthWaveform;
+pub use self::synth_waveforms::{BufferedSynthWaveform, SynthWaveformFunction};
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;

@@ -106,6 +106,7 @@ impl Source for SynthWaveform {
 #[cfg(test)]
 mod tests {
     use crate::source::synth::*;
+    use approx::assert_abs_diff_eq;
 
     #[test]
     fn square() {
@@ -165,10 +166,17 @@ mod tests {
         assert_eq!(wf.next(), Some(-1.0f32));
     }
 
-    // #[test]
-    // fn sine() {
-    //     let mut wf =
-    //         SynthWaveform::new(cpal::SampleRate(1000), 100f32, SynthWaveformFunction::Sine);
-    //
-    // }
+    #[test]
+    fn sine() {
+        let mut wf =
+            SynthWaveform::new(cpal::SampleRate(1000), 100f32, SynthWaveformFunction::Sine);
+
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.0f32);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525f32);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.95105652f32);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.95105652f32);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525f32);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.0f32);
+        assert_abs_diff_eq!(wf.next().unwrap(), -0.58778554f32);
+    }
 }

@@ -137,6 +137,3 @@ pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
 pub use crate::stream::{OutputStream, OutputStreamHandle, PlayError, StreamError};
 
-#[cfg(test)]
-#[macro_use]
-extern crate approx;

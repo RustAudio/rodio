@@ -144,6 +144,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use approx::assert_abs_diff_eq;
+
     use super::*;
     use crate::buffer::SamplesBuffer;
 

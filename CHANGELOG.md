@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Support for *ALAC/AIFF* 
+- New sources:
+    - `fade_out` fades an input out using a linear gain fade.
+    - `linear_gain_ramp` applies a linear gain change to a sound over a
+      given duration. `fade_out` is implemented as a `linear_gain_ramp` and
+      `fade_in` has been refactored to use the `linear_gain_ramp` 
+      implementation.
 
 ### Changed
 - `SamplesBuffer` is now `Clone`

@@ -1,37 +1,47 @@
 use std::time::Duration;
 
-use crate::{Sample,Source};
+use crate::{Sample, Source};
+
+use super::{linear_ramp::linear_gain_ramp, LinearGainRamp, SeekError};
 
 /// Internal function that builds a `FadeOut` object.
-pub fn fadeout<I>(input: I, duration: Duration) -> FadeOut<I> {
-    let duration = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-
+pub fn fadeout<I>(input: I, duration: Duration) -> FadeOut<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
     FadeOut {
-        input: input,
-        remaining_ns: duration as f32,
-        total_ns: duration as f32,
+        input: linear_gain_ramp(input, duration, 1.0f32, 0.0f32, true),
     }
 }
 
-/// Filter that modifies reduces the volume to silence over a time period.
+/// Filter that modifies lowers the volume to silence over a time period.
 #[derive(Clone, Debug)]
 pub struct FadeOut<I> {
-    input: I,
-    remaining_ns: f32,
-    total_ns: f32,
+    input: LinearGainRamp<I>,
 }
 
-impl<I> FadeOut<I> {
-    /// Starts the fade to silence.
+impl<I> FadeOut<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    /// Returns a reference to the inner source.
     #[inline]
-    pub fn start(&mut self) {
-        self.remaining_ns = self.total_ns;
+    pub fn inner(&self) -> &I {
+        self.input.inner()
     }
 
-    /// Clears the fade out time.
+    /// Returns a mutable reference to the inner source.
     #[inline]
-    pub fn reset(&mut self) {
-        self.remaining_ns = -1.0;
+    pub fn inner_mut(&mut self) -> &mut I {
+        self.input.inner_mut()
+    }
+
+    /// Returns the inner source.
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input.into_inner()
     }
 }
 
@@ -44,16 +54,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        let factor = if self.remaining_ns <= 0.0 {
-            0.
-        } else {
-            let factor = self.remaining_ns / self.total_ns;
-            self.remaining_ns -=
-                1000000000.0 / (self.input.sample_rate() as f32 * self.channels() as f32);
-            factor
-        };
-
-        self.input.next().map(|value| value.amplify(factor))
+        self.input.next()
     }
 
     #[inline]
@@ -76,21 +77,26 @@ where
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+        self.inner().current_frame_len()
     }
 
     #[inline]
     fn channels(&self) -> u16 {
-        self.input.channels()
+        self.inner().channels()
     }
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        self.input.sample_rate()
+        self.inner().sample_rate()
     }
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.input.total_duration()
+        self.inner().total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.inner_mut().try_seek(pos)
     }
 }

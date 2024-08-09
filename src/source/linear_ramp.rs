@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use super::SeekError;
 use crate::{Sample, Source};
 
 /// Internal function that builds a `LinearRamp` object.
@@ -8,19 +9,23 @@ pub fn linear_gain_ramp<I>(
     duration: Duration,
     start_gain: f32,
     end_gain: f32,
+    clamp_end: bool,
 ) -> LinearGainRamp<I>
 where
     I: Source,
     I::Item: Sample,
 {
-    let duration = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
+    let duration_nanos = duration.as_nanos() as f32;
+    assert!(duration_nanos > 0.0f32);
 
     LinearGainRamp {
         input,
-        remaining_ns: duration as f32,
-        total_ns: duration as f32,
+        elapsed_ns: 0.0f32,
+        total_ns: duration_nanos,
         start_gain,
         end_gain,
+        clamp_end,
+        sample_idx: 0u64,
     }
 }
 
@@ -28,10 +33,12 @@ where
 #[derive(Clone, Debug)]
 pub struct LinearGainRamp<I> {
     input: I,
-    remaining_ns: f32,
+    elapsed_ns: f32,
     total_ns: f32,
     start_gain: f32,
     end_gain: f32,
+    clamp_end: bool,
+    sample_idx: u64,
 }
 
 impl<I> LinearGainRamp<I>
@@ -67,19 +74,25 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        if self.remaining_ns <= 0.0 {
-            return self.input.next();
+        let factor: f32;
+        let remaining_ns = self.total_ns - self.elapsed_ns;
+
+        if remaining_ns < 0.0 {
+            if self.clamp_end {
+                factor = self.end_gain;
+            } else {
+                factor = 1.0f32;
+            }
+        } else {
+            self.sample_idx += 1;
+
+            let p = self.elapsed_ns / self.total_ns;
+            factor = self.start_gain * (1.0f32 - p) + self.end_gain * p;
         }
 
-        let factor: f32 = f32::lerp(
-            self.start_gain,
-            self.end_gain,
-            self.remaining_ns as u32,
-            self.total_ns as u32,
-        );
-
-        self.remaining_ns -=
-            1000000000.0 / (self.input.sample_rate() as f32 * self.channels() as f32);
+        if self.sample_idx % (self.channels() as u64) == 0 {
+            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate() as f32);
+        }
 
         self.input.next().map(|value| value.amplify(factor))
     }
@@ -120,5 +133,106 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.elapsed_ns = pos.as_nanos() as f32;
+        self.input.try_seek(pos)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use approx::assert_abs_diff_eq;
+
+    use super::*;
+    use crate::buffer::SamplesBuffer;
+
+    /// Create a SamplesBuffer of identical samples with value `value`.
+    /// Returned buffer is one channel and has a sample rate of 1 hz.
+    fn const_source(length: u8, value: f32) -> SamplesBuffer<f32> {
+        let data: Vec<f32> = (1..=length).map(|_| value).collect();
+        SamplesBuffer::new(1, 1, data)
+    }
+
+    /// Create a SamplesBuffer of repeating sample values from `values`.
+    fn cycle_source(length: u8, values: Vec<f32>) -> SamplesBuffer<f32> {
+        let data: Vec<f32> = (1..=length)
+            .enumerate()
+            .map(|(i, _)| values[i % values.len()])
+            .collect();
+
+        SamplesBuffer::new(1, 1, data)
+    }
+
+    #[test]
+    fn test_linear_ramp() {
+        let source1 = const_source(10, 1.0f32);
+        let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 1.0, true);
+
+        assert_eq!(faded.next(), Some(0.0));
+        assert_eq!(faded.next(), Some(0.25));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.75));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), Some(1.0));
+        assert_eq!(faded.next(), None);
+    }
+
+    #[test]
+    fn test_linear_ramp_clamped() {
+        let source1 = const_source(10, 1.0f32);
+        let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 0.5, true);
+
+        assert_eq!(faded.next(), Some(0.0)); // fading in...
+        assert_eq!(faded.next(), Some(0.125));
+        assert_eq!(faded.next(), Some(0.25));
+        assert_eq!(faded.next(), Some(0.375));
+        assert_eq!(faded.next(), Some(0.5)); // fade is done
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), Some(0.5));
+        assert_eq!(faded.next(), None);
+    }
+
+    #[test]
+    fn test_linear_ramp_seek() {
+        let source1 = cycle_source(20, vec![0.0f32, 0.4f32, 0.8f32]);
+        let mut faded = linear_gain_ramp(source1, Duration::from_secs(10), 0.0, 1.0, true);
+
+        assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0
+        assert_abs_diff_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
+        assert_abs_diff_eq!(faded.next().unwrap(), 0.16); // source value 0.8, ramp gain 0.2
+
+        if let Ok(_result) = faded.try_seek(Duration::from_secs(5)) {
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.40); // source value 0.8, ramp gain 0.5
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.6
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.28); // source value 0.4. ramp gain 0.7
+        } else {
+            panic!("try_seek() failed!");
+        }
+
+        if let Ok(_result) = faded.try_seek(Duration::from_secs(0)) {
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0, ramp gain 0.0
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.04); // source value 0.4, ramp gain 0.1
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.16); // source value 0.8. ramp gain 0.2
+        } else {
+            panic!("try_seek() failed!");
+        }
+
+        if let Ok(_result) = faded.try_seek(Duration::from_secs(10)) {
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.4); // source value 0.4, ramp gain 1.0
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.8); // source value 0.8, ramp gain 1.0
+            assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0. ramp gain 1.0
+        } else {
+            panic!("try_seek() failed!");
+        }
     }
 }

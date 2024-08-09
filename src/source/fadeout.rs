@@ -4,24 +4,24 @@ use crate::{Sample, Source};
 
 use super::{linear_ramp::linear_gain_ramp, LinearGainRamp, SeekError};
 
-/// Internal function that builds a `FadeIn` object.
-pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
+/// Internal function that builds a `FadeOut` object.
+pub fn fadeout<I>(input: I, duration: Duration) -> FadeOut<I>
 where
     I: Source,
     I::Item: Sample,
 {
-    FadeIn {
-        input: linear_gain_ramp(input, duration, 0.0f32, 1.0f32, false),
+    FadeOut {
+        input: linear_gain_ramp(input, duration, 1.0f32, 0.0f32, true),
     }
 }
 
-/// Filter that modifies raises the volume from silence over a time period.
+/// Filter that modifies lowers the volume to silence over a time period.
 #[derive(Clone, Debug)]
-pub struct FadeIn<I> {
+pub struct FadeOut<I> {
     input: LinearGainRamp<I>,
 }
 
-impl<I> FadeIn<I>
+impl<I> FadeOut<I>
 where
     I: Source,
     I::Item: Sample,
@@ -45,7 +45,7 @@ where
     }
 }
 
-impl<I> Iterator for FadeIn<I>
+impl<I> Iterator for FadeOut<I>
 where
     I: Source,
     I::Item: Sample,
@@ -63,14 +63,14 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for FadeIn<I>
+impl<I> ExactSizeIterator for FadeOut<I>
 where
     I: Source + ExactSizeIterator,
     I::Item: Sample,
 {
 }
 
-impl<I> Source for FadeIn<I>
+impl<I> Source for FadeOut<I>
 where
     I: Source,
     I::Item: Sample,

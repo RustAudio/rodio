@@ -16,8 +16,10 @@ pub use self::done::Done;
 pub use self::empty::Empty;
 pub use self::empty_callback::EmptyCallback;
 pub use self::fadein::FadeIn;
+pub use self::fadeout::FadeOut;
 pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
+pub use self::linear_ramp::LinearGainRamp;
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
@@ -44,8 +46,10 @@ mod done;
 mod empty;
 mod empty_callback;
 mod fadein;
+mod fadeout;
 mod from_factory;
 mod from_iter;
+mod linear_ramp;
 mod mix;
 mod pausable;
 mod periodic;
@@ -247,6 +251,34 @@ where
         Self: Sized,
     {
         fadein::fadein(self, duration)
+    }
+
+    /// Fades out the sound.
+    #[inline]
+    fn fade_out(self, duration: Duration) -> FadeOut<Self>
+    where
+        Self: Sized,
+    {
+        fadeout::fadeout(self, duration)
+    }
+
+    /// Applies a linear gain ramp to the sound.
+    ///
+    /// If `clamp_end` is `true`, all samples subsequent to the end of the ramp
+    /// will be scaled by the `end_value`. If `clamp_end` is `false`, all
+    /// subsequent samples will not have any scaling applied.
+    #[inline]
+    fn linear_gain_ramp(
+        self,
+        duration: Duration,
+        start_value: f32,
+        end_value: f32,
+        clamp_end: bool,
+    ) -> LinearGainRamp<Self>
+    where
+        Self: Sized,
+    {
+        linear_ramp::linear_gain_ramp(self, duration, start_value, end_value, clamp_end)
     }
 
     /// Calls the `access` closure on `Self` the first time the source is iterated and every

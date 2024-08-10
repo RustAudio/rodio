@@ -1,26 +1,27 @@
-use std::f32::consts::PI;
 use std::time::Duration;
 
+use crate::source::{SynthWaveform, SynthWaveformFunction};
 use crate::Source;
 
 use super::SeekError;
+
+const SAMPLE_RATE: u32 = 46000;
 
 /// An infinite source that produces a sine.
 ///
 /// Always has a rate of 48kHz and one channel.
 #[derive(Clone, Debug)]
 pub struct SineWave {
-    freq: f32,
-    num_sample: usize,
+    synth: SynthWaveform,
 }
 
 impl SineWave {
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> SineWave {
+        let sr = cpal::SampleRate(SAMPLE_RATE);
         SineWave {
-            freq,
-            num_sample: 0,
+            synth: SynthWaveform::new(sr, freq, SynthWaveformFunction::Sine),
         }
     }
 }
@@ -30,10 +31,7 @@ impl Iterator for SineWave {
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        self.num_sample = self.num_sample.wrapping_add(1);
-
-        let value = 2.0 * PI * self.freq * self.num_sample as f32 / 48000.0;
-        Some(value.sin())
+        self.synth.next()
     }
 }
 
@@ -50,7 +48,7 @@ impl Source for SineWave {
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        48000
+        SAMPLE_RATE
     }
 
     #[inline]
@@ -59,11 +57,7 @@ impl Source for SineWave {
     }
 
     #[inline]
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        // This is a constant sound, normal seeking would not have any effect.
-        // While changing the phase of the sine wave could change how it sounds in
-        // combination with another sound (beating) such precision is not the intend
-        // of seeking
-        Ok(())
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.synth.try_seek(pos)
     }
 }

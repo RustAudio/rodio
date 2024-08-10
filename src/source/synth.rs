@@ -37,7 +37,7 @@ impl SynthWaveformFunction {
 
 /// An infinite source that produces one of a selection of synthesizer
 /// waveforms.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SynthWaveform {
     sample_rate: cpal::SampleRate,
     period: f32,

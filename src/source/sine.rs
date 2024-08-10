@@ -5,7 +5,7 @@ use crate::Source;
 
 use super::SeekError;
 
-const SAMPLE_RATE: u32 = 46000;
+const SAMPLE_RATE: u32 = 48000;
 
 /// An infinite source that produces a sine.
 ///

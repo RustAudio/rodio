@@ -52,6 +52,7 @@ mod from_factory;
 mod from_iter;
 mod linear_ramp;
 mod mix;
+mod noise;
 mod pausable;
 mod periodic;
 mod position;

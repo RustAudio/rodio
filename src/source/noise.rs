@@ -1,0 +1,106 @@
+use crate::Source;
+
+use rand::prelude::*;
+
+/// Generates an infinite stream of random samples in [=1.0, 1.0]
+#[derive(Clone, Debug)]
+pub struct WhiteNoise {
+    sample_rate: cpal::SampleRate,
+    rng: rand::rngs::ThreadRng,
+}
+
+impl WhiteNoise {
+    /// Create a new white noise generator.
+    pub fn new(sample_rate: cpal::SampleRate) -> Self {
+        Self {
+            sample_rate,
+            rng: rand::thread_rng(),
+        }
+    }
+}
+
+impl Iterator for WhiteNoise {
+    type Item = f32;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let ru32: i64 = self.rng.next_u32().into();
+        let scaled: i64 = 2 * ru32 - (u32::MAX / 2) as i64;
+        let sample: f32 = scaled as f32 / u32::MAX as f32;
+        Some(sample)
+    }
+}
+
+impl Source for WhiteNoise {
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn channels(&self) -> u16 {
+        1
+    }
+
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate.0
+    }
+
+    fn total_duration(&self) -> Option<std::time::Duration> {
+        None
+    }
+}
+
+// https://www.musicdsp.org/en/latest/Filters/76-pink-noise-filter.html
+//
+/// Generate an infinite stream of pink noise samples in [-1.0, 1.0].
+struct PinkNoise {
+    noise: WhiteNoise,
+    b: [f32; 7],
+}
+
+impl PinkNoise {
+    pub fn new(sample_rate: cpal::SampleRate) -> Self {
+        Self {
+            noise: WhiteNoise::new(sample_rate),
+            b: [0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32],
+        }
+    }
+}
+
+impl Iterator for PinkNoise {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let white = self.noise.next().unwrap();
+        self.b[0] = 0.99886 * self.b[0] + white * 0.0555179;
+        self.b[1] = 0.99332 * self.b[1] + white * 0.0750759;
+        self.b[2] = 0.96900 * self.b[2] + white * 0.1538520;
+        self.b[3] = 0.86650 * self.b[3] + white * 0.3104856;
+        self.b[4] = 0.55000 * self.b[4] + white * 0.5329522;
+        self.b[5] = -0.7616 * self.b[5] - white * 0.0168980;
+
+        let pink = self.b[0] + self.b[1] + self.b[2] + self.b[3] + self.b[4] + self.b[5] + 
+            self.b[6] + white * 0.5362;
+
+        self.b[6] = white * 0.115926;
+
+        Some(pink)
+    }
+}
+
+impl Source for PinkNoise {
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn channels(&self) -> u16 {
+        1
+    }
+
+    fn sample_rate(&self) -> u32 {
+        self.noise.sample_rate()
+    }
+
+    fn total_duration(&self) -> Option<std::time::Duration> {
+        None
+    }
+}

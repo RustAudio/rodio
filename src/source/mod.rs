@@ -21,6 +21,7 @@ pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
 pub use self::linear_ramp::LinearGainRamp;
 pub use self::mix::Mix;
+pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
 pub use self::position::TrackPosition;

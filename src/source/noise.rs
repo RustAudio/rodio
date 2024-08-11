@@ -2,6 +2,18 @@ use crate::Source;
 
 use rand::prelude::*;
 
+/// Create a new white noise source.
+#[inline]
+pub fn white(sample_rate: cpal::SampleRate) -> WhiteNoise {
+    WhiteNoise::new(sample_rate)
+}
+
+/// Create a new pink noise source.
+#[inline]
+pub fn pink(sample_rate: cpal::SampleRate) -> PinkNoise {
+    PinkNoise::new(sample_rate)
+}
+
 /// Generates an infinite stream of random samples in [=1.0, 1.0]
 #[derive(Clone, Debug)]
 pub struct WhiteNoise {
@@ -32,18 +44,22 @@ impl Iterator for WhiteNoise {
 }
 
 impl Source for WhiteNoise {
+    #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         None
     }
 
+    #[inline]
     fn channels(&self) -> u16 {
         1
     }
 
+    #[inline]
     fn sample_rate(&self) -> u32 {
         self.sample_rate.0
     }
 
+    #[inline]
     fn total_duration(&self) -> Option<std::time::Duration> {
         None
     }
@@ -52,7 +68,7 @@ impl Source for WhiteNoise {
 // https://www.musicdsp.org/en/latest/Filters/76-pink-noise-filter.html
 //
 /// Generate an infinite stream of pink noise samples in [-1.0, 1.0].
-struct PinkNoise {
+pub struct PinkNoise {
     noise: WhiteNoise,
     b: [f32; 7],
 }
@@ -73,13 +89,19 @@ impl Iterator for PinkNoise {
         let white = self.noise.next().unwrap();
         self.b[0] = 0.99886 * self.b[0] + white * 0.0555179;
         self.b[1] = 0.99332 * self.b[1] + white * 0.0750759;
-        self.b[2] = 0.96900 * self.b[2] + white * 0.1538520;
-        self.b[3] = 0.86650 * self.b[3] + white * 0.3104856;
-        self.b[4] = 0.55000 * self.b[4] + white * 0.5329522;
-        self.b[5] = -0.7616 * self.b[5] - white * 0.0168980;
+        self.b[2] = 0.969 * self.b[2] + white * 0.153852;
+        self.b[3] = 0.8665 * self.b[3] + white * 0.3104856;
+        self.b[4] = 0.550 * self.b[4] + white * 0.5329522;
+        self.b[5] = -0.7616 * self.b[5] - white * 0.016898;
 
-        let pink = self.b[0] + self.b[1] + self.b[2] + self.b[3] + self.b[4] + self.b[5] + 
-            self.b[6] + white * 0.5362;
+        let pink = self.b[0]
+            + self.b[1]
+            + self.b[2]
+            + self.b[3]
+            + self.b[4]
+            + self.b[5]
+            + self.b[6]
+            + white * 0.5362;
 
         self.b[6] = white * 0.115926;
 

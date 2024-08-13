@@ -18,7 +18,7 @@ minimp3_fixed = { version = "0.5.4", optional = true}
 symphonia = { version = "0.5.4", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.8", optional = true }
 thiserror = "1.0.49"
-rand = "0.8.5"
+rand = {version = "0.8.5", features = ["small_rng"]}
 
 [features]
 default = ["flac", "vorbis", "wav", "mp3"]

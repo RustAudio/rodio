@@ -2,6 +2,9 @@ use crate::Source;
 
 use super::SeekError;
 
+use rand::rngs::SmallRng;
+use rand::{RngCore, SeedableRng};
+
 /// Create a new white noise source.
 #[inline]
 pub fn white(sample_rate: cpal::SampleRate) -> WhiteNoise {
@@ -18,12 +21,16 @@ pub fn pink(sample_rate: cpal::SampleRate) -> PinkNoise {
 #[derive(Clone, Debug)]
 pub struct WhiteNoise {
     sample_rate: cpal::SampleRate,
+    rng: SmallRng,
 }
 
 impl WhiteNoise {
     /// Create a new white noise generator.
     pub fn new(sample_rate: cpal::SampleRate) -> Self {
-        Self { sample_rate }
+        Self {
+            sample_rate,
+            rng: SmallRng::from_entropy(),
+        }
     }
 }
 
@@ -32,7 +39,7 @@ impl Iterator for WhiteNoise {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let randf = rand::random::<f32>();
+        let randf = self.rng.next_u32() as f32 / u32::MAX as f32;
         let scaled = randf * 2.0 - 1.0;
         Some(scaled)
     }

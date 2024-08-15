@@ -1,3 +1,6 @@
+//! Noise sources.
+//!
+//!
 use crate::Source;
 
 use super::SeekError;
@@ -5,19 +8,20 @@ use super::SeekError;
 use rand::rngs::SmallRng;
 use rand::{RngCore, SeedableRng};
 
-/// Create a new white noise source.
+/// Create a new `WhiteNoise` noise source.
 #[inline]
 pub fn white(sample_rate: cpal::SampleRate) -> WhiteNoise {
     WhiteNoise::new(sample_rate)
 }
 
-/// Create a new pink noise source.
+/// Create a new `PinkNoise` noise source.
 #[inline]
 pub fn pink(sample_rate: cpal::SampleRate) -> PinkNoise {
     PinkNoise::new(sample_rate)
 }
 
-/// Generates an infinite stream of random samples in [=1.0, 1.0]
+/// Generates an infinite stream of random samples in [-1.0, 1.0]. This source generates random
+/// samples as provided by the `rand::rngs::SmallRng` randomness source.
 #[derive(Clone, Debug)]
 pub struct WhiteNoise {
     sample_rate: cpal::SampleRate,
@@ -25,7 +29,15 @@ pub struct WhiteNoise {
 }
 
 impl WhiteNoise {
-    /// Create a new white noise generator.
+    /// Create a new white noise generator, seeding the RNG with `seed`.
+    pub fn new_with_seed(sample_rate: cpal::SampleRate, seed: u64) -> Self {
+        Self {
+            sample_rate,
+            rng: SmallRng::seed_from_u64(seed),
+        }
+    }
+
+    /// Create a new white noise generator, seeding the RNG with system entropy.
     pub fn new(sample_rate: cpal::SampleRate) -> Self {
         Self {
             sample_rate,
@@ -73,9 +85,10 @@ impl Source for WhiteNoise {
     }
 }
 
-// https://www.musicdsp.org/en/latest/Filters/76-pink-noise-filter.html
-//
 /// Generate an infinite stream of pink noise samples in [-1.0, 1.0].
+///
+/// The output of this source is the result of taking the output of the `WhiteNoise` source and
+/// filtering it according to a weighted-sum of seven FIR filters after [Paul Kellett](https://www.musicdsp.org/en/latest/Filters/76-pink-noise-filter.html).
 pub struct PinkNoise {
     noise: WhiteNoise,
     b: [f32; 7],

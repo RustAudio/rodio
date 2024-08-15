@@ -1,7 +1,8 @@
 //! Generator sources for various periodic test waveforms.
 //!
-//! This module provides several periodic, deterministic waveforms for testing other sources. Every
-//! source oscillates in the codomain `[-1.0f32, 1.0f32]`.
+//! This module provides several periodic, deterministic waveforms for testing other sources and
+//! for simple additive sound synthesis. Every source is monoaural and in the codomain `[-1.0f32,
+//! 1.0f32]` 
 //!
 //! # Example
 //!

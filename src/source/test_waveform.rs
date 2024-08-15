@@ -7,14 +7,14 @@ use crate::Source;
 /// Syntheizer waveform functions. All of the synth waveforms are in the
 /// codomain [-1.0, 1.0].
 #[derive(Clone, Debug)]
-pub enum SynthWaveformFunction {
+pub enum TestWaveformFunction {
     Sine,
     Triangle,
     Square,
     Sawtooth,
 }
 
-impl SynthWaveformFunction {
+impl TestWaveformFunction {
     /// Create a single sample for the given waveform
     #[inline]
     pub fn render(&self, i: u64, period: f32) -> f32 {
@@ -38,24 +38,24 @@ impl SynthWaveformFunction {
 /// An infinite source that produces one of a selection of synthesizer
 /// waveforms.
 #[derive(Clone, Debug)]
-pub struct SynthWaveform {
+pub struct TestWaveform {
     sample_rate: cpal::SampleRate,
     period: f32,
-    f: SynthWaveformFunction,
+    f: TestWaveformFunction,
     i: u64,
 }
 
-impl SynthWaveform {
+impl TestWaveform {
     /// Create a new `SynthWaveform` object that generates an endless waveform
     /// `f`.
     #[inline]
     pub fn new(
         sample_rate: cpal::SampleRate,
         frequency: f32,
-        f: SynthWaveformFunction,
-    ) -> SynthWaveform {
+        f: TestWaveformFunction,
+    ) -> TestWaveform {
         let period = sample_rate.0 as f32 / frequency;
-        SynthWaveform {
+        TestWaveform {
             sample_rate,
             period,
             f,
@@ -64,7 +64,7 @@ impl SynthWaveform {
     }
 }
 
-impl Iterator for SynthWaveform {
+impl Iterator for TestWaveform {
     type Item = f32;
 
     #[inline]
@@ -75,7 +75,7 @@ impl Iterator for SynthWaveform {
     }
 }
 
-impl Source for SynthWaveform {
+impl Source for TestWaveform {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         None
@@ -105,15 +105,15 @@ impl Source for SynthWaveform {
 
 #[cfg(test)]
 mod tests {
-    use crate::source::synth::*;
+    use crate::source::{TestWaveform, TestWaveformFunction};
     use approx::assert_abs_diff_eq;
 
     #[test]
     fn square() {
-        let mut wf = SynthWaveform::new(
+        let mut wf = TestWaveform::new(
             cpal::SampleRate(2000),
             500.0f32,
-            SynthWaveformFunction::Square,
+            TestWaveformFunction::Square,
         );
         assert_eq!(wf.next(), Some(1.0f32));
         assert_eq!(wf.next(), Some(1.0f32));
@@ -127,10 +127,10 @@ mod tests {
 
     #[test]
     fn triangle() {
-        let mut wf = SynthWaveform::new(
+        let mut wf = TestWaveform::new(
             cpal::SampleRate(8000),
             1000.0f32,
-            SynthWaveformFunction::Triangle,
+            TestWaveformFunction::Triangle,
         );
         assert_eq!(wf.next(), Some(-1.0f32));
         assert_eq!(wf.next(), Some(-0.5f32));
@@ -152,10 +152,10 @@ mod tests {
 
     #[test]
     fn saw() {
-        let mut wf = SynthWaveform::new(
+        let mut wf = TestWaveform::new(
             cpal::SampleRate(200),
             50.0f32,
-            SynthWaveformFunction::Sawtooth,
+            TestWaveformFunction::Sawtooth,
         );
         assert_eq!(wf.next(), Some(0.0f32));
         assert_eq!(wf.next(), Some(0.5f32));
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn sine() {
         let mut wf =
-            SynthWaveform::new(cpal::SampleRate(1000), 100f32, SynthWaveformFunction::Sine);
+            TestWaveform::new(cpal::SampleRate(1000), 100f32, TestWaveformFunction::Sine);
 
         assert_abs_diff_eq!(wf.next().unwrap(), 0.0f32);
         assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525f32);

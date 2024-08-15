@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::source::{SynthWaveform, SynthWaveformFunction};
+use crate::source::{TestWaveform, TestWaveformFunction};
 use crate::Source;
 
 use super::SeekError;
@@ -12,7 +12,7 @@ const SAMPLE_RATE: u32 = 48000;
 /// Always has a rate of 48kHz and one channel.
 #[derive(Clone, Debug)]
 pub struct SineWave {
-    synth: SynthWaveform,
+    synth: TestWaveform,
 }
 
 impl SineWave {
@@ -21,7 +21,7 @@ impl SineWave {
     pub fn new(freq: f32) -> SineWave {
         let sr = cpal::SampleRate(SAMPLE_RATE);
         SineWave {
-            synth: SynthWaveform::new(sr, freq, SynthWaveformFunction::Sine),
+            synth: TestWaveform::new(sr, freq, TestWaveformFunction::Sine),
         }
     }
 }

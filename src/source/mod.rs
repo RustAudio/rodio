@@ -33,7 +33,7 @@ pub use self::skippable::Skippable;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
-pub use self::synth::{SynthWaveform, SynthWaveformFunction};
+pub use self::test_waveform::{TestWaveform, TestWaveformFunction};
 pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
@@ -65,8 +65,8 @@ mod skippable;
 mod spatial;
 mod speed;
 mod stoppable;
-mod synth;
 mod take;
+mod test_waveform;
 mod uniform;
 mod zero;
 

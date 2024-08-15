@@ -33,8 +33,8 @@ pub use self::skippable::Skippable;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
-pub use self::test_waveform::{TestWaveform, TestWaveformFunction};
 pub use self::take::TakeDuration;
+pub use self::test_waveform::{TestWaveform, TestWaveformFunction};
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
 

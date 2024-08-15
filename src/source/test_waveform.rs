@@ -1,23 +1,38 @@
+//! Generator sources for various periodic test waveforms.
+//!
+//! This module provides several periodic, deterministic waveforms for testing other sources. Every
+//! source oscillates in the codomain `[-1.0f32, 1.0f32]`.
+//!
+//! # Example
+//!
+//! ```
+//! use rodio::source::{TestWaveform,TestWaveformFunction};
+//!
+//! let tone = TestWaveform::new(cpal::SampleRate(48000), 440.0, TestWaveformFunction::Sine);
+//! ```
 use std::f32::consts::TAU;
 use std::time::Duration;
 
 use super::SeekError;
 use crate::Source;
 
-/// Syntheizer waveform functions. All of the synth waveforms are in the
-/// codomain [-1.0, 1.0].
+/// Test waveform functions.
 #[derive(Clone, Debug)]
 pub enum TestWaveformFunction {
+    /// A sinusoidal waveform.
     Sine,
+    /// A triangle wave.
     Triangle,
+    /// A square wave, rising edge at t=0.
     Square,
+    /// A rising swatooth wave.
     Sawtooth,
 }
 
 impl TestWaveformFunction {
     /// Create a single sample for the given waveform
     #[inline]
-    pub fn render(&self, i: u64, period: f32) -> f32 {
+    fn render(&self, i: u64, period: f32) -> f32 {
         let i_div_p: f32 = i as f32 / period;
 
         match self {
@@ -35,8 +50,7 @@ impl TestWaveformFunction {
     }
 }
 
-/// An infinite source that produces one of a selection of synthesizer
-/// waveforms.
+/// An infinite source that produces one of a selection of test waveforms.
 #[derive(Clone, Debug)]
 pub struct TestWaveform {
     sample_rate: cpal::SampleRate,
@@ -46,7 +60,7 @@ pub struct TestWaveform {
 }
 
 impl TestWaveform {
-    /// Create a new `SynthWaveform` object that generates an endless waveform
+    /// Create a new `TestWaveform` object that generates an endless waveform
     /// `f`.
     #[inline]
     pub fn new(
@@ -168,8 +182,7 @@ mod tests {
 
     #[test]
     fn sine() {
-        let mut wf =
-            TestWaveform::new(cpal::SampleRate(1000), 100f32, TestWaveformFunction::Sine);
+        let mut wf = TestWaveform::new(cpal::SampleRate(1000), 100f32, TestWaveformFunction::Sine);
 
         assert_abs_diff_eq!(wf.next().unwrap(), 0.0f32);
         assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525f32);

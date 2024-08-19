@@ -1,8 +1,8 @@
 //! Generator sources for various periodic test waveforms.
 //!
 //! This module provides several periodic, deterministic waveforms for testing other sources and
-//! for simple additive sound synthesis. Every source is monoaural and in the codomain `[-1.0f32,
-//! 1.0f32]` 
+//! for simple additive sound synthesis. Every source is monoaural and in the codomain [-1.0f32,
+//! 1.0f32].
 //!
 //! # Example
 //!
@@ -17,12 +17,12 @@ use std::time::Duration;
 use super::SeekError;
 use crate::Source;
 
-/// Test waveform functions.
+/// Waveform functions.
 #[derive(Clone, Debug)]
-pub enum TestWaveformFunction {
+pub enum Function {
     /// A sinusoidal waveform.
     Sine,
-    /// A triangle wave.
+    /// A triangle waveform.
     Triangle,
     /// A square wave, rising edge at t=0.
     Square,
@@ -30,7 +30,7 @@ pub enum TestWaveformFunction {
     Sawtooth,
 }
 
-impl TestWaveformFunction {
+impl Function {
     /// Create a single sample for the given waveform
     #[inline]
     fn render(&self, i: u64, period: f32) -> f32 {
@@ -38,7 +38,7 @@ impl TestWaveformFunction {
 
         match self {
             Self::Sine => (TAU * i_div_p).sin(),
-            Self::Triangle => 04.0f32 * (i_div_p - (i_div_p + 0.5f32).floor()).abs() - 1f32,
+            Self::Triangle => 4.0f32 * (i_div_p - (i_div_p + 0.5f32).floor()).abs() - 1f32,
             Self::Square => {
                 if i_div_p % 1.0f32 < 0.5f32 {
                     1.0f32
@@ -56,24 +56,29 @@ impl TestWaveformFunction {
 pub struct TestWaveform {
     sample_rate: cpal::SampleRate,
     period: f32,
-    f: TestWaveformFunction,
+    function: Function,
     i: u64,
 }
 
 impl TestWaveform {
     /// Create a new `TestWaveform` object that generates an endless waveform
     /// `f`.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if `frequency` is equal to zero.
     #[inline]
     pub fn new(
         sample_rate: cpal::SampleRate,
         frequency: f32,
-        f: TestWaveformFunction,
+        f: Function,
     ) -> TestWaveform {
+        assert!(frequency != 0.0, "frequency must be greater than zero");
         let period = sample_rate.0 as f32 / frequency;
         TestWaveform {
             sample_rate,
             period,
-            f,
+            function: f,
             i: 0,
         }
     }
@@ -86,7 +91,7 @@ impl Iterator for TestWaveform {
     fn next(&mut self) -> Option<f32> {
         let this_i = self.i;
         self.i += 1;
-        Some(self.f.render(this_i, self.period))
+        Some(self.function.render(this_i, self.period))
     }
 }
 
@@ -120,7 +125,7 @@ impl Source for TestWaveform {
 
 #[cfg(test)]
 mod tests {
-    use crate::source::{TestWaveform, TestWaveformFunction};
+    use crate::source::{TestWaveform, Function};
     use approx::assert_abs_diff_eq;
 
     #[test]
@@ -128,7 +133,7 @@ mod tests {
         let mut wf = TestWaveform::new(
             cpal::SampleRate(2000),
             500.0f32,
-            TestWaveformFunction::Square,
+            Function::Square,
         );
         assert_eq!(wf.next(), Some(1.0f32));
         assert_eq!(wf.next(), Some(1.0f32));
@@ -145,7 +150,7 @@ mod tests {
         let mut wf = TestWaveform::new(
             cpal::SampleRate(8000),
             1000.0f32,
-            TestWaveformFunction::Triangle,
+            Function::Triangle,
         );
         assert_eq!(wf.next(), Some(-1.0f32));
         assert_eq!(wf.next(), Some(-0.5f32));
@@ -170,7 +175,7 @@ mod tests {
         let mut wf = TestWaveform::new(
             cpal::SampleRate(200),
             50.0f32,
-            TestWaveformFunction::Sawtooth,
+            Function::Sawtooth,
         );
         assert_eq!(wf.next(), Some(0.0f32));
         assert_eq!(wf.next(), Some(0.5f32));
@@ -183,7 +188,7 @@ mod tests {
 
     #[test]
     fn sine() {
-        let mut wf = TestWaveform::new(cpal::SampleRate(1000), 100f32, TestWaveformFunction::Sine);
+        let mut wf = TestWaveform::new(cpal::SampleRate(1000), 100f32, Function::Sine);
 
         assert_abs_diff_eq!(wf.next().unwrap(), 0.0f32);
         assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525f32);

@@ -8,13 +8,13 @@ use super::SeekError;
 use rand::rngs::SmallRng;
 use rand::{RngCore, SeedableRng};
 
-/// Create a new `WhiteNoise` noise source.
+/// Convenience function to create a new `WhiteNoise` noise source.
 #[inline]
 pub fn white(sample_rate: cpal::SampleRate) -> WhiteNoise {
     WhiteNoise::new(sample_rate)
 }
 
-/// Create a new `PinkNoise` noise source.
+/// Convenience function to create a new `PinkNoise` noise source.
 #[inline]
 pub fn pink(sample_rate: cpal::SampleRate) -> PinkNoise {
     PinkNoise::new(sample_rate)
@@ -51,8 +51,8 @@ impl Iterator for WhiteNoise {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let randf = self.rng.next_u32() as f32 / u32::MAX as f32;
-        let scaled = randf * 2.0 - 1.0;
+        let rand = self.rng.next_u32() as f32 / u32::MAX as f32;
+        let scaled = rand * 2.0 - 1.0;
         Some(scaled)
     }
 }
@@ -85,19 +85,22 @@ impl Source for WhiteNoise {
     }
 }
 
-/// Generate an infinite stream of pink noise samples in [-1.0, 1.0].
+/// Generates an infinite stream of pink noise samples in [-1.0, 1.0].
 ///
-/// The output of this source is the result of taking the output of the `WhiteNoise` source and
-/// filtering it according to a weighted-sum of seven FIR filters after [Paul Kellett](https://www.musicdsp.org/en/latest/Filters/76-pink-noise-filter.html).
+/// The output of the source is the result of taking the output of the `WhiteNoise` source and
+/// filtering it according to a weighted-sum of seven FIR filters after [Paul Kellett's
+/// method][pk_method] from *musicdsp.org*.
+///
+/// [pk_method]: https://www.musicdsp.org/en/latest/Filters/76-pink-noise-filter.html
 pub struct PinkNoise {
-    noise: WhiteNoise,
+    white_noise: WhiteNoise,
     b: [f32; 7],
 }
 
 impl PinkNoise {
     pub fn new(sample_rate: cpal::SampleRate) -> Self {
         Self {
-            noise: WhiteNoise::new(sample_rate),
+            white_noise: WhiteNoise::new(sample_rate),
             b: [0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32],
         }
     }
@@ -107,7 +110,7 @@ impl Iterator for PinkNoise {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let white = self.noise.next().unwrap();
+        let white = self.white_noise.next().unwrap();
         self.b[0] = 0.99886 * self.b[0] + white * 0.0555179;
         self.b[1] = 0.99332 * self.b[1] + white * 0.0750759;
         self.b[2] = 0.969 * self.b[2] + white * 0.153852;
@@ -140,7 +143,7 @@ impl Source for PinkNoise {
     }
 
     fn sample_rate(&self) -> u32 {
-        self.noise.sample_rate()
+        self.white_noise.sample_rate()
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {

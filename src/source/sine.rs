@@ -12,7 +12,7 @@ const SAMPLE_RATE: u32 = 48000;
 /// Always has a rate of 48kHz and one channel.
 #[derive(Clone, Debug)]
 pub struct SineWave {
-    synth: TestWaveform,
+    test_sine: TestWaveform,
 }
 
 impl SineWave {
@@ -21,7 +21,7 @@ impl SineWave {
     pub fn new(freq: f32) -> SineWave {
         let sr = cpal::SampleRate(SAMPLE_RATE);
         SineWave {
-            synth: TestWaveform::new(sr, freq, TestWaveformFunction::Sine),
+            test_sine: TestWaveform::new(sr, freq, TestWaveformFunction::Sine),
         }
     }
 }
@@ -31,7 +31,7 @@ impl Iterator for SineWave {
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        self.synth.next()
+        self.test_sine.next()
     }
 }
 
@@ -58,6 +58,6 @@ impl Source for SineWave {
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.synth.try_seek(pos)
+        self.test_sine.try_seek(pos)
     }
 }

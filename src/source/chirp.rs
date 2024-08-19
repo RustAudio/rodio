@@ -50,7 +50,6 @@ impl Iterator for Chirp {
         let i = self.elapsed_samples;
         self.elapsed_samples += 1;
 
-
         todo!()
     }
 }
@@ -70,7 +69,7 @@ impl Source for Chirp {
 
     fn total_duration(&self) -> Option<Duration> {
         let secs: f64 = self.total_samples as f64 / self.sample_rate.0 as f64;
-        Some(Duration::new(1,0).mul_f64(secs))
+        Some(Duration::new(1, 0).mul_f64(secs))
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), super::SeekError> {

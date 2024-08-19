@@ -7,9 +7,9 @@
 //! # Example
 //!
 //! ```
-//! use rodio::source::{TestWaveform,TestWaveformFunction};
+//! use rodio::source::{TestWaveform,Function};
 //!
-//! let tone = TestWaveform::new(cpal::SampleRate(48000), 440.0, TestWaveformFunction::Sine);
+//! let tone = TestWaveform::new(cpal::SampleRate(48000), 440.0, Function::Sine);
 //! ```
 use std::f32::consts::TAU;
 use std::time::Duration;
@@ -68,11 +68,7 @@ impl TestWaveform {
     ///
     /// Will panic if `frequency` is equal to zero.
     #[inline]
-    pub fn new(
-        sample_rate: cpal::SampleRate,
-        frequency: f32,
-        f: Function,
-    ) -> TestWaveform {
+    pub fn new(sample_rate: cpal::SampleRate, frequency: f32, f: Function) -> TestWaveform {
         assert!(frequency != 0.0, "frequency must be greater than zero");
         let period = sample_rate.0 as f32 / frequency;
         TestWaveform {
@@ -89,9 +85,9 @@ impl Iterator for TestWaveform {
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        let this_i = self.i;
+        let val = Some(self.function.render(self.i, self.period));
         self.i += 1;
-        Some(self.function.render(this_i, self.period))
+        val
     }
 }
 
@@ -125,16 +121,12 @@ impl Source for TestWaveform {
 
 #[cfg(test)]
 mod tests {
-    use crate::source::{TestWaveform, Function};
+    use crate::source::{Function, TestWaveform};
     use approx::assert_abs_diff_eq;
 
     #[test]
     fn square() {
-        let mut wf = TestWaveform::new(
-            cpal::SampleRate(2000),
-            500.0f32,
-            Function::Square,
-        );
+        let mut wf = TestWaveform::new(cpal::SampleRate(2000), 500.0f32, Function::Square);
         assert_eq!(wf.next(), Some(1.0f32));
         assert_eq!(wf.next(), Some(1.0f32));
         assert_eq!(wf.next(), Some(-1.0f32));
@@ -147,11 +139,7 @@ mod tests {
 
     #[test]
     fn triangle() {
-        let mut wf = TestWaveform::new(
-            cpal::SampleRate(8000),
-            1000.0f32,
-            Function::Triangle,
-        );
+        let mut wf = TestWaveform::new(cpal::SampleRate(8000), 1000.0f32, Function::Triangle);
         assert_eq!(wf.next(), Some(-1.0f32));
         assert_eq!(wf.next(), Some(-0.5f32));
         assert_eq!(wf.next(), Some(0.0f32));
@@ -172,11 +160,7 @@ mod tests {
 
     #[test]
     fn saw() {
-        let mut wf = TestWaveform::new(
-            cpal::SampleRate(200),
-            50.0f32,
-            Function::Sawtooth,
-        );
+        let mut wf = TestWaveform::new(cpal::SampleRate(200), 50.0f32, Function::Sawtooth);
         assert_eq!(wf.next(), Some(0.0f32));
         assert_eq!(wf.next(), Some(0.5f32));
         assert_eq!(wf.next(), Some(-1.0f32));

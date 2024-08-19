@@ -1,9 +1,11 @@
-use std::thread;
-use std::time::Duration;
+//! Noise generator example. Use the "noise" feature to enable the noise generator sources.
 
-use rodio::source::{pink, white, Source};
-
+#[cfg(feature = "noise")]
 fn main() {
+    use rodio::source::{pink, white, Source};
+    use std::thread;
+    use std::time::Duration;
+
     let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
 
     let noise_duration = Duration::from_millis(1000);
@@ -30,4 +32,10 @@ fn main() {
     println!("Playing pink noise");
 
     thread::sleep(interval_duration);
+}
+
+#[cfg(not(feature = "noise"))]
+fn main() {
+    println!("rodio has not been compiled with noise sources, use `--features noise` to enable this feature.");
+    println!("Exiting...");
 }

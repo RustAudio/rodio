@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::source::{TestWaveform, Function};
+use crate::source::{Function, TestWaveform};
 use crate::Source;
 
 use super::SeekError;

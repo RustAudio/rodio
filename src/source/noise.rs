@@ -1,12 +1,12 @@
 //! Noise sources.
 //!
 //!
+
 use crate::Source;
 
 use super::SeekError;
 
-use rand::rngs::SmallRng;
-use rand::{RngCore, SeedableRng};
+use rand::{rngs::SmallRng, RngCore, SeedableRng};
 
 /// Convenience function to create a new `WhiteNoise` noise source.
 #[inline]

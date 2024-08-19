@@ -22,7 +22,6 @@ pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
 pub use self::linear_ramp::LinearGainRamp;
 pub use self::mix::Mix;
-pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
 pub use self::position::TrackPosition;
@@ -35,15 +34,15 @@ pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
 pub use self::take::TakeDuration;
-pub use self::test_waveform::{TestWaveform, Function};
+pub use self::test_waveform::{Function, TestWaveform};
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
 
 mod amplify;
 mod blt;
 mod buffered;
-mod chirp;
 mod channel_volume;
+mod chirp;
 mod crossfade;
 mod delay;
 mod done;
@@ -55,7 +54,6 @@ mod from_factory;
 mod from_iter;
 mod linear_ramp;
 mod mix;
-mod noise;
 mod pausable;
 mod periodic;
 mod position;
@@ -71,6 +69,11 @@ mod take;
 mod test_waveform;
 mod uniform;
 mod zero;
+
+#[cfg(feature = "noise")]
+mod noise;
+#[cfg(feature = "noise")]
+pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 
 /// A source of samples.
 ///

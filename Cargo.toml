@@ -50,3 +50,7 @@ approx = "0.5.1"
 [[example]]
 name = "music_m4a"
 required-features = ["symphonia-isomp4", "symphonia-aac"]
+
+[[example]]
+name = "noise_generator"
+required-features = ["noise"]

@@ -18,7 +18,7 @@ minimp3_fixed = { version = "0.5.4", optional = true}
 symphonia = { version = "0.5.4", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.8", optional = true }
 thiserror = "1.0.49"
-rand = {version = "0.8.5", features = ["small_rng"]}
+rand = { version = "0.8.5", features = ["small_rng"], optional = true }
 
 [features]
 default = ["flac", "vorbis", "wav", "mp3"]
@@ -28,6 +28,7 @@ vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["symphonia-mp3"]
 minimp3 = ["dep:minimp3_fixed"]
+noise = ["rand"]
 wasm-bindgen = ["cpal/wasm-bindgen"]
 cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
 symphonia-aac = ["symphonia/aac"]

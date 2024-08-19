@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::source::{TestWaveform, TestWaveformFunction};
+use crate::source::{TestWaveform, Function};
 use crate::Source;
 
 use super::SeekError;
@@ -21,7 +21,7 @@ impl SineWave {
     pub fn new(freq: f32) -> SineWave {
         let sr = cpal::SampleRate(SAMPLE_RATE);
         SineWave {
-            test_sine: TestWaveform::new(sr, freq, TestWaveformFunction::Sine),
+            test_sine: TestWaveform::new(sr, freq, Function::Sine),
         }
     }
 }

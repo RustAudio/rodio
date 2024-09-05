@@ -238,7 +238,10 @@ impl Sink {
         }
 
         match feedback.recv() {
-            Ok(seek_res) => seek_res,
+            Ok(seek_res) => {
+                *self.controls.position.lock().unwrap() = pos;
+                seek_res
+            }
             // The feedback channel closed. Probably another seekorder was set
             // invalidating this one and closing the feedback channel
             // ... or the audio thread panicked.

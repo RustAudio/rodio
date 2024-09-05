@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       `fade_in` has been refactored to use the `linear_gain_ramp` 
       implementation.
 
+### Fixed
+- `Sink.try_seek` now updates `controls.position` before returning. Calls to `Sink.get_pos`
+  done immediately after a seek will now return the correct value.  
+
 ### Changed
 - `SamplesBuffer` is now `Clone`
 

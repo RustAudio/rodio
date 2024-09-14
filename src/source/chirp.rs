@@ -1,6 +1,6 @@
 //! Chirp/sweep source.
 
-use std::time::Duration;
+use std::{f32::consts::TAU, time::Duration};
 
 use crate::Source;
 
@@ -48,9 +48,11 @@ impl Iterator for Chirp {
 
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.elapsed_samples;
+        let ratio = self.elapsed_samples as f32 / self.total_samples as f32;
         self.elapsed_samples += 1;
-
-        todo!()
+        let freq = self.start_frequency * (1.0 - ratio) + self.end_frequency * ratio;
+        let t = (i as f32 / self.sample_rate() as f32) * TAU * freq;
+        Some( t.sin() )
     }
 }
 

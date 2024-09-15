@@ -113,7 +113,7 @@
 //! down your program).
 //!
 //! 
-//! ## Features 
+//! ## Features
 //!
 //! Rodio provides several optional features that are guarded with feature gates.
 //!

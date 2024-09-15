@@ -112,7 +112,7 @@
 //! the number of sinks that can be created (except for the fact that creating too many will slow
 //! down your program).
 //!
-//! 
+//!
 //! ## Features
 //!
 //! Rodio provides several optional features that are guarded with feature gates.

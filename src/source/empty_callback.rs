@@ -7,7 +7,9 @@ use super::SeekError;
 
 /// An empty source which executes a callback function
 pub struct EmptyCallback<S> {
+    #[allow(missing_docs)] // See: https://github.com/RustAudio/rodio/issues/615
     pub phantom_data: PhantomData<S>,
+    #[allow(missing_docs)] // See: https://github.com/RustAudio/rodio/issues/615
     pub callback: Box<dyn Send + Fn()>,
 }
 
@@ -19,9 +21,7 @@ impl<S> EmptyCallback<S> {
     /// Detect and do something when the source before this one has ended.
     pub fn new(callback: Box<dyn Send + Fn()>) -> EmptyCallback<S> {
         EmptyCallback {
-            #[allow(missing_docs)] // See: https://github.com/RustAudio/rodio/issues/615
             phantom_data: PhantomData,
-            #[allow(missing_docs)] // See: https://github.com/RustAudio/rodio/issues/615
             callback,
         }
     }

@@ -465,7 +465,10 @@ where
 pub enum SeekError {
     /// On of the underlying sources does not support seeking
     #[error("Seeking is not supported by source: {underlying_source}")]
-    NotSupported { underlying_source: &'static str },
+    NotSupported {
+        /// The source that did not support seek
+        underlying_source: &'static str,
+    },
     #[cfg(feature = "symphonia")]
     /// The symphonia decoder ran into an issue
     #[error("Error seeking: {0}")]

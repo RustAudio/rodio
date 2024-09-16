@@ -208,6 +208,7 @@ impl Source for SymphoniaDecoder {
     }
 }
 
+/// Error returned when the try_seek implementation of the symphonia decoder fails.
 #[derive(Debug, thiserror::Error)]
 pub enum SeekError {
     /// Could not get next packet while refining seek position
@@ -225,7 +226,7 @@ pub enum SeekError {
 }
 
 impl SymphoniaDecoder {
-    /// note frame offset must be set after
+    /// Note frame offset must be set after
     fn refine_position(&mut self, seek_res: SeekedTo) -> Result<(), source::SeekError> {
         let mut samples_to_pass = seek_res.required_ts - seek_res.actual_ts;
         let packet = loop {

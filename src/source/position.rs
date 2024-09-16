@@ -17,6 +17,7 @@ pub fn track_position<I>(source: I) -> TrackPosition<I> {
     }
 }
 
+/// Tracks the elapsed duration since the start of the underlying source.
 #[derive(Debug)]
 pub struct TrackPosition<I> {
     input: I,

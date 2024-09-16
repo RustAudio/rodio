@@ -29,6 +29,7 @@ where
     I: Source,
     I::Item: Sample,
 {
+    /// Builds a new `SpatialSink`, beginning playback on a stream.
     pub fn new(
         input: I,
         emitter_position: [f32; 3],

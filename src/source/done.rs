@@ -6,7 +6,7 @@ use crate::{Sample, Source};
 
 use super::SeekError;
 
-/// When the inner source is empty this decrements an `AtomicUsize`.
+/// When the inner source is empty this decrements a `AtomicUsize`.
 #[derive(Debug, Clone)]
 pub struct Done<I> {
     input: I,
@@ -15,6 +15,8 @@ pub struct Done<I> {
 }
 
 impl<I> Done<I> {
+    /// When the inner source is empty the AtomicUsize passed in is decremented.
+    /// If it was zero it will overflow negatively.
     #[inline]
     pub fn new(input: I, signal: Arc<AtomicUsize>) -> Done<I> {
         Done {

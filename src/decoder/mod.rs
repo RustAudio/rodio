@@ -23,6 +23,7 @@ mod mp3;
 #[cfg(feature = "symphonia")]
 mod read_seek_source;
 #[cfg(feature = "symphonia")]
+/// Symphonia decoders types
 pub mod symphonia;
 #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
 mod vorbis;
@@ -36,11 +37,15 @@ pub struct Decoder<R>(DecoderImpl<R>)
 where
     R: Read + Seek;
 
+/// Source of audio samples from decoding a file that never ends. When the
+/// end of the file is reached the decoder starts again from the beginning.
+///
+/// Supports MP3, WAV, Vorbis and Flac.
 pub struct LoopedDecoder<R>(DecoderImpl<R>)
 where
     R: Read + Seek;
 
-// can not really reduce the size of the VorbisDecoder. There are not any
+// Cannot really reduce the size of the VorbisDecoder. There are not any
 // arrays just a lot of struct fields.
 #[allow(clippy::large_enum_variant)]
 enum DecoderImpl<R>
@@ -239,6 +244,10 @@ where
         #[cfg(not(feature = "symphonia"))]
         Err(DecoderError::UnrecognizedFormat)
     }
+
+    /// Builds a new looped decoder.
+    ///
+    /// Attempts to automatically detect the format of the source of data.
     pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
         Self::new(data).map(LoopedDecoder::new)
     }
@@ -329,6 +338,7 @@ where
     }
 }
 
+#[allow(missing_docs)] // Reason: will be removed, see: #612
 #[derive(Debug)]
 pub enum Mp4Type {
     Mp4,

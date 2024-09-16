@@ -27,6 +27,11 @@ where
     input_fadeout.mix(input_fadein)
 }
 
+/// Mixes one sound fading out with another sound fading in for the given
+/// duration.
+///
+/// Only the crossfaded portion (beginning of fadeout, beginning of fadein) is
+/// covered.
 pub type Crossfade<I1, I2> = Mix<TakeDuration<I1>, FadeIn<TakeDuration<I2>>>;
 
 #[cfg(test)]

@@ -13,9 +13,15 @@ pub struct EmptyCallback<S> {
 
 impl<S> EmptyCallback<S> {
     #[inline]
+    /// Create an empty source which executes a callback function.
+    /// Example use-case:
+    ///
+    /// Detect and do something when the source before this one has ended.
     pub fn new(callback: Box<dyn Send + Fn()>) -> EmptyCallback<S> {
         EmptyCallback {
+            #[allow(missing_docs)] // See: https://github.com/RustAudio/rodio/issues/615
             phantom_data: PhantomData,
+            #[allow(missing_docs)] // See: https://github.com/RustAudio/rodio/issues/615
             callback,
         }
     }

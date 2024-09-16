@@ -8,11 +8,11 @@ use crate::{Sample, Source};
 
 use super::SeekError;
 
-/// An iterator that reads from a `Source` and converts the samples to a specific rate and
-/// channels count.
+/// An iterator that reads from a `Source` and converts the samples to a
+/// specific type, sample-rate and channels count.
 ///
-/// It implements `Source` as well, but all the data is guaranteed to be in a single frame whose
-/// channels and samples rate have been passed to `new`.
+/// It implements `Source` as well, but all the data is guaranteed to be in a
+/// single frame whose channels and samples rate have been passed to `new`.
 #[derive(Clone)]
 pub struct UniformSourceIterator<I, D>
 where
@@ -32,6 +32,8 @@ where
     I::Item: Sample,
     D: Sample,
 {
+    /// Wrap a `Source` and lazily convert its samples to a specific type,
+    /// sample-rate and channels count.
     #[inline]
     pub fn new(
         input: I,

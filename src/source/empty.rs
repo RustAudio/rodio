@@ -17,6 +17,8 @@ impl<S> Default for Empty<S> {
 }
 
 impl<S> Empty<S> {
+    /// An empty source that immediately ends without ever returning a sample to
+    /// play
     #[inline]
     pub fn new() -> Empty<S> {
         Empty(PhantomData)

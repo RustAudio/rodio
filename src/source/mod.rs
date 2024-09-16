@@ -360,6 +360,9 @@ where
         stoppable::stoppable(self)
     }
 
+    /// Adds a method [`Skippable::skip`] for skipping this source. Skipping
+    /// makes Source::next() return None. Which in turn makes the Sink skip to
+    /// the next source.
     fn skippable(self) -> Skippable<Self>
     where
         Self: Sized,
@@ -374,7 +377,7 @@ where
     /// in the position returned by [`get_pos`](TrackPosition::get_pos).
     ///
     /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
-    /// together with [`Source::try_seek()`] as the the latter does take all
+    /// together with [`Source::try_seek()`] as the latter does take all
     /// speedup's and delay's into account. Its recommended therefore to apply
     /// track_position after speedup's and delay's.
     fn track_position(self) -> TrackPosition<Self>
@@ -455,22 +458,32 @@ where
 
 // We might add decoders requiring new error types, without non_exhaustive
 // this would break users builds
+/// Occurs when try_seek fails because the underlying decoder has an error or
+/// does not support seeking.
 #[non_exhaustive]
 #[derive(Debug, thiserror::Error)]
 pub enum SeekError {
-    #[error("Streaming is not supported by source: {underlying_source}")]
+    /// On of the underlying sources does not support seeking
+    #[error("Seeking is not supported by source: {underlying_source}")]
     NotSupported { underlying_source: &'static str },
     #[cfg(feature = "symphonia")]
+    /// The symphonia decoder ran into an issue
     #[error("Error seeking: {0}")]
     SymphoniaDecoder(#[from] crate::decoder::symphonia::SeekError),
     #[cfg(feature = "wav")]
     #[error("Error seeking in wav source: {0}")]
+    /// The hound (wav) decoder ran into an issue
     HoundDecoder(std::io::Error),
+    // Prefer adding an enum variant to using this. Its meant for end users their
+    // own try_seek implementations
+    /// Any other error probably in a custom Source
     #[error("An error occurred")]
     Other(Box<dyn std::error::Error + Send>),
 }
 
 impl SeekError {
+    /// Will the source remain playing at its position before the seek or is it
+    /// broken?
     pub fn source_intact(&self) -> bool {
         match self {
             SeekError::NotSupported { .. } => true,

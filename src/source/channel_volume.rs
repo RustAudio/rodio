@@ -82,7 +82,6 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        // return value
         let ret = self
             .current_sample
             .map(|sample| sample.amplify(self.channel_volumes[self.current_channel]));

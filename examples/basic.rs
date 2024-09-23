@@ -3,7 +3,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+    let (_stream, stream_handle) = rodio::OutputStream::default().unwrap();
 
     let file = std::fs::File::open("assets/beep.wav").unwrap();
     let beep1 = stream_handle.play_once(BufReader::new(file)).unwrap();

@@ -11,7 +11,7 @@ use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
 use cpal::FromSample;
 
-/// Handle to an device that outputs sounds.
+/// Handle to a device that outputs sounds.
 ///
 /// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
 /// playing.
@@ -71,7 +71,7 @@ impl Sink {
         f32: FromSample<S::Item>,
         S::Item: Sample + Send,
     {
-        // Wait for queue to flush then resume stopped playback
+        // Wait for the queue to flush then resume stopped playback
         if self.controls.stopped.load(Ordering::SeqCst) {
             if self.sound_count.load(Ordering::SeqCst) > 0 {
                 self.sleep_until_end();
@@ -248,6 +248,7 @@ mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::{Sink, Source};
     use std::sync::atomic::Ordering;
+    use crossbeam_utils::atomic::AtomicCell;
 
     #[test]
     fn test_pause_and_stop() {
@@ -306,6 +307,15 @@ mod tests {
 
         assert_eq!(queue_rx.next(), src.next());
         assert_eq!(queue_rx.next(), src.next());
+    }
+
+    #[test]
+    fn lab() {
+
+
+        let c = AtomicCell::new(0.0);
+        assert!(AtomicCell::<f32>::is_lock_free());
+        c.load();
     }
 
     #[test]

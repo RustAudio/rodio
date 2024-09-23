@@ -37,9 +37,9 @@ where
         target_sample_rate: u32,
     ) -> UniformSourceIterator<I, D> {
         let total_duration = input.total_duration();
-        let input = UniformSourceIterator::bootstrap(input, target_channels, target_sample_rate);
+        let input = Self::bootstrap(input, target_channels, target_sample_rate);
 
-        UniformSourceIterator {
+        Self {
             inner: Some(input),
             target_channels,
             target_sample_rate,
@@ -99,7 +99,7 @@ where
             .iter;
 
         let mut input =
-            UniformSourceIterator::bootstrap(input, self.target_channels, self.target_sample_rate);
+            Self::bootstrap(input, self.target_channels, self.target_sample_rate);
 
         let value = input.next();
         self.inner = Some(input);

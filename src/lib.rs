@@ -6,7 +6,7 @@
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [`decoder`], etc. or even your own type that implements the [`Source`] trait.
 //! - Get an output stream handle to a physical device. For example, get a stream to the system's
-//!   default sound device with [`OutputStream::try_default()`]
+//!   default sound device with [`OutputStream::default()`]
 //! - Call [`.play_raw(source)`](OutputStreamHandle::play_raw) on the output stream handle.
 //!
 //! The [`play_raw`](OutputStreamHandle::play_raw) function expects the source to produce [`f32`]s,
@@ -21,7 +21,7 @@
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
 //! // Get a output stream handle to the default physical sound device
-//! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+//! let (_stream, stream_handle) = OutputStream::default().unwrap();
 //! // Load a sound from a file, using a path relative to Cargo.toml
 //! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
 //! // Decode that sound file into a source
@@ -51,7 +51,7 @@
 //! use rodio::{Decoder, OutputStream, Sink};
 //! use rodio::source::{SineWave, Source};
 //!
-//! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+//! let (_stream, stream_handle) = OutputStream::default().unwrap();
 //! let sink = Sink::try_new(&stream_handle).unwrap();
 //!
 //! // Add a dummy source of the sake of the example.

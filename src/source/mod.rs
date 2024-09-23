@@ -75,7 +75,7 @@ mod zero;
 /// amplitude every 20µs). By doing so we obtain a list of numerical values, each value being
 /// called a *sample*.
 ///
-/// Therefore a sound can be represented in memory by a frequency and a list of samples. The
+/// Therefore, a sound can be represented in memory by a frequency and a list of samples. The
 /// frequency is expressed in hertz and corresponds to the number of samples that have been
 /// read per second. For example if we read one sample every 20µs, the frequency would be
 /// 50000 Hz. In reality, common values for the frequency are 44100, 48000 and 96000.
@@ -96,7 +96,7 @@ mod zero;
 /// channel, then the second sample of the second channel, and so on. The same applies if you have
 /// more than two channels. The rodio library only supports this schema.
 ///
-/// Therefore in order to represent a sound in memory in fact we need three characteristics: the
+/// Therefore, in order to represent a sound in memory in fact we need three characteristics: the
 /// frequency, the number of channels, and the list of samples.
 ///
 /// ## The `Source` trait
@@ -126,7 +126,6 @@ mod zero;
 /// In order to properly handle this situation, the `current_frame_len()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
-///
 pub trait Source: Iterator
 where
     Self::Item: Sample,

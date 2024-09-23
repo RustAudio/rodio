@@ -2,7 +2,7 @@
 use std::io::BufReader;
 
 fn main() {
-    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+    let (_stream, handle) = rodio::OutputStream::default().unwrap();
     let sink = rodio::Sink::try_new(&handle).unwrap();
 
     let file = std::fs::File::open("assets/RL.ogg").unwrap();

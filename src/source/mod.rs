@@ -114,7 +114,8 @@ mod zero;
 /// - The number of channels can be retrieved with `channels`.
 /// - The frequency can be retrieved with `sample_rate`.
 /// - The list of values can be retrieved by iterating on the source. The `Source` trait requires
-///   that the `Iterator` trait be implemented as well.
+///   that the `Iterator` trait be implemented as well. When a `Source` returns None the
+///   sound has ended.
 ///
 /// # Frames
 ///

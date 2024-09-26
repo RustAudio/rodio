@@ -6,6 +6,7 @@ use cpal::FromSample;
 
 use crate::Sample;
 
+pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
@@ -36,6 +37,7 @@ pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
 
+mod agc;
 mod amplify;
 mod blt;
 mod buffered;
@@ -230,6 +232,20 @@ where
         Self: Sized,
     {
         amplify::amplify(self, value)
+    }
+
+    /// Applies automatic gain control to the sound.
+    #[inline]
+    fn automatic_gain_control(
+        self,
+        target_level: f32,
+        attack_time: f32,
+        absolute_max_gain: f32,
+    ) -> AutomaticGainControl<Self>
+    where
+        Self: Sized,
+    {
+        agc::automatic_gain_control(self, target_level, attack_time, absolute_max_gain)
     }
 
     /// Mixes this sound fading out with another sound fading in for the given duration.
@@ -445,7 +461,7 @@ where
     /// sources does not support seeking.
     ///
     /// It will return an error if an implementation ran
-    /// into one during the seek.  
+    /// into one during the seek.
     ///
     /// Seeking beyond the end of a source might return an error if the total duration of
     /// the source is not known.

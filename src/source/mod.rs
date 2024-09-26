@@ -235,6 +235,21 @@ where
     }
 
     /// Applies automatic gain control to the sound.
+    ///
+    /// Automatic Gain Control (AGC) adjusts the amplitude of the audio signal
+    /// to maintain a consistent output level.
+    ///
+    /// # Parameters
+    ///
+    /// * `target_level`: The desired output level, typically between 0.9 and 1.0.
+    ///   This is the level that the AGC will try to maintain.
+    ///
+    /// * `attack_time`: The time (in seconds) it takes for the AGC to respond to
+    ///   an increase in input level. A shorter attack time means faster response
+    ///   but may lead to more abrupt changes.
+    ///
+    /// * `absolute_max_gain`: The maximum gain that can be applied to the signal.
+    ///   This prevents excessive amplification of quiet signals or background noise.
     #[inline]
     fn automatic_gain_control(
         self,

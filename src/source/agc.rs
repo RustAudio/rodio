@@ -26,6 +26,7 @@ where
         input,
         target_level,
         absolute_max_gain,
+        attack_time,
         current_gain: 1.0,
         attack_coeff: (-1.0 / (attack_time * sample_rate as f32)).exp(),
         peak_level: 0.0,
@@ -41,6 +42,7 @@ pub struct AutomaticGainControl<I> {
     input: I,
     target_level: f32,
     absolute_max_gain: f32,
+    attack_time: f32,
     current_gain: f32,
     attack_coeff: f32,
     peak_level: f32,
@@ -54,16 +56,81 @@ where
     I: Source,
     I::Item: Sample,
 {
-    // Sets a new target output level.
+    /// Sets a new target output level.
+    ///
+    /// This method allows dynamic adjustment of the target output level
+    /// for the Automatic Gain Control. The target level determines the
+    /// desired amplitude of the processed audio signal.
     #[inline]
     pub fn set_target_level(&mut self, level: f32) {
         self.target_level = level;
     }
 
-    // Add this method to allow changing the attack coefficient
+    /// Sets a new absolute maximum gain limit.
+    #[inline]
+    pub fn set_absolute_max_gain(&mut self, max_gain: f32) {
+        self.absolute_max_gain = max_gain;
+    }
+
+    /// This method allows changing the attack coefficient dynamically.
+    /// The attack coefficient determines how quickly the AGC responds to level changes.
+    /// A smaller value results in faster response, while a larger value gives a slower response.
+    #[inline]
     pub fn set_attack_coeff(&mut self, attack_time: f32) {
         let sample_rate = self.input.sample_rate();
         self.attack_coeff = (-1.0 / (attack_time * sample_rate as f32)).exp();
+    }
+
+    /// Updates the peak level with an adaptive attack coefficient
+    ///
+    /// This method adjusts the peak level using a variable attack coefficient.
+    /// It responds faster to sudden increases in signal level by using a
+    /// minimum attack coefficient of 0.1 when the sample value exceeds the
+    /// current peak level. This adaptive behavior helps capture transients
+    /// more accurately while maintaining smoother behavior for gradual changes.
+    #[inline]
+    fn update_peak_level(&mut self, sample_value: f32) {
+        let attack_coeff = if sample_value > self.peak_level {
+            self.attack_coeff.min(0.1) // Faster response to sudden increases
+        } else {
+            self.attack_coeff
+        };
+        self.peak_level = attack_coeff * self.peak_level + (1.0 - attack_coeff) * sample_value;
+    }
+
+    /// Calculate gain adjustments based on peak and RMS levels
+    /// This method determines the appropriate gain level to apply to the audio
+    /// signal, considering both peak and RMS (Root Mean Square) levels.
+    /// The peak level helps prevent sudden spikes, while the RMS level
+    /// provides a measure of the overall signal power over time.
+    #[inline]
+    fn calculate_peak_gain(&self) -> f32 {
+        if self.peak_level > 0.0 {
+            self.target_level / self.peak_level
+        } else {
+            1.0
+        }
+    }
+
+    /// Updates the RMS (Root Mean Square) level using a sliding window approach.
+    /// This method calculates a moving average of the squared input samples,
+    /// providing a measure of the signal's average power over time.
+    #[inline]
+    fn update_rms(&mut self, sample_value: f32) -> f32 {
+        // Remove the oldest sample from the RMS calculation
+        self.rms_level -= self.rms_window[self.rms_index] / self.rms_window.len() as f32;
+
+        // Add the new sample to the window
+        self.rms_window[self.rms_index] = sample_value * sample_value;
+
+        // Add the new sample to the RMS calculation
+        self.rms_level += self.rms_window[self.rms_index] / self.rms_window.len() as f32;
+
+        // Move the index to the next position
+        self.rms_index = (self.rms_index + 1) % self.rms_window.len();
+
+        // Calculate and return the RMS value
+        self.rms_level.sqrt()
     }
 }
 
@@ -77,55 +144,41 @@ where
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
         self.input.next().map(|value| {
+            // Convert the sample to its absolute float value for level calculations
             let sample_value = value.to_f32().abs();
 
-            // Update peak level with adaptive attack coefficient
-            let attack_coeff = if sample_value > self.peak_level {
-                self.attack_coeff.min(0.1) // Faster response to sudden increases
-            } else {
-                self.attack_coeff
-            };
-            self.peak_level = attack_coeff * self.peak_level + (1.0 - attack_coeff) * sample_value;
+            // Dynamically adjust peak level using an adaptive attack coefficient
+            self.update_peak_level(sample_value);
 
-            // Update RMS level using a sliding window
-            self.rms_level -= self.rms_window[self.rms_index] / self.rms_window.len() as f32;
-            self.rms_window[self.rms_index] = sample_value * sample_value;
-            self.rms_level += self.rms_window[self.rms_index] / self.rms_window.len() as f32;
-            self.rms_index = (self.rms_index + 1) % self.rms_window.len();
+            // Calculate the current RMS (Root Mean Square) level using a sliding window approach
+            let rms = self.update_rms(sample_value);
 
-            let rms = self.rms_level.sqrt();
+            // Determine the gain adjustment needed based on the current peak level
+            let peak_gain = self.calculate_peak_gain();
 
-            // Calculate gain adjustments based on peak and RMS levels
-            let peak_gain = if self.peak_level > 0.0 {
-                self.target_level / self.peak_level
-            } else {
-                1.0
-            };
-
+            // Compute the gain adjustment required to reach the target level based on RMS
             let rms_gain = if rms > 0.0 {
                 self.target_level / rms
             } else {
-                1.0
+                1.0 // Default to unity gain if RMS is zero to avoid division by zero
             };
 
-            // Choose the more conservative gain adjustment
+            // Select the lower of peak and RMS gains to ensure conservative adjustment
             let desired_gain = peak_gain.min(rms_gain);
 
-            // Set target gain to the middle of the allowable range
-            let target_gain = 1.0; // Midpoint between 0.1 and 3.0
+            // Gradually adjust the current gain towards the desired gain for smooth transitions
+            let adjustment_speed = self.attack_time; // Controls the trade-off between quick response and stability
+            self.current_gain =
+                self.current_gain * (1.0 - adjustment_speed) + desired_gain * adjustment_speed;
 
-            // Smoothly adjust current gain towards the target
-            let adjustment_speed = 0.05; // Balance between responsiveness and stability
-            self.current_gain = self.current_gain * (1.0 - adjustment_speed)
-                + (desired_gain * target_gain) * adjustment_speed;
-
-            // Constrain gain within predefined limits
+            // Ensure the calculated gain stays within the defined operational range
             self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain);
 
-            // Uncomment for debugging:
+            // Output current gain value for monitoring and debugging purposes
+            // Must be deleted before merge:
             println!("Current gain: {}", self.current_gain);
 
-            // Apply calculated gain to the sample
+            // Apply the computed gain to the input sample and return the result
             value.amplify(self.current_gain)
         })
     }

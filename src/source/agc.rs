@@ -166,10 +166,46 @@ where
             // Select the lower of peak and RMS gains to ensure conservative adjustment
             let desired_gain = peak_gain.min(rms_gain);
 
+            // Adaptive attack/release speed for AGC (Automatic Gain Control)
+            //
+            // This mechanism implements an asymmetric approach to gain adjustment:
+            // 1. Slow increase: Prevents abrupt amplification of noise during quiet periods.
+            // 2. Fast decrease: Rapidly attenuates sudden loud signals to avoid distortion.
+            //
+            // The asymmetry is crucial because:
+            // - Gradual gain increases sound more natural and less noticeable to listeners.
+            // - Quick gain reductions are necessary to prevent clipping and maintain audio quality.
+            //
+            // This approach addresses several challenges associated with high attack times:
+            // 1. Slow response: With a high attack time, the AGC responds very slowly to changes in input level.
+            //    This means it takes longer for the gain to adjust to new signal levels.
+            // 2. Initial gain calculation: When the audio starts or after a period of silence, the initial gain
+            //    calculation might result in a very high gain value, especially if the input signal starts quietly.
+            // 3. Overshooting: As the gain slowly increases (due to the high attack time), it might overshoot
+            //    the desired level, causing the signal to become too loud.
+            // 4. Overcorrection: The AGC then tries to correct this by reducing the gain, but due to the slow response,
+            //    it might reduce the gain too much, causing the sound to drop to near-zero levels.
+            // 5. Slow recovery: Again, due to the high attack time, it takes a while for the gain to increase
+            //    back to the appropriate level.
+            //
+            // By using a faster release time for decreasing gain, we can mitigate these issues and provide
+            // more responsive control over sudden level increases while maintaining smooth gain increases.
+            let attack_speed = if desired_gain > self.current_gain {
+                // Slower attack for increasing gain to avoid sudden amplification
+                self.attack_time.min(10.0)
+            } else {
+                // Faster release for decreasing gain to prevent overamplification
+                // Cap release time at 1.0 to ensure responsiveness
+                // This prevents issues with very high attack times:
+                // - Avoids overcorrection and near-zero sound levels
+                // - Ensures AGC can always correct itself in reasonable time
+                // - Maintains ability to quickly attenuate sudden loud signals
+                (self.attack_time * 0.1).min(1.0) // Capped faster release time
+            };
+
             // Gradually adjust the current gain towards the desired gain for smooth transitions
-            let adjustment_speed = self.attack_time; // Controls the trade-off between quick response and stability
             self.current_gain =
-                self.current_gain * (1.0 - adjustment_speed) + desired_gain * adjustment_speed;
+                self.current_gain * (1.0 - attack_speed) + desired_gain * attack_speed;
 
             // Ensure the calculated gain stays within the defined operational range
             self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain);

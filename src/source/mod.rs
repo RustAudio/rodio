@@ -260,6 +260,10 @@ where
     where
         Self: Sized,
     {
+        // Added Limits to prevent the AGC from blowing up. ;)
+        const MIN_ATTACK_TIME: f32 = 10.0;
+        let attack_time = attack_time.min(MIN_ATTACK_TIME);
+
         agc::automatic_gain_control(self, target_level, attack_time, absolute_max_gain)
     }
 

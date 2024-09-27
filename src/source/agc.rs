@@ -1,3 +1,17 @@
+//
+//      Automatic Gain Control (AGC) Algorithm
+//      Designed by @UnknownSuperficialNight
+//
+//   Features:
+//   • Adaptive peak detection
+//   • RMS-based level estimation
+//   • Asymmetric attack/release
+//
+//   Optimized for smooth and responsive gain control
+//
+//   Crafted with love. Enjoy! :)
+//
+
 use super::SeekError;
 use crate::{Sample, Source};
 use std::time::Duration;

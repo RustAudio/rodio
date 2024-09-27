@@ -176,7 +176,10 @@ where
 
             // Output current gain value for monitoring and debugging purposes
             // Must be deleted before merge:
-            println!("Current gain: {}", self.current_gain);
+            // Added flag so its usable without the debug temporarily during development
+            if std::env::args().any(|arg| arg == "--debug-gain") {
+                println!("Current gain: {}", self.current_gain);
+            }
 
             // Apply the computed gain to the input sample and return the result
             value.amplify(self.current_gain)

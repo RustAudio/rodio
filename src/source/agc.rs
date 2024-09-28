@@ -6,6 +6,7 @@
 //   • Adaptive peak detection
 //   • RMS-based level estimation
 //   • Asymmetric attack/release
+//   • RMS-based general adjustments with peak limiting
 //
 //   Optimized for smooth and responsive gain control
 //
@@ -19,18 +20,89 @@ use std::time::Duration;
 #[cfg(feature = "tracing")]
 use tracing;
 
+/// Size of the circular buffer used for RMS calculation.
+/// A larger size provides more stable RMS values but increases latency.
+const RMS_WINDOW_SIZE: usize = 1024;
+
+/// Minimum attack coefficient for rapid response to sudden level increases.
+/// Balances between responsiveness and stability.
+const MIN_ATTACK_COEFF: f32 = 0.05;
+
+/// Maximum allowed peak level to prevent clipping
+const MAX_PEAK_LEVEL: f32 = 0.99;
+
+/// Automatic Gain Control filter for maintaining consistent output levels.
+///
+/// This struct implements an AGC algorithm that dynamically adjusts audio levels
+/// based on both peak and RMS (Root Mean Square) measurements.
+#[derive(Clone, Debug)]
+pub struct AutomaticGainControl<I> {
+    input: I,
+    target_level: f32,
+    absolute_max_gain: f32,
+    current_gain: f32,
+    attack_coeff: f32,
+    release_coeff: f32,
+    peak_level: f32,
+    rms_window: CircularBuffer,
+}
+
+/// A circular buffer for efficient RMS calculation over a sliding window.
+///
+/// This structure allows for constant-time updates and mean calculations,
+/// which is crucial for real-time audio processing.
+#[derive(Clone, Debug)]
+struct CircularBuffer {
+    buffer: [f32; RMS_WINDOW_SIZE],
+    index: usize,
+    sum: f32,
+}
+
+impl CircularBuffer {
+    /// Creates a new CircularBuffer with a fixed size determined at compile time.
+    ///
+    /// The `_size` parameter is ignored as the buffer size is set by `RMS_WINDOW_SIZE`.
+    fn new(_size: usize) -> Self {
+        CircularBuffer {
+            buffer: [0.0; RMS_WINDOW_SIZE],
+            index: 0,
+            sum: 0.0,
+        }
+    }
+
+    /// Pushes a new value into the buffer and returns the old value.
+    ///
+    /// This method maintains a running sum for efficient mean calculation.
+    fn push(&mut self, value: f32) -> f32 {
+        let old_value = self.buffer[self.index];
+        self.buffer[self.index] = value;
+        self.sum += value - old_value;
+        self.index = (self.index + 1) % self.buffer.len();
+        old_value
+    }
+
+    /// Calculates the mean of all values in the buffer.
+    ///
+    /// This operation is O(1) due to the maintained running sum.
+    fn mean(&self) -> f32 {
+        self.sum / self.buffer.len() as f32
+    }
+}
+
 /// Constructs an `AutomaticGainControl` object with specified parameters.
 ///
 /// # Arguments
 ///
 /// * `input` - The input audio source
 /// * `target_level` - The desired output level
-/// * `attack_time` - Time constant for gain adjustment
+/// * `attack_time` - Time constant for gain increase
+/// * `release_time` - Time constant for gain decrease
 /// * `absolute_max_gain` - Maximum allowable gain
 pub fn automatic_gain_control<I>(
     input: I,
     target_level: f32,
     attack_time: f32,
+    release_time: f32,
     absolute_max_gain: f32,
 ) -> AutomaticGainControl<I>
 where
@@ -43,29 +115,12 @@ where
         input,
         target_level,
         absolute_max_gain,
-        attack_time,
         current_gain: 1.0,
         attack_coeff: (-1.0 / (attack_time * sample_rate as f32)).exp(),
+        release_coeff: (-1.0 / (release_time * sample_rate as f32)).exp(),
         peak_level: 0.0,
-        rms_level: 0.0,
-        rms_window: vec![0.0; 1024],
-        rms_index: 0,
+        rms_window: CircularBuffer::new(RMS_WINDOW_SIZE),
     }
-}
-
-/// Automatic Gain Control filter for maintaining consistent output levels.
-#[derive(Clone, Debug)]
-pub struct AutomaticGainControl<I> {
-    input: I,
-    target_level: f32,
-    absolute_max_gain: f32,
-    attack_time: f32,
-    current_gain: f32,
-    attack_coeff: f32,
-    peak_level: f32,
-    rms_level: f32,
-    rms_window: Vec<f32>,
-    rms_index: usize,
 }
 
 impl<I> AutomaticGainControl<I>
@@ -90,7 +145,7 @@ where
     }
 
     /// This method allows changing the attack coefficient dynamically.
-    /// The attack coefficient determines how quickly the AGC responds to level changes.
+    /// The attack coefficient determines how quickly the AGC responds to level increases.
     /// A smaller value results in faster response, while a larger value gives a slower response.
     #[inline]
     pub fn set_attack_coeff(&mut self, attack_time: f32) {
@@ -98,56 +153,53 @@ where
         self.attack_coeff = (-1.0 / (attack_time * sample_rate as f32)).exp();
     }
 
+    /// This method allows changing the release coefficient dynamically.
+    /// The release coefficient determines how quickly the AGC responds to level decreases.
+    /// A smaller value results in faster response, while a larger value gives a slower response.
+    #[inline]
+    pub fn set_release_coeff(&mut self, release_time: f32) {
+        let sample_rate = self.input.sample_rate();
+        self.release_coeff = (-1.0 / (release_time * sample_rate as f32)).exp();
+    }
+
     /// Updates the peak level with an adaptive attack coefficient
     ///
     /// This method adjusts the peak level using a variable attack coefficient.
     /// It responds faster to sudden increases in signal level by using a
-    /// minimum attack coefficient of 0.1 when the sample value exceeds the
+    /// minimum attack coefficient of MIN_ATTACK_COEFF when the sample value exceeds the
     /// current peak level. This adaptive behavior helps capture transients
     /// more accurately while maintaining smoother behavior for gradual changes.
     #[inline]
     fn update_peak_level(&mut self, sample_value: f32) {
         let attack_coeff = if sample_value > self.peak_level {
-            self.attack_coeff.min(0.1) // Faster response to sudden increases
+            self.attack_coeff.min(MIN_ATTACK_COEFF) // Faster response to sudden increases
         } else {
-            self.attack_coeff
+            self.release_coeff
         };
         self.peak_level = attack_coeff * self.peak_level + (1.0 - attack_coeff) * sample_value;
     }
 
-    /// Calculate gain adjustments based on peak and RMS levels
+    /// Calculate gain adjustments based on peak levels
     /// This method determines the appropriate gain level to apply to the audio
-    /// signal, considering both peak and RMS (Root Mean Square) levels.
-    /// The peak level helps prevent sudden spikes, while the RMS level
-    /// provides a measure of the overall signal power over time.
+    /// signal, considering the peak level.
+    /// The peak level helps prevent sudden spikes in the output signal.
     #[inline]
     fn calculate_peak_gain(&self) -> f32 {
         if self.peak_level > 0.0 {
-            self.target_level / self.peak_level
+            (MAX_PEAK_LEVEL / self.peak_level).min(self.absolute_max_gain)
         } else {
-            1.0
+            self.absolute_max_gain
         }
     }
 
-    /// Updates the RMS (Root Mean Square) level using a sliding window approach.
+    /// Updates the RMS (Root Mean Square) level using a circular buffer approach.
     /// This method calculates a moving average of the squared input samples,
     /// providing a measure of the signal's average power over time.
     #[inline]
     fn update_rms(&mut self, sample_value: f32) -> f32 {
-        // Remove the oldest sample from the RMS calculation
-        self.rms_level -= self.rms_window[self.rms_index] / self.rms_window.len() as f32;
-
-        // Add the new sample to the window
-        self.rms_window[self.rms_index] = sample_value * sample_value;
-
-        // Add the new sample to the RMS calculation
-        self.rms_level += self.rms_window[self.rms_index] / self.rms_window.len() as f32;
-
-        // Move the index to the next position
-        self.rms_index = (self.rms_index + 1) % self.rms_window.len();
-
-        // Calculate and return the RMS value
-        self.rms_level.sqrt()
+        let squared_sample = sample_value * sample_value;
+        self.rms_window.push(squared_sample);
+        self.rms_window.mean().sqrt()
     }
 }
 
@@ -170,18 +222,18 @@ where
             // Calculate the current RMS (Root Mean Square) level using a sliding window approach
             let rms = self.update_rms(sample_value);
 
-            // Determine the gain adjustment needed based on the current peak level
-            let peak_gain = self.calculate_peak_gain();
-
             // Compute the gain adjustment required to reach the target level based on RMS
             let rms_gain = if rms > 0.0 {
                 self.target_level / rms
             } else {
-                1.0 // Default to unity gain if RMS is zero to avoid division by zero
+                self.absolute_max_gain // Default to max gain if RMS is zero
             };
 
-            // Select the lower of peak and RMS gains to ensure conservative adjustment
-            let desired_gain = peak_gain.min(rms_gain);
+            // Calculate the peak limiting gain
+            let peak_gain = self.calculate_peak_gain();
+
+            // Use RMS for general adjustments, but limit by peak gain to prevent clipping
+            let desired_gain = rms_gain.min(peak_gain);
 
             // Adaptive attack/release speed for AGC (Automatic Gain Control)
             //
@@ -208,28 +260,21 @@ where
             // By using a faster release time for decreasing gain, we can mitigate these issues and provide
             // more responsive control over sudden level increases while maintaining smooth gain increases.
             let attack_speed = if desired_gain > self.current_gain {
-                // Slower attack for increasing gain to avoid sudden amplification
-                self.attack_time.min(10.0)
+                self.attack_coeff
             } else {
-                // Faster release for decreasing gain to prevent overamplification
-                // Cap release time at 1.0 to ensure responsiveness
-                // This prevents issues with very high attack times:
-                // - Avoids overcorrection and near-zero sound levels
-                // - Ensures AGC can always correct itself in reasonable time
-                // - Maintains ability to quickly attenuate sudden loud signals
-                (self.attack_time * 0.1).min(1.0) // Capped faster release time
+                self.release_coeff
             };
 
             // Gradually adjust the current gain towards the desired gain for smooth transitions
             self.current_gain =
-                self.current_gain * (1.0 - attack_speed) + desired_gain * attack_speed;
+                self.current_gain * attack_speed + desired_gain * (1.0 - attack_speed);
 
             // Ensure the calculated gain stays within the defined operational range
             self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain);
 
             // Output current gain value for developers to fine tune their inputs to automatic_gain_control
             #[cfg(feature = "tracing")]
-            tracing::debug!("AGC gain: {}", self.current_gain);
+            tracing::debug!("AGC gain: {}", self.current_gain,);
 
             // Apply the computed gain to the input sample and return the result
             value.amplify(self.current_gain)

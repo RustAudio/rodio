@@ -16,6 +16,9 @@ use super::SeekError;
 use crate::{Sample, Source};
 use std::time::Duration;
 
+#[cfg(feature = "tracing")]
+use tracing;
+
 /// Constructs an `AutomaticGainControl` object with specified parameters.
 ///
 /// # Arguments
@@ -224,12 +227,9 @@ where
             // Ensure the calculated gain stays within the defined operational range
             self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain);
 
-            // Output current gain value for monitoring and debugging purposes
-            // Must be deleted before merge:
-            // Added flag so its usable without the debug temporarily during development
-            if std::env::args().any(|arg| arg == "--debug-gain") {
-                println!("Current gain: {}", self.current_gain);
-            }
+            // Output current gain value for developers to fine tune their inputs to automatic_gain_control
+            #[cfg(feature = "tracing")]
+            tracing::debug!("AGC gain: {}", self.current_gain);
 
             // Apply the computed gain to the input sample and return the result
             value.amplify(self.current_gain)

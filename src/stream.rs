@@ -195,7 +195,12 @@ impl CpalDeviceExt for cpal::Device {
         let (mixer_tx, mut mixer_rx) =
             dynamic_mixer::mixer::<f32>(format.channels(), format.sample_rate().0);
 
-        let error_callback = |err| eprintln!("an error occurred on output stream: {err}");
+        let error_callback = |err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!("an error occurred on output stream: {err}");
+            #[cfg(not(feature = "tracing"))]
+            eprintln!("an error occurred on output stream: {err}");
+        };
 
         match format.sample_format() {
             cpal::SampleFormat::F32 => self.build_output_stream::<f32, _, _>(

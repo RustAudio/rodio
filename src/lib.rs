@@ -101,6 +101,15 @@
 //! to avoid adding extra crates to your binary.
 //! See the [available feature flags](https://docs.rs/crate/rodio/latest/features) for all options.
 //!
+//! ## Optional Features 
+//!
+//! Rodio provides several optional features that are guarded with feature gates.
+//!
+//! ### Feature "tracing"
+//!
+//! The "tracing" feature replaces the print to stderr when a stream error happens with a
+//! recording an error event with tracing.
+//!
 //! ## How it works under the hood
 //!
 //! Rodio spawns a background thread that is dedicated to reading from the sources and sending

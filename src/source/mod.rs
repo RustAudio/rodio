@@ -241,15 +241,28 @@ where
     ///
     /// # Parameters
     ///
-    /// * `target_level`: The desired output level, typically between 0.9 and 1.0.
-    ///   This is the level that the AGC will try to maintain.
+    /// * `target_level`: The desired output level, where 1.0 represents the original sound level.
+    ///   Values above 1.0 will amplify the sound, while values below 1.0 will lower it.
+    ///   For example, a target_level of 1.4 means that at normal sound levels, the AGC
+    ///   will aim to increase the gain by a factor of 1.4, resulting in a minimum 40% amplification.
+    ///   A recommended level is 1.0, which maintains the original sound level.
     ///
-    /// * `attack_time`: The time (in seconds) it takes for the AGC to respond to
-    ///   an increase in input level. A shorter attack time means faster response
-    ///   but may lead to more abrupt changes.
+    /// * `attack_time`: The time (in seconds) for the AGC to respond to input level increases.
+    ///   Shorter times mean faster response but may cause abrupt changes. Longer times result
+    ///   in smoother transitions but slower reactions to sudden volume changes. Too short can
+    ///   lead to overreaction to peaks, causing unnecessary adjustments. Too long can make the
+    ///   AGC miss important volume changes or react too slowly to sudden loud passages. Very
+    ///   high values might result in excessively loud output or sluggish response, as the AGC's
+    ///   adjustment speed is limited by the attack time. Balance is key for optimal performance.
+    ///   A recommended attack_time of 2.0 seconds provides a sweet spot for most applications.
     ///
     /// * `absolute_max_gain`: The maximum gain that can be applied to the signal.
-    ///   This prevents excessive amplification of quiet signals or background noise.
+    ///   This parameter acts as a safeguard against excessive amplification of quiet signals
+    ///   or background noise. It establishes an upper boundary for the AGC's signal boost,
+    ///   effectively preventing distortion or overamplification of low-level sounds.
+    ///   This is crucial for maintaining audio quality and preventing unexpected volume spikes.
+    ///   A recommended value for `absolute_max_gain` is 4, which provides a good balance between
+    ///   amplification capability and protection against distortion in most scenarios.
     #[inline]
     fn automatic_gain_control(
         self,

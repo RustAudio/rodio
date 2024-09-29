@@ -46,3 +46,19 @@ fn amplify(bencher: Bencher) {
         .with_inputs(|| TestSource::music_wav().to_f32s())
         .bench_values(|source| source.amplify(0.8).for_each(divan::black_box_drop))
 }
+
+#[divan::bench]
+fn agc(bencher: Bencher) {
+    bencher
+        .with_inputs(|| TestSource::music_wav().to_f32s())
+        .bench_values(|source| {
+            source
+                .automatic_gain_control(
+                    1.0,  // target_level
+                    2.0,  // attack_time (in seconds)
+                    0.01, // release_time (in seconds)
+                    5.0,  // absolute_max_gain
+                )
+                .for_each(divan::black_box_drop)
+        })
+}

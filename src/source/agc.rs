@@ -59,6 +59,7 @@ impl CircularBuffer {
     /// Creates a new CircularBuffer with a fixed size determined at compile time.
     ///
     /// The `_size` parameter is ignored as the buffer size is set by `RMS_WINDOW_SIZE`.
+    #[inline]
     fn new(_size: usize) -> Self {
         CircularBuffer {
             buffer: [0.0; RMS_WINDOW_SIZE],
@@ -70,6 +71,7 @@ impl CircularBuffer {
     /// Pushes a new value into the buffer and returns the old value.
     ///
     /// This method maintains a running sum for efficient mean calculation.
+    #[inline]
     fn push(&mut self, value: f32) -> f32 {
         let old_value = self.buffer[self.index];
         self.buffer[self.index] = value;
@@ -81,6 +83,7 @@ impl CircularBuffer {
     /// Calculates the mean of all values in the buffer.
     ///
     /// This operation is O(1) due to the maintained running sum.
+    #[inline]
     fn mean(&self) -> f32 {
         self.sum / self.buffer.len() as f32
     }
@@ -95,6 +98,7 @@ impl CircularBuffer {
 /// * `attack_time` - Time constant for gain increase
 /// * `release_time` - Time constant for gain decrease
 /// * `absolute_max_gain` - Maximum allowable gain
+#[inline]
 pub fn automatic_gain_control<I>(
     input: I,
     target_level: f32,

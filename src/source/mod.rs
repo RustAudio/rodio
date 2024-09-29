@@ -241,7 +241,7 @@ where
     ///
     /// # Parameters
     ///
-    ///* `target_level`:
+    /// `target_level`:
     ///   **TL;DR**: Desired output level. 1.0 = original level, > 1.0 amplifies, < 1.0 reduces.
     ///
     ///   The desired output level, where 1.0 represents the original sound level.
@@ -250,7 +250,7 @@ where
     ///   will aim to increase the gain by a factor of 1.4, resulting in a minimum 40% amplification.
     ///   A recommended level is `1.0`, which maintains the original sound level.
     ///
-    ///* `attack_time`:
+    /// `attack_time`:
     ///   **TL;DR**: Response time for volume increases. Shorter = faster but may cause abrupt changes. **Recommended: `4.0` seconds**.
     ///
     ///   The time (in seconds) for the AGC to respond to input level increases.
@@ -262,7 +262,7 @@ where
     ///   adjustment speed is limited by the attack time. Balance is key for optimal performance.
     ///   A recommended attack_time of `4.0` seconds provides a sweet spot for most applications.
     ///
-    ///* `release_time`:
+    /// `release_time`:
     ///   **TL;DR**: Response time for volume decreases. Shorter = faster gain reduction. **Recommended: `0.005` seconds**.
     ///
     ///   The time (in seconds) for the AGC to respond to input level decreases.
@@ -276,7 +276,7 @@ where
     ///   preventing distortion. A recommended release_time of `0.005` seconds often works well for
     ///   general use, providing a good balance between responsiveness and smooth transitions.
     ///
-    ///* `absolute_max_gain`:
+    /// `absolute_max_gain`:
     ///   **TL;DR**: Maximum allowed gain. Prevents over-amplification. **Recommended: `5.0`**.
     ///
     ///   The maximum gain that can be applied to the signal.

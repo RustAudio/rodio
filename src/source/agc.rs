@@ -28,9 +28,6 @@ const RMS_WINDOW_SIZE: usize = 1024;
 /// Balances between responsiveness and stability.
 const MIN_ATTACK_COEFF: f32 = 0.05;
 
-/// Maximum allowed peak level to prevent clipping
-const MAX_PEAK_LEVEL: f32 = 0.99;
-
 /// Automatic Gain Control filter for maintaining consistent output levels.
 ///
 /// This struct implements an AGC algorithm that dynamically adjusts audio levels
@@ -186,7 +183,7 @@ where
     #[inline]
     fn calculate_peak_gain(&self) -> f32 {
         if self.peak_level > 0.0 {
-            (MAX_PEAK_LEVEL / self.peak_level).min(self.absolute_max_gain)
+            (self.target_level / self.peak_level).min(self.absolute_max_gain)
         } else {
             self.absolute_max_gain
         }

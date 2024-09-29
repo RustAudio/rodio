@@ -101,7 +101,7 @@
 //! to avoid adding extra crates to your binary.
 //! See the [available feature flags](https://docs.rs/crate/rodio/latest/features) for all options.
 //!
-//! ## Optional Features 
+//! ## Optional Features
 //!
 //! Rodio provides several optional features that are guarded with feature gates.
 //!

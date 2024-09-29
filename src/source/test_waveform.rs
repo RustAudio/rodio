@@ -34,19 +34,19 @@ impl Function {
     /// Create a single sample for the given waveform
     #[inline]
     fn render(&self, i: u64, period: f32) -> f32 {
-        let i_div_p: f32 = i as f32 / period;
+        let cycle_pos: f32 = i as f32 / period;
 
         match self {
-            Self::Sine => (TAU * i_div_p).sin(),
-            Self::Triangle => 4.0f32 * (i_div_p - (i_div_p + 0.5f32).floor()).abs() - 1f32,
+            Self::Sine => (TAU * cycle_pos).sin(),
+            Self::Triangle => 4.0f32 * (cycle_pos - (cycle_pos + 0.5f32).floor()).abs() - 1f32,
             Self::Square => {
-                if i_div_p % 1.0f32 < 0.5f32 {
+                if cycle_pos % 1.0f32 < 0.5f32 {
                     1.0f32
                 } else {
                     -1.0f32
                 }
             }
-            Self::Sawtooth => 2.0f32 * (i_div_p - (i_div_p + 0.5f32).floor()),
+            Self::Sawtooth => 2.0f32 * (cycle_pos - (cycle_pos + 0.5f32).floor()),
         }
     }
 }

@@ -12,10 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New test signal generator sources:
     - `TestSignal` source generates a sine, triangle, square wave or sawtooth
       of a given frequency and sample rate.
-    - `Chirp` source generates a sine wave with linearly period over a given
-      frequency range and duration.
+    - `Chirp` source generates a sine wave with a linearly-increasing 
+      frequency over a given frequency range and duration.
     - `white` and `pink` generate white or pink noise, respectively. These 
-      sources depend on the `rand` crate  and are guarded with the "noise" 
+      sources depend on the `rand` crate and are guarded with the "noise" 
       feature.
     - Documentation for the "noise" feature has been added to `lib.rs`.
 - New Fade and Crossfade sources:

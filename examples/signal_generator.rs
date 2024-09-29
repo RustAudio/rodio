@@ -1,4 +1,4 @@
-//! Noise generator example. Use the "noise" feature to enable the noise generator sources.
+//! Test signal generator example.
 
 fn main() {
     use rodio::source::{chirp, Function, Source, TestWaveform};
@@ -7,7 +7,7 @@ fn main() {
 
     let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
 
-    let noise_duration = Duration::from_millis(1000);
+    let test_signal_duration = Duration::from_millis(1000);
     let interval_duration = Duration::from_millis(1500);
 
     println!("Playing 1000 Hz tone");
@@ -15,7 +15,7 @@ fn main() {
         .play_raw(
             TestWaveform::new(cpal::SampleRate(48000), 1000.0, Function::Sine)
                 .amplify(0.1)
-                .take_duration(noise_duration),
+                .take_duration(test_signal_duration),
         )
         .unwrap();
 
@@ -26,7 +26,7 @@ fn main() {
         .play_raw(
             TestWaveform::new(cpal::SampleRate(48000), 10000.0, Function::Sine)
                 .amplify(0.1)
-                .take_duration(noise_duration),
+                .take_duration(test_signal_duration),
         )
         .unwrap();
 
@@ -37,7 +37,7 @@ fn main() {
         .play_raw(
             TestWaveform::new(cpal::SampleRate(48000), 440.0, Function::Triangle)
                 .amplify(0.1)
-                .take_duration(noise_duration),
+                .take_duration(test_signal_duration),
         )
         .unwrap();
 
@@ -48,7 +48,7 @@ fn main() {
         .play_raw(
             TestWaveform::new(cpal::SampleRate(48000), 440.0, Function::Sawtooth)
                 .amplify(0.1)
-                .take_duration(noise_duration),
+                .take_duration(test_signal_duration),
         )
         .unwrap();
 
@@ -59,7 +59,7 @@ fn main() {
         .play_raw(
             TestWaveform::new(cpal::SampleRate(48000), 440.0, Function::Square)
                 .amplify(0.1)
-                .take_duration(noise_duration),
+                .take_duration(test_signal_duration),
         )
         .unwrap();
 
@@ -75,7 +75,7 @@ fn main() {
                 Duration::from_secs(1),
             )
             .amplify(0.1)
-            .take_duration(noise_duration),
+            .take_duration(test_signal_duration),
         )
         .unwrap();
 

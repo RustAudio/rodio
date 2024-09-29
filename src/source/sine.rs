@@ -5,8 +5,6 @@ use crate::Source;
 
 use super::SeekError;
 
-const SAMPLE_RATE: u32 = 48000;
-
 /// An infinite source that produces a sine.
 ///
 /// Always has a rate of 48kHz and one channel.
@@ -16,10 +14,12 @@ pub struct SineWave {
 }
 
 impl SineWave {
+    const SAMPLE_RATE: u32 = 48000;
+
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> SineWave {
-        let sr = cpal::SampleRate(SAMPLE_RATE);
+        let sr = cpal::SampleRate(Self::SAMPLE_RATE);
         SineWave {
             test_sine: TestWaveform::new(sr, freq, Function::Sine),
         }
@@ -48,7 +48,7 @@ impl Source for SineWave {
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        SAMPLE_RATE
+        Self::SAMPLE_RATE
     }
 
     #[inline]

@@ -4,7 +4,7 @@ use crate::{Sample, Source};
 
 use super::SeekError;
 
-/// Internal function that builds a `Stoppable` object.
+/// This is the same as [`skippable`](crate::source::skippable) see its docs
 pub fn stoppable<I>(source: I) -> Stoppable<I> {
     Stoppable {
         input: source,
@@ -12,6 +12,7 @@ pub fn stoppable<I>(source: I) -> Stoppable<I> {
     }
 }
 
+/// This is the same as [`Skippable`](crate::source::Skippable) see its docs
 #[derive(Clone, Debug)]
 pub struct Stoppable<I> {
     input: I,

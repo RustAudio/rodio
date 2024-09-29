@@ -131,7 +131,7 @@ impl Sink {
             .periodic_access(Duration::from_millis(5), move |src| {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
-                                        *controls.position.lock().unwrap() = Duration::ZERO;
+                    *controls.position.lock().unwrap() = Duration::ZERO;
                 }
                 {
                     let mut to_clear = controls.to_clear.lock().unwrap();

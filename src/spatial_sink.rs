@@ -8,6 +8,9 @@ use crate::source::{SeekError, Spatial};
 use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{Sample, Sink, Source};
 
+/// A sink that allows changing the position of the source and the listeners
+/// ears while playing. The sources played are then transformed to give a simple
+/// spatial effect. See [`Spatial`] for details.
 pub struct SpatialSink {
     sink: Sink,
     positions: Arc<Mutex<SoundPositions>>,

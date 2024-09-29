@@ -54,6 +54,7 @@ where
     }
 }
 
+/// This applies an audio filter, it can be a high or low pass filter.
 #[derive(Clone, Debug)]
 pub struct BltFilter<I> {
     input: I,

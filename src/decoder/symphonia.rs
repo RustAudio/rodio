@@ -208,20 +208,25 @@ impl Source for SymphoniaDecoder {
     }
 }
 
+/// Error returned when the try_seek implementation of the symphonia decoder fails.
 #[derive(Debug, thiserror::Error)]
 pub enum SeekError {
+    /// Could not get next packet while refining seek position
     #[error("Could not get next packet while refining seek position: {0:?}")]
     Refining(symphonia::core::errors::Error),
+    /// Format reader failed to seek
     #[error("Format reader failed to seek: {0:?}")]
     BaseSeek(symphonia::core::errors::Error),
+    /// Decoding failed retrying on the next packet failed
     #[error("Decoding failed retrying on the next packet failed: {0:?}")]
     Retrying(symphonia::core::errors::Error),
+    /// Decoding failed on multiple consecutive packets
     #[error("Decoding failed on multiple consecutive packets: {0:?}")]
     Decoding(symphonia::core::errors::Error),
 }
 
 impl SymphoniaDecoder {
-    /// note frame offset must be set after
+    /// Note frame offset must be set after
     fn refine_position(&mut self, seek_res: SeekedTo) -> Result<(), source::SeekError> {
         let mut samples_to_pass = seek_res.required_ts - seek_res.actual_ts;
         let packet = loop {

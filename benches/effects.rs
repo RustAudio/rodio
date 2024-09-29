@@ -54,10 +54,10 @@ fn agc(bencher: Bencher) {
         .bench_values(|source| {
             source
                 .automatic_gain_control(
-                    1.0,  // target_level
-                    2.0,  // attack_time (in seconds)
-                    0.01, // release_time (in seconds)
-                    5.0,  // absolute_max_gain
+                    1.0,   // target_level
+                    4.0,   // attack_time (in seconds)
+                    0.005, // release_time (in seconds)
+                    5.0,   // absolute_max_gain
                 )
                 .for_each(divan::black_box_drop)
         })

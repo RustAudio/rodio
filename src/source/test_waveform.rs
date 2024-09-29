@@ -26,7 +26,7 @@ pub enum Function {
     Triangle,
     /// A square wave, rising edge at t=0.
     Square,
-    /// A rising swatooth wave.
+    /// A rising sawtooth wave.
     Sawtooth,
 }
 

@@ -126,7 +126,6 @@
 //! the number of sinks that can be created (except for the fact that creating too many will slow
 //! down your program).
 
-
 #![cfg_attr(test, deny(missing_docs))]
 pub use cpal::{
     self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,

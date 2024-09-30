@@ -286,6 +286,27 @@ where
     ///   This is crucial for maintaining audio quality and preventing unexpected volume spikes.
     ///   A recommended value for `absolute_max_gain` is `5`, which provides a good balance between
     ///   amplification capability and protection against distortion in most scenarios.
+    ///
+    /// Use `get_agc_control` to obtain a handle for real-time enabling/disabling of the AGC.
+    ///
+    /// # Example (Quick start)
+    ///
+    /// ```rust
+    /// // Apply Automatic Gain Control to the source (AGC is on by default)
+    /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
+    ///
+    /// // Get a handle to control the AGC's enabled state (optional)
+    /// let agc_control = agc_source.get_agc_control();
+    ///
+    /// // You can toggle AGC on/off at any time (optional)
+    /// agc_control.store(false, std::sync::atomic::Ordering::Relaxed);
+    ///
+    /// // Add the AGC-controlled source to the sink
+    /// sink.append(agc_source);
+    ///
+    /// // Note: Using agc_control is optional. If you don't need to toggle AGC,
+    /// // you can simply use the agc_source directly without getting agc_control.
+    /// ```
     #[inline]
     fn automatic_gain_control(
         self,

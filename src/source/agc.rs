@@ -165,13 +165,13 @@ where
     ///
     /// This method adjusts the peak level using a variable attack coefficient.
     /// It responds faster to sudden increases in signal level by using a
-    /// minimum attack coefficient of MIN_ATTACK_COEFF when the sample value exceeds the
+    /// minimum attack coefficient of min_attack_coeff when the sample value exceeds the
     /// current peak level. This adaptive behavior helps capture transients
     /// more accurately while maintaining smoother behavior for gradual changes.
     #[inline]
-    fn update_peak_level(&mut self, sample_value: f32, release_time: f32) {
+    fn update_peak_level(&mut self, sample_value: f32) {
         let attack_coeff = if sample_value > self.peak_level {
-            self.attack_coeff.min(release_time) // Faster response to sudden increases
+            self.attack_coeff.min(self.min_attack_coeff) // User-defined attack time limited via release_time
         } else {
             self.release_coeff
         };
@@ -216,7 +216,7 @@ where
             let sample_value = value.to_f32().abs();
 
             // Dynamically adjust peak level using an adaptive attack coefficient
-            self.update_peak_level(sample_value, self.min_attack_coeff);
+            self.update_peak_level(sample_value);
 
             // Calculate the current RMS (Root Mean Square) level using a sliding window approach
             let rms = self.update_rms(sample_value);

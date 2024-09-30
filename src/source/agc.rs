@@ -22,11 +22,7 @@ use tracing;
 
 /// Size of the circular buffer used for RMS calculation.
 /// A larger size provides more stable RMS values but increases latency.
-const RMS_WINDOW_SIZE: usize = 1024;
-
-/// Minimum attack coefficient for rapid response to sudden level increases.
-/// Balances between responsiveness and stability.
-const MIN_ATTACK_COEFF: f32 = 0.05;
+const RMS_WINDOW_SIZE: usize = 8192;
 
 /// Automatic Gain Control filter for maintaining consistent output levels.
 ///
@@ -40,6 +36,7 @@ pub struct AutomaticGainControl<I> {
     current_gain: f32,
     attack_coeff: f32,
     release_coeff: f32,
+    min_attack_coeff: f32,
     peak_level: f32,
     rms_window: CircularBuffer,
 }
@@ -119,6 +116,7 @@ where
         current_gain: 1.0,
         attack_coeff: (-1.0 / (attack_time * sample_rate as f32)).exp(),
         release_coeff: (-1.0 / (release_time * sample_rate as f32)).exp(),
+        min_attack_coeff: release_time,
         peak_level: 0.0,
         rms_window: CircularBuffer::new(RMS_WINDOW_SIZE),
     }
@@ -171,9 +169,9 @@ where
     /// current peak level. This adaptive behavior helps capture transients
     /// more accurately while maintaining smoother behavior for gradual changes.
     #[inline]
-    fn update_peak_level(&mut self, sample_value: f32) {
+    fn update_peak_level(&mut self, sample_value: f32, release_time: f32) {
         let attack_coeff = if sample_value > self.peak_level {
-            self.attack_coeff.min(MIN_ATTACK_COEFF) // Faster response to sudden increases
+            self.attack_coeff.min(release_time) // Faster response to sudden increases
         } else {
             self.release_coeff
         };
@@ -218,7 +216,7 @@ where
             let sample_value = value.to_f32().abs();
 
             // Dynamically adjust peak level using an adaptive attack coefficient
-            self.update_peak_level(sample_value);
+            self.update_peak_level(sample_value, self.min_attack_coeff);
 
             // Calculate the current RMS (Root Mean Square) level using a sliding window approach
             let rms = self.update_rms(sample_value);

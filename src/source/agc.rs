@@ -15,6 +15,8 @@
 
 use super::SeekError;
 use crate::{Sample, Source};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 #[cfg(feature = "tracing")]
@@ -39,6 +41,7 @@ pub struct AutomaticGainControl<I> {
     min_attack_coeff: f32,
     peak_level: f32,
     rms_window: CircularBuffer,
+    is_enabled: Arc<AtomicBool>,
 }
 
 /// A circular buffer for efficient RMS calculation over a sliding window.
@@ -119,6 +122,7 @@ where
         min_attack_coeff: release_time,
         peak_level: 0.0,
         rms_window: CircularBuffer::new(RMS_WINDOW_SIZE),
+        is_enabled: Arc::new(AtomicBool::new(true)),
     }
 }
 
@@ -161,6 +165,14 @@ where
         self.release_coeff = (-1.0 / (release_time * sample_rate as f32)).exp();
     }
 
+    /// Returns a handle to control AGC on/off state.
+    ///
+    /// This allows real-time toggling of the AGC processing.
+    #[inline]
+    pub fn get_agc_control(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.is_enabled)
+    }
+
     /// Updates the peak level with an adaptive attack coefficient
     ///
     /// This method adjusts the peak level using a variable attack coefficient.
@@ -178,6 +190,16 @@ where
         self.peak_level = attack_coeff * self.peak_level + (1.0 - attack_coeff) * sample_value;
     }
 
+    /// Updates the RMS (Root Mean Square) level using a circular buffer approach.
+    /// This method calculates a moving average of the squared input samples,
+    /// providing a measure of the signal's average power over time.
+    #[inline]
+    fn update_rms(&mut self, sample_value: f32) -> f32 {
+        let squared_sample = sample_value * sample_value;
+        self.rms_window.push(squared_sample);
+        self.rms_window.mean().sqrt()
+    }
+
     /// Calculate gain adjustments based on peak levels
     /// This method determines the appropriate gain level to apply to the audio
     /// signal, considering the peak level.
@@ -191,14 +213,72 @@ where
         }
     }
 
-    /// Updates the RMS (Root Mean Square) level using a circular buffer approach.
-    /// This method calculates a moving average of the squared input samples,
-    /// providing a measure of the signal's average power over time.
     #[inline]
-    fn update_rms(&mut self, sample_value: f32) -> f32 {
-        let squared_sample = sample_value * sample_value;
-        self.rms_window.push(squared_sample);
-        self.rms_window.mean().sqrt()
+    fn process_sample(&mut self, sample: I::Item) -> I::Item {
+        // Convert the sample to its absolute float value for level calculations
+        let sample_value = sample.to_f32().abs();
+
+        // Dynamically adjust peak level using an adaptive attack coefficient
+        self.update_peak_level(sample_value);
+
+        // Calculate the current RMS (Root Mean Square) level using a sliding window approach
+        let rms = self.update_rms(sample_value);
+
+        // Compute the gain adjustment required to reach the target level based on RMS
+        let rms_gain = if rms > 0.0 {
+            self.target_level / rms
+        } else {
+            self.absolute_max_gain // Default to max gain if RMS is zero
+        };
+
+        // Calculate the peak limiting gain
+        let peak_gain = self.calculate_peak_gain();
+
+        // Use RMS for general adjustments, but limit by peak gain to prevent clipping
+        let desired_gain = rms_gain.min(peak_gain);
+
+        // Adaptive attack/release speed for AGC (Automatic Gain Control)
+        //
+        // This mechanism implements an asymmetric approach to gain adjustment:
+        // 1. Slow increase: Prevents abrupt amplification of noise during quiet periods.
+        // 2. Fast decrease: Rapidly attenuates sudden loud signals to avoid distortion.
+        //
+        // The asymmetry is crucial because:
+        // - Gradual gain increases sound more natural and less noticeable to listeners.
+        // - Quick gain reductions are necessary to prevent clipping and maintain audio quality.
+        //
+        // This approach addresses several challenges associated with high attack times:
+        // 1. Slow response: With a high attack time, the AGC responds very slowly to changes in input level.
+        //    This means it takes longer for the gain to adjust to new signal levels.
+        // 2. Initial gain calculation: When the audio starts or after a period of silence, the initial gain
+        //    calculation might result in a very high gain value, especially if the input signal starts quietly.
+        // 3. Overshooting: As the gain slowly increases (due to the high attack time), it might overshoot
+        //    the desired level, causing the signal to become too loud.
+        // 4. Overcorrection: The AGC then tries to correct this by reducing the gain, but due to the slow response,
+        //    it might reduce the gain too much, causing the sound to drop to near-zero levels.
+        // 5. Slow recovery: Again, due to the high attack time, it takes a while for the gain to increase
+        //    back to the appropriate level.
+        //
+        // By using a faster release time for decreasing gain, we can mitigate these issues and provide
+        // more responsive control over sudden level increases while maintaining smooth gain increases.
+        let attack_speed = if desired_gain > self.current_gain {
+            self.attack_coeff
+        } else {
+            self.release_coeff
+        };
+
+        // Gradually adjust the current gain towards the desired gain for smooth transitions
+        self.current_gain = self.current_gain * attack_speed + desired_gain * (1.0 - attack_speed);
+
+        // Ensure the calculated gain stays within the defined operational range
+        self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain);
+
+        // Output current gain value for developers to fine tune their inputs to automatic_gain_control
+        #[cfg(feature = "tracing")]
+        tracing::debug!("AGC gain: {}", self.current_gain,);
+
+        // Apply the computed gain to the input sample and return the result
+        sample.amplify(self.current_gain)
     }
 }
 
@@ -211,72 +291,12 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        self.input.next().map(|value| {
-            // Convert the sample to its absolute float value for level calculations
-            let sample_value = value.to_f32().abs();
-
-            // Dynamically adjust peak level using an adaptive attack coefficient
-            self.update_peak_level(sample_value);
-
-            // Calculate the current RMS (Root Mean Square) level using a sliding window approach
-            let rms = self.update_rms(sample_value);
-
-            // Compute the gain adjustment required to reach the target level based on RMS
-            let rms_gain = if rms > 0.0 {
-                self.target_level / rms
+        self.input.next().map(|sample| {
+            if self.is_enabled.load(Ordering::Relaxed) {
+                self.process_sample(sample)
             } else {
-                self.absolute_max_gain // Default to max gain if RMS is zero
-            };
-
-            // Calculate the peak limiting gain
-            let peak_gain = self.calculate_peak_gain();
-
-            // Use RMS for general adjustments, but limit by peak gain to prevent clipping
-            let desired_gain = rms_gain.min(peak_gain);
-
-            // Adaptive attack/release speed for AGC (Automatic Gain Control)
-            //
-            // This mechanism implements an asymmetric approach to gain adjustment:
-            // 1. Slow increase: Prevents abrupt amplification of noise during quiet periods.
-            // 2. Fast decrease: Rapidly attenuates sudden loud signals to avoid distortion.
-            //
-            // The asymmetry is crucial because:
-            // - Gradual gain increases sound more natural and less noticeable to listeners.
-            // - Quick gain reductions are necessary to prevent clipping and maintain audio quality.
-            //
-            // This approach addresses several challenges associated with high attack times:
-            // 1. Slow response: With a high attack time, the AGC responds very slowly to changes in input level.
-            //    This means it takes longer for the gain to adjust to new signal levels.
-            // 2. Initial gain calculation: When the audio starts or after a period of silence, the initial gain
-            //    calculation might result in a very high gain value, especially if the input signal starts quietly.
-            // 3. Overshooting: As the gain slowly increases (due to the high attack time), it might overshoot
-            //    the desired level, causing the signal to become too loud.
-            // 4. Overcorrection: The AGC then tries to correct this by reducing the gain, but due to the slow response,
-            //    it might reduce the gain too much, causing the sound to drop to near-zero levels.
-            // 5. Slow recovery: Again, due to the high attack time, it takes a while for the gain to increase
-            //    back to the appropriate level.
-            //
-            // By using a faster release time for decreasing gain, we can mitigate these issues and provide
-            // more responsive control over sudden level increases while maintaining smooth gain increases.
-            let attack_speed = if desired_gain > self.current_gain {
-                self.attack_coeff
-            } else {
-                self.release_coeff
-            };
-
-            // Gradually adjust the current gain towards the desired gain for smooth transitions
-            self.current_gain =
-                self.current_gain * attack_speed + desired_gain * (1.0 - attack_speed);
-
-            // Ensure the calculated gain stays within the defined operational range
-            self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain);
-
-            // Output current gain value for developers to fine tune their inputs to automatic_gain_control
-            #[cfg(feature = "tracing")]
-            tracing::debug!("AGC gain: {}", self.current_gain,);
-
-            // Apply the computed gain to the input sample and return the result
-            value.amplify(self.current_gain)
+                sample
+            }
         })
     }
 

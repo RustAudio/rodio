@@ -48,7 +48,7 @@ fn amplify(bencher: Bencher) {
 }
 
 #[divan::bench]
-fn agc(bencher: Bencher) {
+fn agc_enabled(bencher: Bencher) {
     bencher
         .with_inputs(|| TestSource::music_wav().to_f32s())
         .bench_values(|source| {
@@ -60,5 +60,27 @@ fn agc(bencher: Bencher) {
                     5.0,   // absolute_max_gain
                 )
                 .for_each(divan::black_box_drop)
+        })
+}
+
+#[divan::bench]
+fn agc_disabled(bencher: Bencher) {
+    bencher
+        .with_inputs(|| TestSource::music_wav().to_f32s())
+        .bench_values(|source| {
+            // Create the AGC source
+            let amplified_source = source.automatic_gain_control(
+                1.0,   // target_level
+                4.0,   // attack_time (in seconds)
+                0.005, // release_time (in seconds)
+                5.0,   // absolute_max_gain
+            );
+
+            // Get the control handle and disable AGC
+            let agc_control = amplified_source.get_agc_control();
+            agc_control.store(false, std::sync::atomic::Ordering::Relaxed);
+
+            // Process the audio stream with AGC disabled
+            amplified_source.for_each(divan::black_box_drop)
         })
 }

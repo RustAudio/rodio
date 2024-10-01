@@ -15,6 +15,7 @@
 
 use super::SeekError;
 use crate::{Sample, Source};
+use atomic_float::AtomicF32;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -33,11 +34,11 @@ const RMS_WINDOW_SIZE: usize = 8192;
 #[derive(Clone, Debug)]
 pub struct AutomaticGainControl<I> {
     input: I,
-    target_level: f32,
-    absolute_max_gain: f32,
+    target_level: Arc<AtomicF32>,
+    absolute_max_gain: Arc<AtomicF32>,
     current_gain: f32,
-    attack_coeff: f32,
-    release_coeff: f32,
+    attack_coeff: Arc<AtomicF32>,
+    release_coeff: Arc<AtomicF32>,
     min_attack_coeff: f32,
     peak_level: f32,
     rms_window: CircularBuffer,
@@ -99,7 +100,7 @@ impl CircularBuffer {
 /// * `release_time` - Time constant for gain decrease
 /// * `absolute_max_gain` - Maximum allowable gain
 #[inline]
-pub fn automatic_gain_control<I>(
+pub(crate) fn automatic_gain_control<I>(
     input: I,
     target_level: f32,
     attack_time: f32,
@@ -111,14 +112,16 @@ where
     I::Item: Sample,
 {
     let sample_rate = input.sample_rate();
+    let attack_coeff = (-1.0 / (attack_time * sample_rate as f32)).exp();
+    let release_coeff = (-1.0 / (release_time * sample_rate as f32)).exp();
 
     AutomaticGainControl {
         input,
-        target_level,
-        absolute_max_gain,
+        target_level: Arc::new(AtomicF32::new(target_level)),
+        absolute_max_gain: Arc::new(AtomicF32::new(absolute_max_gain)),
         current_gain: 1.0,
-        attack_coeff: (-1.0 / (attack_time * sample_rate as f32)).exp(),
-        release_coeff: (-1.0 / (release_time * sample_rate as f32)).exp(),
+        attack_coeff: Arc::new(AtomicF32::new(attack_coeff)),
+        release_coeff: Arc::new(AtomicF32::new(release_coeff)),
         min_attack_coeff: release_time,
         peak_level: 0.0,
         rms_window: CircularBuffer::new(),
@@ -137,32 +140,30 @@ where
     /// for the Automatic Gain Control. The target level determines the
     /// desired amplitude of the processed audio signal.
     #[inline]
-    pub fn set_target_level(&mut self, level: f32) {
-        self.target_level = level;
+    pub fn get_target_level(&self) -> Arc<AtomicF32> {
+        Arc::clone(&self.target_level)
     }
 
     /// Sets a new absolute maximum gain limit.
     #[inline]
-    pub fn set_absolute_max_gain(&mut self, max_gain: f32) {
-        self.absolute_max_gain = max_gain;
+    pub fn get_absolute_max_gain(&self) -> Arc<AtomicF32> {
+        Arc::clone(&self.absolute_max_gain)
     }
 
     /// This method allows changing the attack coefficient dynamically.
     /// The attack coefficient determines how quickly the AGC responds to level increases.
     /// A smaller value results in faster response, while a larger value gives a slower response.
     #[inline]
-    pub fn set_attack_coeff(&mut self, attack_time: f32) {
-        let sample_rate = self.input.sample_rate();
-        self.attack_coeff = (-1.0 / (attack_time * sample_rate as f32)).exp();
+    pub fn get_attack_coeff(&self) -> Arc<AtomicF32> {
+        Arc::clone(&self.attack_coeff)
     }
 
     /// This method allows changing the release coefficient dynamically.
     /// The release coefficient determines how quickly the AGC responds to level decreases.
     /// A smaller value results in faster response, while a larger value gives a slower response.
     #[inline]
-    pub fn set_release_coeff(&mut self, release_time: f32) {
-        let sample_rate = self.input.sample_rate();
-        self.release_coeff = (-1.0 / (release_time * sample_rate as f32)).exp();
+    pub fn get_release_coeff(&self) -> Arc<AtomicF32> {
+        Arc::clone(&self.release_coeff)
     }
 
     /// Returns a handle to control AGC on/off state.
@@ -183,9 +184,11 @@ where
     #[inline]
     fn update_peak_level(&mut self, sample_value: f32) {
         let attack_coeff = if sample_value > self.peak_level {
-            self.attack_coeff.min(self.min_attack_coeff) // User-defined attack time limited via release_time
+            self.attack_coeff
+                .load(Ordering::Relaxed)
+                .min(self.min_attack_coeff) // User-defined attack time limited via release_time
         } else {
-            self.release_coeff
+            self.release_coeff.load(Ordering::Relaxed)
         };
         self.peak_level = attack_coeff * self.peak_level + (1.0 - attack_coeff) * sample_value;
     }
@@ -207,9 +210,10 @@ where
     #[inline]
     fn calculate_peak_gain(&self) -> f32 {
         if self.peak_level > 0.0 {
-            (self.target_level / self.peak_level).min(self.absolute_max_gain)
+            (self.target_level.load(Ordering::Relaxed) / self.peak_level)
+                .min(self.absolute_max_gain.load(Ordering::Relaxed))
         } else {
-            self.absolute_max_gain
+            self.absolute_max_gain.load(Ordering::Relaxed)
         }
     }
 
@@ -226,9 +230,9 @@ where
 
         // Compute the gain adjustment required to reach the target level based on RMS
         let rms_gain = if rms > 0.0 {
-            self.target_level / rms
+            self.target_level.load(Ordering::Relaxed) / rms
         } else {
-            self.absolute_max_gain // Default to max gain if RMS is zero
+            self.absolute_max_gain.load(Ordering::Relaxed) // Default to max gain if RMS is zero
         };
 
         // Calculate the peak limiting gain
@@ -262,16 +266,19 @@ where
         // By using a faster release time for decreasing gain, we can mitigate these issues and provide
         // more responsive control over sudden level increases while maintaining smooth gain increases.
         let attack_speed = if desired_gain > self.current_gain {
-            self.attack_coeff
+            &self.attack_coeff
         } else {
-            self.release_coeff
+            &self.release_coeff
         };
 
         // Gradually adjust the current gain towards the desired gain for smooth transitions
-        self.current_gain = self.current_gain * attack_speed + desired_gain * (1.0 - attack_speed);
+        self.current_gain = self.current_gain * attack_speed.load(Ordering::Relaxed)
+            + desired_gain * (1.0 - attack_speed.load(Ordering::Relaxed));
 
         // Ensure the calculated gain stays within the defined operational range
-        self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain);
+        self.current_gain = self
+            .current_gain
+            .clamp(0.1, self.absolute_max_gain.load(Ordering::Relaxed));
 
         // Output current gain value for developers to fine tune their inputs to automatic_gain_control
         #[cfg(feature = "tracing")]

@@ -1,7 +1,7 @@
 //! Test signal generator example.
 
 fn main() {
-    use rodio::source::{chirp, Function, Source, TestWaveform};
+    use rodio::source::{chirp, Function, Source, SignalGenerator};
     use std::thread;
     use std::time::Duration;
 
@@ -13,7 +13,7 @@ fn main() {
     println!("Playing 1000 Hz tone");
     stream_handle
         .play_raw(
-            TestWaveform::new(cpal::SampleRate(48000), 1000.0, Function::Sine)
+            SignalGenerator::new(cpal::SampleRate(48000), 1000.0, Function::Sine)
                 .amplify(0.1)
                 .take_duration(test_signal_duration),
         )
@@ -24,7 +24,7 @@ fn main() {
     println!("Playing 10,000 Hz tone");
     stream_handle
         .play_raw(
-            TestWaveform::new(cpal::SampleRate(48000), 10000.0, Function::Sine)
+            SignalGenerator::new(cpal::SampleRate(48000), 10000.0, Function::Sine)
                 .amplify(0.1)
                 .take_duration(test_signal_duration),
         )
@@ -35,7 +35,7 @@ fn main() {
     println!("Playing 440 Hz Triangle Wave");
     stream_handle
         .play_raw(
-            TestWaveform::new(cpal::SampleRate(48000), 440.0, Function::Triangle)
+            SignalGenerator::new(cpal::SampleRate(48000), 440.0, Function::Triangle)
                 .amplify(0.1)
                 .take_duration(test_signal_duration),
         )
@@ -46,7 +46,7 @@ fn main() {
     println!("Playing 440 Hz Sawtooth Wave");
     stream_handle
         .play_raw(
-            TestWaveform::new(cpal::SampleRate(48000), 440.0, Function::Sawtooth)
+            SignalGenerator::new(cpal::SampleRate(48000), 440.0, Function::Sawtooth)
                 .amplify(0.1)
                 .take_duration(test_signal_duration),
         )
@@ -57,7 +57,7 @@ fn main() {
     println!("Playing 440 Hz Square Wave");
     stream_handle
         .play_raw(
-            TestWaveform::new(cpal::SampleRate(48000), 440.0, Function::Square)
+            SignalGenerator::new(cpal::SampleRate(48000), 440.0, Function::Square)
                 .amplify(0.1)
                 .take_duration(test_signal_duration),
         )

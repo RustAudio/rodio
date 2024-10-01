@@ -34,7 +34,7 @@ pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::stoppable::Stoppable;
 pub use self::take::TakeDuration;
-pub use self::test_waveform::{Function, TestWaveform};
+pub use self::signal_generator::{Function, SignalGenerator};
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
 
@@ -66,7 +66,7 @@ mod spatial;
 mod speed;
 mod stoppable;
 mod take;
-mod test_waveform;
+mod signal_generator;
 mod uniform;
 mod zero;
 

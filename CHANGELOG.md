@@ -8,8 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Support for *ALAC/AIFF* 
-- New sources:
+- Support for *ALAC/AIFF*
+- New test signal generator sources:
+    - `TestSignal` source generates a sine, triangle, square wave or sawtooth
+      of a given frequency and sample rate.
+    - `Chirp` source generates a sine wave with a linearly-increasing 
+      frequency over a given frequency range and duration.
+    - `white` and `pink` generate white or pink noise, respectively. These 
+      sources depend on the `rand` crate and are guarded with the "noise" 
+      feature.
+    - Documentation for the "noise" feature has been added to `lib.rs`.
+- New Fade and Crossfade sources:
     - `fade_out` fades an input out using a linear gain fade.
     - `linear_gain_ramp` applies a linear gain change to a sound over a
       given duration. `fade_out` is implemented as a `linear_gain_ramp` and

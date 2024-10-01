@@ -1,7 +1,7 @@
 //! Test signal generator example.
 
 fn main() {
-    use rodio::source::{chirp, Function, Source, SignalGenerator};
+    use rodio::source::{chirp, Function, SignalGenerator, Source};
     use std::thread;
     use std::time::Duration;
 

@@ -59,6 +59,10 @@ pub struct AutomaticGainControl<I> {
 }
 
 #[cfg(not(feature = "experimental"))]
+/// Automatic Gain Control filter for maintaining consistent output levels.
+///
+/// This struct implements an AGC algorithm that dynamically adjusts audio levels
+/// based on both **peak** and **RMS** (Root Mean Square) measurements.
 #[derive(Clone, Debug)]
 pub struct AutomaticGainControl<I> {
     input: I,

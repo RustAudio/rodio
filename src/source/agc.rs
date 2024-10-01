@@ -23,7 +23,7 @@ use std::time::Duration;
 #[cfg(feature = "tracing")]
 use tracing;
 
-// Ensures RMS_WINDOW_SIZE is a power of two
+/// Ensures `RMS_WINDOW_SIZE` is a power of two
 const fn power_of_two(n: usize) -> usize {
     assert!(
         n.is_power_of_two(),
@@ -39,7 +39,7 @@ const RMS_WINDOW_SIZE: usize = power_of_two(8192);
 /// Automatic Gain Control filter for maintaining consistent output levels.
 ///
 /// This struct implements an AGC algorithm that dynamically adjusts audio levels
-/// based on both peak and RMS (Root Mean Square) measurements.
+/// based on both **peak** and **RMS** (Root Mean Square) measurements.
 #[derive(Clone, Debug)]
 pub struct AutomaticGainControl<I> {
     input: I,
@@ -66,7 +66,7 @@ struct CircularBuffer {
 }
 
 impl CircularBuffer {
-    /// Creates a new CircularBuffer with a fixed size determined at compile time.
+    /// Creates a new `CircularBuffer` with a fixed size determined at compile time.
     #[inline]
     fn new() -> Self {
         CircularBuffer {
@@ -92,7 +92,7 @@ impl CircularBuffer {
 
     /// Calculates the mean of all values in the buffer.
     ///
-    /// This operation is O(1) due to the maintained running sum.
+    /// This operation is `O(1)` due to the maintained running sum.
     #[inline]
     fn mean(&self) -> f32 {
         self.sum / RMS_WINDOW_SIZE as f32
@@ -143,41 +143,48 @@ where
     I: Source,
     I::Item: Sample,
 {
-    /// Sets a new target output level.
+    /// Access the target output level for real-time adjustment.
     ///
-    /// This method allows dynamic adjustment of the target output level
-    /// for the Automatic Gain Control. The target level determines the
-    /// desired amplitude of the processed audio signal.
+    /// Use this to dynamically modify the AGC's target level while audio is processing.
+    /// Adjust this value to control the overall output amplitude of the processed signal.
     #[inline]
     pub fn get_target_level(&self) -> Arc<AtomicF32> {
         Arc::clone(&self.target_level)
     }
 
-    /// Sets a new absolute maximum gain limit.
+    /// Access the maximum gain limit for real-time adjustment.
+    ///
+    /// Use this to dynamically modify the AGC's maximum allowable gain during runtime.
+    /// Adjusting this value helps prevent excessive amplification in low-level signals.
     #[inline]
     pub fn get_absolute_max_gain(&self) -> Arc<AtomicF32> {
         Arc::clone(&self.absolute_max_gain)
     }
 
-    /// This method allows changing the attack coefficient dynamically.
-    /// The attack coefficient determines how quickly the AGC responds to level increases.
-    /// A smaller value results in faster response, while a larger value gives a slower response.
+    /// Access the attack coefficient for real-time adjustment.
+    ///
+    /// Use this to dynamically modify how quickly the AGC responds to level increases.
+    /// Smaller values result in faster response, larger values in slower response.
+    /// Adjust during runtime to fine-tune AGC behavior for different audio content.
     #[inline]
     pub fn get_attack_coeff(&self) -> Arc<AtomicF32> {
         Arc::clone(&self.attack_coeff)
     }
 
-    /// This method allows changing the release coefficient dynamically.
-    /// The release coefficient determines how quickly the AGC responds to level decreases.
-    /// A smaller value results in faster response, while a larger value gives a slower response.
+    /// Access the release coefficient for real-time adjustment.
+    ///
+    /// Use this to dynamically modify how quickly the AGC responds to level decreases.
+    /// Smaller values result in faster response, larger values in slower response.
+    /// Adjust during runtime to optimize AGC behavior for varying audio dynamics.
     #[inline]
     pub fn get_release_coeff(&self) -> Arc<AtomicF32> {
         Arc::clone(&self.release_coeff)
     }
 
-    /// Returns a handle to control AGC on/off state.
+    /// Access the AGC on/off control for real-time adjustment.
     ///
-    /// This allows real-time toggling of the AGC processing.
+    /// Use this to dynamically enable or disable AGC processing during runtime.
+    /// Useful for comparing processed and unprocessed audio or for disabling/enabling AGC at runtime.
     #[inline]
     pub fn get_agc_control(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.is_enabled)
@@ -187,7 +194,7 @@ where
     ///
     /// This method adjusts the peak level using a variable attack coefficient.
     /// It responds faster to sudden increases in signal level by using a
-    /// minimum attack coefficient of min_attack_coeff when the sample value exceeds the
+    /// minimum attack coefficient of `min_attack_coeff` when the sample value exceeds the
     /// current peak level. This adaptive behavior helps capture transients
     /// more accurately while maintaining smoother behavior for gradual changes.
     #[inline]
@@ -253,23 +260,23 @@ where
         // Adaptive attack/release speed for AGC (Automatic Gain Control)
         //
         // This mechanism implements an asymmetric approach to gain adjustment:
-        // 1. Slow increase: Prevents abrupt amplification of noise during quiet periods.
-        // 2. Fast decrease: Rapidly attenuates sudden loud signals to avoid distortion.
+        // 1. **Slow increase**: Prevents abrupt amplification of noise during quiet periods.
+        // 2. **Fast decrease**: Rapidly attenuates sudden loud signals to avoid distortion.
         //
         // The asymmetry is crucial because:
         // - Gradual gain increases sound more natural and less noticeable to listeners.
         // - Quick gain reductions are necessary to prevent clipping and maintain audio quality.
         //
         // This approach addresses several challenges associated with high attack times:
-        // 1. Slow response: With a high attack time, the AGC responds very slowly to changes in input level.
+        // 1. **Slow response**: With a high attack time, the AGC responds very slowly to changes in input level.
         //    This means it takes longer for the gain to adjust to new signal levels.
-        // 2. Initial gain calculation: When the audio starts or after a period of silence, the initial gain
+        // 2. **Initial gain calculation**: When the audio starts or after a period of silence, the initial gain
         //    calculation might result in a very high gain value, especially if the input signal starts quietly.
-        // 3. Overshooting: As the gain slowly increases (due to the high attack time), it might overshoot
+        // 3. **Overshooting**: As the gain slowly increases (due to the high attack time), it might overshoot
         //    the desired level, causing the signal to become too loud.
-        // 4. Overcorrection: The AGC then tries to correct this by reducing the gain, but due to the slow response,
+        // 4. **Overcorrection**: The AGC then tries to correct this by reducing the gain, but due to the slow response,
         //    it might reduce the gain too much, causing the sound to drop to near-zero levels.
-        // 5. Slow recovery: Again, due to the high attack time, it takes a while for the gain to increase
+        // 5. **Slow recovery**: Again, due to the high attack time, it takes a while for the gain to increase
         //    back to the appropriate level.
         //
         // By using a faster release time for decreasing gain, we can mitigate these issues and provide

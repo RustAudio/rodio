@@ -23,9 +23,18 @@ use std::time::Duration;
 #[cfg(feature = "tracing")]
 use tracing;
 
+// Ensures RMS_WINDOW_SIZE is a power of two
+const fn power_of_two(n: usize) -> usize {
+    assert!(
+        n.is_power_of_two(),
+        "RMS_WINDOW_SIZE must be a power of two"
+    );
+    n
+}
+
 /// Size of the circular buffer used for RMS calculation.
 /// A larger size provides more stable RMS values but increases latency.
-const RMS_WINDOW_SIZE: usize = 8192;
+const RMS_WINDOW_SIZE: usize = power_of_two(8192);
 
 /// Automatic Gain Control filter for maintaining consistent output levels.
 ///

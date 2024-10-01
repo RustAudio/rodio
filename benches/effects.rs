@@ -63,6 +63,8 @@ fn agc_enabled(bencher: Bencher) {
         })
 }
 
+#[cfg(feature = "experimental")]
+// Do note you will need to pass --features experimental to run this benchmark
 #[divan::bench]
 fn agc_disabled(bencher: Bencher) {
     bencher

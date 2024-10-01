@@ -56,8 +56,11 @@ impl Source for SineWave {
         None
     }
 
+    /// `try_seek()` does nothing on the sine generator. If you need to
+    /// generate a sine tone with a precise phase or sample offset, consider
+    /// using `skip::skip_samples()`.
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.test_sine.try_seek(pos)
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Ok(())
     }
 }

@@ -19,6 +19,7 @@ use crate::{Sample, Source};
 use atomic_float::AtomicF32;
 #[cfg(feature = "experimental")]
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(feature = "experimental")]
 use std::sync::Arc;
 use std::time::Duration;
 

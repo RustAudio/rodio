@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support for *ALAC/AIFF*
 - New test signal generator sources:
-    - `TestSignal` source generates a sine, triangle, square wave or sawtooth
+    - `SignalGenerator` source generates a sine, triangle, square wave or sawtooth
       of a given frequency and sample rate.
     - `Chirp` source generates a sine wave with a linearly-increasing 
       frequency over a given frequency range and duration.

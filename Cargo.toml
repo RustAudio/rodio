@@ -19,6 +19,7 @@ symphonia = { version = "0.5.4", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.8", optional = true }
 
 thiserror = "1.0.49"
+rand = { version = "0.8.5", features = ["small_rng"], optional = true }
 tracing = { version = "0.1.40", optional = true }
 
 atomic_float = { version = "1.1.0", optional = true }
@@ -33,6 +34,7 @@ vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["symphonia-mp3"]
 minimp3 = ["dep:minimp3_fixed"]
+noise = ["rand"]
 wasm-bindgen = ["cpal/wasm-bindgen"]
 cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
 symphonia-aac = ["symphonia/aac"]
@@ -64,3 +66,7 @@ harness = false
 [[example]]
 name = "music_m4a"
 required-features = ["symphonia-isomp4", "symphonia-aac"]
+
+[[example]]
+name = "noise_generator"
+required-features = ["noise"]

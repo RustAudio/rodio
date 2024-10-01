@@ -11,6 +11,7 @@ pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
 pub use self::channel_volume::ChannelVolume;
+pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
 pub use self::delay::Delay;
 pub use self::done::Done;
@@ -27,6 +28,7 @@ pub use self::periodic::PeriodicAccess;
 pub use self::position::TrackPosition;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
+pub use self::signal_generator::{Function, SignalGenerator};
 pub use self::sine::SineWave;
 pub use self::skip::SkipDuration;
 pub use self::skippable::Skippable;
@@ -42,6 +44,7 @@ mod amplify;
 mod blt;
 mod buffered;
 mod channel_volume;
+mod chirp;
 mod crossfade;
 mod delay;
 mod done;
@@ -58,6 +61,7 @@ mod periodic;
 mod position;
 mod repeat;
 mod samples_converter;
+mod signal_generator;
 mod sine;
 mod skip;
 mod skippable;
@@ -67,6 +71,11 @@ mod stoppable;
 mod take;
 mod uniform;
 mod zero;
+
+#[cfg(feature = "noise")]
+mod noise;
+#[cfg(feature = "noise")]
+pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 
 /// A source of samples.
 ///

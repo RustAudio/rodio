@@ -50,21 +50,19 @@ pub struct AutomaticGainControl<I> {
 /// which is crucial for real-time audio processing.
 #[derive(Clone, Debug)]
 struct CircularBuffer {
-    buffer: [f32; RMS_WINDOW_SIZE],
-    index: usize,
+    buffer: Box<[f32; RMS_WINDOW_SIZE]>,
     sum: f32,
+    index: usize,
 }
 
 impl CircularBuffer {
     /// Creates a new CircularBuffer with a fixed size determined at compile time.
-    ///
-    /// The `_size` parameter is ignored as the buffer size is set by `RMS_WINDOW_SIZE`.
     #[inline]
-    fn new(_size: usize) -> Self {
+    fn new() -> Self {
         CircularBuffer {
-            buffer: [0.0; RMS_WINDOW_SIZE],
-            index: 0,
+            buffer: Box::new([0.0; RMS_WINDOW_SIZE]),
             sum: 0.0,
+            index: 0,
         }
     }
 
@@ -74,9 +72,11 @@ impl CircularBuffer {
     #[inline]
     fn push(&mut self, value: f32) -> f32 {
         let old_value = self.buffer[self.index];
+        // Update the sum by first subtracting the old value and then adding the new value; this is more accurate.
+        self.sum = self.sum - old_value + value;
         self.buffer[self.index] = value;
-        self.sum += value - old_value;
-        self.index = (self.index + 1) % self.buffer.len();
+        // Use bitwise AND for efficient index wrapping since RMS_WINDOW_SIZE is a power of two.
+        self.index = (self.index + 1) & (RMS_WINDOW_SIZE - 1);
         old_value
     }
 
@@ -85,7 +85,7 @@ impl CircularBuffer {
     /// This operation is O(1) due to the maintained running sum.
     #[inline]
     fn mean(&self) -> f32 {
-        self.sum / self.buffer.len() as f32
+        self.sum / RMS_WINDOW_SIZE as f32
     }
 }
 
@@ -121,7 +121,7 @@ where
         release_coeff: (-1.0 / (release_time * sample_rate as f32)).exp(),
         min_attack_coeff: release_time,
         peak_level: 0.0,
-        rms_window: CircularBuffer::new(RMS_WINDOW_SIZE),
+        rms_window: CircularBuffer::new(),
         is_enabled: Arc::new(AtomicBool::new(true)),
     }
 }

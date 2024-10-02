@@ -74,6 +74,7 @@ pub struct AutomaticGainControl<I> {
     min_attack_coeff: f32,
     peak_level: f32,
     rms_window: CircularBuffer,
+    is_enabled: bool,
 }
 
 /// A circular buffer for efficient RMS calculation over a sliding window.
@@ -174,6 +175,7 @@ where
             min_attack_coeff: release_time,
             peak_level: 0.0,
             rms_window: CircularBuffer::new(),
+            is_enabled: true,
         }
     }
 }
@@ -239,7 +241,7 @@ where
         }
         #[cfg(not(feature = "experimental"))]
         {
-            true
+            self.is_enabled
         }
     }
 
@@ -293,6 +295,16 @@ where
     #[inline]
     pub fn get_agc_control(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.is_enabled)
+    }
+
+    #[cfg(not(feature = "experimental"))]
+    /// Enable or disable AGC processing.
+    ///
+    /// Use this to enable or disable AGC processing.
+    /// Useful for comparing processed and unprocessed audio or for disabling/enabling AGC.
+    #[inline]
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.is_enabled = enabled;
     }
 
     /// Updates the peak level with an adaptive attack coefficient

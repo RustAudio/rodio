@@ -183,6 +183,66 @@ where
     I: Source,
     I::Item: Sample,
 {
+    #[inline]
+    fn target_level(&self) -> f32 {
+        #[cfg(feature = "experimental")]
+        {
+            self.target_level.load(Ordering::Relaxed)
+        }
+        #[cfg(not(feature = "experimental"))]
+        {
+            self.target_level
+        }
+    }
+
+    #[inline]
+    fn absolute_max_gain(&self) -> f32 {
+        #[cfg(feature = "experimental")]
+        {
+            self.absolute_max_gain.load(Ordering::Relaxed)
+        }
+        #[cfg(not(feature = "experimental"))]
+        {
+            self.absolute_max_gain
+        }
+    }
+
+    #[inline]
+    fn attack_coeff(&self) -> f32 {
+        #[cfg(feature = "experimental")]
+        {
+            self.attack_coeff.load(Ordering::Relaxed)
+        }
+        #[cfg(not(feature = "experimental"))]
+        {
+            self.attack_coeff
+        }
+    }
+
+    #[inline]
+    fn release_coeff(&self) -> f32 {
+        #[cfg(feature = "experimental")]
+        {
+            self.release_coeff.load(Ordering::Relaxed)
+        }
+        #[cfg(not(feature = "experimental"))]
+        {
+            self.release_coeff
+        }
+    }
+
+    #[inline]
+    fn is_enabled(&self) -> bool {
+        #[cfg(feature = "experimental")]
+        {
+            self.is_enabled.load(Ordering::Relaxed)
+        }
+        #[cfg(not(feature = "experimental"))]
+        {
+            true
+        }
+    }
+
     #[cfg(feature = "experimental")]
     /// Access the target output level for real-time adjustment.
     ///
@@ -244,20 +304,10 @@ where
     /// more accurately while maintaining smoother behavior for gradual changes.
     #[inline]
     fn update_peak_level(&mut self, sample_value: f32) {
-        #[cfg(feature = "experimental")]
         let attack_coeff = if sample_value > self.peak_level {
-            self.attack_coeff
-                .load(Ordering::Relaxed)
-                .min(self.min_attack_coeff) // User-defined attack time limited via release_time
+            self.attack_coeff().min(self.min_attack_coeff) // User-defined attack time limited via release_time
         } else {
-            self.release_coeff.load(Ordering::Relaxed)
-        };
-
-        #[cfg(not(feature = "experimental"))]
-        let attack_coeff = if sample_value > self.peak_level {
-            self.attack_coeff.min(self.min_attack_coeff) // User-defined attack time limited via release_time
-        } else {
-            self.release_coeff
+            self.release_coeff()
         };
 
         self.peak_level = attack_coeff * self.peak_level + (1.0 - attack_coeff) * sample_value;
@@ -279,23 +329,10 @@ where
     /// The peak level helps prevent sudden spikes in the output signal.
     #[inline]
     fn calculate_peak_gain(&self) -> f32 {
-        #[cfg(feature = "experimental")]
-        {
-            if self.peak_level > 0.0 {
-                (self.target_level.load(Ordering::Relaxed) / self.peak_level)
-                    .min(self.absolute_max_gain.load(Ordering::Relaxed))
-            } else {
-                self.absolute_max_gain.load(Ordering::Relaxed)
-            }
-        }
-
-        #[cfg(not(feature = "experimental"))]
-        {
-            if self.peak_level > 0.0 {
-                (self.target_level / self.peak_level).min(self.absolute_max_gain)
-            } else {
-                self.absolute_max_gain
-            }
+        if self.peak_level > 0.0 {
+            (self.target_level() / self.peak_level).min(self.absolute_max_gain())
+        } else {
+            self.absolute_max_gain()
         }
     }
 
@@ -311,19 +348,10 @@ where
         let rms = self.update_rms(sample_value);
 
         // Compute the gain adjustment required to reach the target level based on RMS
-        #[cfg(feature = "experimental")]
         let rms_gain = if rms > 0.0 {
-            self.target_level.load(Ordering::Relaxed) / rms
+            self.target_level() / rms
         } else {
-            self.absolute_max_gain.load(Ordering::Relaxed) // Default to max gain if RMS is zero
-        };
-
-        // Compute the gain adjustment required to reach the target level based on RMS
-        #[cfg(not(feature = "experimental"))]
-        let rms_gain = if rms > 0.0 {
-            self.target_level / rms
-        } else {
-            self.absolute_max_gain // Default to max gain if RMS is zero
+            self.absolute_max_gain() // Default to max gain if RMS is zero
         };
 
         // Calculate the peak limiting gain
@@ -357,31 +385,16 @@ where
         // By using a faster release time for decreasing gain, we can mitigate these issues and provide
         // more responsive control over sudden level increases while maintaining smooth gain increases.
         let attack_speed = if desired_gain > self.current_gain {
-            &self.attack_coeff
+            self.attack_coeff()
         } else {
-            &self.release_coeff
+            self.release_coeff()
         };
 
         // Gradually adjust the current gain towards the desired gain for smooth transitions
-        #[cfg(feature = "experimental")]
-        {
-            self.current_gain = self.current_gain * attack_speed.load(Ordering::Relaxed)
-                + desired_gain * (1.0 - attack_speed.load(Ordering::Relaxed));
+        self.current_gain = self.current_gain * attack_speed + desired_gain * (1.0 - attack_speed);
 
-            // Ensure the calculated gain stays within the defined operational range
-            self.current_gain = self
-                .current_gain
-                .clamp(0.1, self.absolute_max_gain.load(Ordering::Relaxed));
-        }
-
-        #[cfg(not(feature = "experimental"))]
-        {
-            self.current_gain =
-                self.current_gain * attack_speed + desired_gain * (1.0 - attack_speed);
-
-            // Ensure the calculated gain stays within the defined operational range
-            self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain);
-        }
+        // Ensure the calculated gain stays within the defined operational range
+        self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain());
 
         // Output current gain value for developers to fine tune their inputs to automatic_gain_control
         #[cfg(feature = "tracing")]
@@ -400,21 +413,14 @@ where
     type Item = I::Item;
 
     #[inline]
-    #[cfg(feature = "experimental")]
     fn next(&mut self) -> Option<I::Item> {
         self.input.next().map(|sample| {
-            if self.is_enabled.load(Ordering::Relaxed) {
+            if self.is_enabled() {
                 self.process_sample(sample)
             } else {
                 sample
             }
         })
-    }
-
-    #[inline]
-    #[cfg(not(feature = "experimental"))]
-    fn next(&mut self) -> Option<I::Item> {
-        self.input.next().map(|sample| self.process_sample(sample))
     }
 
     #[inline]

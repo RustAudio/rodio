@@ -6,6 +6,7 @@ use cpal::FromSample;
 
 use crate::Sample;
 
+pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
@@ -38,6 +39,7 @@ pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
 
+mod agc;
 mod amplify;
 mod blt;
 mod buffered;
@@ -239,6 +241,105 @@ where
         Self: Sized,
     {
         amplify::amplify(self, value)
+    }
+
+    /// Applies automatic gain control to the sound.
+    ///
+    /// Automatic Gain Control (AGC) adjusts the amplitude of the audio signal
+    /// to maintain a consistent output level.
+    ///
+    /// # Parameters
+    ///
+    /// `target_level`:
+    ///   **TL;DR**: Desired output level. 1.0 = original level, > 1.0 amplifies, < 1.0 reduces.
+    ///
+    ///   The desired output level, where 1.0 represents the original sound level.
+    ///   Values above 1.0 will amplify the sound, while values below 1.0 will lower it.
+    ///   For example, a target_level of 1.4 means that at normal sound levels, the AGC
+    ///   will aim to increase the gain by a factor of 1.4, resulting in a minimum 40% amplification.
+    ///   A recommended level is `1.0`, which maintains the original sound level.
+    ///
+    /// `attack_time`:
+    ///   **TL;DR**: Response time for volume increases. Shorter = faster but may cause abrupt changes. **Recommended: `4.0` seconds**.
+    ///
+    ///   The time (in seconds) for the AGC to respond to input level increases.
+    ///   Shorter times mean faster response but may cause abrupt changes. Longer times result
+    ///   in smoother transitions but slower reactions to sudden volume changes. Too short can
+    ///   lead to overreaction to peaks, causing unnecessary adjustments. Too long can make the
+    ///   AGC miss important volume changes or react too slowly to sudden loud passages. Very
+    ///   high values might result in excessively loud output or sluggish response, as the AGC's
+    ///   adjustment speed is limited by the attack time. Balance is key for optimal performance.
+    ///   A recommended attack_time of `4.0` seconds provides a sweet spot for most applications.
+    ///
+    /// `release_time`:
+    ///   **TL;DR**: Response time for volume decreases. Shorter = faster gain reduction. **Recommended: `0.005` seconds**.
+    ///
+    ///   The time (in seconds) for the AGC to respond to input level decreases.
+    ///   This parameter controls how quickly the gain is reduced when the signal level drops.
+    ///   Shorter release times result in faster gain reduction, which can be useful for quick
+    ///   adaptation to quieter passages but may lead to pumping effects. Longer release times
+    ///   provide smoother transitions but may be slower to respond to sudden decreases in volume.
+    ///   However, if the release_time is too high, the AGC may not be able to lower the gain
+    ///   quickly enough, potentially leading to clipping and distorted sound before it can adjust.
+    ///   Finding the right balance is crucial for maintaining natural-sounding dynamics and
+    ///   preventing distortion. A recommended release_time of `0.005` seconds often works well for
+    ///   general use, providing a good balance between responsiveness and smooth transitions.
+    ///
+    /// `absolute_max_gain`:
+    ///   **TL;DR**: Maximum allowed gain. Prevents over-amplification. **Recommended: `5.0`**.
+    ///
+    ///   The maximum gain that can be applied to the signal.
+    ///   This parameter acts as a safeguard against excessive amplification of quiet signals
+    ///   or background noise. It establishes an upper boundary for the AGC's signal boost,
+    ///   effectively preventing distortion or overamplification of low-level sounds.
+    ///   This is crucial for maintaining audio quality and preventing unexpected volume spikes.
+    ///   A recommended value for `absolute_max_gain` is `5`, which provides a good balance between
+    ///   amplification capability and protection against distortion in most scenarios.
+    ///
+    /// Use `get_agc_control` to obtain a handle for real-time enabling/disabling of the AGC.
+    ///
+    /// # Example (Quick start)
+    ///
+    /// ```rust
+    /// // Apply Automatic Gain Control to the source (AGC is on by default)
+    /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
+    ///
+    /// // Get a handle to control the AGC's enabled state (optional)
+    /// let agc_control = agc_source.get_agc_control();
+    ///
+    /// // You can toggle AGC on/off at any time (optional)
+    /// agc_control.store(false, std::sync::atomic::Ordering::Relaxed);
+    ///
+    /// // Add the AGC-controlled source to the sink
+    /// sink.append(agc_source);
+    ///
+    /// // Note: Using agc_control is optional. If you don't need to toggle AGC,
+    /// // you can simply use the agc_source directly without getting agc_control.
+    /// ```
+    #[inline]
+    fn automatic_gain_control(
+        self,
+        target_level: f32,
+        attack_time: f32,
+        release_time: f32,
+        absolute_max_gain: f32,
+    ) -> AutomaticGainControl<Self>
+    where
+        Self: Sized,
+    {
+        // Added Limits to prevent the AGC from blowing up. ;)
+        const MIN_ATTACK_TIME: f32 = 10.0;
+        const MIN_RELEASE_TIME: f32 = 10.0;
+        let attack_time = attack_time.min(MIN_ATTACK_TIME);
+        let release_time = release_time.min(MIN_RELEASE_TIME);
+
+        agc::automatic_gain_control(
+            self,
+            target_level,
+            attack_time,
+            release_time,
+            absolute_max_gain,
+        )
     }
 
     /// Mixes this sound fading out with another sound fading in for the given duration.
@@ -454,7 +555,7 @@ where
     /// sources does not support seeking.
     ///
     /// It will return an error if an implementation ran
-    /// into one during the seek.  
+    /// into one during the seek.
     ///
     /// Seeking beyond the end of a source might return an error if the total duration of
     /// the source is not known.

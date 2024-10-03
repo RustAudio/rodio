@@ -9,25 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Support for *ALAC/AIFF*
+- Add `automatic_gain_control` source for dynamic audio level adjustment.
 - New test signal generator sources:
     - `SignalGenerator` source generates a sine, triangle, square wave or sawtooth
       of a given frequency and sample rate.
-    - `Chirp` source generates a sine wave with a linearly-increasing 
+    - `Chirp` source generates a sine wave with a linearly-increasing
       frequency over a given frequency range and duration.
-    - `white` and `pink` generate white or pink noise, respectively. These 
-      sources depend on the `rand` crate and are guarded with the "noise" 
+    - `white` and `pink` generate white or pink noise, respectively. These
+      sources depend on the `rand` crate and are guarded with the "noise"
       feature.
     - Documentation for the "noise" feature has been added to `lib.rs`.
 - New Fade and Crossfade sources:
     - `fade_out` fades an input out using a linear gain fade.
     - `linear_gain_ramp` applies a linear gain change to a sound over a
       given duration. `fade_out` is implemented as a `linear_gain_ramp` and
-      `fade_in` has been refactored to use the `linear_gain_ramp` 
+      `fade_in` has been refactored to use the `linear_gain_ramp`
       implementation.
 
 ### Fixed
 - `Sink.try_seek` now updates `controls.position` before returning. Calls to `Sink.get_pos`
-  done immediately after a seek will now return the correct value.  
+  done immediately after a seek will now return the correct value.
 
 ### Changed
 - `SamplesBuffer` is now `Clone`
@@ -53,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Source` trait is now also implemented for `Box<dyn Source>` and `&mut Source`
 - `fn new_vorbis` is now also available when the `symphonia-vorbis` feature is enabled
 
-### Added 
+### Added
 - Adds a new method `try_seek` to all sources. It returns either an error or
   seeks to the given position. A few sources are "unsupported" they return the
   error `Unsupported`.
@@ -61,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - channel upscaling now follows the 'WAVEFORMATEXTENSIBLE' format and no longer
-  repeats the last source channel on all extra output channels. 
+  repeats the last source channel on all extra output channels.
   Stereo content playing on a 5.1 speaker set will now only use the front left
   and front right speaker instead of repeating the right sample on all speakers
   except the front left one.

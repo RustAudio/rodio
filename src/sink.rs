@@ -221,10 +221,10 @@ impl Sink {
     ///
     /// # Errors
     /// This function will return [`SeekError::NotSupported`] if one of the underlying
-    /// sources does not support seeking.  
+    /// sources does not support seeking.
     ///
     /// It will return an error if an implementation ran
-    /// into one during the seek.  
+    /// into one during the seek.
     ///
     /// When seeking beyond the end of a source this
     /// function might return an error if the duration of the source is not known.

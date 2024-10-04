@@ -42,7 +42,7 @@ src/:
 
 ## Testing
 
-- Write unit tests for each new function
+- Write unit tests for each new function (if applicable)
 - Add integration tests for end-to-end scenarios
 - Run tests: `cargo test`
 
@@ -83,15 +83,12 @@ src/:
 7. Push your changes to your fork: `git push origin feature/your-feature-name`
 8. Create a pull request on GitHub
 
-Don't be afraid to ask for help at any point in the process! You can:
-- Ask questions in your pull request
-- Open an issue for guidance/questions
-
-
 ## Getting Help / Got a question?
 
 - Open an issue on GitHub
 - Join the Rust Audio Discord
+- Ask questions in your pull request
+- Open an issue for guidance/questions
 
 ## Useful Commands
 

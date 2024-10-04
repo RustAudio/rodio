@@ -93,7 +93,7 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.input.total_duration().map(|d| d.mul_f32(self.factor))
+        self.input.total_duration().map(|d| d.div_f32(self.factor))
     }
 
     #[inline]

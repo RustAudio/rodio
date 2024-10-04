@@ -30,7 +30,7 @@ src/:
 1. Create a new file in `src/source/`
 2. Implement the `Source` trait to define how audio samples are generated or modified
 3. Consider implementing sources like oscillators, noise generators, or effects like amplification, filtering, or distortion
-4. Optimize for performance, especially for real-time processing in effects
+4. Optimize for [performance](https://nnethercote.github.io/perf-book/introduction.html), especially for real-time processing in effects
 5. Add unit tests/benchmarks where applicable to ensure proper functionality and performance
 
 ### Implementing a New Decoder

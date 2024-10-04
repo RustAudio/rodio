@@ -98,6 +98,12 @@ src/:
 
 For more detailed information, refer to the full documentation and source code.
 
+## Useful External Resources
+
+- [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
+- [Rust Performance Book](https://nnethercote.github.io/perf-book/introduction.html)
+- [Rust Audio Discord](https://discord.com/invite/8qW6q2k)
+
 ## Disclaimer
 
 Please note that the guidelines and practices outlined in this document

@@ -63,12 +63,7 @@ src/:
 2. Clone your fork locally: `git clone https://github.com/YOUR_USERNAME/rodio.git`
 3. Create a feature branch: `git checkout -b feature/your-feature-name`
 4. Make changes and add tests where applicable (Dont be afraid to ask for help)
-5. Ensure code quality:
-   - Run `cargo fmt` to format your code
-   - Run `cargo clippy` to check for common mistakes
-   - Run `cargo test` to ensure all tests pass (Not strictly necessary)
-   - Run `cargo bench` to run benchmarks (Not strictly necessary)
-6. Commit your changes following these guidelines: (`git commit`)
+5. Commit your changes following these guidelines: (`git commit`)
   - Write clear, concise commit messages
   - Limit the first line to 50 characters
   - Provide a detailed description after a blank line, if necessary
@@ -85,8 +80,8 @@ src/:
 
   Fixes #456
   ```
-7. Push your changes to your fork: `git push origin feature/your-feature-name`
-8. Create a pull request on GitHub
+6. Push your changes to your fork: `git push origin feature/your-feature-name`
+7. Create a pull request on GitHub
 
 ## Getting Help / Got a question?
 

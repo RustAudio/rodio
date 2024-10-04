@@ -30,8 +30,10 @@ src/:
 1. Create a new file in `src/source/`
 2. Implement the `Source` trait to define how audio samples are generated or modified
 3. Consider implementing sources like oscillators, noise generators, or effects like amplification, filtering, or distortion
-4. Optimize for [performance](https://nnethercote.github.io/perf-book/introduction.html), especially for real-time processing in effects
-5. Add unit tests/benchmarks where applicable to ensure proper functionality and performance
+4. Begin with a test for your new feature. This approach ensures your PR is ready and simplifies development. Don't worry about optimizing initially; focus on functionality.
+5. Once your feature works, celebrate your progress! 🎉 Open a draft PR at this stage - we're here to assist with refactoring and optimization.
+6. Refactor your code, add benchmarks, and work on improving performance, especially for real-time processing in effects. Refer to the [Rust Performance Book](https://nnethercote.github.io/perf-book/introduction.html) for optimization techniques.
+7. If you're unsure about creating tests, implement your feature first, then open a PR asking for guidance. We're happy to help!
 
 ### Implementing a New Decoder
 

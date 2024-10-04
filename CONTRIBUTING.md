@@ -2,10 +2,9 @@
 
 ## Quick Start
 
-1. Install [Rust](https://www.rust-lang.org/tools/install)
-2. Clone the repository: `git clone https://github.com/RustAudio/rodio.git`
-3. Navigate to the project: `cd rodio`
-4. Build the project: `cargo build`
+1. Clone the repository: `git clone https://github.com/RustAudio/rodio.git`
+2. Navigate to the project: `cd rodio`
+3. Build the project: `cargo build`
 
 ## Project Structure
 
@@ -44,8 +43,12 @@ src/:
 
 ## Testing
 
-- Write unit tests for each new function (if applicable)
-- Add integration tests for end-to-end scenarios
+- Feel free to write temporary unit tests during development if they help you verify functionality
+- These tests can be rough and don't need to be comprehensive - they're just development aids
+- It's okay to include these temporary unit tests in your pull request
+- We'll remove these tests before merging into the main codebase, primarily because:
+  - They can make refactoring more difficult as tests may break with code changes
+  - Rust's robust type system reduces the need for extensive unit testing compared to dynamically typed languages
 - Run tests: `cargo test`
 
 ## Documentation

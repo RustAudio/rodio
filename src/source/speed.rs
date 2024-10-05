@@ -93,16 +93,11 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.input.total_duration().map(|d| d.mul_f32(self.factor))
+        self.input.total_duration().map(|d| d.div_f32(self.factor))
     }
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        /* TODO: This might be wrong, I do not know how speed achieves its speedup
-         * so I can not reason about the correctness.
-         * <dvdsk noreply@davidsk.dev> */
-
-        // even after 24 hours of playback f32 has enough precision
         let pos_accounting_for_speedup = pos.mul_f32(self.factor);
         self.input.try_seek(pos_accounting_for_speedup)
     }

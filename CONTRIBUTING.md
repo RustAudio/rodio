@@ -27,14 +27,14 @@ src/:
 ### Adding a New Audio Source or Effect
 
 1. Create a new file in `src/source/`
-1. Implement the `Source` trait to define how audio samples are generated or modified
-1. Consider implementing sources like oscillators, noise generators, or effects like amplification, filtering, or distortion
-1. If your contribution creates sound you should give it a public (factory) function that constructs it. If its an effect then add a method with default implementation for it in the `Source` trait.
-1. Begin with a test for your new feature (see the [Testing](#testing)). This approach ensures your PR is ready and simplifies development. Don't worry about optimizing initially; focus on functionality.
-1. Once your feature works, celebrate your progress! 🎉 Open a draft PR at this stage - we're here to assist with refactoring and optimization.
-1. Refactor your code, add benchmarks, and work on improving performance, especially for real-time processing in effects. Refer to the [Rust Performance Book](https://nnethercote.github.io/perf-book/introduction.html) for optimization techniques.
-1. Finally add some documentation and an example. For details see [Documentation]($documentation)
-1. If you're unsure about creating tests, implement your feature first, then open a PR with what you have asking for guidance. We're happy to help!
+2. Implement the `Source` trait to define how audio samples are generated or modified
+3. Consider implementing sources like oscillators, noise generators, or effects like amplification, filtering, or distortion
+4. If your contribution creates sound you should give it a public (factory) function that constructs it. If its an effect then add a method with default implementation for it in the `Source` trait.
+5. Begin with a test for your new feature (see the [Testing](#testing)). This approach ensures your PR is ready and simplifies development. Don't worry about optimizing initially; focus on functionality.
+6. Once your feature works, celebrate your progress! 🎉 Open a draft PR at this stage - we're here to assist with refactoring and optimization.
+7. Refactor your code, add benchmarks, and work on improving performance, especially for real-time processing in effects. Refer to the [Rust Performance Book](https://nnethercote.github.io/perf-book/introduction.html) for optimization techniques.
+8. Finally add some documentation and an example. For details see [Documentation]($documentation)
+9. If you're unsure about creating tests, implement your feature first, then open a PR with what you have asking for guidance. We're happy to help!
 
 ### Implementing a New Decoder
 
@@ -51,34 +51,27 @@ src/:
 - We'll remove these tests before merging into the main codebase, primarily because:
   - They can make refactoring more difficult as tests may break with code changes
   - Rust's robust type system reduces the need for extensive unit testing compared to dynamically typed languages
-- We love integration tests but they can be hard to write. If you have trouble adding one its fine to leave it out. If you do add one create a new file for it in `tests/`. 
-
-The integration test do not create sound though your speakers instead you write
-code that examines the produced *samples*. Some examples:
-  - The `tests/wav_test.rs` test simply checks if the decoder produces nonzero samples. 
-  - The test `seek_does_not_break_channel_order` in `tests/seek.rs` uses a
-    beeping sound that alternates between two channel. It seeks to a
-    point where we know only the second channel should make sound. Then we check
-    if the first channel is silent while the second is not.
-- Its impossible to write a test that checks if something sounds "good". We
-  recommend adding an example that *does* produces sound and listening as a
-  test.
-- Run tests: `cargo test`
 
 ### Integration Tests
 
 When possible, add integration tests for your new features. Keep in mind:
 
-- Typically, these tests should not produce actual sound output (i.e., avoid using `Sink` or `Stream`).
+- Integration tests do not create sound through your speakers. Instead, you write code that examines the produced *samples*.
 - For new audio sources:
   - Verify that samples have changed from their initial state.
   - Check if samples are non-zero where appropriate.
   - Look for expected patterns or characteristics in the audio data.
+- Examples of integration tests:
+  - The `tests/wav_test.rs` test simply checks if the decoder produces nonzero samples.
+  - The test `seek_does_not_break_channel_order` in `tests/seek.rs` uses a beeping sound that alternates between two channels. It seeks to a point where we know only the second channel should make sound. Then we check if the first channel is silent while the second is not.
 - Be aware that many aspects of audio processing are challenging to verify automatically.
-- For features requiring audible verification:
+- It's impossible to write a test that checks if something sounds "good". For features requiring audible verification:
   - Create an example in the `examples/` directory that demonstrates the functionality.
   - These examples can produce sound for manual testing.
   - Document the expected behavior in the example's comments.
+- We love integration tests but they can be hard to write. If you have trouble adding one its fine to leave it out. If you do add one create a new file for it in `tests/`.
+- Run tests: `cargo test`
+- Run examples: `cargo run --example <example_name>`
 
 ## Documentation
 

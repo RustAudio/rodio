@@ -51,6 +51,21 @@ src/:
   - Rust's robust type system reduces the need for extensive unit testing compared to dynamically typed languages
 - Run tests: `cargo test`
 
+### Integration Tests
+
+When possible, add integration tests for your new features. Keep in mind:
+
+- Typically, these tests should not produce actual sound output (i.e., avoid using `Sink` or `Stream`).
+- For new audio sources:
+  - Verify that samples have changed from their initial state.
+  - Check if samples are non-zero where appropriate.
+  - Look for expected patterns or characteristics in the audio data.
+- Be aware that many aspects of audio processing are challenging to verify automatically.
+- For features requiring audible verification:
+  - Create an example in the `examples/` directory that demonstrates the functionality.
+  - These examples can produce sound for manual testing.
+  - Document the expected behavior in the example's comments.
+
 ## Documentation
 
 - Add inline documentation to all public items

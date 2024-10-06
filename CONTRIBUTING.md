@@ -43,7 +43,7 @@ src/:
 3. Focus on efficiently parsing audio file headers and decoding compressed audio data
 4. Update `src/decoder/mod.rs` to integrate the new decoder
 
-## Testing
+### Unit Tests
 
 - Feel free to write temporary unit tests during development if they help you verify functionality
 - These tests can be rough and don't need to be comprehensive - they're just development aids

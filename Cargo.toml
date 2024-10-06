@@ -67,3 +67,7 @@ required-features = ["symphonia-isomp4", "symphonia-aac"]
 [[example]]
 name = "noise_generator"
 required-features = ["noise"]
+
+[[example]]
+name = "automatic_gain_control"
+required-features = ["dep:atomic_float"]

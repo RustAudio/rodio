@@ -70,4 +70,4 @@ required-features = ["noise"]
 
 [[example]]
 name = "automatic_gain_control"
-required-features = ["dep:atomic_float"]
+required-features = ["atomic_float"]

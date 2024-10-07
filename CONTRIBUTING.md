@@ -76,6 +76,7 @@ When possible, add integration tests for your new features. Keep in mind:
 ## Documentation
 
 - Add inline documentation to all public items.
+- Look at the [documenting components](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html#documenting-components) section of the rustdoc book.
 - Generate docs: `cargo doc --open`
 - Add an example. That could be as part of the inline documentation or a more complex scenario in `examples/`
 
@@ -108,9 +109,9 @@ When possible, add integration tests for your new features. Keep in mind:
 ## Getting Help / Got a question?
 
 - Open an issue on GitHub
-- Join the Rust Audio Discord
 - Ask questions in your pull request
 - Open an issue for guidance/questions
+- Join the Rust Audio Discord
 
 ## Useful Commands
 
@@ -123,8 +124,10 @@ For more detailed information, refer to the full documentation and source code.
 ## Useful External Resources
 
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
+- [Rustdoc book](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html)
 - [Rust Performance Book](https://nnethercote.github.io/perf-book/introduction.html)
 - [Rust Audio Discord](https://discord.com/invite/8qW6q2k)
+
 
 ## Disclaimer
 

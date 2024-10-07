@@ -193,7 +193,7 @@ impl Sink {
     ///
     /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
     /// change the play speed of the sound.
-    /// 
+    ///
     /// **Note that changing the speed would affect the pitch accordingly**
     #[inline]
     pub fn set_speed(&self, value: f32) {
@@ -223,10 +223,10 @@ impl Sink {
     ///
     /// # Errors
     /// This function will return [`SeekError::NotSupported`] if one of the underlying
-    /// sources does not support seeking.  
+    /// sources does not support seeking.
     ///
     /// It will return an error if an implementation ran
-    /// into one during the seek.  
+    /// into one during the seek.
     ///
     /// When seeking beyond the end of a source this
     /// function might return an error if the duration of the source is not known.

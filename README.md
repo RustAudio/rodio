@@ -24,6 +24,10 @@ See [the docs](https://docs.rs/rodio/latest/rodio/#alternative-decoder-backends)
 
 Rodio uses `cpal` to send audio to the OS for playback. On Linux `cpal` needs the ALSA development files. These are provided as part of the libasound2-dev package on Debian and Ubuntu distributions and alsa-lib-devel on Fedora.
 
+# Contributing
+
+For information on how to contribute to this project, please see our [Contributing Guide](https://github.com/RustAudio/rodio/CONTRIBUTING.md).
+
 ## License
 [License]: #license
 

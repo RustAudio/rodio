@@ -413,11 +413,6 @@ where
 
     /// Changes the play speed of the sound. Does not adjust the samples, only the play speed.
     /// Creates a Speed struct that handles the speed control
-    ///
-    ///  In order to speed up a source, the speed struct:
-    /// - Increases the current sample rate by the given factor
-    /// - Updates the total duration function to cover for the new factor by dividing by the factor
-    /// - Update the pos function by multiplying the position by the factor
     #[inline]
     fn speed(self, ratio: f32) -> Speed<Self>
     where

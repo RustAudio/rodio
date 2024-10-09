@@ -421,7 +421,7 @@ where
     /// 2. **Change in the speed would affect your total duration inversely**
     /// - if you set the speed by 0.5,  your total duration would be (2x the original total duration) longer.
     /// - Also if you set the speed to 2 the total duration would be (0.5 the original total_duration) shorter
-    /// 
+    ///
     /// See [`Speed`] for details
     #[inline]
     fn speed(self, ratio: f32) -> Speed<Self>

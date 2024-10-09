@@ -180,10 +180,20 @@ impl Sink {
         *self.controls.volume.lock().unwrap() = value;
     }
 
-    /// Gets the speed of the sound.
+    /// Changes the play speed of the sound. Does not adjust the samples, only the playback speed.
     ///
-    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
-    /// change the play speed of the sound.
+    /// # Note:
+    /// 1. **Increasing the speed will increase the pitch by the same factor**
+    /// - If you set the speed to 0.5 this will halve the frequency of the sound
+    ///   lowering its pitch.
+    /// - If you set the speed to 2 the frequency will double raising the
+    ///   pitch of the sound.
+    /// 2. **Change in the speed affect the total duration inversely**
+    /// - If you set the speed to 0.5, the total duration will be twice as long.
+    /// - If you set the speed to 2 the total duration will be halve of what it
+    ///   was.
+    ///
+    /// See [`Speed`] for details
     #[inline]
     pub fn speed(&self) -> f32 {
         *self.controls.speed.lock().unwrap()

@@ -40,7 +40,7 @@
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //! Notice the increase in pitch as the factor increases
-//! 
+//!
 //! Since the samples are played faster the audio wave get shorter increasing their frequencies
 
 use std::time::Duration;

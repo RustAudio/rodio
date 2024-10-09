@@ -412,6 +412,17 @@ where
     }
 
     /// Changes the play speed of the sound. Does not adjust the samples, only the play speed.
+    ///
+    ///  Creates a [`Speed`] struct that handles the speed control
+    /// #### Note:
+    /// 1. **Increasing the speed would also increase the pitch by the same factor**
+    /// - If you increased set the speed to 0.5,  the frequency would be slower (0.5x the original frequency) .
+    /// - Also if you set the speed to 1.5 the frequency would be faster ( 1.5x the original frequency).
+    /// 2. **Change in the speed would affect your total duration inversely**
+    /// - if you set the speed by 0.5,  your total duration would be (2x the original total duration) longer.
+    /// - Also if you set the speed to 2 the total duration would be (0.5 the original total_duration) shorter
+    ///
+    /// See [`Speed`] for details
     #[inline]
     fn speed(self, ratio: f32) -> Speed<Self>
     where

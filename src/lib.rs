@@ -71,7 +71,7 @@
 //!
 //! The [`Sink`] type also provides utilities such as playing/pausing or controlling the volume.
 //!
-//! **Please note that the [`Sink`] requires the [`OutputStream`], make sure that the outputstream is not dropped before the sink.**
+//! **Please note that the [`Sink`] requires the [`OutputStream`], make sure that the OutputStream is not dropped before the sink.**
 //!
 //! ## Filters
 //!

@@ -1,4 +1,5 @@
-use std::time::Duration;
+use core::fmt;
+use core::time::Duration;
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
@@ -209,20 +210,56 @@ impl Source for SymphoniaDecoder {
 }
 
 /// Error returned when the try_seek implementation of the symphonia decoder fails.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum SeekError {
     /// Could not get next packet while refining seek position
-    #[error("Could not get next packet while refining seek position: {0:?}")]
     Refining(symphonia::core::errors::Error),
     /// Format reader failed to seek
-    #[error("Format reader failed to seek: {0:?}")]
     BaseSeek(symphonia::core::errors::Error),
     /// Decoding failed retrying on the next packet failed
-    #[error("Decoding failed retrying on the next packet failed: {0:?}")]
     Retrying(symphonia::core::errors::Error),
     /// Decoding failed on multiple consecutive packets
-    #[error("Decoding failed on multiple consecutive packets: {0:?}")]
     Decoding(symphonia::core::errors::Error),
+}
+impl fmt::Display for SeekError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SeekError::Refining(err) => {
+                write!(
+                    f,
+                    "Could not get next packet while refining seek position: {:?}",
+                    err
+                )
+            }
+            SeekError::BaseSeek(err) => {
+                write!(f, "Format reader failed to seek: {:?}", err)
+            }
+            SeekError::Retrying(err) => {
+                write!(
+                    f,
+                    "Decoding failed retrying on the next packet failed: {:?}",
+                    err
+                )
+            }
+            SeekError::Decoding(err) => {
+                write!(
+                    f,
+                    "Decoding failed on multiple consecutive packets: {:?}",
+                    err
+                )
+            }
+        }
+    }
+}
+impl std::error::Error for SeekError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            SeekError::Refining(err) => Some(err),
+            SeekError::BaseSeek(err) => Some(err),
+            SeekError::Retrying(err) => Some(err),
+            SeekError::Decoding(err) => Some(err),
+        }
+    }
 }
 
 impl SymphoniaDecoder {

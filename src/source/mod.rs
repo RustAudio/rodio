@@ -1,6 +1,7 @@
 //! Sources of sound and various filters.
 
-use std::time::Duration;
+use core::fmt;
+use core::time::Duration;
 
 use cpal::FromSample;
 
@@ -585,27 +586,58 @@ where
 /// Occurs when try_seek fails because the underlying decoder has an error or
 /// does not support seeking.
 #[non_exhaustive]
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum SeekError {
-    /// On of the underlying sources does not support seeking
-    #[error("Seeking is not supported by source: {underlying_source}")]
+    /// One of the underlying sources does not support seeking
     NotSupported {
         /// The source that did not support seek
         underlying_source: &'static str,
     },
     #[cfg(feature = "symphonia")]
     /// The symphonia decoder ran into an issue
-    #[error("Error seeking: {0}")]
-    SymphoniaDecoder(#[from] crate::decoder::symphonia::SeekError),
+    SymphoniaDecoder(crate::decoder::symphonia::SeekError),
     #[cfg(feature = "wav")]
-    #[error("Error seeking in wav source: {0}")]
     /// The hound (wav) decoder ran into an issue
     HoundDecoder(std::io::Error),
     // Prefer adding an enum variant to using this. Its meant for end users their
     // own try_seek implementations
     /// Any other error probably in a custom Source
-    #[error("An error occurred")]
     Other(Box<dyn std::error::Error + Send>),
+}
+impl fmt::Display for SeekError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SeekError::NotSupported { underlying_source } => {
+                write!(
+                    f,
+                    "Seeking is not supported by source: {}",
+                    underlying_source
+                )
+            }
+            #[cfg(feature = "symphonia")]
+            SeekError::SymphoniaDecoder(err) => write!(f, "Error seeking: {}", err),
+            #[cfg(feature = "wav")]
+            SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {}", err),
+            SeekError::Other(_) => write!(f, "An error occurred"),
+        }
+    }
+}
+impl std::error::Error for SeekError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            SeekError::NotSupported { .. } => None,
+            #[cfg(feature = "symphonia")]
+            SeekError::SymphoniaDecoder(err) => Some(err),
+            #[cfg(feature = "wav")]
+            SeekError::HoundDecoder(err) => Some(err),
+            SeekError::Other(err) => Some(err.as_ref()),
+        }
+    }
+}
+impl From<crate::decoder::symphonia::SeekError> for SeekError {
+    fn from(source: crate::decoder::symphonia::SeekError) -> Self {
+        SeekError::SymphoniaDecoder(source)
+    }
 }
 
 impl SeekError {

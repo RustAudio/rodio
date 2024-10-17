@@ -415,6 +415,16 @@ where
         // Apply the computed gain to the input sample and return the result
         sample.amplify(self.current_gain)
     }
+
+    /// Returns a mutable reference to the inner source.
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Returns the inner source.
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
 }
 
 impl<I> Iterator for AutomaticGainControl<I>

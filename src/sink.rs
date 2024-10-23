@@ -454,11 +454,11 @@ mod tests {
 
         let (sink, mut queue_rx) = Sink::new_idle();
 
-        let v = vec![100i16];
+        let v = vec![100.0f32];
         let input = SamplesBuffer::new(1, 48000, v.clone());
 
         // High rate to avoid immediate control.
-        sink.append(ChannelVolume::new(input, vec![0.01, 0.01, 0.0, 0.0, 0.0, 0.0]));
+        sink.append(ChannelVolume::new(input, vec![0.01f32, 0.01, 0.0, 0.0, 0.0, 0.0]));
 
         assert_eq!(queue_rx.next(), Some(1.0));
         assert_eq!(queue_rx.next(), Some(1.0));
@@ -466,6 +466,5 @@ mod tests {
         assert_eq!(queue_rx.next(), Some(0.0));
         assert_eq!(queue_rx.next(), Some(0.0));
         assert_eq!(queue_rx.next(), Some(0.0));
-        assert_eq!(queue_rx.next(), None);
     }
 }

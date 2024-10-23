@@ -148,3 +148,29 @@ where
         self.input.try_seek(pos)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use crate::buffer::SamplesBuffer;
+    use crate::source::{from_iter, Source};
+
+    #[test]
+    fn test_channel_volume_iterator() {
+
+        let input_source = SamplesBuffer::new(1, 48000, vec![100i16]);
+
+        let mut channel_volume = ChannelVolume::new(input_source, vec![0.01, 0.01, 0.0, 0.0, 0.0, 0.0]);
+
+        assert_eq!(channel_volume.channels(), 6);
+        assert_eq!(channel_volume.sample_rate(), 48000);
+        assert_eq!(channel_volume.next(), Some(1));
+        assert_eq!(channel_volume.next(), Some(1));
+        assert_eq!(channel_volume.next(), Some(0));
+        assert_eq!(channel_volume.next(), Some(0));
+        assert_eq!(channel_volume.next(), Some(0));
+        assert_eq!(channel_volume.next(), Some(0));
+        assert_eq!(channel_volume.next(), None);
+    }
+}

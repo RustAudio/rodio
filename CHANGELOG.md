@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Sink.try_seek` now updates `controls.position` before returning. Calls to `Sink.get_pos`
   done immediately after a seek will now return the correct value.
 
+- `ChannelVolume` fixed to support numbers of channels apart from powers of two.
+
 ### Changed
 - `SamplesBuffer` is now `Clone`
 

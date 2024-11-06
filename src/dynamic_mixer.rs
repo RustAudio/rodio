@@ -1,5 +1,4 @@
 //! Mixer that plays multiple sounds at the same time.
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -31,8 +30,6 @@ where
         current_sources: Vec::with_capacity(16),
         input: input.clone(),
         sample_count: 0,
-        still_pending: vec![],
-        still_current: vec![],
     };
 
     (input, output)
@@ -75,12 +72,6 @@ pub struct DynamicMixer<S> {
 
     // The number of samples produced so far.
     sample_count: usize,
-
-    // A temporary vec used in start_pending_sources.
-    still_pending: Vec<Box<dyn Source<Item=S> + Send>>,
-
-    // A temporary vec used in sum_current_sources.
-    still_current: Vec<Box<dyn Source<Item=S> + Send>>,
 }
 
 impl<S> Source for DynamicMixer<S>
@@ -178,9 +169,22 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+    use std::ops::Deref;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU8};
+    use std::sync::atomic::Ordering::{Acquire, Release};
     use crate::buffer::SamplesBuffer;
     use crate::dynamic_mixer;
     use crate::source::Source;
+
+    #[test]
+    pub fn fff() {
+        let r = Arc::new(AtomicU8::new(12));
+        let c = r.clone();
+        r.store(44, Release);
+        assert_eq!(r.load(Acquire), c.load(Acquire));
+    }
 
     #[test]
     fn basic() {

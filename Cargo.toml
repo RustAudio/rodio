@@ -14,7 +14,7 @@ cpal = "0.15"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.3.1", optional = true }
 lewton = { version = "0.10", optional = true }
-minimp3_fixed = { version = "0.5.4", optional = true}
+minimp3_fixed = { version = "0.5.4", optional = true }
 symphonia = { version = "0.5.2", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.8", optional = true }
 
@@ -36,7 +36,12 @@ symphonia-vorbis = ["symphonia/vorbis"]
 symphonia-wav = ["symphonia/wav", "symphonia/pcm", "symphonia/adpcm"]
 
 [dev-dependencies]
-quickcheck = "0.9.2"
+quickcheck = "1.0.3"
+criterion = "0.5.1"
+
+[[bench]]
+name = "benchmark"
+harness = false
 
 [[example]]
 name = "music_m4a"

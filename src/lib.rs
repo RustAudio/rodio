@@ -7,8 +7,10 @@
 //!   [`decoder`], etc. or even your own type that implements the [`Source`] trait.
 //! - Get an output stream handle to a physical device. For example, get a stream to the system's
 //!   default sound device with [`OutputStream::default()`]
+//! FIXME Update documentation after the builder is complete
 //! - Call [`.play_raw(source)`](OutputStreamHandle::play_raw) on the output stream handle.
 //!
+//! FIXME Update documentation after the builder is complete
 //! The [`play_raw`](OutputStreamHandle::play_raw) function expects the source to produce [`f32`]s,
 //! which may not be the case. If you get a compilation error, try calling
 //! [`.convert_samples()`](Source::convert_samples) on the source to fix it.
@@ -39,6 +41,7 @@
 //! In order to make it easier to control the playback, the rodio library also provides a type
 //! named [`Sink`] which represents an audio track.
 //!
+//! FIXME Update documentation after the builder is complete
 //! Instead of playing the sound with [`play_raw`](OutputStreamHandle::play_raw), you can add it to
 //! a [`Sink`] instead.
 //!
@@ -51,6 +54,7 @@
 //! use rodio::{Decoder, OutputStream, Sink};
 //! use rodio::source::{SineWave, Source};
 //!
+//! // FIXME Update documentation after the builder is complete
 //! let (_stream, stream_handle) = OutputStream::default().unwrap();
 //! let sink = Sink::try_new(&stream_handle).unwrap();
 //!

@@ -1,15 +1,15 @@
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
-
-#[cfg(feature = "crossbeam-channel")]
-use crossbeam_channel::Receiver;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::Receiver;
+use std::time::Duration;
 
-use crate::stream::{OutputStreamHandle, PlayError};
-use crate::{queue, source::Done, Sample, Source};
 use cpal::FromSample;
+#[cfg(feature = "crossbeam-channel")]
+use crossbeam_channel::Receiver;
+
+use crate::{queue, Sample, Source, source::Done};
+use crate::stream::{OutputStreamHandle, PlayError};
 
 /// Handle to a device that outputs sounds.
 ///
@@ -245,10 +245,10 @@ impl Drop for Sink {
 
 #[cfg(test)]
 mod tests {
-    use crate::buffer::SamplesBuffer;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
     use crate::{Sink, Source};
-    use std::sync::atomic::Ordering;
-    use crossbeam_utils::atomic::AtomicCell;
+    use crate::buffer::SamplesBuffer;
 
     #[test]
     fn test_pause_and_stop() {
@@ -257,7 +257,7 @@ mod tests {
         // assert_eq!(queue_rx.next(), Some(0.0));
 
         let v = vec![10i16, -10, 20, -20, 30, -30];
-
+        v.iter().skip(123);
         // Low rate to ensure immediate control.
         sink.append(SamplesBuffer::new(1, 1, v.clone()));
         let mut src = SamplesBuffer::new(1, 1, v).convert_samples();
@@ -310,15 +310,6 @@ mod tests {
     }
 
     #[test]
-    fn lab() {
-
-
-        let c = AtomicCell::new(0.0);
-        assert!(AtomicCell::<f32>::is_lock_free());
-        c.load();
-    }
-
-    #[test]
     fn test_volume() {
         let (sink, mut queue_rx) = Sink::new_idle();
 
@@ -334,5 +325,22 @@ mod tests {
         for _ in 0..v.len() {
             assert_eq!(queue_rx.next(), src.next());
         }
+    }
+
+    #[test]
+    fn lab() {
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        tx.send(12).unwrap();
+        let ta = std::time::Instant::now();
+        let flag = AtomicBool::new(false);
+        let n = 100_000_000;
+        // std::borrow::Cow::Owned(123);
+        for _ in 0..n {
+            if flag.load(Ordering::Acquire) {
+                rx.try_recv();
+            }
+        }
+        let tb = std::time::Instant::now();
+        dbg!((tb - ta) / n);
     }
 }

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+# Version 0.20.0 (2024-11-08)
+
 ### Added
 - Support for *ALAC/AIFF*
 - Add `automatic_gain_control` source for dynamic audio level adjustment.

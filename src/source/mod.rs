@@ -634,6 +634,8 @@ impl std::error::Error for SeekError {
         }
     }
 }
+
+#[cfg(feature = "symphonia")]
 impl From<crate::decoder::symphonia::SeekError> for SeekError {
     fn from(source: crate::decoder::symphonia::SeekError) -> Self {
         SeekError::SymphoniaDecoder(source)

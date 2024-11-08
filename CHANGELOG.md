@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+# Version 0.20.1 (2024-11-08)
+
+### Fixed
+- Builds without the `symphonia` feature did not compile
+
 # Version 0.20.0 (2024-11-08)
 
 ### Added

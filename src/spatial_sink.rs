@@ -5,7 +5,7 @@ use std::time::Duration;
 use cpal::FromSample;
 
 use crate::source::Spatial;
-use crate::stream::{OutputStreamHandle, PlayError};
+use crate::stream::{OutputStream, PlayError};
 use crate::{Sample, Sink, Source};
 
 pub struct SpatialSink {
@@ -22,7 +22,7 @@ struct SoundPositions {
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
     pub fn try_new(
-        stream: &OutputStreamHandle,
+        stream: &OutputStream,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
         right_ear: [f32; 3],

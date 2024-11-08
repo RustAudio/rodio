@@ -9,35 +9,22 @@ use cpal::{BufferSize, ChannelCount, FrameCount, PlayStreamError, Sample, Sample
 use crate::decoder;
 use crate::dynamic_mixer::{mixer, DynamicMixer, DynamicMixerController};
 use crate::sink::Sink;
-use crate::source::Source;
 
 const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 
-/// `cpal::Stream` container. Also see the more useful `OutputStreamHandle`.
+/// `cpal::Stream` container. Use `mixer()` method to control output.
 ///
-/// If this is dropped, playback will end & attached `OutputStreamHandle`s will no longer work.
+/// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
-    mixer: Arc<DynamicMixerController<f32>>,
-    _stream: cpal::Stream,
-}
-
-/// More flexible handle to a `OutputStream` that provides playback.
-#[derive(Clone)]
-pub struct OutputStreamHandle {
-    mixer: Weak<DynamicMixerController<f32>>,
-}
-
-pub struct OutputHandle {
     stream: cpal::Stream,
     mixer: Arc<DynamicMixerController<f32>>,
 }
 
-impl OutputHandle {
-    pub fn play(&self) -> Result<(), PlayStreamError> {
-        self.stream.play()
+impl OutputStream {
+    pub fn mixer(&self) -> Arc<DynamicMixerController<f32>> {
+        self.mixer.clone()
     }
 }
-
 
 #[derive(Copy, Clone, Debug)]
 struct OutputStreamConfig {
@@ -127,9 +114,9 @@ impl OutputStreamBuilder {
         self
     }
 
-    pub fn open_stream(&self) -> Result<OutputHandle, StreamError> {
+    pub fn open_stream(&self) -> Result<OutputStream, StreamError> {
         let device = self.device.as_ref().expect("output device specified");
-        OutputHandle::open(device, &self.config)
+        OutputStream::open(device, &self.config)
     }
 
     /// FIXME Update documentation.
@@ -137,9 +124,9 @@ impl OutputStreamBuilder {
     ///
     /// If the supplied `SupportedStreamConfig` is invalid for the device this function will
     /// fail to create an output stream and instead return a `StreamError`.
-    pub fn try_open_stream(&self) -> Result<OutputHandle, StreamError> {
+    pub fn try_open_stream(&self) -> Result<OutputStream, StreamError> {
         let device = self.device.as_ref().expect("output device specified");
-        OutputHandle::open(device, &self.config).or_else(|err| {
+        OutputStream::open(device, &self.config).or_else(|err| {
             for supported_config in supported_output_configs(device)? {
                 if let Ok(handle) = Self::default().with_supported_config(&supported_config).open_stream() {
                     return Ok(handle);
@@ -154,30 +141,34 @@ impl OutputStreamBuilder {
     /// Return a new stream & handle using the default output device.
     ///
     /// On failure will fall back to trying any non-default output devices.
-    /// FIXME update the function.
-    pub fn try_default_stream() -> Result<OutputHandle, StreamError> {
-        let default_device = cpal::default_host()
-            .default_output_device()
-            .ok_or(StreamError::NoDevice)?;
-
-        let default_stream = Self::from_device(default_device).and_then(|x| x.open_stream());
-
-        default_stream.or_else(|original_err| {
-            // default device didn't work, try other ones
-            let mut devices = match cpal::default_host().output_devices() {
-                Ok(d) => d,
-                Err(_) => return Err(original_err),
-            };
-
-            devices
-                .find_map(|d| Self::from_device(d).and_then(|x| x.open_stream()).ok())
-                .ok_or(original_err)
-        })
+    pub fn try_default_stream() -> Result<OutputStream, StreamError> {
+        Self::from_default_device()
+            .and_then(|x| x.open_stream())
+            .or_else(|original_err| {
+                let mut devices = match cpal::default_host().output_devices() {
+                    Ok(devices) => devices,
+                    Err(_) => return Err(original_err), // TODO Report error?
+                };
+                devices
+                    .find_map(|d| Self::from_device(d).and_then(|x| x.try_open_stream()).ok())
+                    .ok_or(original_err)
+            })
     }
 }
 
 fn clamp_supported_buffer_size(buffer_size: &SupportedBufferSize, preferred_size: FrameCount) -> BufferSize {
     todo!()
+}
+
+/// Plays a sound once. Returns a `Sink` that can be used to control the sound.
+pub fn play<R>(stream: &OutputStream, input: R) -> Result<Sink, PlayError>
+where
+    R: Read + Seek + Send + Sync + 'static,
+{
+    let input = decoder::Decoder::new(input)?;
+    let sink = Sink::try_new(stream)?;
+    sink.append(input);
+    Ok(sink)
 }
 
 impl From<&OutputStreamConfig> for StreamConfig {
@@ -187,30 +178,6 @@ impl From<&OutputStreamConfig> for StreamConfig {
             sample_rate: config.sample_rate,
             buffer_size: config.buffer_size,
         }
-    }
-}
-
-// TODO (refactoring) Move necessary conveniences to the builder?
-impl OutputStreamHandle {
-    /// Plays a source with a device until it ends.
-    pub fn play_raw<S>(&self, source: S) -> Result<(), PlayError>
-    where
-        S: Source<Item=f32> + Send + 'static,
-    {
-        let mixer = self.mixer.upgrade().ok_or(PlayError::NoDevice)?;
-        mixer.add(source);
-        Ok(())
-    }
-
-    /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
-    pub fn play_once<R>(&self, input: R) -> Result<Sink, PlayError>
-    where
-        R: Read + Seek + Send + Sync + 'static,
-    {
-        let input = decoder::Decoder::new(input)?;
-        let sink = Sink::try_new(self)?;
-        sink.append(input);
-        Ok(sink)
     }
 }
 
@@ -304,8 +271,8 @@ impl error::Error for StreamError {
     }
 }
 
-impl OutputHandle {
-    pub fn open(device: &cpal::Device, config: &OutputStreamConfig) -> Result<OutputHandle, StreamError> {
+impl OutputStream {
+    pub fn open(device: &cpal::Device, config: &OutputStreamConfig) -> Result<OutputStream, StreamError> {
         let (controller, source) = mixer(config.channel_count, config.sample_rate.0);
         Self::init_stream(device, config, source)
             .map_err(|x| StreamError::from(x))
@@ -436,7 +403,7 @@ impl OutputHandle {
     }
 }
 
-/// All the supported output formats with sample rates
+/// Return all formats supported by the device.
 fn supported_output_configs(
     device: &cpal::Device,
 ) -> Result<impl Iterator<Item=cpal::SupportedStreamConfig>, StreamError> {

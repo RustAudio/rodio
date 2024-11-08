@@ -8,10 +8,10 @@
 //! - Get an output stream handle to a physical device. For example, get a stream to the system's
 //!   default sound device with [`OutputStream::default()`]
 //! FIXME Update documentation after the builder is complete
-//! - Call [`.play_raw(source)`](OutputStreamHandle::play_raw) on the output stream handle.
+//! - Call [`.play_raw(source)`](OutputStream::play_raw) on the output stream handle.
 //!
 //! FIXME Update documentation after the builder is complete
-//! The [`play_raw`](OutputStreamHandle::play_raw) function expects the source to produce [`f32`]s,
+//! The [`play_raw`](OutputStream::play_raw) function expects the source to produce [`f32`]s,
 //! which may not be the case. If you get a compilation error, try calling
 //! [`.convert_samples()`](Source::convert_samples) on the source to fix it.
 //!
@@ -42,7 +42,7 @@
 //! named [`Sink`] which represents an audio track.
 //!
 //! FIXME Update documentation after the builder is complete
-//! Instead of playing the sound with [`play_raw`](OutputStreamHandle::play_raw), you can add it to
+//! Instead of playing the sound with [`play_raw`](OutputStream::play_raw), you can add it to
 //! a [`Sink`] instead.
 //!
 //! - Get a [`Sink`] to the output stream, and [`.append()`](Sink::append) your sound to it.
@@ -135,4 +135,4 @@ pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
-pub use crate::stream::{OutputStream, OutputStreamHandle, PlayError, StreamError};
+pub use crate::stream::{OutputStream, PlayError, StreamError};

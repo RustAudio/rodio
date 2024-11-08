@@ -1,11 +1,10 @@
-use std::{error, fmt};
 use std::io::{Read, Seek};
-use std::iter::empty;
 use std::marker::Sync;
 use std::sync::{Arc, Weak};
+use std::{error, fmt};
 
-use cpal::{BufferSize, ChannelCount, FrameCount, PlayStreamError, Sample, SampleFormat, SampleRate, StreamConfig, SupportedBufferSize, SupportedStreamConfig};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{BufferSize, ChannelCount, FrameCount, PlayStreamError, Sample, SampleFormat, SampleRate, StreamConfig, SupportedBufferSize};
 
 use crate::decoder;
 use crate::dynamic_mixer::{mixer, DynamicMixer, DynamicMixerController};
@@ -13,27 +12,6 @@ use crate::sink::Sink;
 use crate::source::Source;
 
 const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
-
-type SampleSource<S> = dyn Iterator<Item=S> + Send;
-
-struct SourcePlug {
-    source: Box<SampleSource<f32>>,
-}
-
-impl SourcePlug {
-    pub fn new() -> Self {
-        SourcePlug { source: Box::new(empty()) }
-    }
-}
-
-impl Iterator for SourcePlug {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.source.next()
-    }
-}
-
 
 /// `cpal::Stream` container. Also see the more useful `OutputStreamHandle`.
 ///
@@ -50,12 +28,11 @@ pub struct OutputStreamHandle {
 }
 
 pub struct OutputHandle {
-    stream: cpal::Stream,    
+    stream: cpal::Stream,
     mixer: Arc<DynamicMixerController<f32>>,
 }
 
 impl OutputHandle {
-    
     pub fn play(&self) -> Result<(), PlayStreamError> {
         self.stream.play()
     }

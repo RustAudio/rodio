@@ -8,29 +8,13 @@ use cpal::{BufferSize, ChannelCount, FrameCount, PlayStreamError, Sample, Sample
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 use crate::decoder;
-use crate::dynamic_mixer::DynamicMixerController;
+use crate::dynamic_mixer::{mixer, DynamicMixer, DynamicMixerController};
 use crate::sink::Sink;
 use crate::source::Source;
 
 const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 
 type SampleSource<S> = dyn Iterator<Item=S> + Send;
-
-pub struct OutputHandle {
-    stream: cpal::Stream,
-    // holder: SourcePlug,
-}
-
-impl OutputHandle {
-    pub fn attach(&mut self, source: Box<SampleSource<f32>>) {
-        todo!();
-        // self.holder.source = source;
-    }
-
-    pub fn play(&self) -> Result<(), PlayStreamError> {
-        self.stream.play()
-    }
-}
 
 struct SourcePlug {
     source: Box<SampleSource<f32>>,
@@ -64,6 +48,19 @@ pub struct OutputStream {
 pub struct OutputStreamHandle {
     mixer: Weak<DynamicMixerController<f32>>,
 }
+
+pub struct OutputHandle {
+    stream: cpal::Stream,    
+    mixer: Arc<DynamicMixerController<f32>>,
+}
+
+impl OutputHandle {
+    
+    pub fn play(&self) -> Result<(), PlayStreamError> {
+        self.stream.play()
+    }
+}
+
 
 #[derive(Copy, Clone, Debug)]
 struct OutputStreamConfig {
@@ -167,8 +164,7 @@ impl OutputStreamBuilder {
         let device = self.device.as_ref().expect("output device specified");
         OutputHandle::open(device, &self.config).or_else(|err| {
             for supported_config in supported_output_configs(device)? {
-                let builder = Self::default().with_supported_config(&supported_config);
-                if let Ok(handle) = OutputHandle::open(device, &builder.config) {
+                if let Ok(handle) = Self::default().with_supported_config(&supported_config).open_stream() {
                     return Ok(handle);
                 }
             }
@@ -182,12 +178,12 @@ impl OutputStreamBuilder {
     ///
     /// On failure will fall back to trying any non-default output devices.
     /// FIXME update the function.
-    pub fn default_stream() -> Result<OutputHandle, StreamError> {
+    pub fn try_default_stream() -> Result<OutputHandle, StreamError> {
         let default_device = cpal::default_host()
             .default_output_device()
             .ok_or(StreamError::NoDevice)?;
 
-        let default_stream = Self::from_device(&default_device);
+        let default_stream = Self::from_device(default_device).and_then(|x| x.open_stream());
 
         default_stream.or_else(|original_err| {
             // default device didn't work, try other ones
@@ -197,7 +193,7 @@ impl OutputStreamBuilder {
             };
 
             devices
-                .find_map(|d| Self::from_device(&d).ok())
+                .find_map(|d| Self::from_device(d).and_then(|x| x.open_stream()).ok())
                 .ok_or(original_err)
         })
     }
@@ -333,22 +329,23 @@ impl error::Error for StreamError {
 
 impl OutputHandle {
     pub fn open(device: &cpal::Device, config: &OutputStreamConfig) -> Result<OutputHandle, StreamError> {
-        Self::init_stream(device, config)
+        let (controller, source) = mixer(config.channel_count, config.sample_rate.0);
+        Self::init_stream(device, config, source)
             .map_err(|x| StreamError::from(x))
             .and_then(|stream| {
-                stream.play().map_err(|x| StreamError::from(x))?;
-                Ok(crate::stream::OutputHandle { stream })
+                stream.play()?;
+                Ok(Self { stream, mixer: controller })
             })
     }
 
     fn init_stream(
         device: &cpal::Device,
         config: &OutputStreamConfig,
+        mut samples: DynamicMixer<f32>,
     ) -> Result<cpal::Stream, cpal::BuildStreamError> {
         let error_callback = |err| eprintln!("an error occurred on output stream: {}", err);
         let sample_format = config.sample_format;
         let config = config.into();
-        let mut samples = SourcePlug::new();
         match sample_format {
             cpal::SampleFormat::F32 =>
                 device.build_output_stream::<f32, _, _>(

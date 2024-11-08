@@ -37,11 +37,6 @@ symphonia-wav = ["symphonia/wav", "symphonia/pcm", "symphonia/adpcm"]
 
 [dev-dependencies]
 quickcheck = "1.0.3"
-criterion = "0.5.1"
-
-[[bench]]
-name = "benchmark"
-harness = false
 
 [[example]]
 name = "music_m4a"

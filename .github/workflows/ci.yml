@@ -48,16 +48,6 @@ jobs:
 
       - run: cargo test --all-targets
       - run: cargo test --features=symphonia-all --all-targets
-
-  cargo-yank:
-    env:
-      CRATESIO_TOKEN: ${{ secrets.CRATESIO_TOKEN }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run cargo yank
-        run: cargo yank --version '0.20.0' --token $CRATESIO_TOKEN
-
   cargo-publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     env:

@@ -243,8 +243,7 @@ impl<I> ExactSizeIterator for SampleRateConverter<I>
 where
     I: ExactSizeIterator,
     I::Item: Sample + Clone,
-{
-}
+{}
 
 #[cfg(test)]
 mod test {
@@ -252,12 +251,6 @@ mod test {
     use core::time::Duration;
     use cpal::SampleRate;
     use quickcheck::quickcheck;
-
-    // TODO: Remove once cpal 0.12.2 is released and the dependency is updated
-    //  (cpal#483 implemented ops::Mul on SampleRate)
-    const fn multiply_rate(r: SampleRate, k: u32) -> SampleRate {
-        SampleRate(k * r.0)
-    }
 
     quickcheck! {
         /// Check that resampling an empty input produces no output.
@@ -289,9 +282,9 @@ mod test {
         /// Check that dividing the sample rate by k (integer) is the same as
         ///   dropping a sample from each channel.
         fn divide_sample_rate(to: u32, k: u32, input: Vec<u16>, n: u16) -> () {
+            if k == 0 || n == 0 || to.checked_mul(k).is_none() { return; }
             let to = if to == 0 { return; } else { SampleRate(to) };
-            let from = multiply_rate(to, k);
-            if k == 0 || n == 0 { return; }
+            let from = to * k;
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {
@@ -313,9 +306,9 @@ mod test {
         /// Check that, after multiplying the sample rate by k, every k-th
         ///  sample in the output matches exactly with the input.
         fn multiply_sample_rate(from: u32, k: u32, input: Vec<u16>, n: u16) -> () {
+            if k == 0 || n == 0 || from.checked_mul(k).is_none() { return; }
             let from = if from == 0 { return; } else { SampleRate(from) };
-            let to = multiply_rate(from, k);
-            if k == 0 || n == 0 { return; }
+            let to = from * k;
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {

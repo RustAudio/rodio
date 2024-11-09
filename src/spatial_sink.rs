@@ -4,10 +4,9 @@ use std::time::Duration;
 
 use cpal::FromSample;
 
-use crate::source::Spatial;
-use crate::stream::{OutputStream, PlayError};
-use crate::{Sample, Sink, Source};
 use crate::dynamic_mixer::Mixer;
+use crate::source::Spatial;
+use crate::{Sample, Sink, Source};
 
 pub struct SpatialSink {
     sink: Sink,
@@ -22,7 +21,7 @@ struct SoundPositions {
 
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
-    pub fn new(
+    pub fn connect_new(
         stream: &Mixer<f32>,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
@@ -69,10 +68,10 @@ impl SpatialSink {
             pos_lock.left_ear,
             pos_lock.right_ear,
         )
-        .periodic_access(Duration::from_millis(10), move |i| {
-            let pos = positions.lock().unwrap();
-            i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
-        });
+            .periodic_access(Duration::from_millis(10), move |i| {
+                let pos = positions.lock().unwrap();
+                i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
+            });
         self.sink.append(source);
     }
 

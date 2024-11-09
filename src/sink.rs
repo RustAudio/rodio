@@ -8,13 +8,12 @@ use cpal::FromSample;
 #[cfg(feature = "crossbeam-channel")]
 use crossbeam_channel::Receiver;
 
-use crate::stream::{OutputStream, PlayError};
 use crate::{queue, source::Done, Sample, Source};
 use crate::dynamic_mixer::Mixer;
 
 /// Handle to a device that outputs sounds.
 ///
-/// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
+/// Dropping the `Sink` stops all its sounds. You can use `detach` if you want the sounds to continue
 /// playing.
 pub struct Sink {
     queue_tx: Arc<queue::SourcesQueueInput<f32>>,
@@ -253,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_pause_and_stop() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         // assert_eq!(queue_rx.next(), Some(0.0));
 
@@ -284,7 +283,7 @@ mod tests {
 
     #[test]
     fn test_stop_and_start() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         let v = vec![10i16, -10, 20, -20, 30, -30];
 
@@ -312,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_volume() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         let v = vec![10i16, -10, 20, -20, 30, -30];
 

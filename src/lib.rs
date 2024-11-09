@@ -22,14 +22,16 @@
 //! use std::io::BufReader;
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
-//! // Get a output stream handle to the default physical sound device
-//! let (_stream, stream_handle) = OutputStream::default().unwrap();
+//! // Get an output stream handle to the default physical sound device.
+//! let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
+//!         .expect("open default audio stream");
+//! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 //! // Load a sound from a file, using a path relative to Cargo.toml
 //! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
 //! // Decode that sound file into a source
 //! let source = Decoder::new(file).unwrap();
 //! // Play the sound directly on the device
-//! stream_handle.play_raw(source.convert_samples());
+//! stream_handle.mixer().add(source.convert_samples());
 //!
 //! // The sound plays in a separate audio thread,
 //! // so we need to keep the main thread alive while it's playing.
@@ -54,9 +56,9 @@
 //! use rodio::{Decoder, OutputStream, Sink};
 //! use rodio::source::{SineWave, Source};
 //!
-//! // FIXME Update documentation after the builder is complete
-//! let (_stream, stream_handle) = OutputStream::default().unwrap();
-//! let sink = Sink::connect_new(&stream_handle).unwrap();
+//! let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
+//!         .expect("open default audio stream");
+//! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 //!
 //! // Add a dummy source of the sake of the example.
 //! let source = SineWave::new(440.0).take_duration(Duration::from_secs_f32(0.25)).amplify(0.20);

@@ -1,14 +1,13 @@
 use std::io::{Read, Seek};
 use std::marker::Sync;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::{error, fmt};
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, ChannelCount, FrameCount, PlayStreamError, Sample, SampleFormat, SampleRate, StreamConfig, SupportedBufferSize};
-
 use crate::decoder;
-use crate::dynamic_mixer::{mixer, MixerSource, Mixer};
+use crate::dynamic_mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{BufferSize, ChannelCount, FrameCount, Sample, SampleFormat, SampleRate, StreamConfig, SupportedBufferSize};
 
 const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 
@@ -16,7 +15,7 @@ const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 ///
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
-    stream: cpal::Stream,
+    _stream: cpal::Stream,
     mixer: Arc<Mixer<f32>>,
 }
 
@@ -27,7 +26,7 @@ impl OutputStream {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct OutputStreamConfig {
+pub struct OutputStreamConfig {
     pub channel_count: ChannelCount,
     pub sample_rate: SampleRate,
     pub buffer_size: BufferSize,
@@ -98,8 +97,8 @@ impl OutputStreamBuilder {
         self.config = OutputStreamConfig {
             channel_count: config.channels(),
             sample_rate: config.sample_rate(),
-            // FIXME See how to best handle buffer_size preferences?
-            buffer_size: clamp_supported_buffer_size(config.buffer_size(), 512),
+            // In case of supported range limit buffer size to avoid unexpectedly long playback delays.
+            buffer_size: clamp_supported_buffer_size(config.buffer_size(), 1024),
             sample_format: config.sample_format(),
             ..self.config
         };
@@ -149,20 +148,22 @@ impl OutputStreamBuilder {
             .or_else(|original_err| {
                 let mut devices = match cpal::default_host().output_devices() {
                     Ok(devices) => devices,
-                    Err(_) => return Err(original_err), // TODO Report the ignored error?
+                    Err(_ignored) => return Err(original_err),
                 };
                 devices
-                    .find_map(|d| Self::from_device(d).and_then(|x| x.try_open_stream()).ok())
+                    .find_map(|d| Self::from_device(d)
+                        .and_then(|x| x.try_open_stream())
+                        .ok())
                     .ok_or(original_err)
             })
     }
 }
 
 fn clamp_supported_buffer_size(buffer_size: &SupportedBufferSize, preferred_size: FrameCount) -> BufferSize {
-    BufferSize::Fixed(match buffer_size {
-        SupportedBufferSize::Range { min, max } => preferred_size.clamp(*min, *max),
-        SupportedBufferSize::Unknown => preferred_size
-    })
+    match buffer_size {
+        SupportedBufferSize::Range { min, max } => BufferSize::Fixed(preferred_size.clamp(*min, *max)),
+        SupportedBufferSize::Unknown => BufferSize::Default
+    }
 }
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
@@ -283,7 +284,7 @@ impl OutputStream {
             .map_err(|x| StreamError::from(x))
             .and_then(|stream| {
                 stream.play()?;
-                Ok(Self { stream, mixer: controller })
+                Ok(Self { _stream: stream, mixer: controller })
             })
     }
 

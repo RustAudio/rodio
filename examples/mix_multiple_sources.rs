@@ -5,8 +5,9 @@ use std::time::Duration;
 fn main() {
     // Construct a dynamic controller and mixer, stream_handle, and sink.
     let (controller, mixer) = dynamic_mixer::mixer::<f32>(2, 44_100);
-    let (_stream, stream_handle) = OutputStream::default().unwrap();
-    let sink = Sink::connect_new(&stream_handle).unwrap();
+    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
+        .expect("open default audio stream");
+    let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
     // Create four unique sources. The frequencies used here correspond
     // notes in the key of C and in octave 4: C4, or middle C on a piano,

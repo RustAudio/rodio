@@ -4,7 +4,7 @@ use std::time::Duration;
 
 fn main() {
     let (_stream, handle) = rodio::OutputStream::default().unwrap();
-    let sink = rodio::Sink::try_new(&handle).unwrap();
+    let sink = rodio::Sink::connect_new(&handle).unwrap();
 
     let file = std::fs::File::open("assets/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();

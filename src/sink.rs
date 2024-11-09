@@ -10,6 +10,7 @@ use crossbeam_channel::Receiver;
 
 use crate::stream::{OutputStream, PlayError};
 use crate::{queue, source::Done, Sample, Source};
+use crate::dynamic_mixer::Mixer;
 
 /// Handle to a device that outputs sounds.
 ///
@@ -36,15 +37,15 @@ struct Controls {
 impl Sink {
     /// Builds a new `Sink`, beginning playback on a stream.
     #[inline]
-    pub fn try_new(stream: &OutputStream) -> Result<Sink, PlayError> {
-        let (sink, queue_rx) = Sink::new_idle();
-        stream.mixer().add(queue_rx);
-        Ok(sink)
+    pub fn connect_new(mixer: &Mixer<f32>) -> Sink {
+        let (sink, source) = Sink::new();
+        mixer.add(source);
+        sink
     }
 
     /// Builds a new `Sink`.
     #[inline]
-    pub fn new_idle() -> (Sink, queue::SourcesQueueOutput<f32>) {
+    pub fn new() -> (Sink, queue::SourcesQueueOutput<f32>) {
         let (queue_tx, queue_rx) = queue::queue(true);
 
         let sink = Sink {
@@ -257,7 +258,7 @@ mod tests {
         // assert_eq!(queue_rx.next(), Some(0.0));
 
         let v = vec![10i16, -10, 20, -20, 30, -30];
-        
+
         // Low rate to ensure immediate control.
         sink.append(SamplesBuffer::new(1, 1, v.clone()));
         let mut src = SamplesBuffer::new(1, 1, v).convert_samples();

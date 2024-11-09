@@ -15,18 +15,18 @@ use crate::Sample;
 pub fn mixer<S>(
     channels: u16,
     sample_rate: u32,
-) -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
+) -> (Arc<Mixer<S>>, MixerSource<S>)
 where
     S: Sample + Send + 'static,
 {
-    let input = Arc::new(DynamicMixerController {
+    let input = Arc::new(Mixer {
         has_pending: AtomicBool::new(false),
         pending_sources: Mutex::new(Vec::new()),
         channels,
         sample_rate,
     });
 
-    let output = DynamicMixer {
+    let output = MixerSource {
         current_sources: Vec::with_capacity(16),
         input: input.clone(),
         sample_count: 0,
@@ -36,14 +36,14 @@ where
 }
 
 /// The input of the mixer.
-pub struct DynamicMixerController<S> {
+pub struct Mixer<S> {
     has_pending: AtomicBool,
     pending_sources: Mutex<Vec<Box<dyn Source<Item=S> + Send>>>,
     channels: u16,
     sample_rate: u32,
 }
 
-impl<S> DynamicMixerController<S>
+impl<S> Mixer<S>
 where
     S: Sample + Send + 'static,
 {
@@ -54,27 +54,25 @@ where
         T: Source<Item=S> + Send + 'static,
     {
         let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
-        let mut pending = self.pending_sources
-            .lock()
-            .unwrap();
+        let mut pending = self.pending_sources.lock().unwrap();
         pending.push(Box::new(uniform_source) as Box<_>);
         self.has_pending.store(true, Ordering::SeqCst); // TODO: can we relax this ordering?
     }
 }
 
 /// The output of the mixer. Implements `Source`.
-pub struct DynamicMixer<S> {
+pub struct MixerSource<S> {
     // The current iterator that produces samples.
     current_sources: Vec<Box<dyn Source<Item=S> + Send>>,
 
     // The pending sounds.
-    input: Arc<DynamicMixerController<S>>,
+    input: Arc<Mixer<S>>,
 
     // The number of samples produced so far.
     sample_count: usize,
 }
 
-impl<S> Source for DynamicMixer<S>
+impl<S> Source for MixerSource<S>
 where
     S: Sample + Send + 'static,
 {
@@ -99,7 +97,7 @@ where
     }
 }
 
-impl<S> Iterator for DynamicMixer<S>
+impl<S> Iterator for MixerSource<S>
 where
     S: Sample + Send + 'static,
 {
@@ -128,7 +126,7 @@ where
     }
 }
 
-impl<S> DynamicMixer<S>
+impl<S> MixerSource<S>
 where
     S: Sample + Send + 'static,
 {

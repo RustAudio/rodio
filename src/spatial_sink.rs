@@ -7,6 +7,7 @@ use cpal::FromSample;
 use crate::source::Spatial;
 use crate::stream::{OutputStream, PlayError};
 use crate::{Sample, Sink, Source};
+use crate::dynamic_mixer::Mixer;
 
 pub struct SpatialSink {
     sink: Sink,
@@ -21,20 +22,20 @@ struct SoundPositions {
 
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
-    pub fn try_new(
-        stream: &OutputStream,
+    pub fn new(
+        stream: &Mixer<f32>,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
         right_ear: [f32; 3],
-    ) -> Result<SpatialSink, PlayError> {
-        Ok(SpatialSink {
-            sink: Sink::try_new(stream)?,
+    ) -> SpatialSink {
+        SpatialSink {
+            sink: Sink::connect_new(stream),
             positions: Arc::new(Mutex::new(SoundPositions {
                 emitter_position,
                 left_ear,
                 right_ear,
             })),
-        })
+        }
     }
 
     /// Sets the position of the sound emitter in 3 dimensional space.

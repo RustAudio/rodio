@@ -7,7 +7,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, ChannelCount, FrameCount, PlayStreamError, Sample, SampleFormat, SampleRate, StreamConfig, SupportedBufferSize};
 
 use crate::decoder;
-use crate::dynamic_mixer::{mixer, DynamicMixer, DynamicMixerController};
+use crate::dynamic_mixer::{mixer, MixerSource, Mixer};
 use crate::sink::Sink;
 
 const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
@@ -17,11 +17,11 @@ const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
     stream: cpal::Stream,
-    mixer: Arc<DynamicMixerController<f32>>,
+    mixer: Arc<Mixer<f32>>,
 }
 
 impl OutputStream {
-    pub fn mixer(&self) -> Arc<DynamicMixerController<f32>> {
+    pub fn mixer(&self) -> Arc<Mixer<f32>> {
         self.mixer.clone()
     }
 }
@@ -35,7 +35,7 @@ struct OutputStreamConfig {
 }
 
 #[derive(Default)]
-struct OutputStreamBuilder {
+pub struct OutputStreamBuilder {
     device: Option<cpal::Device>,
     config: OutputStreamConfig,
 }
@@ -56,7 +56,9 @@ impl OutputStreamBuilder {
         device: cpal::Device,
     ) -> Result<OutputStreamBuilder, StreamError> {
         let default_config = device.default_output_config()?;
-        Ok(Self::default().with_supported_config(&default_config))
+        Ok(Self::default()
+            .with_device(device)
+            .with_supported_config(&default_config))
     }
 
     pub fn from_default_device() -> Result<OutputStreamBuilder, StreamError> {
@@ -96,7 +98,7 @@ impl OutputStreamBuilder {
         self.config = OutputStreamConfig {
             channel_count: config.channels(),
             sample_rate: config.sample_rate(),
-            // FIXME See how to best handle buffer_size preferences
+            // FIXME See how to best handle buffer_size preferences?
             buffer_size: clamp_supported_buffer_size(config.buffer_size(), 512),
             sample_format: config.sample_format(),
             ..self.config
@@ -147,7 +149,7 @@ impl OutputStreamBuilder {
             .or_else(|original_err| {
                 let mut devices = match cpal::default_host().output_devices() {
                     Ok(devices) => devices,
-                    Err(_) => return Err(original_err), // TODO Report error?
+                    Err(_) => return Err(original_err), // TODO Report the ignored error?
                 };
                 devices
                     .find_map(|d| Self::from_device(d).and_then(|x| x.try_open_stream()).ok())
@@ -157,16 +159,19 @@ impl OutputStreamBuilder {
 }
 
 fn clamp_supported_buffer_size(buffer_size: &SupportedBufferSize, preferred_size: FrameCount) -> BufferSize {
-    todo!()
+    BufferSize::Fixed(match buffer_size {
+        SupportedBufferSize::Range { min, max } => preferred_size.clamp(*min, *max),
+        SupportedBufferSize::Unknown => preferred_size
+    })
 }
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
-pub fn play<R>(stream: &OutputStream, input: R) -> Result<Sink, PlayError>
+pub fn play<R>(stream: &Mixer<f32>, input: R) -> Result<Sink, PlayError>
 where
     R: Read + Seek + Send + Sync + 'static,
 {
     let input = decoder::Decoder::new(input)?;
-    let sink = Sink::try_new(stream)?;
+    let sink = Sink::connect_new(stream);
     sink.append(input);
     Ok(sink)
 }
@@ -285,7 +290,7 @@ impl OutputStream {
     fn init_stream(
         device: &cpal::Device,
         config: &OutputStreamConfig,
-        mut samples: DynamicMixer<f32>,
+        mut samples: MixerSource<f32>,
     ) -> Result<cpal::Stream, cpal::BuildStreamError> {
         let error_callback = |err| eprintln!("an error occurred on output stream: {}", err);
         let sample_format = config.sample_format;

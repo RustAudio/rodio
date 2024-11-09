@@ -56,7 +56,7 @@
 //!
 //! // FIXME Update documentation after the builder is complete
 //! let (_stream, stream_handle) = OutputStream::default().unwrap();
-//! let sink = Sink::try_new(&stream_handle).unwrap();
+//! let sink = Sink::connect_new(&stream_handle).unwrap();
 //!
 //! // Add a dummy source of the sake of the example.
 //! let source = SineWave::new(440.0).take_duration(Duration::from_secs_f32(0.25)).amplify(0.20);
@@ -135,4 +135,4 @@ pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
-pub use crate::stream::{OutputStream, PlayError, StreamError};
+pub use crate::stream::{OutputStream, OutputStreamBuilder, play, PlayError, StreamError};

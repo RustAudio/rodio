@@ -220,37 +220,22 @@ impl error::Error for PlayError {
     }
 }
 
+/// Errors that might occur when interfacing with audio output.
 #[derive(Debug)]
 pub enum StreamError {
+    /// Could not start playing the stream, see [cpal::PlayStreamError] for
+    /// details.
     PlayStreamError(cpal::PlayStreamError),
+    /// Failed to get the stream config for device the given device. See
+    /// [cpal::DefaultStreamConfigError] for details
     DefaultStreamConfigError(cpal::DefaultStreamConfigError),
+    /// Error opening stream with OS. See [cpal::BuildStreamError] for details
     BuildStreamError(cpal::BuildStreamError),
+    /// Could not list supported stream configs for device. Maybe it
+    /// disconnected, for details see: [cpal::SupportedStreamConfigsError].
     SupportedStreamConfigsError(cpal::SupportedStreamConfigsError),
+    /// Could not find any output device
     NoDevice,
-}
-
-impl From<cpal::DefaultStreamConfigError> for StreamError {
-    fn from(err: cpal::DefaultStreamConfigError) -> Self {
-        Self::DefaultStreamConfigError(err)
-    }
-}
-
-impl From<cpal::SupportedStreamConfigsError> for StreamError {
-    fn from(err: cpal::SupportedStreamConfigsError) -> Self {
-        Self::SupportedStreamConfigsError(err)
-    }
-}
-
-impl From<cpal::BuildStreamError> for StreamError {
-    fn from(err: cpal::BuildStreamError) -> Self {
-        Self::BuildStreamError(err)
-    }
-}
-
-impl From<cpal::PlayStreamError> for StreamError {
-    fn from(err: cpal::PlayStreamError) -> Self {
-        Self::PlayStreamError(err)
-    }
 }
 
 impl fmt::Display for StreamError {
@@ -293,7 +278,12 @@ impl OutputStream {
         config: &OutputStreamConfig,
         mut samples: MixerSource<f32>,
     ) -> Result<cpal::Stream, cpal::BuildStreamError> {
-        let error_callback = |err| eprintln!("an error occurred on output stream: {}", err);
+        let error_callback = |err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!("an error occurred on output stream: {err}");
+            #[cfg(not(feature = "tracing"))]
+            eprintln!("an error occurred on output stream: {err}");
+        };
         let sample_format = config.sample_format;
         let config = config.into();
         match sample_format {
@@ -359,7 +349,7 @@ impl OutputStream {
                         *d = samples
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u8::max_value() / 2)
+                            .unwrap_or(u8::MAX / 2)
                     })
                 },
                 error_callback,
@@ -372,7 +362,7 @@ impl OutputStream {
                         *d = samples
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u16::max_value() / 2)
+                            .unwrap_or(u16::MAX / 2)
                     })
                 },
                 error_callback,
@@ -385,7 +375,7 @@ impl OutputStream {
                         *d = samples
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u32::max_value() / 2)
+                            .unwrap_or(u32::MAX / 2)
                     })
                 },
                 error_callback,
@@ -398,7 +388,7 @@ impl OutputStream {
                         *d = samples
                             .next()
                             .map(Sample::from_sample)
-                            .unwrap_or(u64::max_value() / 2)
+                            .unwrap_or(u64::MAX / 2)
                     })
                 },
                 error_callback,
@@ -414,14 +404,15 @@ fn supported_output_configs(
     device: &cpal::Device,
 ) -> Result<impl Iterator<Item=cpal::SupportedStreamConfig>, StreamError> {
     let mut supported: Vec<_> = device.supported_output_configs()?.collect();
+    /// FIXME .map_err(StreamError::SupportedStreamConfigsError)?
     supported.sort_by(|a, b| b.cmp_default_heuristics(a));
 
     Ok(supported.into_iter().flat_map(|sf| {
         let max_rate = sf.max_sample_rate();
         let min_rate = sf.min_sample_rate();
-        let mut formats = vec![sf.clone().with_max_sample_rate()];
+        let mut formats = vec![sf.with_max_sample_rate()];
         if HZ_44100 < max_rate && HZ_44100 > min_rate {
-            formats.push(sf.clone().with_sample_rate(HZ_44100))
+            formats.push(sf.with_sample_rate(HZ_44100))
         }
         formats.push(sf.with_sample_rate(min_rate));
         formats

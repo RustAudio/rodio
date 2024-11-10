@@ -3,8 +3,11 @@ use std::time::Duration;
 use crate::source::ChannelVolume;
 use crate::{Sample, Source};
 
-/// Combines channels in input into a single mono source, then plays that mono sound
-/// to each channel at the volume given for that channel.
+use super::SeekError;
+
+/// A simple spatial audio source. The underlying source is transformed to Mono
+/// and then played in stereo. The left and right channel's volume are amplified
+/// differently depending on the distance of the left and right ear to the source.
 #[derive(Clone)]
 pub struct Spatial<I>
 where
@@ -26,6 +29,7 @@ where
     I: Source,
     I::Item: Sample,
 {
+    /// Builds a new `SpatialSink`, beginning playback on a stream.
     pub fn new(
         input: I,
         emitter_position: [f32; 3],
@@ -116,5 +120,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
 #[derive(Clone, Debug)]
@@ -23,6 +25,9 @@ where
     I: Source,
     I::Item: Sample,
 {
+    /// Wrap the input source and make it mono. Play that mono sound to each
+    /// channel at the volume set by the user. The volume can be changed using
+    /// [`ChannelVolume::set_volume`].
     pub fn new(mut input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I>
     where
         I: Source,
@@ -46,8 +51,8 @@ where
         }
     }
 
-    /// Sets the volume for a given channel number.  Will panic if channel number
-    /// was invalid.
+    /// Sets the volume for a given channel number. Will panic if channel number
+    /// is invalid.
     pub fn set_volume(&mut self, channel: usize, volume: f32) {
         self.channel_volumes[channel] = volume;
     }
@@ -80,7 +85,6 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        // return value
         let ret = self
             .current_sample
             .map(|sample| sample.amplify(self.channel_volumes[self.current_channel]));
@@ -137,5 +141,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

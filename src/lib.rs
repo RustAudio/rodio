@@ -23,6 +23,7 @@
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
 //! // Get an output stream handle to the default physical sound device.
+//! // Note that no sound will be played if _stream is dropped
 //! let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
 //!         .expect("open default audio stream");
 //! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
@@ -56,6 +57,7 @@
 //! use rodio::{Decoder, OutputStream, Sink};
 //! use rodio::source::{SineWave, Source};
 //!
+//! // _stream must live as long as the sink
 //! let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
 //!         .expect("open default audio stream");
 //! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
@@ -74,6 +76,8 @@
 //! sounds to play simultaneously, you should create multiple [`Sink`]s.
 //!
 //! The [`Sink`] type also provides utilities such as playing/pausing or controlling the volume.
+//!
+//! **Please note that the [`Sink`] requires the [`OutputStream`], make sure that the OutputStream is not dropped before the sink.**
 //!
 //! ## Filters
 //!
@@ -103,6 +107,20 @@
 //! to avoid adding extra crates to your binary.
 //! See the [available feature flags](https://docs.rs/crate/rodio/latest/features) for all options.
 //!
+//! ## Optional Features
+//!
+//! Rodio provides several optional features that are guarded with feature gates.
+//!
+//! ### Feature "tracing"
+//!
+//! The "tracing" feature replaces the print to stderr when a stream error happens with a
+//! recording an error event with tracing.
+//!
+//! ### Feature "Noise"
+//!
+//! The "noise" feature adds support for white and pink noise sources. This feature requires the
+//! "rand" crate.
+//!
 //! ## How it works under the hood
 //!
 //! Rodio spawns a background thread that is dedicated to reading from the sources and sending
@@ -113,7 +131,7 @@
 //! hardware. Therefore there is no restriction on the number of sounds that play simultaneously or
 //! the number of sinks that can be created (except for the fact that creating too many will slow
 //! down your program).
-//!
+
 #![cfg_attr(test, deny(missing_docs))]
 pub use cpal::{
     self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,

@@ -3,7 +3,11 @@ use std::time::Duration;
 use crate::Sample;
 use crate::Source;
 
-/// Internal function that builds a `Skippable` object.
+use super::SeekError;
+
+/// Wrap the source in a skippable. It allows ending the current source early by
+/// calling [`Skippable::skip`]. If this source is in a queue such as the Sink
+/// ending the source early is equal to skipping the source.
 pub fn skippable<I>(source: I) -> Skippable<I> {
     Skippable {
         input: source,
@@ -11,6 +15,9 @@ pub fn skippable<I>(source: I) -> Skippable<I> {
     }
 }
 
+/// Wrap the source in a skippable. It allows ending the current source early by
+/// calling [`Skippable::skip`]. If this source is in a queue such as the Sink
+/// ending the source early is equal to skipping the source.
 #[derive(Clone, Debug)]
 pub struct Skippable<I> {
     input: I,
@@ -88,5 +95,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

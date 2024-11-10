@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
 where
@@ -89,10 +91,13 @@ where
         self.input
     }
 
+    /// Make the truncated source end with a FadeOut. The fadeout covers the
+    /// entire length of the take source.
     pub fn set_filter_fadeout(&mut self) {
         self.filter = Some(DurationFilter::FadeOut);
     }
 
+    /// Remove any filter set.
     pub fn clear_filter(&mut self) {
         self.filter = None;
     }
@@ -120,7 +125,7 @@ where
             None
         } else if let Some(sample) = self.input.next() {
             let sample = match &self.filter {
-                Some(filter) => filter.apply(sample, &self),
+                Some(filter) => filter.apply(sample, self),
                 None => sample,
             };
 
@@ -175,5 +180,10 @@ where
         } else {
             None
         }
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

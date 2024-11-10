@@ -5,9 +5,11 @@ use cpal::FromSample;
 use crate::source::{FadeIn, Mix, TakeDuration};
 use crate::{Sample, Source};
 
-/// Mixes one sound fading out with another sound fading in for the given duration.
+/// Mixes one sound fading out with another sound fading in for the given
+/// duration.
 ///
-/// Only the crossfaded portion (beginning of fadeout, beginning of fadein) is returned.
+/// Only the crossfaded portion (beginning of fadeout, beginning of fadein) is
+/// returned.
 pub fn crossfade<I1, I2>(
     input_fadeout: I1,
     input_fadein: I2,
@@ -25,6 +27,11 @@ where
     input_fadeout.mix(input_fadein)
 }
 
+/// Mixes one sound fading out with another sound fading in for the given
+/// duration.
+///
+/// Only the crossfaded portion (beginning of fadeout, beginning of fadein) is
+/// covered.
 pub type Crossfade<I1, I2> = Mix<TakeDuration<I1>, FadeIn<TakeDuration<I2>>>;
 
 #[cfg(test)]
@@ -37,7 +44,7 @@ mod tests {
     }
 
     #[test]
-    fn test_crossfade() {
+    fn test_crossfade_with_self() {
         let source1 = dummysource(10);
         let source2 = dummysource(10);
         let mut mixed = crossfade(
@@ -51,7 +58,10 @@ mod tests {
         assert_eq!(mixed.next(), Some(4.0));
         assert_eq!(mixed.next(), Some(5.0));
         assert_eq!(mixed.next(), None);
+    }
 
+    #[test]
+    fn test_crossfade() {
         let source1 = dummysource(10);
         let source2 = dummysource(10).amplify(0.0);
         let mut mixed = crossfade(

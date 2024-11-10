@@ -4,11 +4,10 @@ use std::time::Duration;
 use crate::{Sample, Source};
 use cpal::{FromSample, Sample as CpalSample};
 
-/// An iterator that reads from a `Source` and converts the samples to a specific rate and
-/// channels count.
-///
-/// It implements `Source` as well, but all the data is guaranteed to be in a single frame whose
-/// channels and samples rate have been passed to `new`.
+use super::SeekError;
+
+/// Wrap the input and lazily converts the samples it provides to the type
+/// specified by the generic parameter D
 #[derive(Clone)]
 pub struct SamplesConverter<I, D> {
     inner: I,
@@ -16,6 +15,8 @@ pub struct SamplesConverter<I, D> {
 }
 
 impl<I, D> SamplesConverter<I, D> {
+    /// Wrap the input and lazily converts the samples it provides to the type
+    /// specified by the generic parameter D
     #[inline]
     pub fn new(input: I) -> SamplesConverter<I, D> {
         SamplesConverter {
@@ -94,5 +95,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.inner.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.inner.try_seek(pos)
     }
 }

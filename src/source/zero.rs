@@ -3,7 +3,11 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-/// An infinite source that produces zero.
+use super::SeekError;
+
+/// An source that produces samples with value zero (silence). Depending on if
+/// it where created with [`Zero::new`] or [`Zero::new_samples`] it can be never
+/// ending or finite.
 #[derive(Clone, Debug)]
 pub struct Zero<S> {
     channels: u16,
@@ -13,6 +17,7 @@ pub struct Zero<S> {
 }
 
 impl<S> Zero<S> {
+    /// Create a new source that never ends and produces total silence.
     #[inline]
     pub fn new(channels: u16, sample_rate: u32) -> Zero<S> {
         Zero {
@@ -22,6 +27,7 @@ impl<S> Zero<S> {
             marker: PhantomData,
         }
     }
+    /// Create a new source that never ends and produces total silence.
     #[inline]
     pub fn new_samples(channels: u16, sample_rate: u32, num_samples: usize) -> Zero<S> {
         Zero {
@@ -76,5 +82,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Ok(())
     }
 }

@@ -6,11 +6,13 @@ use cpal::FromSample;
 use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
 use crate::{Sample, Source};
 
-/// An iterator that reads from a `Source` and converts the samples to a specific rate and
-/// channels count.
+use super::SeekError;
+
+/// An iterator that reads from a `Source` and converts the samples to a
+/// specific type, sample-rate and channels count.
 ///
-/// It implements `Source` as well, but all the data is guaranteed to be in a single frame whose
-/// channels and samples rate have been passed to `new`.
+/// It implements `Source` as well, but all the data is guaranteed to be in a
+/// single frame whose channels and samples rate have been passed to `new`.
 #[derive(Clone)]
 pub struct UniformSourceIterator<I, D>
 where
@@ -30,6 +32,8 @@ where
     I::Item: Sample,
     D: Sample,
 {
+    /// Wrap a `Source` and lazily convert its samples to a specific type,
+    /// sample-rate and channels count.
     #[inline]
     pub fn new(
         input: I,
@@ -137,12 +141,33 @@ where
     fn total_duration(&self) -> Option<Duration> {
         self.total_duration
     }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        if let Some(input) = self.inner.as_mut() {
+            input
+                .inner_mut()
+                .inner_mut()
+                .inner_mut()
+                .inner_mut()
+                .try_seek(pos)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 struct Take<I> {
     iter: I,
     n: Option<usize>,
+}
+
+impl<I> Take<I> {
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.iter
+    }
 }
 
 impl<I> Iterator for Take<I>

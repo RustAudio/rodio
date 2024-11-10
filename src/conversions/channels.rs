@@ -1,3 +1,5 @@
+use cpal::Sample;
+
 /// Iterator that converts from a certain channel count to another.
 #[derive(Clone, Debug)]
 pub struct ChannelCountConverter<I>
@@ -19,7 +21,7 @@ where
     ///
     /// # Panic
     ///
-    /// Panicks if `from` or `to` are equal to 0.
+    /// Panics if `from` or `to` are equal to 0.
     ///
     #[inline]
     pub fn new(
@@ -44,30 +46,40 @@ where
     pub fn into_inner(self) -> I {
         self.input
     }
+
+    /// Get mutable access to the iterator
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
 }
 
 impl<I> Iterator for ChannelCountConverter<I>
 where
     I: Iterator,
-    I::Item: Clone,
+    I::Item: Sample,
 {
     type Item = I::Item;
 
     fn next(&mut self) -> Option<I::Item> {
-        let result = if self.next_output_sample_pos == self.from - 1 {
-            let value = self.input.next();
-            self.sample_repeat = value.clone();
-            value
-        } else if self.next_output_sample_pos < self.from {
-            self.input.next()
-        } else {
-            self.sample_repeat.clone()
+        let result = match self.next_output_sample_pos {
+            0 => {
+                // save first sample for mono -> stereo conversion
+                let value = self.input.next();
+                self.sample_repeat = value;
+                value
+            }
+            x if x < self.from => self.input.next(),
+            1 => self.sample_repeat,
+            _ => Some(I::Item::EQUILIBRIUM),
         };
 
-        self.next_output_sample_pos += 1;
+        if result.is_some() {
+            self.next_output_sample_pos += 1;
+        }
 
         if self.next_output_sample_pos == self.to {
-            self.next_output_sample_pos -= self.to;
+            self.next_output_sample_pos = 0;
 
             if self.from > self.to {
                 for _ in self.to..self.from {
@@ -83,11 +95,14 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
 
-        let min =
-            (min / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize;
-        let max = max.map(|max| {
-            (max / self.from as usize) * self.to as usize + self.next_output_sample_pos as usize
-        });
+        let consumed = std::cmp::min(self.from, self.next_output_sample_pos) as usize;
+        let calculate = |size| {
+            (size + consumed) / self.from as usize * self.to as usize
+                - self.next_output_sample_pos as usize
+        };
+
+        let min = calculate(min);
+        let max = max.map(calculate);
 
         (min, max)
     }
@@ -96,7 +111,7 @@ where
 impl<I> ExactSizeIterator for ChannelCountConverter<I>
 where
     I: ExactSizeIterator,
-    I::Item: Clone,
+    I::Item: Sample,
 {
 }
 
@@ -106,36 +121,60 @@ mod test {
 
     #[test]
     fn remove_channels() {
-        let input = vec![1u16, 2, 3, 1, 2, 3];
+        let input = vec![1u16, 2, 3, 4, 5, 6];
         let output = ChannelCountConverter::new(input.into_iter(), 3, 2).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 1, 2]);
+        assert_eq!(output, [1, 2, 4, 5]);
 
-        let input = vec![1u16, 2, 3, 4, 1, 2, 3, 4];
+        let input = vec![1u16, 2, 3, 4, 5, 6, 7, 8];
         let output = ChannelCountConverter::new(input.into_iter(), 4, 1).collect::<Vec<_>>();
-        assert_eq!(output, [1, 1]);
+        assert_eq!(output, [1, 5]);
     }
 
     #[test]
     fn add_channels() {
-        let input = vec![1u16, 2, 1, 2];
-        let output = ChannelCountConverter::new(input.into_iter(), 2, 3).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 2, 1, 2, 2]);
+        let input = vec![1i16, 2, 3, 4];
+        let output = ChannelCountConverter::new(input.into_iter(), 1, 2).collect::<Vec<_>>();
+        assert_eq!(output, [1, 1, 2, 2, 3, 3, 4, 4]);
 
-        let input = vec![1u16, 2, 1, 2];
+        let input = vec![1i16, 2];
+        let output = ChannelCountConverter::new(input.into_iter(), 1, 4).collect::<Vec<_>>();
+        assert_eq!(output, [1, 1, 0, 0, 2, 2, 0, 0]);
+
+        let input = vec![1i16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 4).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 2, 2, 1, 2, 2, 2]);
+        assert_eq!(output, [1, 2, 0, 0, 3, 4, 0, 0]);
+    }
+
+    #[test]
+    fn size_hint() {
+        fn test(input: &[i16], from: cpal::ChannelCount, to: cpal::ChannelCount) {
+            let mut converter = ChannelCountConverter::new(input.iter().copied(), from, to);
+            let count = converter.clone().count();
+            for left_in_iter in (0..=count).rev() {
+                println!("left_in_iter = {left_in_iter}");
+                assert_eq!(converter.size_hint(), (left_in_iter, Some(left_in_iter)));
+                converter.next();
+            }
+            assert_eq!(converter.size_hint(), (0, Some(0)));
+        }
+
+        test(&[1i16, 2, 3], 1, 2);
+        test(&[1i16, 2, 3, 4], 2, 4);
+        test(&[1i16, 2, 3, 4], 4, 2);
+        test(&[1i16, 2, 3, 4, 5, 6], 3, 8);
+        test(&[1i16, 2, 3, 4, 5, 6, 7, 8], 4, 1);
     }
 
     #[test]
     fn len_more() {
-        let input = vec![1u16, 2, 1, 2];
+        let input = vec![1i16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 3);
         assert_eq!(output.len(), 6);
     }
 
     #[test]
     fn len_less() {
-        let input = vec![1u16, 2, 1, 2];
+        let input = vec![1i16, 2, 3, 4];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 1);
         assert_eq!(output.len(), 2);
     }

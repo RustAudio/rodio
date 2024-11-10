@@ -4,6 +4,8 @@ use crate::source::buffered::Buffered;
 
 use crate::{Sample, Source};
 
+use super::SeekError;
+
 /// Internal function that builds a `Repeat` object.
 pub fn repeat<I>(input: I) -> Repeat<I>
 where
@@ -83,6 +85,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.inner.try_seek(pos)
     }
 }
 

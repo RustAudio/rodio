@@ -23,6 +23,12 @@ impl<I, O> DataConverter<I, O> {
     pub fn into_inner(self) -> I {
         self.input
     }
+
+    /// get mutable access to the iterator
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
 }
 
 impl<I, O> Iterator for DataConverter<I, O>
@@ -61,7 +67,7 @@ where
 /// - For `u16`, silence corresponds to the value `u16::max_value() / 2`. The minimum and maximum
 ///   amplitudes are represented by `0` and `u16::max_value()` respectively.
 /// - For `f32`, silence corresponds to the value `0.0`. The minimum and maximum amplitudes are
-///  represented by `-1.0` and `1.0` respectively.
+///   represented by `-1.0` and `1.0` respectively.
 ///
 /// You can implement this trait on your own type as well if you wish so.
 ///
@@ -73,6 +79,9 @@ pub trait Sample: CpalSample {
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
+
+    /// Converts the sample to an f32 value.
+    fn to_f32(self) -> f32;
 
     /// Calls `saturating_add` on the sample.
     fn saturating_add(self, other: Self) -> Self;
@@ -94,6 +103,12 @@ impl Sample for u16 {
     #[inline]
     fn amplify(self, value: f32) -> u16 {
         ((self as f32) * value) as u16
+    }
+
+    #[inline]
+    fn to_f32(self) -> f32 {
+        // Convert u16 to f32 in the range [-1.0, 1.0]
+        (self as f32 - 32768.0) / 32768.0
     }
 
     #[inline]
@@ -120,6 +135,12 @@ impl Sample for i16 {
     }
 
     #[inline]
+    fn to_f32(self) -> f32 {
+        // Convert i16 to f32 in the range [-1.0, 1.0]
+        self as f32 / 32768.0
+    }
+
+    #[inline]
     fn saturating_add(self, other: i16) -> i16 {
         self.saturating_add(other)
     }
@@ -139,6 +160,12 @@ impl Sample for f32 {
     #[inline]
     fn amplify(self, value: f32) -> f32 {
         self * value
+    }
+
+    #[inline]
+    fn to_f32(self) -> f32 {
+        // f32 is already in the correct format
+        self
     }
 
     #[inline]

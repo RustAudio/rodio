@@ -17,8 +17,7 @@ fn test_flac_encodings() {
 
     // 24 bit FLAC file exported from Audacity (2 channels, various compression levels)
     for level in &[0, 5, 8] {
-        let file =
-            std::fs::File::open(format!("assets/audacity24bit_level{}.flac", level)).unwrap();
+        let file = std::fs::File::open(format!("assets/audacity24bit_level{level}.flac")).unwrap();
         let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
         assert!(decoder.any(|x| x != 0));
         #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]

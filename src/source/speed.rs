@@ -1,6 +1,53 @@
+//! Playback Speed control Module.
+//!
+//! The main concept of this module is the [`Speed`] struct, which
+//! encapsulates playback speed controls of the current sink.
+//!
+//! In order to speed up a sink, the speed struct:
+//! - Increases the current sample rate by the given factor
+//! - Updates the total duration function to cover for the new factor by dividing by the factor
+//! - Updates the try_seek function by multiplying the audio position by the factor
+//!
+//! To speed up a source from sink all you need to do is call the   `set_speed(factor: f32)` function
+//! For example, here is how you speed up your sound by using sink or playing raw
+//!
+//! ```no_run
+//!# use std::fs::File;
+//!# use std::io::BufReader;
+//!# use rodio::{Decoder, Sink, OutputStream, source::{Source, SineWave}};
+//!
+//! // Get an output stream handle to the default physical sound device.
+//! // Note that no sound will be played if _stream is dropped
+//! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+//! // Load a sound from a file, using a path relative to Cargo.toml
+//! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
+//! // Decode that sound file into a source
+//! let source = Decoder::new(file).unwrap();
+//! // Play the sound directly on the device 2x faster
+//! stream_handle.play_raw(source.convert_samples().speed(2.0));
+
+//! std::thread::sleep(std::time::Duration::from_secs(5));
+//! ```
+//! here is how you would do it using the sink
+//! ```
+//! let source = SineWave::new(440.0)
+//! .take_duration(Duration::from_secs_f32(20.25))
+//! .amplify(0.20);
+//!
+//! let sink = Sink::try_new(&stream_handle)?;
+//! sink.set_speed(2.0);
+//! sink.append(source);
+//! std::thread::sleep(std::time::Duration::from_secs(5));
+//! ```
+//! Notice the increase in pitch as the factor increases
+//!
+//! Since the samples are played faster the audio wave get shorter increasing their frequencies
+
 use std::time::Duration;
 
 use crate::{Sample, Source};
+
+use super::SeekError;
 
 /// Internal function that builds a `Speed` object.
 pub fn speed<I>(input: I, factor: f32) -> Speed<I> {
@@ -91,16 +138,12 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        // TODO: the crappy API of duration makes this code difficult to write
-        if let Some(duration) = self.input.total_duration() {
-            let as_ns = duration.as_secs() * 1000000000 + duration.subsec_nanos() as u64;
-            let new_val = (as_ns as f32 / self.factor) as u64;
-            Some(Duration::new(
-                new_val / 1000000000,
-                (new_val % 1000000000) as u32,
-            ))
-        } else {
-            None
-        }
+        self.input.total_duration().map(|d| d.div_f32(self.factor))
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        let pos_accounting_for_speedup = pos.mul_f32(self.factor);
+        self.input.try_seek(pos_accounting_for_speedup)
     }
 }

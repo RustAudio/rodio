@@ -2,7 +2,9 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-/// Internal function that builds a `Stoppable` object.
+use super::SeekError;
+
+/// This is the same as [`skippable`](crate::source::skippable) see its docs
 pub fn stoppable<I>(source: I) -> Stoppable<I> {
     Stoppable {
         input: source,
@@ -10,6 +12,7 @@ pub fn stoppable<I>(source: I) -> Stoppable<I> {
     }
 }
 
+/// This is the same as [`Skippable`](crate::source::Skippable) see its docs
 #[derive(Clone, Debug)]
 pub struct Stoppable<I> {
     input: I,
@@ -87,5 +90,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

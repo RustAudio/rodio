@@ -4,7 +4,9 @@ use std::time::Duration;
 
 use crate::{Sample, Source};
 
-/// When the inner source is empty this decrements an `AtomicUsize`.
+use super::SeekError;
+
+/// When the inner source is empty this decrements a `AtomicUsize`.
 #[derive(Debug, Clone)]
 pub struct Done<I> {
     input: I,
@@ -13,6 +15,8 @@ pub struct Done<I> {
 }
 
 impl<I> Done<I> {
+    /// When the inner source is empty the AtomicUsize passed in is decremented.
+    /// If it was zero it will overflow negatively.
     #[inline]
     pub fn new(input: I, signal: Arc<AtomicUsize>) -> Done<I> {
         Done {
@@ -86,5 +90,10 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)
     }
 }

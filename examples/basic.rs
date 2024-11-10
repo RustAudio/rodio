@@ -10,6 +10,7 @@ fn main() {
     let mixer = stream_handle.mixer();
 
     let beep1 = {
+        // Play a WAV file
         let file = std::fs::File::open("assets/beep.wav").unwrap();
         let sink = rodio::play(&mixer, BufReader::new(file)).unwrap();
         sink.set_volume(0.2);
@@ -19,6 +20,7 @@ fn main() {
     thread::sleep(Duration::from_millis(1500));
 
     {
+        // Generate sine wave
         let wave = SineWave::new(740.0)
             .amplify(0.2)
             .take_duration(Duration::from_secs(3));
@@ -28,6 +30,7 @@ fn main() {
     thread::sleep(Duration::from_millis(1500));
 
     let beep3 = {
+        // Play an OGG file
         let file = std::fs::File::open("assets/beep3.ogg").unwrap();
         let sink = rodio::play(&mixer, BufReader::new(file)).unwrap();
         sink.set_volume(0.2);

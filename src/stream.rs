@@ -54,7 +54,8 @@ impl OutputStreamBuilder {
     pub fn from_device(
         device: cpal::Device,
     ) -> Result<OutputStreamBuilder, StreamError> {
-        let default_config = device.default_output_config()?;
+        let default_config = device.default_output_config()
+            .map_err(StreamError::DefaultStreamConfigError)?;
         Ok(Self::default()
             .with_device(device)
             .with_supported_config(&default_config))
@@ -120,11 +121,10 @@ impl OutputStreamBuilder {
         OutputStream::open(device, &self.config)
     }
 
-    /// FIXME Update documentation.
-    /// Returns a new stream & handle using the given device and stream config.
-    ///
-    /// If the supplied `SupportedStreamConfig` is invalid for the device this function will
-    /// fail to create an output stream and instead return a `StreamError`.
+    /// Try to open a new output stream with the builder's current stream configuration.
+    /// Failing that attempt to open stream with other available configurations
+    /// provided by the device.
+    /// If all attempts to open stream have not succeeded returns initial error.
     pub fn try_open_stream(&self) -> Result<OutputStream, StreamError> {
         let device = self.device.as_ref().expect("output device specified");
         OutputStream::open(device, &self.config).or_else(|err| {
@@ -137,18 +137,23 @@ impl OutputStreamBuilder {
         })
     }
 
-    /// FIXME Update docs
-    ///
-    /// Return a new stream & handle using the default output device.
-    ///
-    /// On failure will fall back to trying any non-default output devices.
+    /// Try to open a new output stream for the default output device with its default configuration.
+    /// Failing that attempt to open output stream with alternative configuration and/or non default
+    /// output devices. Returns stream for first tried configuration that succeeds.
+    /// If all attempts have not succeeded return the initial error.
     pub fn try_default_stream() -> Result<OutputStream, StreamError> {
         Self::from_default_device()
             .and_then(|x| x.open_stream())
             .or_else(|original_err| {
                 let mut devices = match cpal::default_host().output_devices() {
                     Ok(devices) => devices,
-                    Err(_ignored) => return Err(original_err),
+                    Err(err) => {
+                        #[cfg(feature = "tracing")]
+                        tracing::error!("error getting list of output devices: {err}");
+                        #[cfg(not(feature = "tracing"))]
+                        eprintln!("error getting list of output devices: {err}");
+                        return Err(original_err)
+                    },
                 };
                 devices
                     .find_map(|d| Self::from_device(d)
@@ -226,10 +231,10 @@ pub enum StreamError {
     /// Could not start playing the stream, see [cpal::PlayStreamError] for
     /// details.
     PlayStreamError(cpal::PlayStreamError),
-    /// Failed to get the stream config for device the given device. See
-    /// [cpal::DefaultStreamConfigError] for details
+    /// Failed to get the stream config for the given device. See
+    /// [cpal::DefaultStreamConfigError] for details.
     DefaultStreamConfigError(cpal::DefaultStreamConfigError),
-    /// Error opening stream with OS. See [cpal::BuildStreamError] for details
+    /// Error opening stream with OS. See [cpal::BuildStreamError] for details.
     BuildStreamError(cpal::BuildStreamError),
     /// Could not list supported stream configs for device. Maybe it
     /// disconnected, for details see: [cpal::SupportedStreamConfigsError].
@@ -266,9 +271,9 @@ impl OutputStream {
     pub fn open(device: &cpal::Device, config: &OutputStreamConfig) -> Result<OutputStream, StreamError> {
         let (controller, source) = mixer(config.channel_count, config.sample_rate.0);
         Self::init_stream(device, config, source)
-            .map_err(|x| StreamError::from(x))
+            .map_err(StreamError::BuildStreamError)
             .and_then(|stream| {
-                stream.play()?;
+                stream.play().map_err(StreamError::PlayStreamError)?;
                 Ok(Self { _stream: stream, mixer: controller })
             })
     }
@@ -280,9 +285,9 @@ impl OutputStream {
     ) -> Result<cpal::Stream, cpal::BuildStreamError> {
         let error_callback = |err| {
             #[cfg(feature = "tracing")]
-            tracing::error!("an error occurred on output stream: {err}");
+            tracing::error!("error initializing output stream: {err}");
             #[cfg(not(feature = "tracing"))]
-            eprintln!("an error occurred on output stream: {err}");
+            eprintln!("error initializing output stream: {err}");
         };
         let sample_format = config.sample_format;
         let config = config.into();
@@ -403,8 +408,9 @@ impl OutputStream {
 fn supported_output_configs(
     device: &cpal::Device,
 ) -> Result<impl Iterator<Item=cpal::SupportedStreamConfig>, StreamError> {
-    let mut supported: Vec<_> = device.supported_output_configs()?.collect();
-    /// FIXME .map_err(StreamError::SupportedStreamConfigsError)?
+    let mut supported: Vec<_> = device.supported_output_configs()
+        .map_err(StreamError::SupportedStreamConfigsError)?
+        .collect();
     supported.sort_by(|a, b| b.cmp_default_heuristics(a));
 
     Ok(supported.into_iter().flat_map(|sf| {

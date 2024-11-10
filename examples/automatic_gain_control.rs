@@ -8,8 +8,9 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-    let sink = rodio::Sink::try_new(&handle).unwrap();
+    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
+        .expect("open default audio stream");
+    let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
     // Decode the sound file into a source
     let file = BufReader::new(File::open("assets/music.flac").unwrap());
@@ -24,14 +25,15 @@ fn main() {
     let agc_enabled = Arc::new(AtomicBool::new(true));
     let agc_enabled_clone = agc_enabled.clone();
     let controlled = agc_source.periodic_access(Duration::from_millis(5), move |agc_source| {
+        #[cfg(not(feature = "experimental"))]
         agc_source.set_enabled(agc_enabled_clone.load(Ordering::Relaxed));
     });
 
     // Add the source now equipped with automatic gain control and controlled via
-    // periodic_access to the sink for playback
+    // periodic_access to the sink for the playback.
     sink.append(controlled);
 
-    // after 5 seconds of playback disable automatic gain control using the
+    // After 5 seconds of playback disable automatic gain control using the
     // shared AtomicBool `agc_enabled`. You could do this from another part
     // of the program since `agc_enabled` is of type Arc<AtomicBool> which
     // is freely clone-able and move-able.
@@ -41,6 +43,6 @@ fn main() {
     thread::sleep(Duration::from_secs(5));
     agc_enabled.store(false, Ordering::Relaxed);
 
-    // Keep the program running until playback is complete
+    // Keep the program running until the playback is complete.
     sink.sleep_until_end();
 }

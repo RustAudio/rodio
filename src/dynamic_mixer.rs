@@ -203,14 +203,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::cell::Cell;
-    use std::ops::Deref;
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, AtomicU8};
-    use std::sync::atomic::Ordering::{Acquire, Release};
     use crate::buffer::SamplesBuffer;
     use crate::dynamic_mixer;
     use crate::source::Source;
+    use std::sync::atomic::Ordering::{Acquire, Release};
+    use std::sync::atomic::AtomicU8;
+    use std::sync::Arc;
 
     #[test]
     pub fn fff() {

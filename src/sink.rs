@@ -1,6 +1,4 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-#[cfg(not(feature = "crossbeam-channel"))]
-use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -11,7 +9,6 @@ use crossbeam_channel::{Receiver, Sender};
 use std::sync::mpsc::{Receiver, Sender};
 
 use crate::source::SeekError;
-use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
 use crate::dynamic_mixer::Mixer;
 

@@ -1,5 +1,5 @@
 use rodio::source::{SineWave, Source};
-use rodio::{dynamic_mixer, OutputStream, Sink};
+use rodio::dynamic_mixer;
 use std::time::Duration;
 
 fn main() {

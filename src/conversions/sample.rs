@@ -55,8 +55,7 @@ where
     I: ExactSizeIterator,
     I::Item: Sample,
     O: FromSample<I::Item> + Sample,
-{
-}
+{}
 
 /// Represents a value of a single sample.
 ///
@@ -93,10 +92,10 @@ pub trait Sample: CpalSample {
 impl Sample for u16 {
     #[inline]
     fn lerp(first: u16, second: u16, numerator: u32, denominator: u32) -> u16 {
-        let a = first as i32;
-        let b = second as i32;
-        let n = numerator as i32;
-        let d = denominator as i32;
+        let a = first as i64;
+        let b = second as i64;
+        let n = numerator as i64;
+        let d = denominator as i64;
         (a + (b - a) * n / d) as u16
     }
 
@@ -176,5 +175,28 @@ impl Sample for f32 {
     #[inline]
     fn zero_value() -> f32 {
         0.0
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use quickcheck::{quickcheck, TestResult};
+    use super::*;
+
+    quickcheck! {
+        fn lerp_u16(first: u16, second: u16, numerator: u32, denominator: u32) -> TestResult {
+            if denominator == 0 { return TestResult::discard(); }
+            let a = first as f64;
+            let b = second as f64;
+            let c = numerator as f64 / denominator as f64;
+            // if c < 0.0 || c > 1.0 { return TestResult::discard(); };
+            // let reference = a * c + b * (1.0 - c);
+            let reference = a + (b - a) * c;
+            let x = Sample::lerp(first, second, numerator, denominator) as f64;
+            let d = x - reference;
+            dbg!(x, reference, d);
+            TestResult::from_bool(d.abs() < 1.0)
+        }
     }
 }

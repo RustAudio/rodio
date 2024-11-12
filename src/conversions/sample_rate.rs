@@ -51,8 +51,11 @@ where
         let to = to.0;
 
         assert!(num_channels >= 1);
+        assert!(num_channels <= 128);
         assert!(from >= 1);
+        assert!(from <= 500_000);
         assert!(to >= 1);
+        assert!(to <= 500_000);
 
         // finding the greatest common divisor
         let gcd = {
@@ -250,100 +253,109 @@ impl<I> ExactSizeIterator for SampleRateConverter<I>
 where
     I: ExactSizeIterator,
     I::Item: Sample + Clone,
-{
-}
+{}
 
 #[cfg(test)]
 mod test {
     use super::SampleRateConverter;
     use core::time::Duration;
-    use cpal::SampleRate;
-    use quickcheck::quickcheck;
+    use cpal::{ChannelCount, SampleRate};
+    use quickcheck::{quickcheck, TestResult};
 
     quickcheck! {
         /// Check that resampling an empty input produces no output.
-        fn empty(from: u32, to: u32, n: u16) -> () {
-            if n == 0 { return; }
-            let from = if from == 0 { return; } else { SampleRate(from) };
-            let to   = if   to == 0 { return; } else { SampleRate(to)   };
+        fn empty(from: u16, to: u16, channels: u8) -> TestResult {
+            if channels == 0 || channels > 128
+                || from == 0
+                || to == 0
+            {
+                return TestResult::discard();
+            }
+            let from = SampleRate(from as u32);
+            let to   = SampleRate(to as u32);
 
             let input: Vec<u16> = Vec::new();
             let output =
-                SampleRateConverter::new(input.into_iter(), from, to, n)
+                SampleRateConverter::new(input.into_iter(), from, to, channels as ChannelCount)
                   .collect::<Vec<_>>();
 
             assert_eq!(output, []);
+            TestResult::passed()
         }
 
         /// Check that resampling to the same rate does not change the signal.
-        fn identity(from: u32, n: u16, input: Vec<u16>) -> () {
-            if n == 0 { return; }
-            let from = if from == 0 { return; } else { SampleRate(from) };
+        fn identity(from: u16, channels: u8, input: Vec<u16>) -> TestResult {
+            if channels == 0 || channels > 128 || from == 0 { return TestResult::discard(); }
+            let from = SampleRate(from as u32);
 
             let output =
-                SampleRateConverter::new(input.clone().into_iter(), from, from, n)
+                SampleRateConverter::new(input.clone().into_iter(), from, from, channels as ChannelCount)
                   .collect::<Vec<_>>();
 
-            assert_eq!(input, output);
+            TestResult::from_bool(input == output)
         }
 
         /// Check that dividing the sample rate by k (integer) is the same as
         ///   dropping a sample from each channel.
-        fn divide_sample_rate(to: u32, k: u32, input: Vec<u16>, n: u16) -> () {
-            if k == 0 || n == 0 || to.checked_mul(k).is_none() { return; }
-            let to = if to == 0 { return; } else { SampleRate(to) };
-            let from = to * k;
+        fn divide_sample_rate(to: u16, k: u16, input: Vec<u16>, channels: u8) -> TestResult {
+            if k == 0 || channels == 0 || channels > 128 || to == 0 || to.checked_mul(k).is_none() {
+                return TestResult::discard();
+            }
+            let to = SampleRate(to as u32);
+            let from = to * k as u32;
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {
-                let ns = n as usize;
+                let ns = channels as usize;
                 let mut i = input;
                 i.truncate(ns * (i.len() / ns));
                 i
             };
 
             let output =
-                SampleRateConverter::new(input.clone().into_iter(), from, to, n)
+                SampleRateConverter::new(input.clone().into_iter(), from, to, channels as ChannelCount)
                   .collect::<Vec<_>>();
 
-            assert_eq!(input.chunks_exact(n.into())
-                         .step_by(k as usize).collect::<Vec<_>>().concat(),
-                       output)
+            TestResult::from_bool(input.chunks_exact(channels.into())
+                         .step_by(k as usize).collect::<Vec<_>>().concat() == output)
         }
 
         /// Check that, after multiplying the sample rate by k, every k-th
         ///  sample in the output matches exactly with the input.
-        fn multiply_sample_rate(from: u32, k: u32, input: Vec<u16>, n: u16) -> () {
-            if k == 0 || n == 0 || from.checked_mul(k).is_none() { return; }
-            let from = if from == 0 { return; } else { SampleRate(from) };
-            let to = from * k;
+        fn multiply_sample_rate(from: u16, k: u16, input: Vec<u16>, channels: u8) -> TestResult {
+            if k == 0 || channels == 0 || channels > 128 || from == 0 || from.checked_mul(k).is_none() {
+                return TestResult::discard();
+            }
+            let from = SampleRate(from as u32);
+            let to = from * k as u32;
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {
-                let ns = n as usize;
+                let ns = channels as usize;
                 let mut i = input;
                 i.truncate(ns * (i.len() / ns));
                 i
             };
 
             let output =
-                SampleRateConverter::new(input.clone().into_iter(), from, to, n)
+                SampleRateConverter::new(input.clone().into_iter(), from, to, channels as ChannelCount)
                   .collect::<Vec<_>>();
 
-            assert_eq!(input,
-                       output.chunks_exact(n.into())
-                         .step_by(k as usize).collect::<Vec<_>>().concat()
-            )
+            TestResult::from_bool(input ==
+                       output.chunks_exact(channels.into())
+                         .step_by(k as usize).collect::<Vec<_>>().concat())
         }
 
         #[ignore]
         /// Check that resampling does not change the audio duration,
         ///  except by a negligible amount (± 1ms).  Reproduces #316.
         /// Ignored, pending a bug fix.
-        fn preserve_durations(d: Duration, freq: f32, to: u32) -> () {
+        fn preserve_durations(d: Duration, freq: f32, to: u32) -> TestResult {
+            if to == 0 { return TestResult::discard(); }
+
             use crate::source::{SineWave, Source};
 
-            let to = if to == 0 { return; } else { SampleRate(to) };
+            let to = SampleRate(to);
             let source = SineWave::new(freq).take_duration(d);
             let from = SampleRate(source.sample_rate());
 
@@ -353,9 +365,7 @@ mod test {
                 Duration::from_secs_f32(resampled.count() as f32 / to.0 as f32);
 
             let delta = if d < duration { duration - d } else { d - duration };
-            assert!(delta < Duration::from_millis(1),
-                    "Resampled duration ({:?}) is not close to original ({:?}); Δ = {:?}",
-                    duration, d, delta);
+            TestResult::from_bool(delta < Duration::from_millis(1))
         }
     }
 

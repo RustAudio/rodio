@@ -93,7 +93,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// amplitude every 20µs). By doing so we obtain a list of numerical values, each value being
 /// called a *sample*.
 ///
-/// Therefore a sound can be represented in memory by a frequency and a list of samples. The
+/// Therefore, a sound can be represented in memory by a frequency and a list of samples. The
 /// frequency is expressed in hertz and corresponds to the number of samples that have been
 /// read per second. For example if we read one sample every 20µs, the frequency would be
 /// 50000 Hz. In reality, common values for the frequency are 44100, 48000 and 96000.
@@ -114,7 +114,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// channel, then the second sample of the second channel, and so on. The same applies if you have
 /// more than two channels. The rodio library only supports this schema.
 ///
-/// Therefore in order to represent a sound in memory in fact we need three characteristics: the
+/// Therefore, in order to represent a sound in memory in fact we need three characteristics: the
 /// frequency, the number of channels, and the list of samples.
 ///
 /// ## The `Source` trait
@@ -297,25 +297,32 @@ where
     ///   A recommended value for `absolute_max_gain` is `5`, which provides a good balance between
     ///   amplification capability and protection against distortion in most scenarios.
     ///
-    /// Use `get_agc_control` to obtain a handle for real-time enabling/disabling of the AGC.
+    /// Use [AutomaticGainControl::get_agc_control()] to obtain a handle for real-time
+    /// enabling/disabling of the AGC.
     ///
     /// # Example (Quick start)
     ///
     /// ```rust
-    /// // Apply Automatic Gain Control to the source (AGC is on by default)
+    /// // Apply Automatic Gain Control to the source.
+    /// use rodio::source::{Source, SineWave, AutomaticGainControl};
+    /// use rodio::Sink;
+    /// let source = SineWave::new(444.0); // An example.
+    /// let (sink, output) = Sink::new_idle(); // An example, makes no sound unless connected to an output.
+    ///
     /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
     ///
-    /// // Get a handle to control the AGC's enabled state (optional)
-    /// let agc_control = agc_source.get_agc_control();
-    ///
-    /// // You can toggle AGC on/off at any time (optional)
-    /// agc_control.store(false, std::sync::atomic::Ordering::Relaxed);
+    /// #[cfg(feature = "experimental")]
+    /// {
+    ///     // It is possible to get or change AGC's enabled state. AGC is on by default.
+    ///     // See documentation for `AutomaticGainControl::get_agc_control()` for details.
+    ///     let agc_enabled = agc_source.get_agc_control();
+    ///     // You can toggle AGC on/off at any time.
+    ///     agc_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
+    /// }
     ///
     /// // Add the AGC-controlled source to the sink
     /// sink.append(agc_source);
     ///
-    /// // Note: Using agc_control is optional. If you don't need to toggle AGC,
-    /// // you can simply use the agc_source directly without getting agc_control.
     /// ```
     #[inline]
     fn automatic_gain_control(

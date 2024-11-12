@@ -4,12 +4,12 @@
 //! encapsulates playback speed controls of the current sink.
 //!
 //! In order to speed up a sink, the speed struct:
-//! - Increases the current sample rate by the given factor
-//! - Updates the total duration function to cover for the new factor by dividing by the factor
-//! - Updates the try_seek function by multiplying the audio position by the factor
+//! - Increases the current sample rate by the given factor.
+//! - Updates the total duration function to cover for the new factor by dividing by the factor.
+//! - Updates the try_seek function by multiplying the audio position by the factor.
 //!
 //! To speed up a source from sink all you need to do is call the   `set_speed(factor: f32)` function
-//! For example, here is how you speed up your sound by using sink or playing raw
+//! For example, here is how you speed up your sound by using sink or playing raw.
 //!
 //! ```no_run
 //!# use std::fs::File;
@@ -17,24 +17,23 @@
 //!# use rodio::{Decoder, Sink, OutputStream, source::{Source, SineWave}};
 //!
 //! // Get an output stream handle to the default physical sound device.
-//! // Note that no sound will be played if _stream is dropped
+//! // Note that no sound will be played if _stream is dropped.
 //! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 //! // Load a sound from a file, using a path relative to Cargo.toml
-//! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
+//! let file = BufReader::new(File::open("assets/music.ogg").unwrap());
 //! // Decode that sound file into a source
 //! let source = Decoder::new(file).unwrap();
 //! // Play the sound directly on the device 2x faster
-//! stream_handle.play_raw(source.convert_samples().speed(2.0));
-
+//! stream_handle.play_raw(source.convert_samples().speed(2.0)).unwrap();
 //! std::thread::sleep(std::time::Duration::from_secs(5));
-//! ```
-//! here is how you would do it using the sink
-//! ```
-//! let source = SineWave::new(440.0)
-//! .take_duration(Duration::from_secs_f32(20.25))
-//! .amplify(0.20);
 //!
-//! let sink = Sink::try_new(&stream_handle)?;
+//! // Here is how you would do it using the sink.
+//!
+//! let source = SineWave::new(440.0)
+//!     .take_duration(std::time::Duration::from_secs_f32(3.25))
+//!     .amplify(0.20);
+//!
+//! let sink = Sink::try_new(&stream_handle).unwrap();
 //! sink.set_speed(2.0);
 //! sink.append(source);
 //! std::thread::sleep(std::time::Duration::from_secs(5));

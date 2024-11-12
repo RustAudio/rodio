@@ -50,6 +50,7 @@ where
         let from = from.0;
         let to = to.0;
 
+        assert!(num_channels >= 1);
         assert!(from >= 1);
         assert!(to >= 1);
 
@@ -262,9 +263,9 @@ mod test {
     quickcheck! {
         /// Check that resampling an empty input produces no output.
         fn empty(from: u32, to: u32, n: u16) -> () {
+            if n == 0 { return; }
             let from = if from == 0 { return; } else { SampleRate(from) };
             let to   = if   to == 0 { return; } else { SampleRate(to)   };
-            if n == 0 { return; }
 
             let input: Vec<u16> = Vec::new();
             let output =
@@ -276,8 +277,8 @@ mod test {
 
         /// Check that resampling to the same rate does not change the signal.
         fn identity(from: u32, n: u16, input: Vec<u16>) -> () {
-            let from = if from == 0 { return; } else { SampleRate(from) };
             if n == 0 { return; }
+            let from = if from == 0 { return; } else { SampleRate(from) };
 
             let output =
                 SampleRateConverter::new(input.clone().into_iter(), from, from, n)
@@ -289,9 +290,9 @@ mod test {
         /// Check that dividing the sample rate by k (integer) is the same as
         ///   dropping a sample from each channel.
         fn divide_sample_rate(to: u32, k: u32, input: Vec<u16>, n: u16) -> () {
+            if k == 0 || n == 0 || to.checked_mul(k).is_none() { return; }
             let to = if to == 0 { return; } else { SampleRate(to) };
             let from = to * k;
-            if k == 0 || n == 0 { return; }
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {
@@ -313,9 +314,9 @@ mod test {
         /// Check that, after multiplying the sample rate by k, every k-th
         ///  sample in the output matches exactly with the input.
         fn multiply_sample_rate(from: u32, k: u32, input: Vec<u16>, n: u16) -> () {
+            if k == 0 || n == 0 || from.checked_mul(k).is_none() { return; }
             let from = if from == 0 { return; } else { SampleRate(from) };
             let to = from * k;
-            if k == 0 || n == 0 { return; }
 
             // Truncate the input, so it contains an integer number of frames.
             let input = {

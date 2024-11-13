@@ -11,7 +11,7 @@ use cpal::{Sample, SupportedStreamConfig};
 
 /// `cpal::Stream` container. Also see the more useful `OutputStreamHandle`.
 ///
-/// If this is dropped playback will end & attached `OutputStreamHandle`s will no longer work.
+/// If this is dropped, playback will end & attached `OutputStreamHandle`s will no longer work.
 pub struct OutputStream {
     mixer: Arc<DynamicMixerController<f32>>,
     _stream: cpal::Stream,

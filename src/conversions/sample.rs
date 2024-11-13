@@ -79,7 +79,7 @@ pub trait Sample: CpalSample {
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
 
-    /// Converts the sample to an f32 value.
+    /// Converts the sample to a f32 value.
     fn to_f32(self) -> f32;
 
     /// Calls `saturating_add` on the sample.
@@ -92,11 +92,9 @@ pub trait Sample: CpalSample {
 impl Sample for u16 {
     #[inline]
     fn lerp(first: u16, second: u16, numerator: u32, denominator: u32) -> u16 {
-        let a = first as i64;
-        let b = second as i64;
-        let n = numerator as i64;
-        let d = denominator as i64;
-        (a + (b - a) * n / d) as u16
+        let d = first as i64 + (second as i64 - first as i64) * numerator as i64 / denominator as i64;
+        u16::try_from(d)
+            .expect("numerator / denominator is within [0, 1] range")
     }
 
     #[inline]
@@ -124,8 +122,9 @@ impl Sample for u16 {
 impl Sample for i16 {
     #[inline]
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
-        (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32)
-            as i16
+        let d = first as i64 + (second as i64 - first as i64) * numerator as i64 / denominator as i64;
+        i16::try_from(d)
+            .expect("numerator / denominator is within [0, 1] range")
     }
 
     #[inline]
@@ -184,18 +183,70 @@ mod test {
     use quickcheck::{quickcheck, TestResult};
     use super::*;
 
+
+    #[test]
+    fn lerp_u16_constraints() {
+        let a = 12u16;
+        let b = 31u16;
+        assert_eq!(Sample::lerp(a, b, 0, 1), a);
+        assert_eq!(Sample::lerp(a, b, 1, 1), b);
+
+        assert_eq!(Sample::lerp(0, u16::MAX, 0, 1), 0);
+        assert_eq!(Sample::lerp(0, u16::MAX, 1, 1), u16::MAX);
+        // Zeroes
+        assert_eq!(Sample::lerp(0u16, 0, 0, 1), 0);
+        assert_eq!(Sample::lerp(0u16, 0, 1, 1), 0);
+        // Downward changes
+        assert_eq!(Sample::lerp(1u16, 0, 0, 1), 1);
+        assert_eq!(Sample::lerp(1u16, 0, 1, 1), 0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn lerp_u16_overflow() {
+        Sample::lerp(0u16, 1, u16::MAX as u32 + 1, 1);
+    }
+
+    #[test]
+    fn lerp_i16_constraints() {
+        let a = 12i16;
+        let b = 31i16;
+        assert_eq!(Sample::lerp(a, b, 0, 1), a);
+        assert_eq!(Sample::lerp(a, b, 1, 1), b);
+
+        assert_eq!(Sample::lerp(0, i16::MAX, 0, 1), 0);
+        assert_eq!(Sample::lerp(0, i16::MAX, 1, 1), i16::MAX);
+        assert_eq!(Sample::lerp(0, i16::MIN, 1, 1), i16::MIN);
+        // Zeroes
+        assert_eq!(Sample::lerp(0u16, 0, 0, 1), 0);
+        assert_eq!(Sample::lerp(0u16, 0, 1, 1), 0);
+        // Downward changes
+        assert_eq!(Sample::lerp(a, i16::MIN, 0, 1), a);
+        assert_eq!(Sample::lerp(a, i16::MIN, 1, 1), i16::MIN);
+    }
+
+    #[test]
+    #[should_panic]
+    fn lerp_i16_overflow_max() {
+        Sample::lerp(0i16, 1, i16::MAX as u32 + 1, 1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn lerp_i16_overflow_min() {
+        Sample::lerp(0i16, -1, (i16::MIN.abs() + 1) as u32, 1);
+    }
+
     quickcheck! {
-        fn lerp_u16(first: u16, second: u16, numerator: u32, denominator: u32) -> TestResult {
+        fn lerp_u16_random(first: u16, second: u16, numerator: u32, denominator: u32) -> TestResult {
             if denominator == 0 { return TestResult::discard(); }
             let a = first as f64;
             let b = second as f64;
             let c = numerator as f64 / denominator as f64;
-            // if c < 0.0 || c > 1.0 { return TestResult::discard(); };
-            // let reference = a * c + b * (1.0 - c);
+            if c < 0.0 || c > 1.0 { return TestResult::discard(); };
             let reference = a + (b - a) * c;
             let x = Sample::lerp(first, second, numerator, denominator) as f64;
             let d = x - reference;
-            dbg!(x, reference, d);
             TestResult::from_bool(d.abs() < 1.0)
         }
     }

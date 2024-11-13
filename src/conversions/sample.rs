@@ -55,7 +55,8 @@ where
     I: ExactSizeIterator,
     I::Item: Sample,
     O: FromSample<I::Item> + Sample,
-{}
+{
+}
 
 /// Represents a value of a single sample.
 ///
@@ -73,8 +74,8 @@ where
 pub trait Sample: CpalSample {
     /// Linear interpolation between two samples.
     ///
-    /// The result should be equal to
-    /// `first * numerator / denominator + second * (1 - numerator / denominator)`.
+    /// The result should be equvivalent to
+    /// `first * (1 - numerator / denominator) + second * numerator / denominator`.
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
@@ -92,9 +93,9 @@ pub trait Sample: CpalSample {
 impl Sample for u16 {
     #[inline]
     fn lerp(first: u16, second: u16, numerator: u32, denominator: u32) -> u16 {
-        let d = first as i64 + (second as i64 - first as i64) * numerator as i64 / denominator as i64;
-        u16::try_from(d)
-            .expect("numerator / denominator is within [0, 1] range")
+        let d =
+            first as i64 + (second as i64 - first as i64) * numerator as i64 / denominator as i64;
+        u16::try_from(d).expect("numerator / denominator is within [0, 1] range")
     }
 
     #[inline]
@@ -122,9 +123,9 @@ impl Sample for u16 {
 impl Sample for i16 {
     #[inline]
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
-        let d = first as i64 + (second as i64 - first as i64) * numerator as i64 / denominator as i64;
-        i16::try_from(d)
-            .expect("numerator / denominator is within [0, 1] range")
+        let d =
+            first as i64 + (second as i64 - first as i64) * numerator as i64 / denominator as i64;
+        i16::try_from(d).expect("numerator / denominator is within [0, 1] range")
     }
 
     #[inline]
@@ -177,12 +178,10 @@ impl Sample for f32 {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use quickcheck::{quickcheck, TestResult};
     use super::*;
-
+    use quickcheck::{quickcheck, TestResult};
 
     #[test]
     fn lerp_u16_constraints() {

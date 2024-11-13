@@ -253,7 +253,8 @@ impl<I> ExactSizeIterator for SampleRateConverter<I>
 where
     I: ExactSizeIterator,
     I::Item: Sample + Clone,
-{}
+{
+}
 
 #[cfg(test)]
 mod test {
@@ -374,9 +375,16 @@ mod test {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
         let output =
             SampleRateConverter::new(input.into_iter(), SampleRate(2000), SampleRate(3000), 2);
-        assert_eq!(output.len(), 12);
-
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [2, 16, 3, 17, 4, 18, 6, 20, 7, 21, 8, 22]);
+    }
+
+    #[test]
+    fn upsample2() {
+        let input = vec![1u16, 14];
+        let output =
+            SampleRateConverter::new(input.into_iter(), SampleRate(1000), SampleRate(7000), 1);
+        let output = output.collect::<Vec<_>>();
+        assert_eq!(output, [1, 2, 4, 6, 8, 10, 12, 14]);
     }
 }

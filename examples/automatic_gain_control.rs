@@ -18,7 +18,7 @@ fn main() {
     // Apply automatic gain control to the source
     let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
 
-    let agc_enabled : Arc<AtomicBool>;
+    let agc_enabled: Arc<AtomicBool>;
 
     #[cfg(not(feature = "experimental"))]
     {
@@ -30,7 +30,7 @@ fn main() {
         let controlled = agc_source.periodic_access(Duration::from_millis(5), move |agc_source| {
             agc_source.set_enabled(agc_enabled_clone.load(Ordering::Relaxed));
         });
-        
+
         // Add the source now equipped with automatic gain control and controlled via
         // periodic_access to the sink for playback
         sink.append(controlled);

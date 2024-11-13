@@ -249,7 +249,8 @@ impl<I> ExactSizeIterator for SampleRateConverter<I>
 where
     I: ExactSizeIterator,
     I::Item: Sample + Clone,
-{}
+{
+}
 
 #[cfg(test)]
 mod test {

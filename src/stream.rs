@@ -7,7 +7,10 @@ use crate::decoder;
 use crate::dynamic_mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, ChannelCount, FrameCount, Sample, SampleFormat, SampleRate, StreamConfig, SupportedBufferSize};
+use cpal::{
+    BufferSize, ChannelCount, FrameCount, Sample, SampleFormat, SampleRate, StreamConfig,
+    SupportedBufferSize,
+};
 
 const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 
@@ -51,10 +54,9 @@ impl Default for OutputStreamConfig {
 }
 
 impl OutputStreamBuilder {
-    pub fn from_device(
-        device: cpal::Device,
-    ) -> Result<OutputStreamBuilder, StreamError> {
-        let default_config = device.default_output_config()
+    pub fn from_device(device: cpal::Device) -> Result<OutputStreamBuilder, StreamError> {
+        let default_config = device
+            .default_output_config()
             .map_err(StreamError::DefaultStreamConfigError)?;
         Ok(Self::default()
             .with_device(device)
@@ -94,7 +96,10 @@ impl OutputStreamBuilder {
         self
     }
 
-    pub fn with_supported_config(mut self, config: &cpal::SupportedStreamConfig) -> OutputStreamBuilder {
+    pub fn with_supported_config(
+        mut self,
+        config: &cpal::SupportedStreamConfig,
+    ) -> OutputStreamBuilder {
         self.config = OutputStreamConfig {
             channel_count: config.channels(),
             sample_rate: config.sample_rate(),
@@ -129,7 +134,10 @@ impl OutputStreamBuilder {
         let device = self.device.as_ref().expect("output device specified");
         OutputStream::open(device, &self.config).or_else(|err| {
             for supported_config in supported_output_configs(device)? {
-                if let Ok(handle) = Self::default().with_supported_config(&supported_config).open_stream() {
+                if let Ok(handle) = Self::default()
+                    .with_supported_config(&supported_config)
+                    .open_stream()
+                {
                     return Ok(handle);
                 }
             }
@@ -152,22 +160,25 @@ impl OutputStreamBuilder {
                         tracing::error!("error getting list of output devices: {err}");
                         #[cfg(not(feature = "tracing"))]
                         eprintln!("error getting list of output devices: {err}");
-                        return Err(original_err)
-                    },
+                        return Err(original_err);
+                    }
                 };
                 devices
-                    .find_map(|d| Self::from_device(d)
-                        .and_then(|x| x.try_open_stream())
-                        .ok())
+                    .find_map(|d| Self::from_device(d).and_then(|x| x.try_open_stream()).ok())
                     .ok_or(original_err)
             })
     }
 }
 
-fn clamp_supported_buffer_size(buffer_size: &SupportedBufferSize, preferred_size: FrameCount) -> BufferSize {
+fn clamp_supported_buffer_size(
+    buffer_size: &SupportedBufferSize,
+    preferred_size: FrameCount,
+) -> BufferSize {
     match buffer_size {
-        SupportedBufferSize::Range { min, max } => BufferSize::Fixed(preferred_size.clamp(*min, *max)),
-        SupportedBufferSize::Unknown => BufferSize::Default
+        SupportedBufferSize::Range { min, max } => {
+            BufferSize::Fixed(preferred_size.clamp(*min, *max))
+        }
+        SupportedBufferSize::Unknown => BufferSize::Default,
     }
 }
 
@@ -268,13 +279,19 @@ impl error::Error for StreamError {
 }
 
 impl OutputStream {
-    pub fn open(device: &cpal::Device, config: &OutputStreamConfig) -> Result<OutputStream, StreamError> {
+    pub fn open(
+        device: &cpal::Device,
+        config: &OutputStreamConfig,
+    ) -> Result<OutputStream, StreamError> {
         let (controller, source) = mixer(config.channel_count, config.sample_rate.0);
         Self::init_stream(device, config, source)
             .map_err(StreamError::BuildStreamError)
             .and_then(|stream| {
                 stream.play().map_err(StreamError::PlayStreamError)?;
-                Ok(Self { _stream: stream, mixer: controller })
+                Ok(Self {
+                    _stream: stream,
+                    mixer: controller,
+                })
             })
     }
 
@@ -292,16 +309,15 @@ impl OutputStream {
         let sample_format = config.sample_format;
         let config = config.into();
         match sample_format {
-            cpal::SampleFormat::F32 =>
-                device.build_output_stream::<f32, _, _>(
-                    &config,
-                    move |data, _| {
-                        data.iter_mut()
-                            .for_each(|d| *d = samples.next().unwrap_or(0f32))
-                    },
-                    error_callback,
-                    None,
-                ),
+            cpal::SampleFormat::F32 => device.build_output_stream::<f32, _, _>(
+                &config,
+                move |data, _| {
+                    data.iter_mut()
+                        .for_each(|d| *d = samples.next().unwrap_or(0f32))
+                },
+                error_callback,
+                None,
+            ),
             cpal::SampleFormat::F64 => device.build_output_stream::<f64, _, _>(
                 &config,
                 move |data, _| {
@@ -407,8 +423,9 @@ impl OutputStream {
 /// Return all formats supported by the device.
 fn supported_output_configs(
     device: &cpal::Device,
-) -> Result<impl Iterator<Item=cpal::SupportedStreamConfig>, StreamError> {
-    let mut supported: Vec<_> = device.supported_output_configs()
+) -> Result<impl Iterator<Item = cpal::SupportedStreamConfig>, StreamError> {
+    let mut supported: Vec<_> = device
+        .supported_output_configs()
         .map_err(StreamError::SupportedStreamConfigsError)?
         .collect();
     supported.sort_by(|a, b| b.cmp_default_heuristics(a));

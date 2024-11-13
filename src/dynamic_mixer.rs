@@ -12,10 +12,7 @@ use crate::Sample;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
-pub fn mixer<S>(
-    channels: u16,
-    sample_rate: u32,
-) -> (Arc<Mixer<S>>, MixerSource<S>)
+pub fn mixer<S>(channels: u16, sample_rate: u32) -> (Arc<Mixer<S>>, MixerSource<S>)
 where
     S: Sample + Send + 'static,
 {
@@ -38,7 +35,7 @@ where
 /// The input of the mixer.
 pub struct Mixer<S> {
     has_pending: AtomicBool,
-    pending_sources: Mutex<Vec<Box<dyn Source<Item=S> + Send>>>,
+    pending_sources: Mutex<Vec<Box<dyn Source<Item = S> + Send>>>,
     channels: u16,
     sample_rate: u32,
 }
@@ -51,7 +48,7 @@ where
     #[inline]
     pub fn add<T>(&self, source: T)
     where
-        T: Source<Item=S> + Send + 'static,
+        T: Source<Item = S> + Send + 'static,
     {
         let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
         let mut pending = self.pending_sources.lock().unwrap();
@@ -63,7 +60,7 @@ where
 /// The output of the mixer. Implements `Source`.
 pub struct MixerSource<S> {
     // The current iterator that produces samples.
-    current_sources: Vec<Box<dyn Source<Item=S> + Send>>,
+    current_sources: Vec<Box<dyn Source<Item = S> + Send>>,
 
     // The pending sounds.
     input: Arc<Mixer<S>>,
@@ -206,8 +203,8 @@ mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::dynamic_mixer;
     use crate::source::Source;
-    use std::sync::atomic::Ordering::{Acquire, Release};
     use std::sync::atomic::AtomicU8;
+    use std::sync::atomic::Ordering::{Acquire, Release};
     use std::sync::Arc;
 
     #[test]

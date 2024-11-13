@@ -18,11 +18,16 @@ fn main() {
 
     let total_duration = iter_duration * 2 * repeats;
 
-    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
-        .expect("open default audio stream");
+    let stream_handle =
+        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
 
     let mut positions = ([0., 0., 0.], [-1., 0., 0.], [1., 0., 0.]);
-    let sink = rodio::SpatialSink::connect_new(&stream_handle.mixer(), positions.0, positions.1, positions.2);
+    let sink = rodio::SpatialSink::connect_new(
+        &stream_handle.mixer(),
+        positions.0,
+        positions.1,
+        positions.2,
+    );
 
     let file = std::fs::File::open("assets/music.ogg").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file))

@@ -2,8 +2,8 @@ use std::io::BufReader;
 use std::time::Duration;
 
 fn main() {
-    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
-        .expect("open default audio stream");
+    let stream_handle =
+        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
     let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
     let file = std::fs::File::open("assets/music.mp3").unwrap();

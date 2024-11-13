@@ -5,8 +5,8 @@ fn main() {
     use std::thread;
     use std::time::Duration;
 
-    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
-        .expect("open default audio stream");
+    let stream_handle =
+        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
 
     let test_signal_duration = Duration::from_millis(1000);
     let interval_duration = Duration::from_millis(1500);
@@ -59,12 +59,7 @@ fn main() {
 
     println!("Playing 20-10000 Hz Sweep");
     stream_handle.mixer().add(
-        chirp(
-            sample_rate,
-            20.0,
-            10000.0,
-            Duration::from_secs(1),
-        )
+        chirp(sample_rate, 20.0, 10000.0, Duration::from_secs(1))
             .amplify(0.1)
             .take_duration(test_signal_duration),
     );

@@ -7,8 +7,8 @@ use std::time::Duration;
 use tracing;
 
 fn main() {
-    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
-        .expect("open default audio stream");
+    let stream_handle =
+        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
     let mixer = stream_handle.mixer();
 
     let beep1 = {

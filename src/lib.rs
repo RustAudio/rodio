@@ -155,4 +155,4 @@ pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
-pub use crate::stream::{OutputStream, OutputStreamBuilder, play, PlayError, StreamError};
+pub use crate::stream::{play, OutputStream, OutputStreamBuilder, PlayError, StreamError};

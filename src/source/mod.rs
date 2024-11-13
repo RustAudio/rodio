@@ -300,13 +300,13 @@ where
     ///
     /// # Example (Quick start)
     ///
-    /// ```rust 
+    /// ```rust
     /// // Apply Automatic Gain Control to the source (AGC is on by default)
     /// use rodio::source::{Source, SineWave};
     /// use rodio::Sink;
     /// let source = SineWave::new(444.0); // An example.
     /// let (sink, output) = Sink::new(); // An example.
-    /// 
+    ///
     /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
     ///
     /// // Get a handle to control the AGC's enabled state (optional)

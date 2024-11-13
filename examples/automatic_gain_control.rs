@@ -8,8 +8,8 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
-        .expect("open default audio stream");
+    let stream_handle =
+        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
     let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
     // Decode the sound file into a source

@@ -102,8 +102,7 @@ where
             .into_inner()
             .iter;
 
-        let mut input =
-            Self::bootstrap(input, self.target_channels, self.target_sample_rate);
+        let mut input = Self::bootstrap(input, self.target_channels, self.target_sample_rate);
 
         let value = input.next();
         self.inner = Some(input);

@@ -243,7 +243,7 @@ mod test {
             let b = second as f64;
             let c = numerator as f64 / denominator as f64;
             if c < 0.0 || c > 1.0 { return TestResult::discard(); };
-            let reference = a + (b - a) * c;
+            let reference = a * (1.0 - c) + b * c;
             let x = Sample::lerp(first, second, numerator, denominator) as f64;
             let d = x - reference;
             TestResult::from_bool(d.abs() < 1.0)

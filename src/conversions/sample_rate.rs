@@ -51,11 +51,8 @@ where
         let to = to.0;
 
         assert!(num_channels >= 1);
-        assert!(num_channels <= 128);
         assert!(from >= 1);
-        assert!(from <= 500_000);
         assert!(to >= 1);
-        assert!(to <= 500_000);
 
         // finding the greatest common divisor
         let gcd = {

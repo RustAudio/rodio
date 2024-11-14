@@ -42,8 +42,8 @@ where
     where
         D: Into<Vec<S>>,
     {
-        assert!(channels > 0);
-        assert!(sample_rate > 0);
+        assert!(channels >= 1);
+        assert!(sample_rate >= 1);
 
         let data = data.into();
         let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()

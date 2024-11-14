@@ -203,9 +203,6 @@ mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::dynamic_mixer;
     use crate::source::Source;
-    use std::sync::atomic::AtomicU8;
-    use std::sync::atomic::Ordering::{Acquire, Release};
-    use std::sync::Arc;
 
     #[test]
     fn basic() {

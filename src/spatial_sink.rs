@@ -96,10 +96,20 @@ impl SpatialSink {
         self.sink.set_volume(value);
     }
 
-    /// Gets the speed of the sound.
+    /// Changes the play speed of the sound. Does not adjust the samples, only the playback speed.
     ///
-    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
-    /// change the play speed of the sound.
+    /// # Note:
+    /// 1. **Increasing the speed will increase the pitch by the same factor**
+    /// - If you set the speed to 0.5 this will halve the frequency of the sound
+    ///   lowering its pitch.
+    /// - If you set the speed to 2 the frequency will double raising the
+    ///   pitch of the sound.
+    /// 2. **Change in the speed affect the total duration inversely**
+    /// - If you set the speed to 0.5, the total duration will be twice as long.
+    /// - If you set the speed to 2 the total duration will be halve of what it
+    ///   was.
+    ///
+    /// See [`Speed`] for details
     #[inline]
     pub fn speed(&self) -> f32 {
         self.sink.speed()
@@ -138,6 +148,14 @@ impl SpatialSink {
         self.sink.is_paused()
     }
 
+    /// Removes all currently loaded `Source`s from the `SpatialSink` and pauses it.
+    ///
+    /// See `pause()` for information about pausing a `Sink`.
+    #[inline]
+    pub fn clear(&self) {
+        self.sink.clear();
+    }
+
     /// Stops the sink by emptying the queue.
     #[inline]
     pub fn stop(&self) {
@@ -163,8 +181,43 @@ impl SpatialSink {
     }
 
     /// Returns the number of sounds currently in the queue.
+    #[allow(clippy::len_without_is_empty)]
     #[inline]
     pub fn len(&self) -> usize {
         self.sink.len()
+    }
+
+    /// Attempts to seek to a given position in the current source.
+    ///
+    /// This blocks between 0 and ~5 milliseconds.
+    ///
+    /// As long as the duration of the source is known seek is guaranteed to saturate
+    /// at the end of the source. For example given a source that reports a total duration
+    /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
+    /// 42 seconds.
+    ///
+    /// # Errors
+    /// This function will return [`SeekError::NotSupported`] if one of the underlying
+    /// sources does not support seeking.  
+    ///
+    /// It will return an error if an implementation ran
+    /// into one during the seek.  
+    ///
+    /// When seeking beyond the end of a source this
+    /// function might return an error if the duration of the source is not known.
+    pub fn try_seek(&self, pos: Duration) -> Result<(), SeekError> {
+        self.sink.try_seek(pos)
+    }
+
+    /// Returns the position of the sound that's being played.
+    ///
+    /// This takes into account any speedup or delay applied.
+    ///
+    /// Example: if you apply a speedup of *2* to an mp3 decoder source and
+    /// [`get_pos()`](Sink::get_pos) returns *5s* then the position in the mp3
+    /// recording is *10s* from its start.
+    #[inline]
+    pub fn get_pos(&self) -> Duration {
+        self.sink.get_pos()
     }
 }

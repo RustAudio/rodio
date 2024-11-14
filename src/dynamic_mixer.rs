@@ -1,4 +1,5 @@
 //! Mixer that plays multiple sounds at the same time.
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -27,6 +28,8 @@ where
         current_sources: Vec::with_capacity(16),
         input: input.clone(),
         sample_count: 0,
+        still_pending: vec![],
+        still_current: vec![],
     };
 
     (input, output)
@@ -51,8 +54,10 @@ where
         T: Source<Item = S> + Send + 'static,
     {
         let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
-        let mut pending = self.pending_sources.lock().unwrap();
-        pending.push(Box::new(uniform_source) as Box<_>);
+        self.pending_sources
+            .lock()
+            .unwrap()
+            .push(Box::new(uniform_source) as Box<_>);
         self.has_pending.store(true, Ordering::SeqCst); // TODO: can we relax this ordering?
     }
 }
@@ -67,6 +72,12 @@ pub struct MixerSource<S> {
 
     // The number of samples produced so far.
     sample_count: usize,
+
+    // A temporary vec used in start_pending_sources.
+    still_pending: Vec<Box<dyn Source<Item = S> + Send>>,
+
+    // A temporary vec used in sum_current_sources.
+    still_current: Vec<Box<dyn Source<Item = S> + Send>>,
 }
 
 impl<S> Source for MixerSource<S>
@@ -168,16 +179,18 @@ where
     // in-step with the modulo of the samples produced so far. Otherwise, the
     // sound will play on the wrong channels, e.g. left / right will be reversed.
     fn start_pending_sources(&mut self) {
-        let mut pending = self.input.pending_sources.lock().unwrap();
-        let mut i = 0;
-        while i < pending.len() {
-            let in_step = self.sample_count % pending[i].channels() as usize == 0;
+        let mut pending = self.input.pending_sources.lock().unwrap(); // TODO: relax ordering?
+
+        for source in pending.drain(..) {
+            let in_step = self.sample_count % source.channels() as usize == 0;
+
             if in_step {
-                self.current_sources.push(pending.swap_remove(i));
+                self.current_sources.push(source);
             } else {
-                i += 1;
+                self.still_pending.push(source);
             }
         }
+        std::mem::swap(&mut self.still_pending, &mut pending);
 
         let has_pending = !pending.is_empty();
         self.input.has_pending.store(has_pending, Ordering::SeqCst); // TODO: relax ordering?
@@ -185,15 +198,15 @@ where
 
     fn sum_current_sources(&mut self) -> S {
         let mut sum = S::zero_value();
-        let mut i = 0;
-        while i < self.current_sources.len() {
-            if let Some(value) = self.current_sources[i].next() {
+
+        for mut source in self.current_sources.drain(..) {
+            if let Some(value) = source.next() {
                 sum = sum.saturating_add(value);
-                i += 1;
-            } else {
-                self.current_sources.swap_remove(i);
+                self.still_current.push(source);
             }
         }
+        std::mem::swap(&mut self.still_current, &mut self.current_sources);
+
         sum
     }
 }

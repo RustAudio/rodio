@@ -18,8 +18,8 @@ const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 ///
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
-    _stream: cpal::Stream,
     mixer: Arc<Mixer<f32>>,
+    _stream: cpal::Stream,
 }
 
 impl OutputStream {

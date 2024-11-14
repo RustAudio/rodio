@@ -145,6 +145,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// In order to properly handle this situation, the `current_frame_len()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
+///
 pub trait Source: Iterator
 where
     Self::Item: Sample,

@@ -208,14 +208,6 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    pub fn fff() {
-        let r = Arc::new(AtomicU8::new(12));
-        let c = r.clone();
-        r.store(44, Release);
-        assert_eq!(r.load(Acquire), c.load(Acquire));
-    }
-
-    #[test]
     fn basic() {
         let (tx, mut rx) = dynamic_mixer::mixer(1, 48000);
 

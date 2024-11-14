@@ -1,7 +1,5 @@
 //! Noise generator example. Use the "noise" feature to enable the noise generator sources.
 
-use std::io::BufReader;
-
 #[cfg(feature = "noise")]
 fn main() {
     use rodio::source::{pink, white, Source};

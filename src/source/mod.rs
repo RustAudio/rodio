@@ -297,8 +297,8 @@ where
     ///   A recommended value for `absolute_max_gain` is `5`, which provides a good balance between
     ///   amplification capability and protection against distortion in most scenarios.
     ///
-    /// Use [AutomaticGainControl::get_agc_control()] to obtain a handle for real-time
-    /// enabling/disabling of the AGC.
+    /// `automatic_gain_control` example in this project shows a pattern you can use
+    /// to enable/disable the AGC filter dynamically.
     ///
     /// # Example (Quick start)
     ///
@@ -311,18 +311,8 @@ where
     ///
     /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
     ///
-    /// #[cfg(feature = "experimental")]
-    /// {
-    ///     // It is possible to get or change AGC's enabled state. AGC is on by default.
-    ///     // See documentation for `AutomaticGainControl::get_agc_control()` for details.
-    ///     let agc_enabled = agc_source.get_agc_control();
-    ///     // You can toggle AGC on/off at any time.
-    ///     agc_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
-    /// }
-    ///
     /// // Add the AGC-controlled source to the sink
     /// sink.append(agc_source);
-    ///
     /// ```
     #[inline]
     fn automatic_gain_control(

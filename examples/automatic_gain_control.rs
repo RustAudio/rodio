@@ -41,7 +41,7 @@ fn main() {
         sink.append(agc_source);
     }
 
-    // after 5 seconds of playback disable automatic gain control using the
+    // After 5 seconds of playback disable automatic gain control using the
     // shared AtomicBool `agc_enabled`. You could do this from another part
     // of the program since `agc_enabled` is of type Arc<AtomicBool> which
     // is freely clone-able and move-able.

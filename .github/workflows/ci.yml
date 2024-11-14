@@ -50,7 +50,6 @@ jobs:
       - run: cargo test --all-targets --features=experimental
       - run: cargo test --all-targets --features=symphonia-all
       - run: cargo test --doc
-      - run: cargo test --doc --features=experimental
   cargo-publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     env:

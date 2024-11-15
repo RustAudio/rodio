@@ -106,7 +106,6 @@ impl OutputStreamBuilder {
             // In case of supported range limit buffer size to avoid unexpectedly long playback delays.
             buffer_size: clamp_supported_buffer_size(config.buffer_size(), 1024),
             sample_format: config.sample_format(),
-            ..self.config
         };
         self
     }

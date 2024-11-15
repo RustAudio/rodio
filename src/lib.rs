@@ -7,10 +7,10 @@
 //!   [`decoder`], etc. or even your own type that implements the [`Source`] trait.
 //! - Get an output stream handle to a physical device. For example, get a stream to the system's
 //!   default sound device with [`OutputStream::default()`]
-//! FIXME Update documentation after the builder is complete
 //! - Call [`.play_raw(source)`](OutputStream::play_raw) on the output stream handle.
 //!
 //! FIXME Update documentation after the builder is complete
+//!
 //! The [`play_raw`](OutputStream::play_raw) function expects the source to produce [`f32`]s,
 //! which may not be the case. If you get a compilation error, try calling
 //! [`.convert_samples()`](Source::convert_samples) on the source to fix it.

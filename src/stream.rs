@@ -183,12 +183,12 @@ fn clamp_supported_buffer_size(
 }
 
 /// Plays a sound once. Returns a `Sink` that can be used to control the sound.
-pub fn play<R>(stream: &Mixer<f32>, input: R) -> Result<Sink, PlayError>
+pub fn play<R>(mixer: &Mixer<f32>, input: R) -> Result<Sink, PlayError>
 where
     R: Read + Seek + Send + Sync + 'static,
 {
     let input = decoder::Decoder::new(input)?;
-    let sink = Sink::connect_new(stream);
+    let sink = Sink::connect_new(mixer);
     sink.append(input);
     Ok(sink)
 }

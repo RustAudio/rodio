@@ -38,6 +38,26 @@
 //! // so we need to keep the main thread alive while it's playing.
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
+//! You can use [rodio::play()] to do the above
+//! ```no_run
+//! use std::fs::File;
+//! use std::io::BufReader;
+//! use rodio::{Decoder, OutputStream, source::Source};
+//!
+//! // Get an output stream handle to the default physical sound device.
+//! // Note that no sound will be played if _stream is dropped
+//! let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
+//!         .expect("open default audio stream");
+//!
+//! // Load a sound from a file, using a path relative to Cargo.toml
+//! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
+//! rodio::play(&stream_handle.mixer(), file).unwrap();
+//!
+//! // The sound plays in a separate audio thread,
+//! // so we need to keep the main thread alive while it's playing.
+//! std::thread::sleep(std::time::Duration::from_secs(5));
+//! ```
+//!
 //!
 //! ## Sink
 //!

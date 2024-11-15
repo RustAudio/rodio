@@ -310,20 +310,9 @@ where
     ///
     /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
     ///
-    /// // Get a handle to control the AGC's enabled state (optional)
-    /// #[cfg(feature = "experimental")]
-    /// {
-    ///     let agc_control = agc_source.get_agc_control();
+    /// // Add the AGC-controlled source to the sink
+    /// sink.append(agc_source);
     ///
-    ///     // You can toggle AGC on/off at any time (optional)
-    ///     agc_control.store(false, std::sync::atomic::Ordering::Relaxed);
-    ///
-    ///     // Add the AGC-controlled source to the sink    
-    ///     sink.append(agc_source);
-    /// }
-    ///
-    /// // Note: Using agc_control is optional. If you don't need to toggle AGC,
-    /// // you can simply use the agc_source directly without getting agc_control.
     /// ```
     #[inline]
     fn automatic_gain_control(

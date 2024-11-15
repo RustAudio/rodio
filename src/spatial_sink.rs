@@ -5,7 +5,7 @@ use std::time::Duration;
 use cpal::FromSample;
 
 use crate::dynamic_mixer::Mixer;
-use crate::source::Spatial;
+use crate::source::{SeekError, Spatial};
 use crate::{Sample, Sink, Source};
 
 /// A sink that allows changing the position of the source and the listeners

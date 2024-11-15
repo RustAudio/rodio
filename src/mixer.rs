@@ -214,12 +214,12 @@ where
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
-    use crate::dynamic_mixer;
+    use crate::mixer;
     use crate::source::Source;
 
     #[test]
     fn basic() {
-        let (tx, mut rx) = dynamic_mixer::mixer(1, 48000);
+        let (tx, mut rx) = mixer::mixer(1, 48000);
 
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn channels_conv() {
-        let (tx, mut rx) = dynamic_mixer::mixer(2, 48000);
+        let (tx, mut rx) = mixer::mixer(2, 48000);
 
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn rate_conv() {
-        let (tx, mut rx) = dynamic_mixer::mixer(1, 96000);
+        let (tx, mut rx) = mixer::mixer(1, 96000);
 
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
@@ -274,7 +274,7 @@ mod tests {
 
     #[test]
     fn start_afterwards() {
-        let (tx, mut rx) = dynamic_mixer::mixer(1, 48000);
+        let (tx, mut rx) = mixer::mixer(1, 48000);
 
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
 

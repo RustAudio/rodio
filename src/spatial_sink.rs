@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use cpal::FromSample;
 
-use crate::dynamic_mixer::Mixer;
+use crate::mixer::Mixer;
 use crate::source::{SeekError, Spatial};
 use crate::{Sample, Sink, Source};
 

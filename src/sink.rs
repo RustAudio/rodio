@@ -8,7 +8,7 @@ use crossbeam_channel::{Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::dynamic_mixer::Mixer;
+use crate::mixer::Mixer;
 use crate::source::SeekError;
 use crate::{queue, source::Done, Sample, Source};
 

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::{error, fmt};
 
 use crate::decoder;
-use crate::dynamic_mixer::{mixer, Mixer, MixerSource};
+use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{

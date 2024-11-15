@@ -165,7 +165,7 @@ mod stream;
 
 pub mod buffer;
 pub mod decoder;
-pub mod dynamic_mixer;
+pub mod mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;

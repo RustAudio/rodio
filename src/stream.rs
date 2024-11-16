@@ -14,8 +14,8 @@ use cpal::{
 
 const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
 
-/// `cpal::Stream` container. Use `mixer()` method to control output.
-///
+/// `cpal::Stream` container.
+/// Use `mixer()` method to control output.
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
     mixer: Arc<Mixer<f32>>,
@@ -23,6 +23,7 @@ pub struct OutputStream {
 }
 
 impl OutputStream {
+    /// Access the output stream's mixer.
     pub fn mixer(&self) -> Arc<Mixer<f32>> {
         self.mixer.clone()
     }
@@ -36,6 +37,9 @@ pub struct OutputStreamConfig {
     pub sample_format: SampleFormat,
 }
 
+/// Convenience builder for audio output stream.
+/// It provides methods to configure several parameters of the audio output and opening default
+/// device. See examples for use-cases.
 #[derive(Default)]
 pub struct OutputStreamBuilder {
     device: Option<cpal::Device>,
@@ -54,6 +58,7 @@ impl Default for OutputStreamConfig {
 }
 
 impl OutputStreamBuilder {
+    /// Sets default output stream parameters for given output audio device.
     pub fn from_device(device: cpal::Device) -> Result<OutputStreamBuilder, StreamError> {
         let default_config = device
             .default_output_config()
@@ -63,6 +68,7 @@ impl OutputStreamBuilder {
             .with_supported_config(&default_config))
     }
 
+    /// Sets default output stream parameters for default output audio device.
     pub fn from_default_device() -> Result<OutputStreamBuilder, StreamError> {
         let default_device = cpal::default_host()
             .default_output_device()
@@ -70,32 +76,43 @@ impl OutputStreamBuilder {
         Self::from_device(default_device)
     }
 
+    /// Sets output audio device keeping all existing stream parameters intact.
+    /// This method is useful if you want to set other parameters yourself.
+    /// To also set parameters that are appropriate for the device use [Self::from_device()] instead.
     pub fn with_device(mut self, device: cpal::Device) -> OutputStreamBuilder {
         self.device = Some(device);
         self
     }
 
+    /// Sets number of output stream's channels.
     pub fn with_channels(mut self, channel_count: cpal::ChannelCount) -> OutputStreamBuilder {
         assert!(channel_count > 0);
         self.config.channel_count = channel_count;
         self
     }
 
+    /// Sets output stream's sample rate.
     pub fn with_sample_rate(mut self, sample_rate: cpal::SampleRate) -> OutputStreamBuilder {
         self.config.sample_rate = sample_rate;
         self
     }
 
+    /// Sets preferred output buffer size.
+    /// Larger buffer size causes longer playback delays. Buffer sizes that are too small
+    /// may cause higher CPU usage or playback interruptions.
     pub fn with_buffer_size(mut self, buffer_size: cpal::BufferSize) -> OutputStreamBuilder {
         self.config.buffer_size = buffer_size;
         self
     }
 
+    /// Select scalar type that will carry a sample.
     pub fn with_sample_format(mut self, sample_format: SampleFormat) -> OutputStreamBuilder {
         self.config.sample_format = sample_format;
         self
     }
 
+    /// Set available parameters from a CPAL supported config. You can ge list of
+    /// such configurations for an output device using [crate::stream::supported_output_configs()]
     pub fn with_supported_config(
         mut self,
         config: &cpal::SupportedStreamConfig,
@@ -110,6 +127,7 @@ impl OutputStreamBuilder {
         self
     }
 
+    /// Set all output stream parameters at once from CPAL stream config.
     pub fn with_config(mut self, config: &cpal::StreamConfig) -> OutputStreamBuilder {
         self.config = OutputStreamConfig {
             channel_count: config.channels,
@@ -120,6 +138,7 @@ impl OutputStreamBuilder {
         self
     }
 
+    /// Open output stream using parameters configured so far.
     pub fn open_stream(&self) -> Result<OutputStream, StreamError> {
         let device = self.device.as_ref().expect("output device specified");
         OutputStream::open(device, &self.config)
@@ -181,7 +200,8 @@ fn clamp_supported_buffer_size(
     }
 }
 
-/// Plays a sound once. Returns a `Sink` that can be used to control the sound.
+/// A convenience function. Plays a sound once.
+/// Returns a `Sink` that can be used to control the sound.
 pub fn play<R>(mixer: &Mixer<f32>, input: R) -> Result<Sink, PlayError>
 where
     R: Read + Seek + Send + Sync + 'static,
@@ -278,6 +298,7 @@ impl error::Error for StreamError {
 }
 
 impl OutputStream {
+    /// Open output audio stream.
     pub fn open(
         device: &cpal::Device,
         config: &OutputStreamConfig,

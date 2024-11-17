@@ -58,7 +58,7 @@ impl Default for OutputStreamConfig {
 }
 
 impl OutputStreamBuilder {
-    /// Sets default output stream parameters for given output audio device.
+    /// Sets output device and its default parameters.
     pub fn from_device(device: cpal::Device) -> Result<OutputStreamBuilder, StreamError> {
         let default_config = device
             .default_output_config()

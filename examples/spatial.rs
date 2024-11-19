@@ -1,10 +1,11 @@
+use std::error::Error;
 use std::io::BufReader;
 use std::thread;
 use std::time::Duration;
 
 use rodio::Source;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let iter_duration = Duration::from_secs(5);
     let iter_distance = 5.;
 
@@ -18,8 +19,7 @@ fn main() {
 
     let total_duration = iter_duration * 2 * repeats;
 
-    let stream_handle =
-        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
+    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()?;
 
     let mut positions = ([0., 0., 0.], [-1., 0., 0.], [1., 0., 0.]);
     let sink = rodio::SpatialSink::connect_new(
@@ -29,9 +29,8 @@ fn main() {
         positions.2,
     );
 
-    let file = std::fs::File::open("assets/music.ogg").unwrap();
-    let source = rodio::Decoder::new(BufReader::new(file))
-        .unwrap()
+    let file = std::fs::File::open("assets/music.ogg")?;
+    let source = rodio::Decoder::new(BufReader::new(file))?
         .repeat_infinite()
         .take_duration(total_duration);
     sink.append(source);
@@ -57,4 +56,6 @@ fn main() {
         }
     }
     sink.sleep_until_end();
+
+    Ok(())
 }

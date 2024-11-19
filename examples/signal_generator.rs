@@ -1,12 +1,13 @@
 //! Test signal generator example.
 
-fn main() {
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
     use rodio::source::{chirp, Function, SignalGenerator, Source};
     use std::thread;
     use std::time::Duration;
 
-    let stream_handle =
-        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
+    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()?;
 
     let test_signal_duration = Duration::from_millis(1000);
     let interval_duration = Duration::from_millis(1500);
@@ -65,4 +66,6 @@ fn main() {
     );
 
     thread::sleep(interval_duration);
+
+    Ok(())
 }

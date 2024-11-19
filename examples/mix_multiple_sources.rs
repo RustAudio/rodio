@@ -1,12 +1,12 @@
 use rodio::mixer;
 use rodio::source::{SineWave, Source};
+use std::error::Error;
 use std::time::Duration;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     // Construct a dynamic controller and mixer, stream_handle, and sink.
     let (controller, mixer) = mixer::mixer::<f32>(2, 44_100);
-    let stream_handle =
-        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
+    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()?;
     let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
     // Create four unique sources. The frequencies used here correspond
@@ -36,4 +36,6 @@ fn main() {
 
     // Sleep the thread until sink is empty.
     sink.sleep_until_end();
+
+    Ok(())
 }

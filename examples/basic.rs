@@ -1,20 +1,20 @@
 use rodio::source::SineWave;
 use rodio::Source;
+use std::error::Error;
 use std::io::BufReader;
 use std::thread;
 use std::time::Duration;
 #[cfg(feature = "tracing")]
 use tracing;
 
-fn main() {
-    let stream_handle =
-        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
+fn main() -> Result<(), Box<dyn Error>> {
+    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()?;
     let mixer = stream_handle.mixer();
 
     let beep1 = {
         // Play a WAV file.
-        let file = std::fs::File::open("assets/beep.wav").unwrap();
-        let sink = rodio::play(&mixer, BufReader::new(file)).unwrap();
+        let file = std::fs::File::open("assets/beep.wav")?;
+        let sink = rodio::play(&mixer, BufReader::new(file))?;
         sink.set_volume(0.2);
         sink
     };
@@ -33,8 +33,8 @@ fn main() {
 
     let beep3 = {
         // Play an OGG file.
-        let file = std::fs::File::open("assets/beep3.ogg").unwrap();
-        let sink = rodio::play(&mixer, BufReader::new(file)).unwrap();
+        let file = std::fs::File::open("assets/beep3.ogg")?;
+        let sink = rodio::play(&mixer, BufReader::new(file))?;
         sink.set_volume(0.2);
         sink
     };
@@ -49,4 +49,6 @@ fn main() {
     println!("Stopped beep3");
 
     thread::sleep(Duration::from_millis(1500));
+
+    Ok(())
 }

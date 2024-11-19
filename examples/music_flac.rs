@@ -1,12 +1,14 @@
+use std::error::Error;
 use std::io::BufReader;
 
-fn main() {
-    let stream_handle =
-        rodio::OutputStreamBuilder::try_default_stream().expect("open default audio stream");
+fn main() -> Result<(), Box<dyn Error>> {
+    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()?;
     let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
-    let file = std::fs::File::open("assets/music.flac").unwrap();
-    sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
+    let file = std::fs::File::open("assets/music.flac")?;
+    sink.append(rodio::Decoder::new(BufReader::new(file))?);
 
     sink.sleep_until_end();
+
+    Ok(())
 }

@@ -29,7 +29,7 @@
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //! here is how you would do it using the sink
-//!```
+//!```no_run
 //! use rodio::source::{Source, SineWave};
 //! let source = SineWave::new(440.0)
 //!    .take_duration(std::time::Duration::from_secs_f32(20.25))

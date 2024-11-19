@@ -48,12 +48,7 @@ fn main() {
     //
     // Note that disabling the AGC takes up to 5 millis because periodic_access
     // controls the source every 5 millis.
-    thread::sleep(Duration::from_secs(5));
-    #[cfg(not(feature = "experimental"))]
-    agc_enabled.store(false, Ordering::Relaxed);
-
-    // AGC on/off control using direct access to the boolean variable.
-    #[cfg(feature = "experimental")]
+    thread::sleep(Duration::from_secs(4));
     agc_enabled.store(false, Ordering::Relaxed);
 
     // Keep the program running until playback is complete

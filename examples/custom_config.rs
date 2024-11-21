@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Note that the function below still tries alternative configs if the specified one fails.
         // If you need to only use the exact specified configuration,
         // then use OutputStreamBuilder::open_stream() instead.
-        .try_open_stream()?;
+        .open_stream_or_fallback()?;
     let mixer = stream_handle.mixer();
 
     let wave = SineWave::new(740.0)

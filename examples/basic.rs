@@ -8,7 +8,7 @@ use std::time::Duration;
 use tracing;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()?;
+    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let mixer = stream_handle.mixer();
 
     let beep1 = {

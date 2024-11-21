@@ -18,7 +18,7 @@
 //!
 //! // Get an output stream handle to the default physical sound device.
 //! // Note that no sound will be played if the _stream is dropped.
-//! let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
+//! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
 //!         .expect("open default audio stream");
 //! // Load a sound from a file, using a path relative to `Cargo.toml`
 //! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
@@ -34,7 +34,7 @@
 //! let source = SineWave::new(440.0)
 //!    .take_duration(std::time::Duration::from_secs_f32(20.25))
 //!    .amplify(0.20);
-//! let stream_handle = rodio::OutputStreamBuilder::try_default_stream()
+//! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
 //!         .expect("open default audio stream");
 //! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 //! sink.set_speed(2.0);

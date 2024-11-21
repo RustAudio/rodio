@@ -146,9 +146,9 @@ impl OutputStreamBuilder {
 
     /// Try opening a new output stream with the builder's current stream configuration.
     /// Failing that attempt to open stream with other available configurations
-    /// provided by the device.
-    /// If all attempts did not succeed returns initial error.
-    pub fn try_open_stream(&self) -> Result<OutputStream, StreamError> {
+    /// supported by the device.
+    /// If all attempts fail returns initial error.
+    pub fn open_stream_or_fallback(&self) -> Result<OutputStream, StreamError> {
         let device = self.device.as_ref().expect("output device specified");
         OutputStream::open(device, &self.config).or_else(|err| {
             for supported_config in supported_output_configs(device)? {
@@ -166,9 +166,9 @@ impl OutputStreamBuilder {
 
     /// Try to open a new output stream for the default output device with its default configuration.
     /// Failing that attempt to open output stream with alternative configuration and/or non default
-    /// output devices. Returns stream for first tried configuration that succeeds.
-    /// If all attempts have not succeeded return the initial error.
-    pub fn try_default_stream() -> Result<OutputStream, StreamError> {
+    /// output devices. Returns stream for first of the tried configurations that succeeds.
+    /// If all attempts fail return the initial error.
+    pub fn open_default_stream() -> Result<OutputStream, StreamError> {
         Self::from_default_device()
             .and_then(|x| x.open_stream())
             .or_else(|original_err| {
@@ -183,7 +183,11 @@ impl OutputStreamBuilder {
                     }
                 };
                 devices
-                    .find_map(|d| Self::from_device(d).and_then(|x| x.try_open_stream()).ok())
+                    .find_map(|d| {
+                        Self::from_device(d)
+                            .and_then(|x| x.open_stream_or_fallback())
+                            .ok()
+                    })
                     .ok_or(original_err)
             })
     }

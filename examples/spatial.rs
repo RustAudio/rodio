@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let total_duration = iter_duration * 2 * repeats;
 
-    let stream_handle = rodio::OutputStreamBuilder::try_default_stream()?;
+    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
 
     let mut positions = ([0., 0., 0.], [-1., 0., 0.], [1., 0., 0.]);
     let sink = rodio::SpatialSink::connect_new(

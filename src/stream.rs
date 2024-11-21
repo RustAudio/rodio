@@ -144,15 +144,16 @@ impl OutputStreamBuilder {
         OutputStream::open(device, &self.config)
     }
 
-    /// Try to open a new output stream with the builder's current stream configuration.
+    /// Try opening a new output stream with the builder's current stream configuration.
     /// Failing that attempt to open stream with other available configurations
     /// provided by the device.
-    /// If all attempts to open stream have not succeeded returns initial error.
+    /// If all attempts did not succeed returns initial error.
     pub fn try_open_stream(&self) -> Result<OutputStream, StreamError> {
         let device = self.device.as_ref().expect("output device specified");
         OutputStream::open(device, &self.config).or_else(|err| {
             for supported_config in supported_output_configs(device)? {
                 if let Ok(handle) = Self::default()
+                    .with_device(device.clone())
                     .with_supported_config(&supported_config)
                     .open_stream()
                 {

@@ -30,7 +30,7 @@ impl OutputStream {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct OutputStreamConfig {
+struct OutputStreamConfig {
     pub channel_count: ChannelCount,
     pub sample_rate: SampleRate,
     pub buffer_size: BufferSize,
@@ -298,8 +298,7 @@ impl error::Error for StreamError {
 }
 
 impl OutputStream {
-    /// Open output audio stream.
-    pub fn open(
+    fn open(
         device: &cpal::Device,
         config: &OutputStreamConfig,
     ) -> Result<OutputStream, StreamError> {

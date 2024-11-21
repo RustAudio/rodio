@@ -49,6 +49,8 @@ jobs:
       - run: cargo test --all-targets
       - run: cargo test --all-targets --features=experimental
       - run: cargo test --all-targets --features=symphonia-all
+      # `cargo test` does not check benchmarks and `cargo test --all-targets` excludes
+      # documentation tests. Therefore, we need an additional docs test command here.
       - run: cargo test --doc
   cargo-publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'

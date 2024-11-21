@@ -3,19 +3,17 @@
 //! The main concept of this library is the [`Source`] trait, which
 //! represents a sound (streaming or not). In order to play a sound, there are three steps:
 //!
+//! - Get an output stream handle to a physical device. For example, get a stream to the system's
+//!   default sound device with [`OutputStreamBuilder::open_default_stream()`].
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [`decoder`], etc. or even your own type that implements the [`Source`] trait.
-//! - Get an output stream handle to a physical device. For example, get a stream to the system's
-//!   default sound device with [`OutputStream::default()`]
-//! - Call [`.play_raw(source)`](OutputStream::play_raw) on the output stream handle.
+//! - Add the source to the output stream using [`OutputStream::mixer()`](OutputStream::mixer)
+//!   on the output stream handle.
 //!
-//! FIXME Update documentation after the builder is complete
+//! The output stream expects the sources to produce [`f32`]s. In case the output sample format
+//! is different use [`.convert_samples()`](Source::convert_samples) to adapt them.
 //!
-//! The [`play_raw`](OutputStream::play_raw) function expects the source to produce [`f32`]s,
-//! which may not be the case. If you get a compilation error, try calling
-//! [`.convert_samples()`](Source::convert_samples) on the source to fix it.
-//!
-//! For example, here is how you would play an audio file:
+//! Here is a complete example of how you would play an audio file:
 //!
 //! ```no_run
 //! use std::fs::File;
@@ -23,7 +21,7 @@
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
 //! // Get an output stream handle to the default physical sound device.
-//! // Note that no sound will be played if _stream is dropped
+//! // Note that the playback stops when the stream_handle is dropped.
 //! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
 //!         .expect("open default audio stream");
 //! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
@@ -38,14 +36,15 @@
 //! // so we need to keep the main thread alive while it's playing.
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
-//! You can use [rodio::play()] to do the above
+//!
+//! [rodio::play()] helps to simplify the above
 //! ```no_run
 //! use std::fs::File;
 //! use std::io::BufReader;
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
 //! // Get an output stream handle to the default physical sound device.
-//! // Note that no sound will be played if _stream is dropped
+//! // Note that the playback stops when the stream_handle is dropped.
 //! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
 //!         .expect("open default audio stream");
 //!
@@ -62,13 +61,11 @@
 //! ## Sink
 //!
 //! In order to make it easier to control the playback, the rodio library also provides a type
-//! named [`Sink`] which represents an audio track.
+//! named [`Sink`] which represents an audio track. [`Sink`] plays its input sources sequentially,
+//! one after another. To play sounds in simultaneously in parallel, use [`mixer::Mixer`] instead.
 //!
-//! FIXME Update documentation after the builder is complete
-//! Instead of playing the sound with [`play_raw`](OutputStream::play_raw), you can add it to
-//! a [`Sink`] instead.
-//!
-//! - Get a [`Sink`] to the output stream, and [`.append()`](Sink::append) your sound to it.
+//! To play a soung Create a [`Sink`] connect it to the output stream,
+//! and [`.append()`](Sink::append) your sound to it.
 //!
 //! ```no_run
 //! use std::fs::File;

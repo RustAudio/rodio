@@ -19,19 +19,27 @@ fn main() {
     let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
 
     // Make it so that the source checks if automatic gain control should be
-    // enabled or disabled every 5 milliseconds. We must clone `agc_enabled`
+    // enabled or disabled every 5 milliseconds. We must clone `agc_enabled`,
     // or we would lose it when we move it into the periodic access.
     let agc_enabled = Arc::new(AtomicBool::new(true));
-    let agc_enabled_clone = agc_enabled.clone();
-    let controlled = agc_source.periodic_access(Duration::from_millis(5), move |agc_source| {
-        agc_source.set_enabled(agc_enabled_clone.load(Ordering::Relaxed));
-    });
 
-    // Add the source now equipped with automatic gain control and controlled via
-    // periodic_access to the sink for playback
-    sink.append(controlled);
+    #[cfg(not(feature = "experimental"))]
+    {
+        let agc_enabled_clone = agc_enabled.clone();
+        let controlled = agc_source.periodic_access(Duration::from_millis(5), move |agc_source| {
+            agc_source.set_enabled(agc_enabled_clone.load(Ordering::Relaxed));
+        });
 
-    // after 5 seconds of playback disable automatic gain control using the
+        // Add the source now equipped with automatic gain control and controlled via
+        // periodic_access to the sink for playback.
+        sink.append(controlled);
+    }
+    #[cfg(feature = "experimental")]
+    {
+        sink.append(agc_source);
+    }
+
+    // After 5 seconds of playback disable automatic gain control using the
     // shared AtomicBool `agc_enabled`. You could do this from another part
     // of the program since `agc_enabled` is of type Arc<AtomicBool> which
     // is freely clone-able and move-able.

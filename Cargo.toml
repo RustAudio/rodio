@@ -62,6 +62,10 @@ harness = false
 name = "conversions"
 harness = false
 
+[[bench]]
+name = "resampler"
+harness = false
+
 [[example]]
 name = "music_m4a"
 required-features = ["symphonia-isomp4", "symphonia-aac"]

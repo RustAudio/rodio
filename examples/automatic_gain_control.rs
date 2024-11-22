@@ -23,21 +23,14 @@ fn main() {
     // or we would lose it when we move it into the periodic access.
     let agc_enabled = Arc::new(AtomicBool::new(true));
 
-    #[cfg(not(feature = "experimental"))]
-    {
-        let agc_enabled_clone = agc_enabled.clone();
-        let controlled = agc_source.periodic_access(Duration::from_millis(5), move |agc_source| {
-            agc_source.set_enabled(agc_enabled_clone.load(Ordering::Relaxed));
-        });
+    let agc_enabled_clone = agc_enabled.clone();
+    let controlled = agc_source.periodic_access(Duration::from_millis(5), move |agc_source| {
+        agc_source.set_enabled(agc_enabled_clone.load(Ordering::Relaxed));
+    });
 
-        // Add the source now equipped with automatic gain control and controlled via
-        // periodic_access to the sink for playback.
-        sink.append(controlled);
-    }
-    #[cfg(feature = "experimental")]
-    {
-        sink.append(agc_source);
-    }
+    // Add the source now equipped with automatic gain control and controlled via
+    // periodic_access to the sink for playback.
+    sink.append(controlled);
 
     // After 5 seconds of playback disable automatic gain control using the
     // shared AtomicBool `agc_enabled`. You could do this from another part

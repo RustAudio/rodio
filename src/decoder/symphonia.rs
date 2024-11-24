@@ -356,7 +356,14 @@ mod tests {
             seconds: 7,
             frac: 0.0,
         };
-        let duration = Duration::new(7, 0);
+        let duration = Duration::new(
+            time.seconds,
+            if time.frac > 0.0 {
+                (1f64 / time.frac) as u32
+            } else {
+                0
+            },
+        );
 
         assert_eq!(time_to_duration(time), duration);
     }
@@ -367,7 +374,14 @@ mod tests {
             seconds: 7,
             frac: 0.3,
         };
-        let duration = Duration::new(7, (1.0 / 0.3) as u32);
+        let duration = Duration::new(
+            time.seconds,
+            if time.frac > 0.0 {
+                (1f64 / time.frac) as u32
+            } else {
+                0
+            },
+        );
 
         assert_eq!(time_to_duration(time), duration);
     }

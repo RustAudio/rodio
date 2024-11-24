@@ -13,21 +13,18 @@ use crate::Sample;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
-pub fn mixer<S>(
-    channels: u16,
-    sample_rate: u32,
-) -> (Arc<DynamicMixerController<S>>, DynamicMixer<S>)
+pub fn mixer<S>(channels: u16, sample_rate: u32) -> (Arc<Mixer<S>>, MixerSource<S>)
 where
     S: Sample + Send + 'static,
 {
-    let input = Arc::new(DynamicMixerController {
+    let input = Arc::new(Mixer {
         has_pending: AtomicBool::new(false),
         pending_sources: Mutex::new(Vec::new()),
         channels,
         sample_rate,
     });
 
-    let output = DynamicMixer {
+    let output = MixerSource {
         current_sources: Vec::with_capacity(16),
         input: input.clone(),
         sample_count: 0,
@@ -39,14 +36,14 @@ where
 }
 
 /// The input of the mixer.
-pub struct DynamicMixerController<S> {
+pub struct Mixer<S> {
     has_pending: AtomicBool,
     pending_sources: Mutex<Vec<Box<dyn Source<Item = S> + Send>>>,
     channels: u16,
     sample_rate: u32,
 }
 
-impl<S> DynamicMixerController<S>
+impl<S> Mixer<S>
 where
     S: Sample + Send + 'static,
 {
@@ -66,12 +63,12 @@ where
 }
 
 /// The output of the mixer. Implements `Source`.
-pub struct DynamicMixer<S> {
+pub struct MixerSource<S> {
     // The current iterator that produces samples.
     current_sources: Vec<Box<dyn Source<Item = S> + Send>>,
 
     // The pending sounds.
-    input: Arc<DynamicMixerController<S>>,
+    input: Arc<Mixer<S>>,
 
     // The number of samples produced so far.
     sample_count: usize,
@@ -83,7 +80,7 @@ pub struct DynamicMixer<S> {
     still_current: Vec<Box<dyn Source<Item = S> + Send>>,
 }
 
-impl<S> Source for DynamicMixer<S>
+impl<S> Source for MixerSource<S>
 where
     S: Sample + Send + 'static,
 {
@@ -144,7 +141,7 @@ where
     }
 }
 
-impl<S> Iterator for DynamicMixer<S>
+impl<S> Iterator for MixerSource<S>
 where
     S: Sample + Send + 'static,
 {
@@ -173,7 +170,7 @@ where
     }
 }
 
-impl<S> DynamicMixer<S>
+impl<S> MixerSource<S>
 where
     S: Sample + Send + 'static,
 {
@@ -217,12 +214,12 @@ where
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
-    use crate::dynamic_mixer;
+    use crate::mixer;
     use crate::source::Source;
 
     #[test]
     fn basic() {
-        let (tx, mut rx) = dynamic_mixer::mixer(1, 48000);
+        let (tx, mut rx) = mixer::mixer(1, 48000);
 
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
@@ -238,7 +235,7 @@ mod tests {
 
     #[test]
     fn channels_conv() {
-        let (tx, mut rx) = dynamic_mixer::mixer(2, 48000);
+        let (tx, mut rx) = mixer::mixer(2, 48000);
 
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
@@ -258,7 +255,7 @@ mod tests {
 
     #[test]
     fn rate_conv() {
-        let (tx, mut rx) = dynamic_mixer::mixer(1, 96000);
+        let (tx, mut rx) = mixer::mixer(1, 96000);
 
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
@@ -277,7 +274,7 @@ mod tests {
 
     #[test]
     fn start_afterwards() {
-        let (tx, mut rx) = dynamic_mixer::mixer(1, 48000);
+        let (tx, mut rx) = mixer::mixer(1, 48000);
 
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
 

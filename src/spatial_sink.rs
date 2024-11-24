@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use cpal::FromSample;
 
+use crate::mixer::Mixer;
 use crate::source::{SeekError, Spatial};
-use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{Sample, Sink, Source};
 
 /// A sink that allows changing the position of the source and the listeners
@@ -24,20 +24,20 @@ struct SoundPositions {
 
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
-    pub fn try_new(
-        stream: &OutputStreamHandle,
+    pub fn connect_new(
+        mixer: &Mixer<f32>,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
         right_ear: [f32; 3],
-    ) -> Result<SpatialSink, PlayError> {
-        Ok(SpatialSink {
-            sink: Sink::try_new(stream)?,
+    ) -> SpatialSink {
+        SpatialSink {
+            sink: Sink::connect_new(mixer),
             positions: Arc::new(Mutex::new(SoundPositions {
                 emitter_position,
                 left_ear,
                 right_ear,
             })),
-        })
+        }
     }
 
     /// Sets the position of the sound emitter in 3 dimensional space.

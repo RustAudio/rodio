@@ -2,19 +2,19 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use cpal::FromSample;
 #[cfg(feature = "crossbeam-channel")]
 use crossbeam_channel::{Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::{Receiver, Sender};
 
+use crate::mixer::Mixer;
 use crate::source::SeekError;
-use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
-use cpal::FromSample;
 
 /// Handle to a device that outputs sounds.
 ///
-/// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
+/// Dropping the `Sink` stops all its sounds. You can use `detach` if you want the sounds to continue
 /// playing.
 pub struct Sink {
     queue_tx: Arc<queue::SourcesQueueInput<f32>>,
@@ -70,15 +70,15 @@ struct Controls {
 impl Sink {
     /// Builds a new `Sink`, beginning playback on a stream.
     #[inline]
-    pub fn try_new(stream: &OutputStreamHandle) -> Result<Sink, PlayError> {
-        let (sink, queue_rx) = Sink::new_idle();
-        stream.play_raw(queue_rx)?;
-        Ok(sink)
+    pub fn connect_new(mixer: &Mixer<f32>) -> Sink {
+        let (sink, source) = Sink::new();
+        mixer.add(source);
+        sink
     }
 
     /// Builds a new `Sink`.
     #[inline]
-    pub fn new_idle() -> (Sink, queue::SourcesQueueOutput<f32>) {
+    pub fn new() -> (Sink, queue::SourcesQueueOutput<f32>) {
         let (queue_tx, queue_rx) = queue::queue(true);
 
         let sink = Sink {
@@ -107,7 +107,7 @@ impl Sink {
         f32: FromSample<S::Item>,
         S::Item: Sample + Send,
     {
-        // Wait for queue to flush then resume stopped playback
+        // Wait for the queue to flush then resume stopped playback
         if self.controls.stopped.load(Ordering::SeqCst) {
             if self.sound_count.load(Ordering::SeqCst) > 0 {
                 self.sleep_until_end();
@@ -366,13 +366,14 @@ impl Drop for Sink {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::Ordering;
+
     use crate::buffer::SamplesBuffer;
     use crate::{Sink, Source};
-    use std::sync::atomic::Ordering;
 
     #[test]
     fn test_pause_and_stop() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         // assert_eq!(queue_rx.next(), Some(0.0));
 
@@ -403,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_stop_and_start() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         let v = vec![10i16, -10, 20, -20, 30, -30];
 
@@ -431,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_volume() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         let v = vec![10i16, -10, 20, -20, 30, -30];
 

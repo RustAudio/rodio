@@ -1,11 +1,14 @@
+use std::error::Error;
 use std::io::BufReader;
 
-fn main() {
-    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-    let sink = rodio::Sink::try_new(&handle).unwrap();
+fn main() -> Result<(), Box<dyn Error>> {
+    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
-    let file = std::fs::File::open("assets/music.ogg").unwrap();
-    sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
+    let file = std::fs::File::open("assets/music.ogg")?;
+    sink.append(rodio::Decoder::new(BufReader::new(file))?);
 
     sink.sleep_until_end();
+
+    Ok(())
 }

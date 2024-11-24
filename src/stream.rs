@@ -31,10 +31,10 @@ impl OutputStream {
 
 #[derive(Copy, Clone, Debug)]
 struct OutputStreamConfig {
-    pub channel_count: ChannelCount,
-    pub sample_rate: SampleRate,
-    pub buffer_size: BufferSize,
-    pub sample_format: SampleFormat,
+    channel_count: ChannelCount,
+    sample_rate: SampleRate,
+    buffer_size: BufferSize,
+    sample_format: SampleFormat,
 }
 
 /// Convenience builder for audio output stream.

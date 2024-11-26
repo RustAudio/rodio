@@ -1,15 +1,18 @@
 use rodio::Source;
+use std::error::Error;
 use std::io::BufReader;
 use std::time::Duration;
 
-fn main() {
-    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-    let sink = rodio::Sink::try_new(&handle).unwrap();
+fn main() -> Result<(), Box<dyn Error>> {
+    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
-    let file = std::fs::File::open("assets/music.ogg").unwrap();
-    let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+    let file = std::fs::File::open("assets/music.ogg")?;
+    let source = rodio::Decoder::new(BufReader::new(file))?;
     let with_reverb = source.buffered().reverb(Duration::from_millis(40), 0.7);
     sink.append(with_reverb);
 
     sink.sleep_until_end();
+
+    Ok(())
 }

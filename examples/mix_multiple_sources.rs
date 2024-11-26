@@ -1,12 +1,13 @@
+use rodio::mixer;
 use rodio::source::{SineWave, Source};
-use rodio::{dynamic_mixer, OutputStream, Sink};
+use std::error::Error;
 use std::time::Duration;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     // Construct a dynamic controller and mixer, stream_handle, and sink.
-    let (controller, mixer) = dynamic_mixer::mixer::<f32>(2, 44_100);
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let sink = Sink::try_new(&stream_handle).unwrap();
+    let (controller, mixer) = mixer::mixer::<f32>(2, 44_100);
+    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 
     // Create four unique sources. The frequencies used here correspond
     // notes in the key of C and in octave 4: C4, or middle C on a piano,
@@ -35,4 +36,6 @@ fn main() {
 
     // Sleep the thread until sink is empty.
     sink.sleep_until_end();
+
+    Ok(())
 }

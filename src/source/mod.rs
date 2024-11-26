@@ -303,16 +303,17 @@ where
     /// # Example (Quick start)
     ///
     /// ```rust
-    /// // Apply Automatic Gain Control to the source.
-    /// use rodio::source::{Source, SineWave, AutomaticGainControl};
+    /// // Apply Automatic Gain Control to the source (AGC is on by default)
+    /// use rodio::source::{Source, SineWave};
     /// use rodio::Sink;
     /// let source = SineWave::new(444.0); // An example.
-    /// let (sink, output) = Sink::new_idle(); // An example, makes no sound unless connected to an output.
+    /// let (sink, output) = Sink::new(); // An example.
     ///
     /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
     ///
     /// // Add the AGC-controlled source to the sink
     /// sink.append(agc_source);
+    ///
     /// ```
     #[inline]
     fn automatic_gain_control(
@@ -500,7 +501,7 @@ where
     ///
     /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
     /// together with [`Source::try_seek()`] as the latter does take all
-    /// speedup's and delay's into account. Its recommended therefore to apply
+    /// speedup's and delay's into account. It's recommended therefore to apply
     /// track_position after speedup's and delay's.
     fn track_position(self) -> TrackPosition<Self>
     where
@@ -556,7 +557,7 @@ where
 
     /// Attempts to seek to a given position in the current source.
     ///
-    /// As long as the duration of the source is known seek is guaranteed to saturate
+    /// As long as the duration of the source is known, seek is guaranteed to saturate
     /// at the end of the source. For example given a source that reports a total duration
     /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
     /// 42 seconds.
@@ -579,8 +580,8 @@ where
 }
 
 // We might add decoders requiring new error types, without non_exhaustive
-// this would break users builds
-/// Occurs when try_seek fails because the underlying decoder has an error or
+// this would break users' builds.
+/// Occurs when `try_seek` fails because the underlying decoder has an error or
 /// does not support seeking.
 #[non_exhaustive]
 #[derive(Debug)]
@@ -596,8 +597,8 @@ pub enum SeekError {
     #[cfg(feature = "wav")]
     /// The hound (wav) decoder ran into an issue
     HoundDecoder(std::io::Error),
-    // Prefer adding an enum variant to using this. Its meant for end users their
-    // own try_seek implementations
+    // Prefer adding an enum variant to using this. It's meant for end users their
+    // own `try_seek` implementations.
     /// Any other error probably in a custom Source
     Other(Box<dyn std::error::Error + Send>),
 }

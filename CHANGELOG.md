@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Output audio stream buffer size can now be adjusted.
+
+### Changed
+- Breaking: `OutputStreamBuilder` should now be used to initialize audio output stream.
+- Breaking: `OutputStreamHandle` removed, use `OutputStream` and `OutputStream::mixer()` instead.
+- Breaking: `DynamicMixerController` renamed to `Mixer`, `DynamicMixer` renamed to `MixerSource`.
+- Breaking: `Sink::try_new` renamed to `connect_new` and does not return error anymore.
+            `Sink::new_idle` was renamed to `new`.
+
 # Version 0.20.1 (2024-11-08)
 
 ### Fixed

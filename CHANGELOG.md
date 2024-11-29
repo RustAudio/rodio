@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `Sink::try_new` renamed to `connect_new` and does not return error anymore.
             `Sink::new_idle` was renamed to `new`.
 
+### Fixed
+
+- Symphonia decoder `total_duration` incorrect value caused by conversion from `Time` to `Duration`.
+
 # Version 0.20.1 (2024-11-08)
 
 ### Fixed

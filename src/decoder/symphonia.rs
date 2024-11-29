@@ -170,8 +170,7 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.total_duration
-            .map(|Time { seconds, frac }| Duration::new(seconds, (1f64 / frac) as u32))
+        self.total_duration.map(time_to_duration)
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), source::SeekError> {
@@ -303,6 +302,17 @@ fn skip_back_a_tiny_bit(
         frac = 1.0 - frac;
     }
     Time { seconds, frac }
+}
+
+fn time_to_duration(time: Time) -> Duration {
+    Duration::new(
+        time.seconds,
+        if time.frac > 0.0 {
+            (1f64 / time.frac) as u32
+        } else {
+            0
+        },
+    )
 }
 
 impl Iterator for SymphoniaDecoder {

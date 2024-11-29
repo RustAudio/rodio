@@ -170,7 +170,6 @@ where
     fn total_duration(&self) -> Option<Duration>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
-
     #[inline]
     fn buffered(self) -> Buffered<Self>
     where

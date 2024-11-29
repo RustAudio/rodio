@@ -1,5 +1,6 @@
 use crate::conversions::Sample;
 
+use num_rational::Ratio;
 use std::mem;
 
 /// Iterator that converts from a certain sample rate to another.
@@ -34,12 +35,19 @@ where
     I: Iterator,
     I::Item: Sample,
 {
+    /// Create new sample rate converter.
     ///
+    /// The converter uses simple linear interpolation for up-sampling
+    /// and discards samples for down-sampling. This may introduce audible
+    /// distortions in some cases (see [#584](https://github.com/RustAudio/rodio/issues/584)).
+    ///
+    /// # Limitations
+    /// Some rate conversions where target rate is high and rates are mutual primes the sample
+    /// interpolation may cause numeric overflows. Conversion between usual sample rates
+    /// 2400, 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, ... is expected to work.
     ///
     /// # Panic
-    ///
-    /// Panics if `from` or `to` are equal to 0.
-    ///
+    /// Panics if `from`, `to` or `num_channels` are 0.
     #[inline]
     pub fn new(
         mut input: I,
@@ -54,23 +62,8 @@ where
         assert!(from >= 1);
         assert!(to >= 1);
 
-        // finding the greatest common divisor
-        let gcd = {
-            #[inline]
-            fn gcd(a: u32, b: u32) -> u32 {
-                if b == 0 {
-                    a
-                } else {
-                    gcd(b, a % b)
-                }
-            }
-
-            gcd(from, to)
-        };
-
         let (first_samples, next_samples) = if from == to {
             // if `from` == `to` == 1, then we just pass through
-            debug_assert_eq!(from, gcd);
             (Vec::new(), Vec::new())
         } else {
             let first = input
@@ -84,10 +77,13 @@ where
             (first, next)
         };
 
+        // Reducing nominator to avoid numeric overflows during interpolation.
+        let (to, from) = Ratio::new(to, from).into_raw();
+
         SampleRateConverter {
             input,
-            from: from / gcd,
-            to: to / gcd,
+            from,
+            to,
             channels: num_channels,
             current_frame_pos_in_chunk: 0,
             next_output_frame_pos_in_chunk: 0,
@@ -296,9 +292,10 @@ mod test {
         /// Check that dividing the sample rate by k (integer) is the same as
         ///   dropping a sample from each channel.
         fn divide_sample_rate(to: u16, k: u16, input: Vec<u16>, channels: u8) -> TestResult {
-            if k == 0 || channels == 0 || channels > 128 || to == 0 || to.checked_mul(k).is_none() {
+            if k == 0 || channels == 0 || channels > 128 || to == 0 || to > 48000 {
                 return TestResult::discard();
             }
+
             let to = SampleRate(to as u32);
             let from = to * k as u32;
 
@@ -320,10 +317,11 @@ mod test {
 
         /// Check that, after multiplying the sample rate by k, every k-th
         ///  sample in the output matches exactly with the input.
-        fn multiply_sample_rate(from: u16, k: u16, input: Vec<u16>, channels: u8) -> TestResult {
-            if k == 0 || channels == 0 || channels > 128 || from == 0 || from.checked_mul(k).is_none() {
+        fn multiply_sample_rate(from: u16, k: u8, input: Vec<u16>, channels: u8) -> TestResult {
+            if k == 0 || channels == 0 || channels > 128 || from == 0 {
                 return TestResult::discard();
             }
+
             let from = SampleRate(from as u32);
             let to = from * k as u32;
 
@@ -386,6 +384,17 @@ mod test {
         let size_estimation = output.len();
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [1, 2, 4, 6, 8, 10, 12, 14]);
+        assert!((size_estimation as f32 / output.len() as f32).abs() < 2.0);
+    }
+
+    #[test]
+    fn downsample() {
+        let input = Vec::from_iter(0u16..17);
+        let output =
+            SampleRateConverter::new(input.into_iter(), SampleRate(12000), SampleRate(2400), 1);
+        let size_estimation = output.len();
+        let output = output.collect::<Vec<_>>();
+        assert_eq!(output, [0, 5, 10, 15]);
         assert!((size_estimation as f32 / output.len() as f32).abs() < 2.0);
     }
 }

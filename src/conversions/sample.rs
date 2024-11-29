@@ -74,8 +74,10 @@ where
 pub trait Sample: CpalSample {
     /// Linear interpolation between two samples.
     ///
-    /// The result should be equvivalent to
+    /// The result should be equivalent to
     /// `first * (1 - numerator / denominator) + second * numerator / denominator`.
+    ///
+    /// To avoid numeric overflows pick smaller numerator.
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
@@ -93,9 +95,11 @@ pub trait Sample: CpalSample {
 impl Sample for u16 {
     #[inline]
     fn lerp(first: u16, second: u16, numerator: u32, denominator: u32) -> u16 {
-        let sample =
-            first as i64 + (second as i64 - first as i64) * numerator as i64 / denominator as i64;
-        u16::try_from(sample).expect("numerator / denominator is within [0, 1] range")
+        let a = first as i32;
+        let b = second as i32;
+        let n = numerator as i32;
+        let d = denominator as i32;
+        (a + (b - a) * n / d) as u16
     }
 
     #[inline]
@@ -123,9 +127,8 @@ impl Sample for u16 {
 impl Sample for i16 {
     #[inline]
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
-        let sample =
-            first as i64 + (second as i64 - first as i64) * numerator as i64 / denominator as i64;
-        i16::try_from(sample).expect("numerator / denominator is within [0, 1] range")
+        (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32)
+            as i16
     }
 
     #[inline]
@@ -181,6 +184,7 @@ impl Sample for f32 {
 #[cfg(test)]
 mod test {
     use super::*;
+    use num_rational::Ratio;
     use quickcheck::{quickcheck, TestResult};
 
     #[test]
@@ -201,12 +205,6 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
-    fn lerp_u16_overflow() {
-        Sample::lerp(0u16, 1, u16::MAX as u32 + 1, 1);
-    }
-
-    #[test]
     fn lerp_i16_constraints() {
         let a = 12i16;
         let b = 31i16;
@@ -224,29 +222,20 @@ mod test {
         assert_eq!(Sample::lerp(a, i16::MIN, 1, 1), i16::MIN);
     }
 
-    #[test]
-    #[should_panic]
-    fn lerp_i16_overflow_max() {
-        Sample::lerp(0i16, 1, i16::MAX as u32 + 1, 1);
-    }
-
-    #[test]
-    #[should_panic]
-    fn lerp_i16_overflow_min() {
-        Sample::lerp(0i16, -1, (i16::MIN.abs() + 1) as u32, 1);
-    }
-
     quickcheck! {
-        fn lerp_u16_random(first: u16, second: u16, numerator: u32, denominator: u32) -> TestResult {
+        fn lerp_u16_random(first: u16, second: u16, numerator: u16, denominator: u16) -> TestResult {
             if denominator == 0 { return TestResult::discard(); }
+
+            let (numerator, denominator) = Ratio::new(numerator, denominator).into_raw();
+            if numerator > 5000 { return TestResult::discard(); }
+
             let a = first as f64;
             let b = second as f64;
             let c = numerator as f64 / denominator as f64;
             if c < 0.0 || c > 1.0 { return TestResult::discard(); };
             let reference = a * (1.0 - c) + b * c;
-            let x = Sample::lerp(first, second, numerator, denominator) as f64;
-            let diff = x - reference;
-            TestResult::from_bool(diff.abs() < 1.0)
+            let x = Sample::lerp(first, second, numerator as u32, denominator as u32) as f64;
+            TestResult::from_bool((x - reference).abs() < 1.0)
         }
     }
 }

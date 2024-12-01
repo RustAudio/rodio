@@ -166,6 +166,7 @@ pub mod mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;
+pub mod constants;
 
 pub use crate::conversions::Sample;
 pub use crate::decoder::Decoder;

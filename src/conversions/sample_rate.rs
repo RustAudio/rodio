@@ -77,7 +77,7 @@ where
             (first, next)
         };
 
-        // Reducing nominator to avoid numeric overflows during interpolation.
+        // Reducing numerator to avoid numeric overflows during interpolation.
         let (to, from) = Ratio::new(to, from).into_raw();
 
         SampleRateConverter {

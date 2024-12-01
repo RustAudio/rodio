@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 use crate::{Sample, Source};
-
+use crate::constants::DEFAULT_SAMPLE_RATE;
 use super::SeekError;
 
 /// An empty source which executes a callback function
@@ -53,7 +53,7 @@ where
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        48000
+        DEFAULT_SAMPLE_RATE
     }
 
     #[inline]

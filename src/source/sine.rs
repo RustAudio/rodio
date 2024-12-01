@@ -1,7 +1,7 @@
-use std::time::Duration;
 use crate::constants::DEFAULT_SAMPLE_RATE;
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
+use std::time::Duration;
 
 use super::SeekError;
 

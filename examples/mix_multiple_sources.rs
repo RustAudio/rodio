@@ -1,8 +1,8 @@
+use rodio::constants::DEFAULT_SAMPLE_RATE;
 use rodio::mixer;
 use rodio::source::{SineWave, Source};
 use std::error::Error;
 use std::time::Duration;
-use rodio::constants::DEFAULT_SAMPLE_RATE;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Construct a dynamic controller and mixer, stream_handle, and sink.

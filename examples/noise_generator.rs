@@ -1,7 +1,7 @@
 //! Noise generator example. Use the "noise" feature to enable the noise generator sources.
 
-use std::error::Error;
 use rodio::constants::DEFAULT_SAMPLE_RATE;
+use std::error::Error;
 
 #[cfg(feature = "noise")]
 fn main() -> Result<(), Box<dyn Error>> {

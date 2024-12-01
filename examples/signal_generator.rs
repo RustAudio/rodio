@@ -1,7 +1,7 @@
 //! Test signal generator example.
 
-use std::error::Error;
 use rodio::constants::DEFAULT_SAMPLE_RATE;
+use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     use rodio::source::{chirp, Function, SignalGenerator, Source};

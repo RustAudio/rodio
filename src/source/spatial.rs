@@ -5,8 +5,9 @@ use crate::{Sample, Source};
 
 use super::SeekError;
 
-/// Combines channels in input into a single mono source, then plays that mono sound
-/// to each channel at the volume given for that channel.
+/// A simple spatial audio source. The underlying source is transformed to Mono
+/// and then played in stereo. The left and right channel's volume are amplified
+/// differently depending on the distance of the left and right ear to the source.
 #[derive(Clone)]
 pub struct Spatial<I>
 where
@@ -28,6 +29,7 @@ where
     I: Source,
     I::Item: Sample,
 {
+    /// Builds a new `SpatialSink`, beginning playback on a stream.
     pub fn new(
         input: I,
         emitter_position: [f32; 3],

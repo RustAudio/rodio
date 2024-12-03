@@ -1,15 +1,18 @@
 //! Sources of sound and various filters.
 
-use std::time::Duration;
+use core::fmt;
+use core::time::Duration;
 
 use cpal::FromSample;
 
 use crate::Sample;
 
+pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
 pub use self::channel_volume::ChannelVolume;
+pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
 pub use self::delay::Delay;
 pub use self::done::Done;
@@ -26,6 +29,7 @@ pub use self::periodic::PeriodicAccess;
 pub use self::position::TrackPosition;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
+pub use self::signal_generator::{Function, SignalGenerator};
 pub use self::sine::SineWave;
 pub use self::skip::SkipDuration;
 pub use self::skippable::Skippable;
@@ -36,10 +40,12 @@ pub use self::take::TakeDuration;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
 
+mod agc;
 mod amplify;
 mod blt;
 mod buffered;
 mod channel_volume;
+mod chirp;
 mod crossfade;
 mod delay;
 mod done;
@@ -56,6 +62,7 @@ mod periodic;
 mod position;
 mod repeat;
 mod samples_converter;
+mod signal_generator;
 mod sine;
 mod skip;
 mod skippable;
@@ -65,6 +72,11 @@ mod stoppable;
 mod take;
 mod uniform;
 mod zero;
+
+#[cfg(feature = "noise")]
+mod noise;
+#[cfg(feature = "noise")]
+pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 
 /// A source of samples.
 ///
@@ -81,7 +93,7 @@ mod zero;
 /// amplitude every 20µs). By doing so we obtain a list of numerical values, each value being
 /// called a *sample*.
 ///
-/// Therefore a sound can be represented in memory by a frequency and a list of samples. The
+/// Therefore, a sound can be represented in memory by a frequency and a list of samples. The
 /// frequency is expressed in hertz and corresponds to the number of samples that have been
 /// read per second. For example if we read one sample every 20µs, the frequency would be
 /// 50000 Hz. In reality, common values for the frequency are 44100, 48000 and 96000.
@@ -102,7 +114,7 @@ mod zero;
 /// channel, then the second sample of the second channel, and so on. The same applies if you have
 /// more than two channels. The rodio library only supports this schema.
 ///
-/// Therefore in order to represent a sound in memory in fact we need three characteristics: the
+/// Therefore, in order to represent a sound in memory in fact we need three characteristics: the
 /// frequency, the number of channels, and the list of samples.
 ///
 /// ## The `Source` trait
@@ -114,7 +126,8 @@ mod zero;
 /// - The number of channels can be retrieved with `channels`.
 /// - The frequency can be retrieved with `sample_rate`.
 /// - The list of values can be retrieved by iterating on the source. The `Source` trait requires
-///   that the `Iterator` trait be implemented as well.
+///   that the `Iterator` trait be implemented as well. When a `Source` returns None the
+///   sound has ended.
 ///
 /// # Frames
 ///
@@ -231,6 +244,102 @@ where
         amplify::amplify(self, value)
     }
 
+    /// Applies automatic gain control to the sound.
+    ///
+    /// Automatic Gain Control (AGC) adjusts the amplitude of the audio signal
+    /// to maintain a consistent output level.
+    ///
+    /// # Parameters
+    ///
+    /// `target_level`:
+    ///   **TL;DR**: Desired output level. 1.0 = original level, > 1.0 amplifies, < 1.0 reduces.
+    ///
+    ///   The desired output level, where 1.0 represents the original sound level.
+    ///   Values above 1.0 will amplify the sound, while values below 1.0 will lower it.
+    ///   For example, a target_level of 1.4 means that at normal sound levels, the AGC
+    ///   will aim to increase the gain by a factor of 1.4, resulting in a minimum 40% amplification.
+    ///   A recommended level is `1.0`, which maintains the original sound level.
+    ///
+    /// `attack_time`:
+    ///   **TL;DR**: Response time for volume increases. Shorter = faster but may cause abrupt changes. **Recommended: `4.0` seconds**.
+    ///
+    ///   The time (in seconds) for the AGC to respond to input level increases.
+    ///   Shorter times mean faster response but may cause abrupt changes. Longer times result
+    ///   in smoother transitions but slower reactions to sudden volume changes. Too short can
+    ///   lead to overreaction to peaks, causing unnecessary adjustments. Too long can make the
+    ///   AGC miss important volume changes or react too slowly to sudden loud passages. Very
+    ///   high values might result in excessively loud output or sluggish response, as the AGC's
+    ///   adjustment speed is limited by the attack time. Balance is key for optimal performance.
+    ///   A recommended attack_time of `4.0` seconds provides a sweet spot for most applications.
+    ///
+    /// `release_time`:
+    ///   **TL;DR**: Response time for volume decreases. Shorter = faster gain reduction. **Recommended: `0.005` seconds**.
+    ///
+    ///   The time (in seconds) for the AGC to respond to input level decreases.
+    ///   This parameter controls how quickly the gain is reduced when the signal level drops.
+    ///   Shorter release times result in faster gain reduction, which can be useful for quick
+    ///   adaptation to quieter passages but may lead to pumping effects. Longer release times
+    ///   provide smoother transitions but may be slower to respond to sudden decreases in volume.
+    ///   However, if the release_time is too high, the AGC may not be able to lower the gain
+    ///   quickly enough, potentially leading to clipping and distorted sound before it can adjust.
+    ///   Finding the right balance is crucial for maintaining natural-sounding dynamics and
+    ///   preventing distortion. A recommended release_time of `0.005` seconds often works well for
+    ///   general use, providing a good balance between responsiveness and smooth transitions.
+    ///
+    /// `absolute_max_gain`:
+    ///   **TL;DR**: Maximum allowed gain. Prevents over-amplification. **Recommended: `5.0`**.
+    ///
+    ///   The maximum gain that can be applied to the signal.
+    ///   This parameter acts as a safeguard against excessive amplification of quiet signals
+    ///   or background noise. It establishes an upper boundary for the AGC's signal boost,
+    ///   effectively preventing distortion or overamplification of low-level sounds.
+    ///   This is crucial for maintaining audio quality and preventing unexpected volume spikes.
+    ///   A recommended value for `absolute_max_gain` is `5`, which provides a good balance between
+    ///   amplification capability and protection against distortion in most scenarios.
+    ///
+    /// Use `get_agc_control` to obtain a handle for real-time enabling/disabling of the AGC.
+    ///
+    /// # Example (Quick start)
+    ///
+    /// ```rust
+    /// // Apply Automatic Gain Control to the source (AGC is on by default)
+    /// use rodio::source::{Source, SineWave};
+    /// use rodio::Sink;
+    /// let source = SineWave::new(444.0); // An example.
+    /// let (sink, output) = Sink::new(); // An example.
+    ///
+    /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
+    ///
+    /// // Add the AGC-controlled source to the sink
+    /// sink.append(agc_source);
+    ///
+    /// ```
+    #[inline]
+    fn automatic_gain_control(
+        self,
+        target_level: f32,
+        attack_time: f32,
+        release_time: f32,
+        absolute_max_gain: f32,
+    ) -> AutomaticGainControl<Self>
+    where
+        Self: Sized,
+    {
+        // Added Limits to prevent the AGC from blowing up. ;)
+        const MIN_ATTACK_TIME: f32 = 10.0;
+        const MIN_RELEASE_TIME: f32 = 10.0;
+        let attack_time = attack_time.min(MIN_ATTACK_TIME);
+        let release_time = release_time.min(MIN_RELEASE_TIME);
+
+        agc::automatic_gain_control(
+            self,
+            target_level,
+            attack_time,
+            release_time,
+            absolute_max_gain,
+        )
+    }
+
     /// Mixes this sound fading out with another sound fading in for the given duration.
     ///
     /// Only the crossfaded portion (beginning of self, beginning of other) is returned.
@@ -300,7 +409,20 @@ where
         periodic::periodic(self, period, access)
     }
 
-    /// Changes the play speed of the sound. Does not adjust the samples, only the play speed.
+    /// Changes the play speed of the sound. Does not adjust the samples, only the playback speed.
+    ///
+    /// # Note:
+    /// 1. **Increasing the speed will increase the pitch by the same factor**
+    /// - If you set the speed to 0.5 this will halve the frequency of the sound
+    ///   lowering its pitch.
+    /// - If you set the speed to 2 the frequency will double raising the
+    ///   pitch of the sound.
+    /// 2. **Change in the speed affect the total duration inversely**
+    /// - If you set the speed to 0.5, the total duration will be twice as long.
+    /// - If you set the speed to 2 the total duration will be halve of what it
+    ///   was.
+    ///
+    /// See [`Speed`] for details
     #[inline]
     fn speed(self, ratio: f32) -> Speed<Self>
     where
@@ -360,6 +482,9 @@ where
         stoppable::stoppable(self)
     }
 
+    /// Adds a method [`Skippable::skip`] for skipping this source. Skipping
+    /// makes Source::next() return None. Which in turn makes the Sink skip to
+    /// the next source.
     fn skippable(self) -> Skippable<Self>
     where
         Self: Sized,
@@ -374,8 +499,8 @@ where
     /// in the position returned by [`get_pos`](TrackPosition::get_pos).
     ///
     /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
-    /// together with [`Source::try_seek()`] as the the latter does take all
-    /// speedup's and delay's into account. Its recommended therefore to apply
+    /// together with [`Source::try_seek()`] as the latter does take all
+    /// speedup's and delay's into account. It's recommended therefore to apply
     /// track_position after speedup's and delay's.
     fn track_position(self) -> TrackPosition<Self>
     where
@@ -431,7 +556,7 @@ where
 
     /// Attempts to seek to a given position in the current source.
     ///
-    /// As long as the duration of the source is known seek is guaranteed to saturate
+    /// As long as the duration of the source is known, seek is guaranteed to saturate
     /// at the end of the source. For example given a source that reports a total duration
     /// of 42 seconds calling `try_seek()` with 60 seconds as argument will seek to
     /// 42 seconds.
@@ -441,7 +566,7 @@ where
     /// sources does not support seeking.
     ///
     /// It will return an error if an implementation ran
-    /// into one during the seek.  
+    /// into one during the seek.
     ///
     /// Seeking beyond the end of a source might return an error if the total duration of
     /// the source is not known.
@@ -454,23 +579,69 @@ where
 }
 
 // We might add decoders requiring new error types, without non_exhaustive
-// this would break users builds
+// this would break users' builds.
+/// Occurs when `try_seek` fails because the underlying decoder has an error or
+/// does not support seeking.
 #[non_exhaustive]
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum SeekError {
-    #[error("Streaming is not supported by source: {underlying_source}")]
-    NotSupported { underlying_source: &'static str },
+    /// One of the underlying sources does not support seeking
+    NotSupported {
+        /// The source that did not support seek
+        underlying_source: &'static str,
+    },
     #[cfg(feature = "symphonia")]
-    #[error("Error seeking: {0}")]
-    SymphoniaDecoder(#[from] crate::decoder::symphonia::SeekError),
+    /// The symphonia decoder ran into an issue
+    SymphoniaDecoder(crate::decoder::symphonia::SeekError),
     #[cfg(feature = "wav")]
-    #[error("Error seeking in wav source: {0}")]
+    /// The hound (wav) decoder ran into an issue
     HoundDecoder(std::io::Error),
-    #[error("An error occurred")]
+    // Prefer adding an enum variant to using this. It's meant for end users their
+    // own `try_seek` implementations.
+    /// Any other error probably in a custom Source
     Other(Box<dyn std::error::Error + Send>),
+}
+impl fmt::Display for SeekError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SeekError::NotSupported { underlying_source } => {
+                write!(
+                    f,
+                    "Seeking is not supported by source: {}",
+                    underlying_source
+                )
+            }
+            #[cfg(feature = "symphonia")]
+            SeekError::SymphoniaDecoder(err) => write!(f, "Error seeking: {}", err),
+            #[cfg(feature = "wav")]
+            SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {}", err),
+            SeekError::Other(_) => write!(f, "An error occurred"),
+        }
+    }
+}
+impl std::error::Error for SeekError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            SeekError::NotSupported { .. } => None,
+            #[cfg(feature = "symphonia")]
+            SeekError::SymphoniaDecoder(err) => Some(err),
+            #[cfg(feature = "wav")]
+            SeekError::HoundDecoder(err) => Some(err),
+            SeekError::Other(err) => Some(err.as_ref()),
+        }
+    }
+}
+
+#[cfg(feature = "symphonia")]
+impl From<crate::decoder::symphonia::SeekError> for SeekError {
+    fn from(source: crate::decoder::symphonia::SeekError) -> Self {
+        SeekError::SymphoniaDecoder(source)
+    }
 }
 
 impl SeekError {
+    /// Will the source remain playing at its position before the seek or is it
+    /// broken?
     pub fn source_intact(&self) -> bool {
         match self {
             SeekError::NotSupported { .. } => true,

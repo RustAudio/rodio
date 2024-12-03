@@ -4,7 +4,7 @@ use crate::{Sample, Source};
 
 use super::SeekError;
 
-/// Internal function that builds a `Pausable` object.
+/// Builds a `Pausable` object.
 pub fn pausable<I>(source: I, paused: bool) -> Pausable<I>
 where
     I: Source,
@@ -22,6 +22,12 @@ where
     }
 }
 
+/// Wraps a source and makes it pausable by calling [`Pausable::set_paused`] on
+/// this object. When the source is paused it returns zero value samples.
+///
+/// You can usually still use this from another source wrapping this one by
+/// calling `inner_mut` on it. Similarly this provides [`Pausable::inner`] and
+/// mutable/destructing variants for accessing the underlying source.
 #[derive(Clone, Debug)]
 pub struct Pausable<I> {
     input: I,

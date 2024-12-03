@@ -4,10 +4,13 @@ use std::time::Duration;
 
 use cpal::FromSample;
 
+use crate::mixer::Mixer;
 use crate::source::{SeekError, Spatial};
-use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{Sample, Sink, Source};
 
+/// A sink that allows changing the position of the source and the listeners
+/// ears while playing. The sources played are then transformed to give a simple
+/// spatial effect. See [`Spatial`] for details.
 pub struct SpatialSink {
     sink: Sink,
     positions: Arc<Mutex<SoundPositions>>,
@@ -21,20 +24,20 @@ struct SoundPositions {
 
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
-    pub fn try_new(
-        stream: &OutputStreamHandle,
+    pub fn connect_new(
+        mixer: &Mixer<f32>,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
         right_ear: [f32; 3],
-    ) -> Result<SpatialSink, PlayError> {
-        Ok(SpatialSink {
-            sink: Sink::try_new(stream)?,
+    ) -> SpatialSink {
+        SpatialSink {
+            sink: Sink::connect_new(mixer),
             positions: Arc::new(Mutex::new(SoundPositions {
                 emitter_position,
                 left_ear,
                 right_ear,
             })),
-        })
+        }
     }
 
     /// Sets the position of the sound emitter in 3 dimensional space.
@@ -93,10 +96,20 @@ impl SpatialSink {
         self.sink.set_volume(value);
     }
 
-    /// Gets the speed of the sound.
+    /// Changes the play speed of the sound. Does not adjust the samples, only the playback speed.
     ///
-    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
-    /// change the play speed of the sound.
+    /// # Note:
+    /// 1. **Increasing the speed will increase the pitch by the same factor**
+    /// - If you set the speed to 0.5 this will halve the frequency of the sound
+    ///   lowering its pitch.
+    /// - If you set the speed to 2 the frequency will double raising the
+    ///   pitch of the sound.
+    /// 2. **Change in the speed affect the total duration inversely**
+    /// - If you set the speed to 0.5, the total duration will be twice as long.
+    /// - If you set the speed to 2 the total duration will be halve of what it
+    ///   was.
+    ///
+    /// See [`Speed`] for details
     #[inline]
     pub fn speed(&self) -> f32 {
         self.sink.speed()

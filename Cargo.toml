@@ -1,6 +1,6 @@
 [package]
 name = "rodio"
-version = "0.19.0"
+version = "0.20.1"
 license = "MIT OR Apache-2.0"
 description = "Audio playback library"
 keywords = ["audio", "playback", "gamedev"]
@@ -17,16 +17,23 @@ lewton = { version = "0.10", optional = true }
 minimp3_fixed = { version = "0.5.4", optional = true}
 symphonia = { version = "0.5.4", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.8", optional = true }
-thiserror = "1.0.49"
+
+rand = { version = "0.8.5", features = ["small_rng"], optional = true }
+tracing = { version = "0.1.40", optional = true }
+
+atomic_float = { version = "1.1.0", optional = true }
 
 [features]
 default = ["flac", "vorbis", "wav", "mp3"]
+tracing = ["dep:tracing"]
+experimental = ["dep:atomic_float"]
 
 flac = ["claxon"]
 vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["symphonia-mp3"]
 minimp3 = ["dep:minimp3_fixed"]
+noise = ["rand"]
 wasm-bindgen = ["cpal/wasm-bindgen"]
 cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
 symphonia-aac = ["symphonia/aac"]
@@ -44,7 +51,25 @@ quickcheck = "0.9.2"
 rstest = "0.18.2"
 rstest_reuse = "0.6.0"
 approx = "0.5.1"
+dasp_sample = "0.11.0"
+divan = "0.1.14"
+
+[[bench]]
+name = "effects"
+harness = false
+
+[[bench]]
+name = "conversions"
+harness = false
+
+[[bench]]
+name = "resampler"
+harness = false
 
 [[example]]
 name = "music_m4a"
 required-features = ["symphonia-isomp4", "symphonia-aac"]
+
+[[example]]
+name = "noise_generator"
+required-features = ["noise"]

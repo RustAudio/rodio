@@ -80,6 +80,9 @@ pub trait Sample: CpalSample {
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
 
+    /// Converts the sample to an f32 value.
+    fn to_f32(self) -> f32;
+
     /// Calls `saturating_add` on the sample.
     fn saturating_add(self, other: Self) -> Self;
 
@@ -100,6 +103,12 @@ impl Sample for u16 {
     #[inline]
     fn amplify(self, value: f32) -> u16 {
         ((self as f32) * value) as u16
+    }
+
+    #[inline]
+    fn to_f32(self) -> f32 {
+        // Convert u16 to f32 in the range [-1.0, 1.0]
+        (self as f32 - 32768.0) / 32768.0
     }
 
     #[inline]
@@ -126,6 +135,12 @@ impl Sample for i16 {
     }
 
     #[inline]
+    fn to_f32(self) -> f32 {
+        // Convert i16 to f32 in the range [-1.0, 1.0]
+        self as f32 / 32768.0
+    }
+
+    #[inline]
     fn saturating_add(self, other: i16) -> i16 {
         self.saturating_add(other)
     }
@@ -145,6 +160,12 @@ impl Sample for f32 {
     #[inline]
     fn amplify(self, value: f32) -> f32 {
         self * value
+    }
+
+    #[inline]
+    fn to_f32(self) -> f32 {
+        // f32 is already in the correct format
+        self
     }
 
     #[inline]

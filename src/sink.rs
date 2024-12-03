@@ -2,19 +2,19 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use cpal::FromSample;
 #[cfg(feature = "crossbeam-channel")]
 use crossbeam_channel::{Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::{Receiver, Sender};
 
+use crate::mixer::Mixer;
 use crate::source::SeekError;
-use crate::stream::{OutputStreamHandle, PlayError};
 use crate::{queue, source::Done, Sample, Source};
-use cpal::FromSample;
 
 /// Handle to a device that outputs sounds.
 ///
-/// Dropping the `Sink` stops all sounds. You can use `detach` if you want the sounds to continue
+/// Dropping the `Sink` stops all its sounds. You can use `detach` if you want the sounds to continue
 /// playing.
 pub struct Sink {
     queue_tx: Arc<queue::SourcesQueueInput<f32>>,
@@ -70,15 +70,15 @@ struct Controls {
 impl Sink {
     /// Builds a new `Sink`, beginning playback on a stream.
     #[inline]
-    pub fn try_new(stream: &OutputStreamHandle) -> Result<Sink, PlayError> {
-        let (sink, queue_rx) = Sink::new_idle();
-        stream.play_raw(queue_rx)?;
-        Ok(sink)
+    pub fn connect_new(mixer: &Mixer<f32>) -> Sink {
+        let (sink, source) = Sink::new();
+        mixer.add(source);
+        sink
     }
 
     /// Builds a new `Sink`.
     #[inline]
-    pub fn new_idle() -> (Sink, queue::SourcesQueueOutput<f32>) {
+    pub fn new() -> (Sink, queue::SourcesQueueOutput<f32>) {
         let (queue_tx, queue_rx) = queue::queue(true);
 
         let sink = Sink {
@@ -107,7 +107,7 @@ impl Sink {
         f32: FromSample<S::Item>,
         S::Item: Sample + Send,
     {
-        // Wait for queue to flush then resume stopped playback
+        // Wait for the queue to flush then resume stopped playback
         if self.controls.stopped.load(Ordering::SeqCst) {
             if self.sound_count.load(Ordering::SeqCst) > 0 {
                 self.sleep_until_end();
@@ -131,7 +131,7 @@ impl Sink {
             .periodic_access(Duration::from_millis(5), move |src| {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
-                                        *controls.position.lock().unwrap() = Duration::ZERO;
+                    *controls.position.lock().unwrap() = Duration::ZERO;
                 }
                 {
                     let mut to_clear = controls.to_clear.lock().unwrap();
@@ -180,10 +180,20 @@ impl Sink {
         *self.controls.volume.lock().unwrap() = value;
     }
 
-    /// Gets the speed of the sound.
+    /// Changes the play speed of the sound. Does not adjust the samples, only the playback speed.
     ///
-    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
-    /// change the play speed of the sound.
+    /// # Note:
+    /// 1. **Increasing the speed will increase the pitch by the same factor**
+    /// - If you set the speed to 0.5 this will halve the frequency of the sound
+    ///   lowering its pitch.
+    /// - If you set the speed to 2 the frequency will double raising the
+    ///   pitch of the sound.
+    /// 2. **Change in the speed affect the total duration inversely**
+    /// - If you set the speed to 0.5, the total duration will be twice as long.
+    /// - If you set the speed to 2 the total duration will be halve of what it
+    ///   was.
+    ///
+    /// See [`Speed`] for details
     #[inline]
     pub fn speed(&self) -> f32 {
         *self.controls.speed.lock().unwrap()
@@ -193,6 +203,14 @@ impl Sink {
     ///
     /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
     /// change the play speed of the sound.
+    ///
+    /// #### Note:
+    /// 1. **Increasing the speed would also increase the pitch by the same factor**
+    /// - If you increased set the speed to 0.5, the frequency would be slower (0.5x the original frequency) .
+    /// - Also if you set the speed to 1.5 the frequency would be faster ( 1.5x the original frequency).
+    /// 2. **Change in the speed would affect your total duration inversely**
+    /// - if you set the speed by 0.5, your total duration would be (2x the original total duration) longer.
+    /// - Also if you set the speed to 2 the total duration would be (0.5 the original total_duration) shorter
     #[inline]
     pub fn set_speed(&self, value: f32) {
         *self.controls.speed.lock().unwrap() = value;
@@ -221,10 +239,10 @@ impl Sink {
     ///
     /// # Errors
     /// This function will return [`SeekError::NotSupported`] if one of the underlying
-    /// sources does not support seeking.  
+    /// sources does not support seeking.
     ///
     /// It will return an error if an implementation ran
-    /// into one during the seek.  
+    /// into one during the seek.
     ///
     /// When seeking beyond the end of a source this
     /// function might return an error if the duration of the source is not known.
@@ -238,8 +256,11 @@ impl Sink {
         }
 
         match feedback.recv() {
-            Ok(seek_res) => seek_res,
-            // The feedback channel closed. Probably another seekorder was set
+            Ok(seek_res) => {
+                *self.controls.position.lock().unwrap() = pos;
+                seek_res
+            }
+            // The feedback channel closed. Probably another SeekOrder was set
             // invalidating this one and closing the feedback channel
             // ... or the audio thread panicked.
             Err(_) => Ok(()),
@@ -345,13 +366,14 @@ impl Drop for Sink {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::Ordering;
+
     use crate::buffer::SamplesBuffer;
     use crate::{Sink, Source};
-    use std::sync::atomic::Ordering;
 
     #[test]
     fn test_pause_and_stop() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         // assert_eq!(queue_rx.next(), Some(0.0));
 
@@ -382,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_stop_and_start() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         let v = vec![10i16, -10, 20, -20, 30, -30];
 
@@ -410,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_volume() {
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         let v = vec![10i16, -10, 20, -20, 30, -30];
 

@@ -3,17 +3,17 @@
 //! The main concept of this library is the [`Source`] trait, which
 //! represents a sound (streaming or not). In order to play a sound, there are three steps:
 //!
+//! - Get an output stream handle to a physical device. For example, get a stream to the system's
+//!   default sound device with [`OutputStreamBuilder::open_default_stream()`].
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [`decoder`], etc. or even your own type that implements the [`Source`] trait.
-//! - Get an output stream handle to a physical device. For example, get a stream to the system's
-//!   default sound device with [`OutputStream::try_default()`]
-//! - Call [`.play_raw(source)`](OutputStreamHandle::play_raw) on the output stream handle.
+//! - Add the source to the output stream using [`OutputStream::mixer()`](OutputStream::mixer)
+//!   on the output stream handle.
 //!
-//! The [`play_raw`](OutputStreamHandle::play_raw) function expects the source to produce [`f32`]s,
-//! which may not be the case. If you get a compilation error, try calling
-//! [`.convert_samples()`](Source::convert_samples) on the source to fix it.
+//! The output stream expects the sources to produce [`f32`]s. In case the output sample format
+//! is different use [`.convert_samples()`](Source::convert_samples) to adapt them.
 //!
-//! For example, here is how you would play an audio file:
+//! Here is a complete example of how you would play an audio file:
 //!
 //! ```no_run
 //! use std::fs::File;
@@ -21,29 +21,51 @@
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
 //! // Get an output stream handle to the default physical sound device.
-//! // Note that no sound will be played if _stream is dropped
-//! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+//! // Note that the playback stops when the stream_handle is dropped.
+//! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
+//!         .expect("open default audio stream");
+//! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 //! // Load a sound from a file, using a path relative to Cargo.toml
 //! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
 //! // Decode that sound file into a source
 //! let source = Decoder::new(file).unwrap();
 //! // Play the sound directly on the device
-//! stream_handle.play_raw(source.convert_samples());
+//! stream_handle.mixer().add(source.convert_samples());
 //!
 //! // The sound plays in a separate audio thread,
 //! // so we need to keep the main thread alive while it's playing.
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //!
+//! [rodio::play()] helps to simplify the above
+//! ```no_run
+//! use std::fs::File;
+//! use std::io::BufReader;
+//! use rodio::{Decoder, OutputStream, source::Source};
+//!
+//! // Get an output stream handle to the default physical sound device.
+//! // Note that the playback stops when the stream_handle is dropped.
+//! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
+//!         .expect("open default audio stream");
+//!
+//! // Load a sound from a file, using a path relative to Cargo.toml
+//! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
+//! rodio::play(&stream_handle.mixer(), file).unwrap();
+//!
+//! // The sound plays in a separate audio thread,
+//! // so we need to keep the main thread alive while it's playing.
+//! std::thread::sleep(std::time::Duration::from_secs(5));
+//! ```
+//!
+//!
 //! ## Sink
 //!
 //! In order to make it easier to control the playback, the rodio library also provides a type
-//! named [`Sink`] which represents an audio track.
+//! named [`Sink`] which represents an audio track. [`Sink`] plays its input sources sequentially,
+//! one after another. To play sounds in simultaneously in parallel, use [`mixer::Mixer`] instead.
 //!
-//! Instead of playing the sound with [`play_raw`](OutputStreamHandle::play_raw), you can add it to
-//! a [`Sink`] instead.
-//!
-//! - Get a [`Sink`] to the output stream, and [`.append()`](Sink::append) your sound to it.
+//! To play a soung Create a [`Sink`] connect it to the output stream,
+//! and [`.append()`](Sink::append) your sound to it.
 //!
 //! ```no_run
 //! use std::fs::File;
@@ -53,8 +75,9 @@
 //! use rodio::source::{SineWave, Source};
 //!
 //! // _stream must live as long as the sink
-//! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-//! let sink = Sink::try_new(&stream_handle).unwrap();
+//! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
+//!         .expect("open default audio stream");
+//! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 //!
 //! // Add a dummy source of the sake of the example.
 //! let source = SineWave::new(440.0).take_duration(Duration::from_secs_f32(0.25)).amplify(0.20);
@@ -71,7 +94,7 @@
 //!
 //! The [`Sink`] type also provides utilities such as playing/pausing or controlling the volume.
 //!
-//! **Please note that the [`Sink`] requires the [`OutputStream`], make sure that the outputstream is not dropped before the sink.**
+//! **Please note that the [`Sink`] requires the [`OutputStream`], make sure that the OutputStream is not dropped before the sink.**
 //!
 //! ## Filters
 //!
@@ -101,6 +124,20 @@
 //! to avoid adding extra crates to your binary.
 //! See the [available feature flags](https://docs.rs/crate/rodio/latest/features) for all options.
 //!
+//! ## Optional Features
+//!
+//! Rodio provides several optional features that are guarded with feature gates.
+//!
+//! ### Feature "tracing"
+//!
+//! The "tracing" feature replaces the print to stderr when a stream error happens with a
+//! recording an error event with tracing.
+//!
+//! ### Feature "Noise"
+//!
+//! The "noise" feature adds support for white and pink noise sources. This feature requires the
+//! "rand" crate.
+//!
 //! ## How it works under the hood
 //!
 //! Rodio spawns a background thread that is dedicated to reading from the sources and sending
@@ -111,7 +148,7 @@
 //! hardware. Therefore there is no restriction on the number of sounds that play simultaneously or
 //! the number of sinks that can be created (except for the fact that creating too many will slow
 //! down your program).
-//!
+
 #![cfg_attr(test, deny(missing_docs))]
 pub use cpal::{
     self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,
@@ -125,7 +162,7 @@ mod stream;
 
 pub mod buffer;
 pub mod decoder;
-pub mod dynamic_mixer;
+pub mod mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;
@@ -135,4 +172,4 @@ pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
-pub use crate::stream::{OutputStream, OutputStreamHandle, PlayError, StreamError};
+pub use crate::stream::{play, OutputStream, OutputStreamBuilder, PlayError, StreamError};

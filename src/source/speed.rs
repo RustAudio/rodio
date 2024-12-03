@@ -4,12 +4,12 @@
 //! encapsulates playback speed controls of the current sink.
 //!
 //! In order to speed up a sink, the speed struct:
-//! - Increases the current sample rate by the given factor
-//! - Updates the total duration function to cover for the new factor by dividing by the factor
-//! - Updates the try_seek function by multiplying the audio position by the factor
+//! - Increases the current sample rate by the given factor.
+//! - Updates the total duration function to cover for the new factor by dividing by the factor.
+//! - Updates the try_seek function by multiplying the audio position by the factor.
 //!
 //! To speed up a source from sink all you need to do is call the   `set_speed(factor: f32)` function
-//! For example, here is how you speed up your sound by using sink or playing raw
+//! For example, here is how you speed up your sound by using sink or playing raw:
 //!
 //! ```no_run
 //!# use std::fs::File;
@@ -28,7 +28,7 @@
 //! stream_handle.mixer().add(source.convert_samples().speed(2.0));
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
-//! here is how you would do it using the sink
+//! Here is how you would do it using the sink:
 //!```no_run
 //! use rodio::source::{Source, SineWave};
 //! let source = SineWave::new(440.0)

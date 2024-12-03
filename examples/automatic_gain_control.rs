@@ -20,12 +20,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
 
     // Make it so that the source checks if automatic gain control should be
-    // enabled or disabled every 5 milliseconds. We must clone `agc_enabled`
+    // enabled or disabled every 5 milliseconds. We must clone `agc_enabled`,
     // or we would lose it when we move it into the periodic access.
     let agc_enabled = Arc::new(AtomicBool::new(true));
     let agc_enabled_clone = agc_enabled.clone();
     let controlled = agc_source.periodic_access(Duration::from_millis(5), move |agc_source| {
-        #[cfg(not(feature = "experimental"))]
         agc_source.set_enabled(agc_enabled_clone.load(Ordering::Relaxed));
     });
 

@@ -179,9 +179,9 @@ mod tests {
         seconds: u32,
         seconds_to_skip: u32,
     ) {
-        let data: Vec<f32> = (1..=(sample_rate * channels as u32 * seconds))
-            .map(|_| 0f32)
-            .collect();
+        let buf_len = (sample_rate * channels as u32 * seconds) as usize;
+        assert!(buf_len < 10 * 1024 * 1024);
+        let data: Vec<f32> = vec![0f32; buf_len];
         let test_buffer = SamplesBuffer::new(channels, sample_rate, data);
         let seconds_left = seconds.saturating_sub(seconds_to_skip);
 

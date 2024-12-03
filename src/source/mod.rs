@@ -170,7 +170,6 @@ where
     fn total_duration(&self) -> Option<Duration>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
-
     #[inline]
     fn buffered(self) -> Buffered<Self>
     where
@@ -297,7 +296,8 @@ where
     ///   A recommended value for `absolute_max_gain` is `5`, which provides a good balance between
     ///   amplification capability and protection against distortion in most scenarios.
     ///
-    /// Use `get_agc_control` to obtain a handle for real-time enabling/disabling of the AGC.
+    /// `automatic_gain_control` example in this project shows a pattern you can use
+    /// to enable/disable the AGC filter dynamically.
     ///
     /// # Example (Quick start)
     ///

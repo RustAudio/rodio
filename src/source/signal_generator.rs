@@ -34,7 +34,7 @@ impl Function {
     /// Create a single sample for the given waveform
     #[inline]
     fn render(&self, i: u64, period: f32) -> f32 {
-        let cycle_pos: f32 = i as f32 / period;
+        let cycle_pos: f32 = (i as f32).rem_euclid(period) / period;
 
         match self {
             Self::Sine => (TAU * cycle_pos).sin(),

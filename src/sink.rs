@@ -452,7 +452,7 @@ mod tests {
     fn test_channel_volume() {
         use crate::source::ChannelVolume;
 
-        let (sink, mut queue_rx) = Sink::new_idle();
+        let (sink, mut queue_rx) = Sink::new();
 
         let v = vec![100.0f32];
         let input = SamplesBuffer::new(1, 48000, v.clone());

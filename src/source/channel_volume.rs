@@ -154,7 +154,7 @@ mod test {
     use super::*;
 
     use crate::buffer::SamplesBuffer;
-    use crate::source::{from_iter, Source};
+    use crate::source::Source;
 
     #[test]
     fn test_channel_volume_iterator() {

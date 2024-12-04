@@ -78,7 +78,7 @@ When possible, add integration tests for your new features. Keep in mind:
 - Add inline documentation to all public items.
 - Look at the [documenting components](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html#documenting-components) section of the rustdoc book.
 - Generate docs: `cargo doc --open`
-- Add an example. That could be as part of the inline documentation or a more complex scenario in `examples/`
+- Add an example. That could be as part of the inline documentation or a more complex scenario in `examples/`. The example should not use `unwrap` or `expect` but return `Box<dyn Error>` and use `?`
 
 ## Contribution Workflow
 

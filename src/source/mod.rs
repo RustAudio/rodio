@@ -75,6 +75,8 @@ mod zero;
 
 #[cfg(feature = "noise")]
 mod noise;
+mod low_pass;
+
 #[cfg(feature = "noise")]
 pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 

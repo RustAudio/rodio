@@ -2,6 +2,8 @@ use crate::conversions::Sample;
 
 use num_rational::Ratio;
 use std::mem;
+use std::time::Duration;
+use crate::Source;
 
 /// Iterator that converts from a certain sample rate to another.
 #[derive(Clone, Debug)]
@@ -15,6 +17,7 @@ where
     from: u32,
     /// We convert chunks of `from` samples into chunks of `to` samples.
     to: u32,
+    to_full: u32,
     /// Number of channels in the stream
     channels: cpal::ChannelCount,
     /// One sample per channel, extracted from `input`.
@@ -61,6 +64,7 @@ where
         assert!(num_channels >= 1);
         assert!(from >= 1);
         assert!(to >= 1);
+        let to_full = to;
 
         let (first_samples, next_samples) = if from == to {
             // if `from` == `to` == 1, then we just pass through
@@ -84,6 +88,7 @@ where
             input,
             from,
             to,
+            to_full,
             channels: num_channels,
             current_frame_pos_in_chunk: 0,
             next_output_frame_pos_in_chunk: 0,
@@ -117,6 +122,28 @@ where
                 break;
             }
         }
+    }
+}
+
+impl<I> Source for SampleRateConverter<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn channels(&self) -> u16 {
+        self.input.channels()
+    }
+
+    fn sample_rate(&self) -> u32 {
+        self.to_full
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
+        self.input.total_duration()
     }
 }
 

@@ -14,8 +14,8 @@ where
     I2: Source,
     I2::Item: Sample,
 {
-    let channels = input1.channels();
-    let rate = input1.sample_rate();
+    let channels = input1.channels().unwrap();
+    let rate = input1.sample_rate().unwrap();
 
     Mix {
         input1: UniformSourceIterator::new(input1, channels, rate),
@@ -101,12 +101,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input1.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input1.sample_rate()
     }
 

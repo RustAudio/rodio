@@ -30,10 +30,7 @@ where
         to: cpal::ChannelCount,
     ) -> ChannelCountConverter<I> {
         assert!(to >= 1);
-        let from = match from {
-            0 => to,
-            n => n,
-        };
+        assert!(from >= 1);
 
         ChannelCountConverter {
             input,
@@ -183,9 +180,18 @@ mod test {
     }
 
     #[test]
+    #[should_panic]
     fn zero_input() {
         let input = vec![1u16, 2, 3, 4, 5, 6];
-        let output = ChannelCountConverter::new(input.into_iter(), 0, 3);
-        assert_eq!(output.len(), 6);
+        // Panics because from is 0
+        let _output = ChannelCountConverter::new(input.into_iter(), 0, 3);
+    }
+
+    #[test]
+    #[should_panic]
+    fn zero_output() {
+        let input = vec![1u16, 2, 3, 4, 5, 6];
+        // Panics because to is 0
+        let _output = ChannelCountConverter::new(input.into_iter(), 3, 0);
     }
 }

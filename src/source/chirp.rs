@@ -51,7 +51,7 @@ impl Iterator for Chirp {
         let ratio = self.elapsed_samples as f32 / self.total_samples as f32;
         self.elapsed_samples += 1;
         let freq = self.start_frequency * (1.0 - ratio) + self.end_frequency * ratio;
-        let t = (i as f32 / self.sample_rate() as f32) * TAU * freq;
+        let t = (i as f32 / self.sample_rate().unwrap() as f32) * TAU * freq;
         Some(t.sin())
     }
 }
@@ -61,12 +61,12 @@ impl Source for Chirp {
         None
     }
 
-    fn channels(&self) -> u16 {
-        1
+    fn channels(&self) -> Option<u16> {
+        Some(1)
     }
 
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate.0
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.sample_rate.0)
     }
 
     fn total_duration(&self) -> Option<Duration> {

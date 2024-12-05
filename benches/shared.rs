@@ -30,12 +30,12 @@ impl<T: rodio::Sample> Source for TestSource<T> {
         None // forever
     }
 
-    fn channels(&self) -> u16 {
-        self.channels
+    fn channels(&self) -> Option<u16> {
+        Some(self.channels)
     }
 
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.sample_rate)
     }
 
     fn total_duration(&self) -> Option<Duration> {
@@ -54,8 +54,8 @@ impl TestSource<i16> {
             .take_duration(duration);
 
         TestSource {
-            channels: sound.channels(),
-            sample_rate: sound.sample_rate(),
+            channels: sound.channels().unwrap(),
+            sample_rate: sound.sample_rate().unwrap(),
             total_duration: duration,
             samples: sound.into_iter().collect::<Vec<_>>().into_iter(),
         }

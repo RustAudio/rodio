@@ -159,10 +159,10 @@ where
     fn current_frame_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
-    fn channels(&self) -> u16;
+    fn channels(&self) -> Option<u16>; // FIX-ME? Should we consider using an `Option<NonZeroU16>` here?
 
     /// Returns the rate at which the source should be played. In number of samples per second.
-    fn sample_rate(&self) -> u32;
+    fn sample_rate(&self) -> Option<u32>;
 
     /// Returns the total duration of this source, if known.
     ///
@@ -663,12 +663,12 @@ macro_rules! source_pointer_impl {
             }
 
             #[inline]
-            fn channels(&self) -> u16 {
+            fn channels(&self) -> Option<u16> {
                 (**self).channels()
             }
 
             #[inline]
-            fn sample_rate(&self) -> u32 {
+            fn sample_rate(&self) -> Option<u32> {
                 (**self).sample_rate()
             }
 

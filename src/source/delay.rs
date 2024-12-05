@@ -17,7 +17,11 @@ where
     I::Item: Sample,
 {
     Delay {
-        remaining_samples: remaining_samples(duration, input.sample_rate(), input.channels()),
+        remaining_samples: remaining_samples(
+            duration,
+            input.sample_rate().unwrap(),
+            input.channels().unwrap(),
+        ),
         requested_duration: duration,
         input,
     }
@@ -95,12 +99,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 
@@ -129,8 +133,11 @@ where
         if pos < self.requested_duration {
             self.input.try_seek(Duration::ZERO)?;
             let until_playback = self.requested_duration - pos;
-            self.remaining_samples =
-                remaining_samples(until_playback, self.sample_rate(), self.channels());
+            self.remaining_samples = remaining_samples(
+                until_playback,
+                self.sample_rate().unwrap(),
+                self.channels().unwrap(),
+            );
         }
         let compensated_for_delay = pos.saturating_sub(self.requested_duration);
         self.input.try_seek(compensated_for_delay)

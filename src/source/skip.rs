@@ -41,8 +41,9 @@ where
             return;
         }
 
-        let ns_per_sample: u128 =
-            NS_PER_SECOND / input.sample_rate() as u128 / input.channels() as u128;
+        let ns_per_sample: u128 = NS_PER_SECOND
+            / input.sample_rate().unwrap() as u128
+            / input.channels().unwrap() as u128;
 
         // Check if we need to skip only part of the current frame.
         if frame_len as u128 * ns_per_sample > duration.as_nanos() {
@@ -64,8 +65,8 @@ where
     I::Item: Sample,
 {
     let samples_per_channel: u128 =
-        duration.as_nanos() * input.sample_rate() as u128 / NS_PER_SECOND;
-    let samples_to_skip: u128 = samples_per_channel * input.channels() as u128;
+        duration.as_nanos() * input.sample_rate().unwrap() as u128 / NS_PER_SECOND;
+    let samples_to_skip: u128 = samples_per_channel * input.channels().unwrap() as u128;
 
     skip_samples(input, samples_to_skip as usize);
 }
@@ -143,12 +144,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 

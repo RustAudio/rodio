@@ -356,7 +356,7 @@ mod test {
 
             let to = SampleRate(to);
             let source = SineWave::new(freq).take_duration(d);
-            let from = SampleRate(source.sample_rate());
+            let from = SampleRate(source.sample_rate().unwrap());
 
             let resampled =
                 SampleRateConverter::new(source, from, to, 1);

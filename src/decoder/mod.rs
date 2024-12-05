@@ -118,7 +118,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.channels(),
@@ -130,12 +130,12 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.channels(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.channels(),
-            DecoderImpl::None(_) => 0,
+            DecoderImpl::None(_) => None, // FIX-ME? I changed this from `0` to `None` instead of `Some(0)`
         }
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.sample_rate(),
@@ -147,7 +147,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.sample_rate(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.sample_rate(),
-            DecoderImpl::None(_) => 1,
+            DecoderImpl::None(_) => Some(1),
         }
     }
 
@@ -418,11 +418,11 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.0.channels()
     }
 
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.0.sample_rate()
     }
 
@@ -516,12 +516,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.0.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.0.sample_rate()
     }
 

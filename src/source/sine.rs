@@ -42,13 +42,13 @@ impl Source for SineWave {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        1
+    fn channels(&self) -> Option<u16> {
+        Some(1)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        Self::SAMPLE_RATE
+    fn sample_rate(&self) -> Option<u32> {
+        Some(Self::SAMPLE_RATE)
     }
 
     #[inline]

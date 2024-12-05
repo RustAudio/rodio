@@ -67,7 +67,7 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         match self.inner.current_frame_len() {
             Some(0) => self.next.channels(),
             _ => self.inner.channels(),
@@ -75,7 +75,7 @@ where
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         match self.inner.current_frame_len() {
             Some(0) => self.next.sample_rate(),
             _ => self.inner.sample_rate(),

@@ -159,12 +159,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.current.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.current.sample_rate()
     }
 
@@ -265,14 +265,14 @@ mod tests {
         tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
 
-        assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.sample_rate(), 48000);
+        assert_eq!(rx.channels(), Some(1));
+        assert_eq!(rx.sample_rate(), Some(48000));
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.sample_rate(), 96000);
+        assert_eq!(rx.channels(), Some(2));
+        assert_eq!(rx.sample_rate(), Some(96000));
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(5));

@@ -121,19 +121,21 @@ fn seek_does_not_break_channel_order(
     #[case] _decoder_name: &'static str,
 ) {
     let mut source = get_rl(format).convert_samples();
-    let channels = source.channels();
+    let channels = source.channels().unwrap();
     assert_eq!(channels, 2, "test needs a stereo beep file");
 
     let beep_range = second_channel_beep_range(&mut source);
     let beep_start = Duration::from_secs_f32(
-        beep_range.start as f32 / source.channels() as f32 / source.sample_rate() as f32,
+        beep_range.start as f32
+            / source.channels().unwrap() as f32
+            / source.sample_rate().unwrap() as f32,
     );
 
     let mut source = get_rl(format).convert_samples();
 
     let mut channel_offset = 0;
     for offset in [1, 4, 7, 40, 41, 120, 179]
-        .map(|offset| offset as f32 / (source.sample_rate() as f32))
+        .map(|offset| offset as f32 / (source.sample_rate().unwrap() as f32))
         .map(Duration::from_secs_f32)
     {
         source.next(); // WINDOW is even, make the amount of calls to next
@@ -145,16 +147,16 @@ fn seek_does_not_break_channel_order(
         let samples: Vec<_> = source.by_ref().take(100).collect();
         let channel0 = 0 + channel_offset;
         assert!(
-            is_silent(&samples, source.channels(), channel0),
-            "channel0 should be silent, 
+            is_silent(&samples, source.channels().unwrap(), channel0),
+            "channel0 should be silent,
     channel0 starts at idx: {channel0}
     seek: {beep_start:?} + {offset:?}
     samples: {samples:?}"
         );
         let channel1 = (1 + channel_offset) % 2;
         assert!(
-            !is_silent(&samples, source.channels(), channel1),
-            "channel1 should not be silent, 
+            !is_silent(&samples, source.channels().unwrap(), channel1),
+            "channel1 should not be silent,
     channel1; starts at idx: {channel1}
     seek: {beep_start:?} + {offset:?}
     samples: {samples:?}"
@@ -166,7 +168,7 @@ fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Rang
 where
     R: Iterator<Item = f32>,
 {
-    let channels = source.channels() as usize;
+    let channels = source.channels().unwrap() as usize;
     let samples: Vec<f32> = source.by_ref().collect();
 
     const WINDOW: usize = 50;
@@ -220,8 +222,8 @@ fn is_silent(samples: &[f32], channels: u16, channel: usize) -> bool {
 }
 
 fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
-    let rate = decoder.sample_rate() as f64;
-    let n_channels = decoder.channels() as f64;
+    let rate = decoder.sample_rate().unwrap() as f64;
+    let n_channels = decoder.channels().unwrap() as f64;
     let n_samples = decoder.into_iter().count() as f64;
     Duration::from_secs_f64(n_samples / rate / n_channels)
 }

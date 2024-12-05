@@ -74,13 +74,13 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.channels
+    fn channels(&self) -> Option<u16> {
+        Some(self.channels)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.sample_rate)
     }
 
     #[inline]
@@ -95,14 +95,16 @@ where
     /// This jumps in memory till the sample for `pos`.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        let curr_channel = self.pos % self.channels() as usize;
-        let new_pos = pos.as_secs_f32() * self.sample_rate() as f32 * self.channels() as f32;
+        let curr_channel = self.pos % self.channels().unwrap() as usize;
+        let new_pos = pos.as_secs_f32()
+            * self.sample_rate().unwrap() as f32
+            * self.channels().unwrap() as f32;
         // saturate pos at the end of the source
         let new_pos = new_pos as usize;
         let new_pos = new_pos.min(self.data.len());
 
         // make sure the next sample is for the right channel
-        let new_pos = new_pos.next_multiple_of(self.channels() as usize);
+        let new_pos = new_pos.next_multiple_of(self.channels().unwrap() as usize);
         let new_pos = new_pos - curr_channel;
 
         self.pos = new_pos;

@@ -61,10 +61,10 @@ where
         let frame_len = input.current_frame_len().map(|x| x.min(32768));
 
         let from_channels = match input.channels() {
-            0 => target_channels,
-            n => n,
+            None | Some(0) => target_channels, // Ideally we wouldn't have to have `Some(0)` to pattern match against
+            Some(n) => n,
         };
-        let from_sample_rate = input.sample_rate();
+        let from_sample_rate = input.sample_rate().unwrap_or(48000);
 
         let input = Take {
             iter: input,
@@ -131,13 +131,13 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.target_channels
+    fn channels(&self) -> Option<u16> {
+        Some(self.target_channels)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.target_sample_rate
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.target_sample_rate)
     }
 
     #[inline]

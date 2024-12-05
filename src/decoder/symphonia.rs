@@ -159,13 +159,13 @@ impl Source for SymphoniaDecoder {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.spec.channels.count() as u16
+    fn channels(&self) -> Option<u16> {
+        Some(self.spec.channels.count() as u16)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.spec.rate
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.spec.rate)
     }
 
     #[inline]
@@ -188,7 +188,7 @@ impl Source for SymphoniaDecoder {
         };
 
         // make sure the next sample is for the right channel
-        let to_skip = self.current_frame_offset % self.channels() as usize;
+        let to_skip = self.current_frame_offset % self.channels().unwrap() as usize;
 
         let seek_res = self
             .format
@@ -285,7 +285,7 @@ impl SymphoniaDecoder {
         let decoded = decoded.map_err(SeekError::Decoding)?;
         decoded.spec().clone_into(&mut self.spec);
         self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
-        self.current_frame_offset = samples_to_pass as usize * self.channels() as usize;
+        self.current_frame_offset = samples_to_pass as usize * self.channels().unwrap() as usize;
         Ok(())
     }
 }

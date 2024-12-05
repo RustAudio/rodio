@@ -98,13 +98,13 @@ impl Source for SignalGenerator {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        1
+    fn channels(&self) -> Option<u16> {
+        Some(1)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate.0
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.sample_rate.0)
     }
 
     #[inline]

@@ -17,7 +17,7 @@ fn no_resampling(bencher: Bencher) {
             (source.channels(), source.sample_rate(), source)
         })
         .bench_values(|(channels, sample_rate, source)| {
-            UniformSourceIterator::<_, i16>::new(source, channels, sample_rate)
+            UniformSourceIterator::<_, i16>::new(source, channels.unwrap(), sample_rate.unwrap())
                 .for_each(divan::black_box_drop)
         })
 }
@@ -36,7 +36,7 @@ fn resample_to(bencher: Bencher, target_sample_rate: u32) {
             (source.channels(), source)
         })
         .bench_values(|(channels, source)| {
-            UniformSourceIterator::<_, i16>::new(source, channels, target_sample_rate)
+            UniformSourceIterator::<_, i16>::new(source, channels.unwrap(), target_sample_rate)
                 .for_each(divan::black_box_drop)
         })
 }

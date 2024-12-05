@@ -114,22 +114,22 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         if let Some(src) = &self.current_source {
             src.channels()
         } else {
             // Dummy value that only happens if the iterator was empty.
-            2
+            Some(2) // FIX-ME? Should we use None in this case, like we do with `Empty`?
         }
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         if let Some(src) = &self.current_source {
             src.sample_rate()
         } else {
             // Dummy value that only happens if the iterator was empty.
-            44100
+            Some(44100) // FIX-ME? Should we use None in this case, like we do with `Empty`?
         }
     }
 
@@ -165,8 +165,8 @@ mod tests {
             }
         }));
 
-        assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.sample_rate(), 48000);
+        assert_eq!(rx.channels(), Some(1));
+        assert_eq!(rx.sample_rate(), Some(48000));
         assert_eq!(rx.next(), Some(10));
         assert_eq!(rx.next(), Some(-10));
         assert_eq!(rx.next(), Some(10));

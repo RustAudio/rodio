@@ -34,7 +34,7 @@ where
         I::Item: Sample,
     {
         let mut sample = None;
-        for _ in 0..input.channels() {
+        for _ in 0..input.channels().unwrap() {
             if let Some(s) = input.next() {
                 sample = Some(
                     sample
@@ -92,7 +92,7 @@ where
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             self.current_sample = None;
-            for _ in 0..self.input.channels() {
+            for _ in 0..self.input.channels().unwrap() {
                 if let Some(s) = self.input.next() {
                     self.current_sample = Some(
                         self.current_sample
@@ -129,12 +129,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.channel_volumes.len() as u16
+    fn channels(&self) -> Option<u16> {
+        Some(self.channel_volumes.len() as u16)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 
@@ -163,8 +163,8 @@ mod test {
         let mut channel_volume =
             ChannelVolume::new(input_source, vec![0.01, 0.01, 0.0, 0.0, 0.0, 0.0]);
 
-        assert_eq!(channel_volume.channels(), 6);
-        assert_eq!(channel_volume.sample_rate(), 48000);
+        assert_eq!(channel_volume.channels(), Some(6));
+        assert_eq!(channel_volume.sample_rate(), Some(48000));
         assert_eq!(channel_volume.next(), Some(1));
         assert_eq!(channel_volume.next(), Some(1));
         assert_eq!(channel_volume.next(), Some(0));

@@ -123,8 +123,8 @@ where
 
     Arc::new(Frame::Data(FrameData {
         data,
-        channels,
-        rate,
+        channels: channels.unwrap(),
+        rate: rate.unwrap(),
         next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
     }))
 }
@@ -220,19 +220,19 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         match *self.current_frame {
-            Frame::Data(FrameData { channels, .. }) => channels,
-            Frame::End => 1,
+            Frame::Data(FrameData { channels, .. }) => Some(channels),
+            Frame::End => Some(1), // FIX-ME? Why is it 1?
             Frame::Input(_) => unreachable!(),
         }
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         match *self.current_frame {
-            Frame::Data(FrameData { rate, .. }) => rate,
-            Frame::End => 44100,
+            Frame::Data(FrameData { rate, .. }) => Some(rate),
+            Frame::End => Some(44100), // FIX-ME? Why is it 44100?
             Frame::Input(_) => unreachable!(),
         }
     }

@@ -24,10 +24,10 @@ use crate::Source;
 ///
 /// # Arguments
 ///  *  An `f32` representing a time in the signal to generate. The scale of this variable is
-///  normalized to the period of the signal, such that "0.0" is time zero, "1.0" is one period of
-///  the signal, "2.0" is two periods and so on. This function should be written to accept any
-///  float in the range (f32::MIN, f32::MAX) but `SignalGenerator` will only pass values in
-///  (0.0, 1.0) to mitigate floating point error.
+///     normalized to the period of the signal, such that "0.0" is time zero, "1.0" is one period of
+///     the signal, "2.0" is two periods and so on. This function should be written to accept any
+///     float in the range (`f32::MIN`, `f32::MAX`) but `SignalGenerator` will only pass values in
+///     (0.0, 1.0) to mitigate floating point error.
 ///
 /// # Returns
 ///

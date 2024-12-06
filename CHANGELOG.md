@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Output audio stream buffer size can now be adjusted.
 - Sources for directly generating square waves, traingle waves, square waves and 
   sawtooths have been added.
+- An interface for defining `SignalGenerator` patterns with an `fn`, see
+  `GeneratorFunction`.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize audio output stream.

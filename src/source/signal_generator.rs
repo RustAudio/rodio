@@ -33,7 +33,7 @@ use crate::Source;
 ///
 /// An `f32` representing the signal level at the passed time. This value should be normalized
 /// in the range [-1.0,1.0].
-type GeneratorFunction = fn(f32) -> f32;
+pub type GeneratorFunction = fn(f32) -> f32;
 
 /// Waveform functions.
 #[derive(Clone, Debug)]

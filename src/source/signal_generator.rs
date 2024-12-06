@@ -55,8 +55,8 @@ fn sawtooth_signal(theta: f32) -> f32 {
 pub struct SignalGenerator {
     sample_rate: cpal::SampleRate,
     function: fn(f32) -> f32,
-    delta_theta: f32,
-    theta: f32,
+    phase_step: f32,
+    phase: f32,
     period: f32,
 }
 
@@ -83,8 +83,8 @@ impl SignalGenerator {
         SignalGenerator {
             sample_rate,
             function,
-            delta_theta,
-            theta: 0.0f32,
+            phase_step: delta_theta,
+            phase: 0.0f32,
             period,
         }
     }
@@ -96,8 +96,8 @@ impl Iterator for SignalGenerator {
     #[inline]
     fn next(&mut self) -> Option<f32> {
         let f = self.function;
-        let val = Some(f(self.theta));
-        self.theta = (self.theta + self.delta_theta).rem_euclid(1.0f32);
+        let val = Some(f(self.phase));
+        self.phase = (self.phase + self.phase_step).rem_euclid(1.0f32);
         val
     }
 }
@@ -126,7 +126,7 @@ impl Source for SignalGenerator {
     #[inline]
     fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
         let seek = duration.as_secs_f32() * (self.sample_rate.0 as f32) / self.period;
-        self.theta = seek.rem_euclid(1.0f32);
+        self.phase = seek.rem_euclid(1.0f32);
         Ok(())
     }
 }

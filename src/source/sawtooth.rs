@@ -7,9 +7,9 @@ use super::SeekError;
 
 /// An infinite source that produces a sawtooth wave.
 ///
-/// Always has a rate of 48kHz and one channel. 
+/// Always has a rate of 48kHz and one channel.
 ///
-/// This source is a thin interface on top of `SignalGenerator` provided for 
+/// This source is a thin interface on top of `SignalGenerator` provided for
 /// your convenience.)
 #[derive(Clone, Debug)]
 pub struct SawtoothWave {
@@ -24,7 +24,7 @@ impl SawtoothWave {
     pub fn new(freq: f32) -> SawtoothWave {
         let sr = cpal::SampleRate(Self::SAMPLE_RATE);
         SawtoothWave {
-            test_saw: SignalGenerator::new(sr, freq, Function::Sawtooth ),
+            test_saw: SignalGenerator::new(sr, freq, Function::Sawtooth),
         }
     }
 }

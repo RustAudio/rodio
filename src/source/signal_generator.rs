@@ -30,34 +30,33 @@ pub enum Function {
     Sawtooth,
 }
 
-impl Function {
-    /// Create a single sample for the given waveform
-    #[inline]
-    fn render(&self, i: u64, period: f32) -> f32 {
-        let cycle_pos: f32 = (i as f32).rem_euclid(period) / period;
+fn sine_signal(theta: f32) -> f32 {
+    (TAU * theta).sin()
+}
 
-        match self {
-            Self::Sine => (TAU * cycle_pos).sin(),
-            Self::Triangle => 4.0f32 * (cycle_pos - (cycle_pos + 0.5f32).floor()).abs() - 1f32,
-            Self::Square => {
-                if cycle_pos % 1.0f32 < 0.5f32 {
-                    1.0f32
-                } else {
-                    -1.0f32
-                }
-            }
-            Self::Sawtooth => 2.0f32 * (cycle_pos - (cycle_pos + 0.5f32).floor()),
-        }
+fn triangle_signal(theta: f32) -> f32 {
+    4.0f32 * (theta - (theta + 0.5f32).floor()).abs() - 1f32
+}
+
+fn square_signal(theta: f32) -> f32 {
+    if theta % 1.0f32 < 0.5f32 {
+        1.0f32
+    } else {
+        -1.0f32
     }
+}
+
+fn sawtooth_signal(theta: f32) -> f32 {
+    2.0f32 * (theta - (theta + 0.5f32).floor())
 }
 
 /// An infinite source that produces one of a selection of test waveforms.
 #[derive(Clone, Debug)]
 pub struct SignalGenerator {
     sample_rate: cpal::SampleRate,
-    period: f32,
-    function: Function,
-    i: u64,
+    function: fn(f32) -> f32,
+    delta_theta: f32,
+    theta: f32,
 }
 
 impl SignalGenerator {
@@ -71,11 +70,20 @@ impl SignalGenerator {
     pub fn new(sample_rate: cpal::SampleRate, frequency: f32, f: Function) -> SignalGenerator {
         assert!(frequency != 0.0, "frequency must be greater than zero");
         let period = sample_rate.0 as f32 / frequency;
+        let delta_theta = 1.0f32 / period;
+
+        let function: fn(f32) -> f32 = match f {
+            Function::Sine => sine_signal,
+            Function::Triangle => triangle_signal,
+            Function::Square => square_signal,
+            Function::Sawtooth => sawtooth_signal,
+        };
+
         SignalGenerator {
             sample_rate,
-            period,
-            function: f,
-            i: 0,
+            function,
+            delta_theta,
+            theta: 0.0f32,
         }
     }
 }
@@ -85,8 +93,9 @@ impl Iterator for SignalGenerator {
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        let val = Some(self.function.render(self.i, self.period));
-        self.i += 1;
+        let f = self.function;
+        let val = Some(f(self.theta));
+        self.theta = (self.theta + self.delta_theta).rem_euclid(1.0f32);
         val
     }
 }
@@ -114,7 +123,8 @@ impl Source for SignalGenerator {
 
     #[inline]
     fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
-        self.i = (self.sample_rate.0 as f32 * duration.as_secs_f32()) as u64;
+        self.theta = self.sample_rate.0 as f32 * duration.as_secs_f32();
+        self.theta = self.theta.rem_euclid(1.0f32);
         Ok(())
     }
 }

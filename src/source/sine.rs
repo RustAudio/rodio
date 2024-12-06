@@ -7,7 +7,10 @@ use super::SeekError;
 
 /// An infinite source that produces a sine.
 ///
-/// Always has a rate of 48kHz and one channel.
+/// Always has a sample rate of 48kHz and one channel.
+///
+/// This source is a thin interface on top of `SignalGenerator` provided for
+/// your convenience.
 #[derive(Clone, Debug)]
 pub struct SineWave {
     test_sine: SignalGenerator,

@@ -59,10 +59,8 @@ impl Source for TriangleWave {
         None
     }
 
-    /// `try_seek()` does nothing on the triangle wave generator. If you need to generate a test
-    /// signal tone with a precise phase or sample offset, consider using `skip::skip_samples()`.
     #[inline]
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Ok(())
+    fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
+        self.test_tri.try_seek(duration)
     }
 }

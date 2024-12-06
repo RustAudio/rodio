@@ -57,6 +57,7 @@ pub struct SignalGenerator {
     function: fn(f32) -> f32,
     delta_theta: f32,
     theta: f32,
+    period: f32,
 }
 
 impl SignalGenerator {
@@ -84,6 +85,7 @@ impl SignalGenerator {
             function,
             delta_theta,
             theta: 0.0f32,
+            period,
         }
     }
 }
@@ -121,11 +123,10 @@ impl Source for SignalGenerator {
         None
     }
 
-    /// `try_seek()` does nothing on the signal generator. If you need to
-    /// generate a test signal with a precise phase or sample offset, consider
-    /// using `skip::skip_samples()`.
     #[inline]
-    fn try_seek(&mut self, _duration: Duration) -> Result<(), SeekError> {
+    fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
+        let seek = duration.as_secs_f32() * (self.sample_rate.0 as f32) / self.period;
+        self.theta = seek.rem_euclid(1.0f32);
         Ok(())
     }
 }

@@ -59,8 +59,8 @@ impl Source for SquareWave {
         None
     }
 
-    /// `try_seek()` does nothing on the sine generator. If you need to
-    /// generate a sine tone with a precise phase or sample offset, consider
+    /// `try_seek()` does nothing on the squarewave generator. If you need to
+    /// generate a test signal with a precise phase or sample offset, consider
     /// using `skip::skip_samples()`.
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {

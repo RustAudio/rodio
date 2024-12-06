@@ -121,10 +121,11 @@ impl Source for SignalGenerator {
         None
     }
 
+    /// `try_seek()` does nothing on the signal generator. If you need to
+    /// generate a test signal with a precise phase or sample offset, consider
+    /// using `skip::skip_samples()`.
     #[inline]
-    fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
-        self.theta = self.sample_rate.0 as f32 * duration.as_secs_f32();
-        self.theta = self.theta.rem_euclid(1.0f32);
+    fn try_seek(&mut self, _duration: Duration) -> Result<(), SeekError> {
         Ok(())
     }
 }

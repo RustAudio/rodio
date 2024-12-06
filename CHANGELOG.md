@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Output audio stream buffer size can now be adjusted.
+- Sources for directly generating square waves, traingle waves, square waves and 
+  sawtooths have been added.
+- An interface for defining `SignalGenerator` patterns with an `fn`, see
+  `GeneratorFunction`.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize audio output stream.
@@ -20,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Symphonia decoder `total_duration` incorrect value caused by conversion from `Time` to `Duration`.
+- An issue with `SignalGenerator` that caused it to create increasingly distorted waveforms
+  over long run times has been corrected.
 
 # Version 0.20.1 (2024-11-08)
 

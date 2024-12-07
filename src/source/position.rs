@@ -66,8 +66,8 @@ where
     #[inline]
     pub fn get_pos(&self) -> Duration {
         let seconds = self.samples_counted as f64
-            / self.input.sample_rate() as f64
-            / self.input.channels() as f64
+            / self.input.sample_rate().unwrap() as f64
+            / self.input.channels().unwrap() as f64
             + self.offset_duration;
         Duration::from_secs_f64(seconds)
     }
@@ -75,8 +75,8 @@ where
     #[inline]
     fn set_current_frame(&mut self) {
         self.current_frame_len = self.current_frame_len();
-        self.current_frame_sample_rate = self.sample_rate();
-        self.current_frame_channels = self.channels();
+        self.current_frame_sample_rate = self.sample_rate().unwrap();
+        self.current_frame_channels = self.channels().unwrap();
     }
 }
 
@@ -130,12 +130,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 

@@ -119,7 +119,7 @@ where
         let last_in_frame = self.input.current_frame_len() == Some(1);
 
         if self.applier.is_none() {
-            self.applier = Some(self.formula.to_applier(self.input.sample_rate()));
+            self.applier = Some(self.formula.to_applier(self.input.sample_rate().unwrap()));
         }
 
         let sample = match self.input.next() {
@@ -163,12 +163,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 

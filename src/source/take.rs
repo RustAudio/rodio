@@ -68,7 +68,8 @@ where
     /// Returns the duration elapsed for each sample extracted.
     #[inline]
     fn get_duration_per_sample(input: &I) -> Duration {
-        let ns = NANOS_PER_SEC / (input.sample_rate() as u64 * input.channels() as u64);
+        let ns = NANOS_PER_SEC
+            / (input.sample_rate().unwrap() as u64 * input.channels().unwrap() as u64);
         // \|/ the maximum value of `ns` is one billion, so this can't fail
         Duration::new(0, ns as u32)
     }
@@ -160,12 +161,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 

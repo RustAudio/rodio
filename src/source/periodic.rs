@@ -13,7 +13,8 @@ where
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong
     let update_ms = period.as_secs() as u32 * 1_000 + period.subsec_millis();
-    let update_frequency = (update_ms * source.sample_rate()) / 1000 * source.channels() as u32;
+    let update_frequency =
+        (update_ms * source.sample_rate().unwrap()) / 1000 * source.channels().unwrap() as u32;
 
     PeriodicAccess {
         input: source,
@@ -106,12 +107,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 

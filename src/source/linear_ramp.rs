@@ -46,7 +46,7 @@ where
     I: Source,
     I::Item: Sample,
 {
-    /// Returns a reference to the innner source.
+    /// Returns a reference to the inner source.
     #[inline]
     pub fn inner(&self) -> &I {
         &self.input
@@ -90,8 +90,8 @@ where
             factor = self.start_gain * (1.0f32 - p) + self.end_gain * p;
         }
 
-        if self.sample_idx % (self.channels() as u64) == 0 {
-            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate() as f32);
+        if self.sample_idx % (self.channels().unwrap() as u64) == 0 {
+            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate().unwrap() as f32);
         }
 
         self.input.next().map(|value| value.amplify(factor))
@@ -121,12 +121,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 

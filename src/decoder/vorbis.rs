@@ -62,13 +62,13 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.stream_reader.ident_hdr.audio_channels as u16
+    fn channels(&self) -> Option<u16> {
+        Some(self.stream_reader.ident_hdr.audio_channels as u16)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.stream_reader.ident_hdr.audio_sample_rate
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.stream_reader.ident_hdr.audio_sample_rate)
     }
 
     #[inline]

@@ -115,13 +115,13 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.channels
+    fn channels(&self) -> Option<u16> {
+        Some(self.channels)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.sample_rate)
     }
 
     #[inline]
@@ -133,18 +133,18 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let file_len = self.reader.reader.duration();
 
-        let new_pos = pos.as_secs_f32() * self.sample_rate() as f32;
+        let new_pos = pos.as_secs_f32() * self.sample_rate as f32;
         let new_pos = new_pos as u32;
         let new_pos = new_pos.min(file_len); // saturate pos at the end of the source
 
         // make sure the next sample is for the right channel
-        let to_skip = self.reader.samples_read % self.channels() as u32;
+        let to_skip = self.reader.samples_read % self.channels as u32;
 
         self.reader
             .reader
             .seek(new_pos)
             .map_err(SeekError::HoundDecoder)?;
-        self.reader.samples_read = new_pos * self.channels() as u32;
+        self.reader.samples_read = new_pos * self.channels as u32;
 
         for _ in 0..to_skip {
             self.next();

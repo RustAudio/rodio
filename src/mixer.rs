@@ -90,13 +90,13 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.input.channels
+    fn channels(&self) -> Option<u16> {
+        Some(self.input.channels)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.input.sample_rate
+    fn sample_rate(&self) -> Option<u32> {
+        Some(self.input.sample_rate)
     }
 
     #[inline]
@@ -113,12 +113,12 @@ where
         // uncomment when #510 is implemented (query position of playback)
 
         // let mut org_positions = Vec::with_capacity(self.current_sources.len());
-        // let mut encounterd_err = None;
+        // let mut encountered_err = None;
         //
         // for source in &mut self.current_sources {
         //     let pos = /* source.playback_pos() */ todo!();
         //     if let Err(e) = source.try_seek(pos) {
-        //         encounterd_err = Some(e);
+        //         encountered_err = Some(e);
         //         break;
         //     } else {
         //         // store pos in case we need to roll back
@@ -126,8 +126,8 @@ where
         //     }
         // }
         //
-        // if let Some(e) = encounterd_err {
-        //     // rollback seeks that happend before err
+        // if let Some(e) = encountered_err {
+        //     // rollback seeks that happened before err
         //     for (pos, source) in org_positions
         //         .into_iter()
         //         .zip(self.current_sources.iter_mut())
@@ -182,7 +182,7 @@ where
         let mut pending = self.input.pending_sources.lock().unwrap(); // TODO: relax ordering?
 
         for source in pending.drain(..) {
-            let in_step = self.sample_count % source.channels() as usize == 0;
+            let in_step = self.sample_count % source.channels().unwrap() as usize == 0;
 
             if in_step {
                 self.current_sources.push(source);
@@ -224,8 +224,8 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
-        assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.sample_rate(), 48000);
+        assert_eq!(rx.channels(), Some(1));
+        assert_eq!(rx.sample_rate(), Some(48000));
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(-5));
         assert_eq!(rx.next(), Some(15));
@@ -240,8 +240,8 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
-        assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.sample_rate(), 48000);
+        assert_eq!(rx.channels(), Some(2));
+        assert_eq!(rx.sample_rate(), Some(48000));
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(-5));
@@ -260,8 +260,8 @@ mod tests {
         tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
         tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
 
-        assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.sample_rate(), 96000);
+        assert_eq!(rx.channels(), Some(1));
+        assert_eq!(rx.sample_rate(), Some(96000));
         assert_eq!(rx.next(), Some(15));
         assert_eq!(rx.next(), Some(5));
         assert_eq!(rx.next(), Some(-5));

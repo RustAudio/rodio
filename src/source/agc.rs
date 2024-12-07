@@ -143,7 +143,7 @@ where
     I: Source,
     I::Item: Sample,
 {
-    let sample_rate = input.sample_rate();
+    let sample_rate = input.sample_rate().unwrap();
     let attack_coeff = (-1.0 / (attack_time * sample_rate as f32)).exp();
     let release_coeff = (-1.0 / (release_time * sample_rate as f32)).exp();
 
@@ -472,12 +472,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 

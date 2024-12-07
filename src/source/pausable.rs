@@ -10,11 +10,7 @@ where
     I: Source,
     I::Item: Sample,
 {
-    let paused_channels = if paused {
-        Some(source.channels())
-    } else {
-        None
-    };
+    let paused_channels = if paused { source.channels() } else { None };
     Pausable {
         input: source,
         paused_channels,
@@ -45,8 +41,9 @@ where
     /// If set to true, the inner sound stops playing and no samples are processed from it.
     #[inline]
     pub fn set_paused(&mut self, paused: bool) {
+        // FIX-ME? What happens if `self.input.channels()` is `None`?
         match (self.paused_channels, paused) {
-            (None, true) => self.paused_channels = Some(self.input.channels()),
+            (None, true) => self.paused_channels = self.input.channels(),
             (Some(_), false) => self.paused_channels = None,
             _ => (),
         }
@@ -110,12 +107,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> Option<u16> {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> Option<u32> {
         self.input.sample_rate()
     }
 

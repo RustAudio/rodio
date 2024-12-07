@@ -47,13 +47,13 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        1
+    fn channels(&self) -> Option<u16> {
+        Some(1)
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        48000
+    fn sample_rate(&self) -> Option<u32> {
+        Some(48000)
     }
 
     #[inline]

@@ -65,17 +65,17 @@ where
     I: Source,
     I::Item: Sample,
 {
-    fn apply_gains(&self, output_channel: u16) -> I::Item {
+    /// Create an output sample from the current input and the channel gain map
+    fn render_output(&self) -> Option<I::Item> {
         self.input_buffer
             .iter()
             .enumerate()
             .map(|(input_channel, in_sample)| {
-                let pair = InputOutputPair(input_channel as u16, output_channel);
+                let pair = InputOutputPair(input_channel as u16, self.current_channel);
                 let gain = self.channel_mappings.get(&pair).unwrap_or(&0.0f32);
                 in_sample.amplify(*gain)
             })
             .reduce(|a, b| a.saturating_add(b))
-            .unwrap_or(<I::Item as Sample>::zero_value())
     }
 }
 
@@ -99,12 +99,8 @@ where
             self.current_channel = 0;
         }
 
-        if self.input_buffer.len() == 0 {
-            None
-        } else {
-            let retval = self.apply_gains(self.current_channel);
-            self.current_channel += 1;
-            Some(retval)
-        }
+        let retval = self.render_output();
+        self.current_channel += 1;
+        retval
     }
 }

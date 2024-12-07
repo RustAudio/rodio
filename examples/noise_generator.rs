@@ -1,5 +1,6 @@
 //! Noise generator example. Use the "noise" feature to enable the noise generator sources.
 
+use rodio::constants::DEFAULT_SAMPLE_RATE;
 use std::error::Error;
 
 #[cfg(feature = "noise")]
@@ -14,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let interval_duration = Duration::from_millis(1500);
 
     stream_handle.mixer().add(
-        white(cpal::SampleRate(48000))
+        white(cpal::SampleRate(DEFAULT_SAMPLE_RATE))
             .amplify(0.1)
             .take_duration(noise_duration),
     );
@@ -23,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     thread::sleep(interval_duration);
 
     stream_handle.mixer().add(
-        pink(cpal::SampleRate(48000))
+        pink(cpal::SampleRate(DEFAULT_SAMPLE_RATE))
             .amplify(0.1)
             .take_duration(noise_duration),
     );

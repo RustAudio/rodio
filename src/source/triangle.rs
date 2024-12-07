@@ -1,42 +1,44 @@
-use crate::constants::DEFAULT_SAMPLE_RATE;
+use std::time::Duration;
+
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
-use std::time::Duration;
 
 use super::SeekError;
 
-/// An infinite source that produces a sine.
+/// An infinite source that produces a triangle wave.
 ///
-/// Always has default sample rate.
+/// Always has a sample rate of 48kHz and one channel.
 ///
 /// This source is a thin interface on top of `SignalGenerator` provided for
 /// your convenience.
 #[derive(Clone, Debug)]
-pub struct SineWave {
-    test_sine: SignalGenerator,
+pub struct TriangleWave {
+    test_tri: SignalGenerator,
 }
 
-impl SineWave {
+impl TriangleWave {
+    const SAMPLE_RATE: u32 = 48000;
+
     /// The frequency of the sine.
     #[inline]
-    pub fn new(freq: f32) -> SineWave {
-        let sr = cpal::SampleRate(DEFAULT_SAMPLE_RATE);
-        SineWave {
-            test_sine: SignalGenerator::new(sr, freq, Function::Sine),
+    pub fn new(freq: f32) -> TriangleWave {
+        let sr = cpal::SampleRate(Self::SAMPLE_RATE);
+        TriangleWave {
+            test_tri: SignalGenerator::new(sr, freq, Function::Triangle),
         }
     }
 }
 
-impl Iterator for SineWave {
+impl Iterator for TriangleWave {
     type Item = f32;
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        self.test_sine.next()
+        self.test_tri.next()
     }
 }
 
-impl Source for SineWave {
+impl Source for TriangleWave {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         None
@@ -49,7 +51,7 @@ impl Source for SineWave {
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        self.test_sine.sample_rate()
+        Self::SAMPLE_RATE
     }
 
     #[inline]
@@ -59,6 +61,6 @@ impl Source for SineWave {
 
     #[inline]
     fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
-        self.test_sine.try_seek(duration)
+        self.test_tri.try_seek(duration)
     }
 }

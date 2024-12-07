@@ -29,14 +29,17 @@ pub use self::periodic::PeriodicAccess;
 pub use self::position::TrackPosition;
 pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
+pub use self::sawtooth::SawtoothWave;
 pub use self::signal_generator::{Function, SignalGenerator};
 pub use self::sine::SineWave;
 pub use self::skip::SkipDuration;
 pub use self::skippable::Skippable;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
+pub use self::square::SquareWave;
 pub use self::stoppable::Stoppable;
 pub use self::take::TakeDuration;
+pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
 
@@ -62,14 +65,17 @@ mod periodic;
 mod position;
 mod repeat;
 mod samples_converter;
+mod sawtooth;
 mod signal_generator;
 mod sine;
 mod skip;
 mod skippable;
 mod spatial;
 mod speed;
+mod square;
 mod stoppable;
 mod take;
+mod triangle;
 mod uniform;
 mod zero;
 
@@ -296,7 +302,8 @@ where
     ///   A recommended value for `absolute_max_gain` is `5`, which provides a good balance between
     ///   amplification capability and protection against distortion in most scenarios.
     ///
-    /// Use `get_agc_control` to obtain a handle for real-time enabling/disabling of the AGC.
+    /// `automatic_gain_control` example in this project shows a pattern you can use
+    /// to enable/disable the AGC filter dynamically.
     ///
     /// # Example (Quick start)
     ///

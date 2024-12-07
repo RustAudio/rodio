@@ -288,10 +288,13 @@ where
     }
 
     #[cfg(feature = "experimental")]
-    /// Access the AGC on/off control for real-time adjustment.
-    ///
+    /// Access the AGC on/off control.
     /// Use this to dynamically enable or disable AGC processing during runtime.
-    /// Useful for comparing processed and unprocessed audio or for disabling/enabling AGC at runtime.
+    ///
+    /// AGC is on by default. `false` is disabled state, `true` is enabled.
+    /// In disabled state the sound is passed through AGC unchanged.
+    ///
+    /// In particular, this control is useful for comparing processed and unprocessed audio.
     #[inline]
     pub fn get_agc_control(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.is_enabled)

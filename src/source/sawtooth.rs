@@ -1,42 +1,44 @@
-use crate::constants::DEFAULT_SAMPLE_RATE;
+use std::time::Duration;
+
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
-use std::time::Duration;
 
 use super::SeekError;
 
-/// An infinite source that produces a sine.
+/// An infinite source that produces a sawtooth wave.
 ///
-/// Always has default sample rate.
+/// Always has a sample rate of 48kHz and one channel.
 ///
 /// This source is a thin interface on top of `SignalGenerator` provided for
 /// your convenience.
 #[derive(Clone, Debug)]
-pub struct SineWave {
-    test_sine: SignalGenerator,
+pub struct SawtoothWave {
+    test_saw: SignalGenerator,
 }
 
-impl SineWave {
+impl SawtoothWave {
+    const SAMPLE_RATE: u32 = 48000;
+
     /// The frequency of the sine.
     #[inline]
-    pub fn new(freq: f32) -> SineWave {
-        let sr = cpal::SampleRate(DEFAULT_SAMPLE_RATE);
-        SineWave {
-            test_sine: SignalGenerator::new(sr, freq, Function::Sine),
+    pub fn new(freq: f32) -> SawtoothWave {
+        let sr = cpal::SampleRate(Self::SAMPLE_RATE);
+        SawtoothWave {
+            test_saw: SignalGenerator::new(sr, freq, Function::Sawtooth),
         }
     }
 }
 
-impl Iterator for SineWave {
+impl Iterator for SawtoothWave {
     type Item = f32;
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        self.test_sine.next()
+        self.test_saw.next()
     }
 }
 
-impl Source for SineWave {
+impl Source for SawtoothWave {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         None
@@ -49,7 +51,7 @@ impl Source for SineWave {
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        self.test_sine.sample_rate()
+        Self::SAMPLE_RATE
     }
 
     #[inline]
@@ -59,6 +61,6 @@ impl Source for SineWave {
 
     #[inline]
     fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
-        self.test_sine.try_seek(duration)
+        self.test_saw.try_seek(duration)
     }
 }

@@ -2,8 +2,15 @@ use std::{cmp::min, collections::HashMap};
 
 use crate::{Sample, Source};
 
+/// A tuple for describing the source and destination channel for a gain setting.
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct InputOutputPair(u16, u16);
+
+/// A [`HashMap`] for defining a connection between an input channel and output channel, and the
+/// gain to apply to that connection.
 pub type ChannelMap = HashMap<InputOutputPair, f32>;
 
+/// Internal function that builds a [`ChannelRouter<I>`] object.
 pub fn channel_router<I>(input: I, channel_count: u16, channel_map: ChannelMap) -> ChannelRouter<I>
 where
     I: Source,
@@ -11,10 +18,6 @@ where
 {
     ChannelRouter::new(input, channel_count, channel_map)
 }
-
-/// A tuple for describing the source and destination channel for a gain setting.
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub struct InputOutputPair(u16, u16);
 
 /// A source for extracting, reordering mixing and duplicating audio between
 /// channels.
@@ -24,10 +27,19 @@ where
     I: Source,
     I::Item: Sample,
 {
+    /// Input [`Source`]
     input: I,
-    channel_map: HashMap<InputOutputPair, f32>,
-    current_channel: u16,
+
+    /// Mapping of input to output channels
+    channel_map: ChannelMap, 
+    
+    /// The output channel that [`next()`] will return next.
+    current_channel: u16, 
+    
+    /// The number of output channels 
     channel_count: u16,
+
+    /// The current input audio frame
     input_buffer: Vec<I::Item>,
 }
 
@@ -45,9 +57,9 @@ where
             input,
             channel_map,
             current_channel: channel_count, // this will cause the input buffer to fill on first
-                                            // call to next()
+            // call to next()
             channel_count,
-            input_buffer: vec![<I::Item as Sample>::zero_value(); 0],
+            input_buffer: vec![],
         }
     }
 
@@ -85,7 +97,10 @@ where
     I: Source,
     I::Item: Sample,
 {
-    /// Create an output sample from the current input and the channel gain map
+    /// Renders an output sample.
+    ///
+    /// Create an output sample from the current input audio frame, the `current_channel` of the
+    /// output and the channel gain map.
     fn render_output(&self) -> Option<I::Item> {
         self.input_buffer
             .iter()

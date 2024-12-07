@@ -108,7 +108,6 @@ mod test {
 
             mixer.add(output2);
         }
-        WavFile
 
         thread::sleep(Duration::from_millis(1000));
     }

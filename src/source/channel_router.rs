@@ -2,9 +2,22 @@ use std::{cmp::min, collections::HashMap};
 
 use crate::{Sample, Source};
 
+pub type ChannelMap = HashMap<InputOutputPair, f32>;
+
+pub fn channel_router<I>(input: I, channel_count: u16, channel_map: ChannelMap) -> ChannelRouter<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    ChannelRouter::new(input, channel_count, channel_map)
+}
+
+/// A tuple for describing the source and destination channel for a gain setting.
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct InputOutputPair(u16, u16);
 
+/// A source for extracting, reordering mixing and duplicating audio between
+/// channels.
 #[derive(Clone, Debug)]
 pub struct ChannelRouter<I>
 where
@@ -12,7 +25,7 @@ where
     I::Item: Sample,
 {
     input: I,
-    channel_mappings: HashMap<InputOutputPair, f32>,
+    channel_map: HashMap<InputOutputPair, f32>,
     current_channel: u16,
     channel_count: u16,
     input_buffer: Vec<I::Item>,
@@ -23,18 +36,25 @@ where
     I: Source,
     I::Item: Sample,
 {
-    pub fn new(
-        input: I,
-        channel_count: u16,
-        channel_mappings: HashMap<InputOutputPair, f32>,
-    ) -> Self {
+    /// Creates a new [`ChannelRouter<I>`].
+    ///
+    /// The new `ChannelRouter` will read samples from `input` and will mix and map them according
+    /// to `channel_mappings` into its output samples.
+    pub fn new(input: I, channel_count: u16, channel_map: ChannelMap) -> Self {
         Self {
             input,
-            channel_mappings,
-            current_channel: 0u16,
+            channel_map,
+            current_channel: channel_count, // this will cause the input buffer to fill on first
+                                            // call to next()
             channel_count,
-            input_buffer: vec![<I::Item as Sample>::zero_value(); channel_count.into()],
+            input_buffer: vec![<I::Item as Sample>::zero_value(); 0],
         }
+    }
+
+    /// Add or update the gain setting for a channel mapping.
+    pub fn map(&mut self, from: u16, to: u16, gain: f32) -> () {
+        let k = InputOutputPair(from, to);
+        self.channel_map.insert(k, gain);
     }
 }
 
@@ -72,7 +92,7 @@ where
             .enumerate()
             .map(|(input_channel, in_sample)| {
                 let pair = InputOutputPair(input_channel as u16, self.current_channel);
-                let gain = self.channel_mappings.get(&pair).unwrap_or(&0.0f32);
+                let gain = self.channel_map.get(&pair).unwrap_or(&0.0f32);
                 in_sample.amplify(*gain)
             })
             .reduce(|a, b| a.saturating_add(b))

@@ -3,6 +3,7 @@
 use core::fmt;
 use core::time::Duration;
 
+use channel_router::InputOutputPair;
 use cpal::FromSample;
 
 use crate::Sample;
@@ -11,6 +12,7 @@ pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
+pub use self::channel_router::{ChannelMap, ChannelRouter};
 pub use self::channel_volume::ChannelVolume;
 pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
@@ -47,6 +49,7 @@ mod agc;
 mod amplify;
 mod blt;
 mod buffered;
+mod channel_router;
 mod channel_volume;
 mod chirp;
 mod crossfade;
@@ -344,6 +347,50 @@ where
             release_time,
             absolute_max_gain,
         )
+    }
+
+    /// Creates a [`ChannelRouter`] that can mix input channels together and
+    /// assign them to new channels.
+    #[inline]
+    fn channel_router(self, channel_count: u16, channel_map: ChannelMap) -> ChannelRouter<Self>
+    where
+        Self: Sized,
+    {
+        channel_router::channel_router(self, channel_count, channel_map)
+    }
+
+    /// Creates a one-channel output [`ChannelRouter`] that extracts the channel `channel` from
+    /// this sound.
+    #[inline]
+    fn extract_channel(self, channel: u16) -> ChannelRouter<Self>
+    where
+        Self: Sized,
+    {
+        self.extract_channels(vec![channel])
+    }
+
+    /// Creates a [`ChannelRouter`] that reorders this sound's channels according to the order of
+    /// the channels in the `channels` parameter.
+    ///
+    /// # Panics
+    ///
+    /// - length of `channels` exceeds `u16::MAX`.
+    #[inline]
+    fn extract_channels(self, channels: Vec<u16>) -> ChannelRouter<Self>
+    where
+        Self: Sized,
+    {
+        assert!(
+            channels.len() < u16::MAX.into(),
+            "`channels` excessive length"
+        );
+        let mut mapping = ChannelMap::new();
+        let output_count = channels.len() as u16;
+        for (output_channel, input_channel) in channels.into_iter().enumerate() {
+            let k = channel_router::InputOutputPair(input_channel, output_channel as u16);
+            _ = mapping.insert(k, 1.0f32);
+        }
+        channel_router::channel_router(self, output_count, mapping)
     }
 
     /// Mixes this sound fading out with another sound fading in for the given duration.

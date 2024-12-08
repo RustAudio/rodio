@@ -4,7 +4,7 @@ use crate::{Sample, Source};
 
 /// A tuple for describing the source and destination channel for a gain setting.
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub struct InputOutputPair(u16, u16);
+pub struct InputOutputPair(pub u16, pub u16);
 
 /// A [`HashMap`] for defining a connection between an input channel and output channel, and the
 /// gain to apply to that connection.

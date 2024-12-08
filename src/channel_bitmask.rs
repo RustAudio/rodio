@@ -3,7 +3,7 @@
 use crate::{Sample, Source};
 pub type ChannelBitmask = u64;
 
-// Bitmasks 0x1...0x2_000 are identical to speaker assignemnts in the Microsoft WAVE WAVEFORMATEX
+// Bitmasks 0x1...0x2_0000 are identical to speaker assignemnts in the Microsoft WAVE WAVEFORMATEX
 // channel bitmask.
 pub const FRONT_LEFT: ChannelBitmask = 0x1;
 pub const FRONT_RIGHT: ChannelBitmask = 0x2;
@@ -63,22 +63,54 @@ pub const AMBISONIC_O: ChannelBitmask = 0x200_0000_0000;
 pub const AMBISONIC_P: ChannelBitmask = 0x400_0000_0000;
 pub const AMBISONIC_Q: ChannelBitmask = 0x800_0000_0000;
 
+/// Undefined channel format. Use this if the format is unknown or if you are using another method
+/// to inform clients about channel components. Monoaural sources may use this or use
+/// `FRONT_CENTER`.
 pub const UNDEFINED: ChannelBitmask = 0x0;
+
+/// Left-right stereo, for both speakers and headphones.
 pub const STEREO: ChannelBitmask = FRONT_LEFT ^ FRONT_RIGHT;
+
+/// Stereo with a hard center.
 pub const LCR: ChannelBitmask = FRONT_LEFT ^ FRONT_CENTER ^ FRONT_RIGHT;
+
+/// Four-channel surround sound, as like classic discrete Dolby Stereo.
 pub const LCRS: ChannelBitmask = LCR ^ BACK_CENTER;
+
+/// 5.0 surround.
 pub const SURROUND_5_0: ChannelBitmask =
     FRONT_LEFT ^ FRONT_RIGHT ^ FRONT_CENTER ^ BACK_LEFT ^ BACK_RIGHT;
+
+/// 5.1 surround, with LFE.
 pub const SURROUND_5_1: ChannelBitmask = SURROUND_5_0 ^ LFE;
+
+/// 7.0 surround sound, with four surround channels.
 pub const SURROUND_7_0: ChannelBitmask = SURROUND_5_0 ^ SIDE_LEFT ^ SIDE_RIGHT;
+
+/// 7.1 surround sound, with four surround channels and LFE, as like Dolby Surround 7.1.
 pub const SURROUND_7_1: ChannelBitmask = SURROUND_7_0 ^ LFE;
 
+/// 7.1 surround sound with five front channels and two surround channels, as like Sony Dynamic
+/// Digital Sound (SDDS).
+pub const SDDS_7_1: ChannelBitmask = SURROUND_5_1 ^ FRONT_LEFT_CENTER ^ FRONT_RIGHT_CENTER;
+
+/// Dolby Atmos 5.1.2 Bed.
 pub const ATMOS_5_1_2: ChannelBitmask = SURROUND_5_1 ^ TOP_SIDE_LEFT ^ TOP_SIDE_RIGHT;
+
+/// Dolby Atmos 5.0.2 Bed.
 pub const ATMOS_5_0_2: ChannelBitmask = SURROUND_5_0 ^ TOP_SIDE_LEFT ^ TOP_SIDE_RIGHT;
+
+/// Dolby Atmos 7.1.4 Bed.
 pub const ATMOS_7_1_4: ChannelBitmask =
     SURROUND_5_1 ^ TOP_FRONT_LEFT ^ TOP_FRONT_RIGHT ^ TOP_BACK_LEFT ^ TOP_BACK_RIGHT;
+
+/// Dolby Atmos 7.1.2 Bed.
 pub const ATMOS_7_1_2: ChannelBitmask = SURROUND_5_1 ^ TOP_SIDE_LEFT ^ TOP_SIDE_RIGHT;
+
+/// Dolby Atmos 7.0.2 Bed.
 pub const ATMOS_7_0_2: ChannelBitmask = SURROUND_7_0 ^ TOP_SIDE_LEFT ^ TOP_SIDE_RIGHT;
+
+/// Dolby Atmos 9.1.6 Bed.
 pub const ATMOS_9_1_6: ChannelBitmask = SURROUND_7_1
     ^ FRONT_LEFT_WIDE
     ^ FRONT_RIGHT_WIDE
@@ -89,9 +121,14 @@ pub const ATMOS_9_1_6: ChannelBitmask = SURROUND_7_1
     ^ TOP_SIDE_LEFT
     ^ TOP_SIDE_RIGHT;
 
+/// First-order Ambisonic components, WXYZ.
 pub const AMBISONIC_O1: ChannelBitmask = AMBISONIC_W ^ AMBISONIC_X ^ AMBISONIC_Y ^ AMBISONIC_Z;
+
+/// Second-order Ambisonic components, WXYZ+RSTUV. 
 pub const AMBISONIC_O2: ChannelBitmask =
     AMBISONIC_O1 ^ AMBISONIC_R ^ AMBISONIC_S ^ AMBISONIC_T ^ AMBISONIC_U ^ AMBISONIC_V;
+
+/// Third-order Ambisonic components. WXYZ+RSTUV+KLMNOPQ.
 pub const AMBISONIC_O3: ChannelBitmask = AMBISONIC_O2
     ^ AMBISONIC_K
     ^ AMBISONIC_L

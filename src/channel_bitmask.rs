@@ -174,7 +174,7 @@ where
     fn channel_bitmask(&self) -> ChannelBitmask;
 }
 
-/// Return a source wrapping `input` tha implements the `ChannelBitmask` trait.
+/// Return a source wrapping `input` that implements the `ChannelBitmask` trait.
 ///
 /// # Panics
 ///

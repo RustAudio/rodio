@@ -31,12 +31,12 @@ where
     input: I,
 
     /// Mapping of input to output channels
-    channel_map: ChannelMap, 
-    
+    channel_map: ChannelMap,
+
     /// The output channel that [`next()`] will return next.
-    current_channel: u16, 
-    
-    /// The number of output channels 
+    current_channel: u16,
+
+    /// The number of output channels
     channel_count: u16,
 
     /// The current input audio frame
@@ -68,6 +68,18 @@ where
         let k = InputOutputPair(from, to);
         self.channel_map.insert(k, gain);
     }
+
+    /// Destroys this router and returns the underlying source.
+    #[inline]
+    pub fn into_inner(self) -> I {
+        self.input
+    }
+
+    /// Get mutable access to the iterator
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut I {
+        &mut self.input
+    }
 }
 
 impl<I> Source for ChannelRouter<I>
@@ -92,28 +104,6 @@ where
     }
 }
 
-impl<I> ChannelRouter<I>
-where
-    I: Source,
-    I::Item: Sample,
-{
-    /// Renders an output sample.
-    ///
-    /// Create an output sample from the current input audio frame, the `current_channel` of the
-    /// output and the channel gain map.
-    fn render_output(&self) -> Option<I::Item> {
-        self.input_buffer
-            .iter()
-            .enumerate()
-            .map(|(input_channel, in_sample)| {
-                let pair = InputOutputPair(input_channel as u16, self.current_channel);
-                let gain = self.channel_map.get(&pair).unwrap_or(&0.0f32);
-                in_sample.amplify(*gain)
-            })
-            .reduce(|a, b| a.saturating_add(b))
-    }
-}
-
 impl<I> Iterator for ChannelRouter<I>
 where
     I: Source,
@@ -134,7 +124,17 @@ where
             self.current_channel = 0;
         }
 
-        let retval = self.render_output();
+        let retval = self
+            .input_buffer
+            .iter()
+            .enumerate()
+            .map(|(input_channel, in_sample)| {
+                let pair = InputOutputPair(input_channel as u16, self.current_channel);
+                let gain = self.channel_map.get(&pair).unwrap_or(&0.0f32);
+                in_sample.amplify(*gain)
+            })
+            .reduce(|a, b| a.saturating_add(b));
+
         self.current_channel += 1;
         retval
     }

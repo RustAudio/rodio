@@ -11,7 +11,7 @@ pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
-pub use self::channel_router::{ChannelRouter, ChannelMap};
+pub use self::channel_router::{ChannelMap, ChannelRouter};
 pub use self::channel_volume::ChannelVolume;
 pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
@@ -348,11 +348,13 @@ where
         )
     }
 
-    /// Creates a [`ChannelRouter`] that can mix input channels together and 
+    /// Creates a [`ChannelRouter`] that can mix input channels together and
     /// assign them to new channels.
     #[inline]
-    fn channel_router(self, channel_count: u16, channel_map: ChannelMap) -> ChannelRouter<Self> 
-        where Self: Sized {
+    fn channel_router(self, channel_count: u16, channel_map: ChannelMap) -> ChannelRouter<Self>
+    where
+        Self: Sized,
+    {
         channel_router::channel_router(self, channel_count, channel_map)
     }
 

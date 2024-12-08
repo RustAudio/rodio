@@ -19,7 +19,7 @@ where
     ChannelRouter::new(input, channel_count, channel_map)
 }
 
-/// A source for extracting, reordering mixing and duplicating audio between
+/// A source for extracting, reordering, mixing and duplicating audio between
 /// channels.
 #[derive(Clone, Debug)]
 pub struct ChannelRouter<I>

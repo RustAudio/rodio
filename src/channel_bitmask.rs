@@ -19,31 +19,31 @@ pub const TOP_FRONT_LEFT: ChannelBitmask = 0x1000;
 pub const TOP_FRONT_CENTER: ChannelBitmask = 0x2000;
 pub const TOP_FRONT_RIGHT: ChannelBitmask = 0x4000;
 pub const TOP_BACK_LEFT: ChannelBitmask = 0x8000;
-pub const TOP_BACK_CENTER: ChannelBitmask = 0x10000;
-pub const TOP_BACK_RIGHT: ChannelBitmask = 0x20000;
+pub const TOP_BACK_CENTER: ChannelBitmask = 0x1_0000;
+pub const TOP_BACK_RIGHT: ChannelBitmask = 0x2_0000;
 
-/// Left total. The left channel of phase-matrix encoded audio, as in Dolby Stereo.
-pub const LEFT_TOTAL: ChannelBitmask = 0x40000;
+pub const FRONT_LEFT_WIDE: ChannelBitmask = 0x4_0000;
+pub const FRONT_RIGHT_WIDE: ChannelBitmask = 0x8_0000;
 
-/// Right total. The right channel of phase-matrix encoded audio, as in Dolby Stereo.
-pub const RIGHT_TOTAL: ChannelBitmask = 0x80000;
+pub const AMBISONIC_W: ChannelBitmask = 0x10_0000;
+pub const AMBISONIC_X: ChannelBitmask = 0x20_0000;
+pub const AMBISONIC_Y: ChannelBitmask = 0x40_0000;
+pub const AMBISONIC_Z: ChannelBitmask = 0x80_0000;
+pub const AMBISONIC_R: ChannelBitmask = 0x100_0000;
+pub const AMBISONIC_S: ChannelBitmask = 0x200_0000;
+pub const AMBISONIC_T: ChannelBitmask = 0x400_0000;
+pub const AMBISONIC_U: ChannelBitmask = 0x800_0000;
+pub const AMBISONIC_V: ChannelBitmask = 0x1000_0000;
+pub const AMBISONIC_K: ChannelBitmask = 0x2000_0000;
+pub const AMBISONIC_L: ChannelBitmask = 0x4000_0000;
+pub const AMBISONIC_M: ChannelBitmask = 0x8000_0000;
+pub const AMBISONIC_N: ChannelBitmask = 0x1_0000_0000;
+pub const AMBISONIC_O: ChannelBitmask = 0x2_0000_0000;
+pub const AMBISONIC_P: ChannelBitmask = 0x4_0000_0000;
+pub const AMBISONIC_Q: ChannelBitmask = 0x8_0000_0000;
 
-pub const AMBISONIC_W: ChannelBitmask = 0x100000;
-pub const AMBISONIC_X: ChannelBitmask = 0x200000;
-pub const AMBISONIC_Y: ChannelBitmask = 0x400000;
-pub const AMBISONIC_Z: ChannelBitmask = 0x800000;
-pub const AMBISONIC_R: ChannelBitmask = 0x1000000;
-pub const AMBISONIC_S: ChannelBitmask = 0x2000000;
-pub const AMBISONIC_T: ChannelBitmask = 0x4000000;
-pub const AMBISONIC_U: ChannelBitmask = 0x8000000;
-pub const AMBISONIC_V: ChannelBitmask = 0x10000000;
-pub const AMBISONIC_K: ChannelBitmask = 0x20000000;
-pub const AMBISONIC_L: ChannelBitmask = 0x40000000;
-pub const AMBISONIC_M: ChannelBitmask = 0x80000000;
-pub const AMBISONIC_N: ChannelBitmask = 0x100000000;
-pub const AMBISONIC_O: ChannelBitmask = 0x200000000;
-pub const AMBISONIC_P: ChannelBitmask = 0x400000000;
-pub const AMBISONIC_Q: ChannelBitmask = 0x800000000;
+pub const MATRIX_LEFT_TOTAL: ChannelBitmask = 0x10_0000_0000;
+pub const MATRIX_RIGHT_TOTAL: ChannelBitmask = 0x20_0000_0000;
 
 pub const UNDEFINED: ChannelBitmask = 0x0;
 pub const STEREO: ChannelBitmask = FRONT_LEFT ^ FRONT_RIGHT;
@@ -76,9 +76,9 @@ pub const AMBISONIC_O3: ChannelBitmask = AMBISONIC_O2
 /// implementing `Source`. `ChannelBitmask` constants define a single bit in a `u64` for each
 /// possible component.
 ///
-/// The presence of a given component in the source's output is signified by
-/// the setting of its corresponding bit, and components are ordered in the Source's iteration
-/// according to their corresponding `ChannelBitmask` value.
+/// The presence of a given component in the source's output is signified by the setting of its
+/// corresponding bit, and components are ordered in the Source's iteration according to their
+/// corresponding `ChannelBitmask` value.
 ///
 /// For example: if a source is generating a six-channel stream of samples, it's `channels()`
 /// method will return "6" and its its [`SourceChannelBitmask::channel_bitmask()`] will return
@@ -93,10 +93,6 @@ where
     /// The [`ChannelBitmask`] of the `Source`.
     fn channel_bitmask(&self) -> ChannelBitmask;
 
-    /// Return the channel indicies in this `Source` for the components in the given `bitmask`.
-    fn channel_indicies(&self, bitmask: ChannelBitmask) -> Vec<u16> {
-        todo!()
-    }
 }
 
 /// A `Source` for adding a channel bitmask to a preexisting source.

@@ -99,18 +99,22 @@ where
     I: Source,
     I::Item: Sample,
 {
+    #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         self.input.current_frame_len()
     }
 
+    #[inline]
     fn channels(&self) -> u16 {
         self.channel_count
     }
 
+    #[inline]
     fn sample_rate(&self) -> u32 {
         self.input.sample_rate()
     }
 
+    #[inline]
     fn total_duration(&self) -> Option<std::time::Duration> {
         self.input.total_duration()
     }
@@ -123,6 +127,7 @@ where
 {
     type Item = I::Item;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_channel >= self.channel_count {
             // We've reached the end of the frame, time to grab another one from the input
@@ -160,5 +165,10 @@ where
 
         self.current_channel += 1;
         retval
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.input.size_hint()
     }
 }

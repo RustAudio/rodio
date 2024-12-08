@@ -92,7 +92,23 @@ where
 {
     /// The [`ChannelBitmask`] of the `Source`.
     fn channel_bitmask(&self) -> ChannelBitmask;
+}
 
+/// Return a source wrapping `input` tha implements the `ChannelBitmask` trait.
+///
+/// # Panics
+///
+/// If `channel_bitmask.count_ones()` is not equal to `input.channels()`.
+pub fn add_channel_mask<I>(input: I, channel_bitmask: ChannelBitmask) -> ChannelBitmaskAdapter<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    assert!(
+        input.channels() == channel_bitmask.count_ones() as u16,
+        "Count of 1 bits in channel bitmask do not match count of channels in input!"
+    );
+    ChannelBitmaskAdapter::new(input, channel_bitmask)
 }
 
 /// A `Source` for adding a channel bitmask to a preexisting source.
@@ -112,6 +128,16 @@ impl<I> ChannelBitmaskAdapter<I> {
             input,
             channel_bitmask,
         }
+    }
+
+    /// Get the input source, consuming the adapter
+    fn into_inner(self) -> I {
+        self.input
+    }
+
+    /// Get a mutable reference to the inner source
+    fn inner_mut(&mut self) -> &I {
+        &mut self.input
     }
 }
 

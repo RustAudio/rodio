@@ -3,6 +3,8 @@
 use crate::{Sample, Source};
 pub type ChannelBitmask = u64;
 
+// Bitmasks 0x1...0x2_000 are identical to speaker assignemnts in the Microsoft WAVE WAVEFORMATEX
+// channel bitmask.
 pub const FRONT_LEFT: ChannelBitmask = 0x1;
 pub const FRONT_RIGHT: ChannelBitmask = 0x2;
 pub const FRONT_CENTER: ChannelBitmask = 0x4;
@@ -22,36 +24,70 @@ pub const TOP_BACK_LEFT: ChannelBitmask = 0x8000;
 pub const TOP_BACK_CENTER: ChannelBitmask = 0x1_0000;
 pub const TOP_BACK_RIGHT: ChannelBitmask = 0x2_0000;
 
+// These four speaker assignments are required to complete a full Dolby Atmos 9.1.6 bed.
 pub const FRONT_LEFT_WIDE: ChannelBitmask = 0x4_0000;
 pub const FRONT_RIGHT_WIDE: ChannelBitmask = 0x8_0000;
+pub const TOP_SIDE_LEFT: ChannelBitmask = 0x10_0000;
+pub const TOP_SIDE_RIGHT: ChannelBitmask = 0x20_0000;
 
-pub const AMBISONIC_W: ChannelBitmask = 0x10_0000;
-pub const AMBISONIC_X: ChannelBitmask = 0x20_0000;
-pub const AMBISONIC_Y: ChannelBitmask = 0x40_0000;
-pub const AMBISONIC_Z: ChannelBitmask = 0x80_0000;
-pub const AMBISONIC_R: ChannelBitmask = 0x100_0000;
-pub const AMBISONIC_S: ChannelBitmask = 0x200_0000;
-pub const AMBISONIC_T: ChannelBitmask = 0x400_0000;
-pub const AMBISONIC_U: ChannelBitmask = 0x800_0000;
-pub const AMBISONIC_V: ChannelBitmask = 0x1000_0000;
-pub const AMBISONIC_K: ChannelBitmask = 0x2000_0000;
-pub const AMBISONIC_L: ChannelBitmask = 0x4000_0000;
-pub const AMBISONIC_M: ChannelBitmask = 0x8000_0000;
-pub const AMBISONIC_N: ChannelBitmask = 0x1_0000_0000;
-pub const AMBISONIC_O: ChannelBitmask = 0x2_0000_0000;
-pub const AMBISONIC_P: ChannelBitmask = 0x4_0000_0000;
-pub const AMBISONIC_Q: ChannelBitmask = 0x8_0000_0000;
+// These speaker assignments are required for IMAX and TMH 10.2
+pub const BACK_DIRECT_LEFT: ChannelBitmask = 0x40_0000;
+pub const BACK_DIRECT_RIGHT: ChannelBitmask = 0x80_0000;
 
-pub const MATRIX_LEFT_TOTAL: ChannelBitmask = 0x10_0000_0000;
-pub const MATRIX_RIGHT_TOTAL: ChannelBitmask = 0x20_0000_0000;
+// Matrix channel assignments are required for Dolby Stereo, Dolby Pro Logic 2 and compatibility with
+// ITU Audio Definition Model.
+pub const MATRIX_LEFT_TOTAL: ChannelBitmask = 0x100_0000;
+pub const MATRIX_RIGHT_TOTAL: ChannelBitmask = 0x200_0000;
+
+// Ambisonic components
+//
+// Head-locked mixes:
+pub const AMBISONIC_HEADLOCKED_L: ChannelBitmask = 0x400_000;
+pub const AMBISONIC_HEADLOCKED_R: ChannelBitmask = 0x800_000;
+
+// Ambisonic components in FuMa order
+pub const AMBISONIC_W: ChannelBitmask = 0x1000_0000;
+pub const AMBISONIC_X: ChannelBitmask = 0x2000_0000;
+pub const AMBISONIC_Y: ChannelBitmask = 0x4000_0000;
+pub const AMBISONIC_Z: ChannelBitmask = 0x8000_0000;
+pub const AMBISONIC_R: ChannelBitmask = 0x1_0000_0000;
+pub const AMBISONIC_S: ChannelBitmask = 0x2_0000_0000;
+pub const AMBISONIC_T: ChannelBitmask = 0x4_0000_0000;
+pub const AMBISONIC_U: ChannelBitmask = 0x8_0000_0000;
+pub const AMBISONIC_V: ChannelBitmask = 0x10_0000_0000;
+pub const AMBISONIC_K: ChannelBitmask = 0x20_0000_0000;
+pub const AMBISONIC_L: ChannelBitmask = 0x40_0000_0000;
+pub const AMBISONIC_M: ChannelBitmask = 0x80_0000_0000;
+pub const AMBISONIC_N: ChannelBitmask = 0x100_0000_0000;
+pub const AMBISONIC_O: ChannelBitmask = 0x200_0000_0000;
+pub const AMBISONIC_P: ChannelBitmask = 0x400_0000_0000;
+pub const AMBISONIC_Q: ChannelBitmask = 0x800_0000_0000;
 
 pub const UNDEFINED: ChannelBitmask = 0x0;
 pub const STEREO: ChannelBitmask = FRONT_LEFT ^ FRONT_RIGHT;
 pub const LCR: ChannelBitmask = FRONT_LEFT ^ FRONT_CENTER ^ FRONT_RIGHT;
 pub const LCRS: ChannelBitmask = LCR ^ BACK_CENTER;
-pub const SURROUND_51: ChannelBitmask =
-    FRONT_LEFT ^ FRONT_RIGHT ^ FRONT_CENTER ^ LFE ^ BACK_LEFT ^ BACK_RIGHT;
-pub const SURROUND_71: ChannelBitmask = SURROUND_51 ^ SIDE_LEFT ^ SIDE_RIGHT;
+pub const SURROUND_5_0: ChannelBitmask =
+    FRONT_LEFT ^ FRONT_RIGHT ^ FRONT_CENTER ^ BACK_LEFT ^ BACK_RIGHT;
+pub const SURROUND_5_1: ChannelBitmask = SURROUND_5_0 ^ LFE;
+pub const SURROUND_7_0: ChannelBitmask = SURROUND_5_0 ^ SIDE_LEFT ^ SIDE_RIGHT;
+pub const SURROUND_7_1: ChannelBitmask = SURROUND_7_0 ^ LFE;
+
+pub const ATMOS_5_1_2: ChannelBitmask = SURROUND_5_1 ^ TOP_SIDE_LEFT ^ TOP_SIDE_RIGHT;
+pub const ATMOS_5_0_2: ChannelBitmask = SURROUND_5_0 ^ TOP_SIDE_LEFT ^ TOP_SIDE_RIGHT;
+pub const ATMOS_7_1_4: ChannelBitmask =
+    SURROUND_5_1 ^ TOP_FRONT_LEFT ^ TOP_FRONT_RIGHT ^ TOP_BACK_LEFT ^ TOP_BACK_RIGHT;
+pub const ATMOS_7_1_2: ChannelBitmask = SURROUND_5_1 ^ TOP_SIDE_LEFT ^ TOP_SIDE_RIGHT;
+pub const ATMOS_7_0_2: ChannelBitmask = SURROUND_7_0 ^ TOP_SIDE_LEFT ^ TOP_SIDE_RIGHT;
+pub const ATMOS_9_1_6: ChannelBitmask = SURROUND_7_1
+    ^ FRONT_LEFT_WIDE
+    ^ FRONT_RIGHT_WIDE
+    ^ TOP_FRONT_LEFT
+    ^ TOP_FRONT_RIGHT
+    ^ TOP_BACK_LEFT
+    ^ TOP_BACK_RIGHT
+    ^ TOP_SIDE_LEFT
+    ^ TOP_SIDE_RIGHT;
 
 pub const AMBISONIC_O1: ChannelBitmask = AMBISONIC_W ^ AMBISONIC_X ^ AMBISONIC_Y ^ AMBISONIC_Z;
 pub const AMBISONIC_O2: ChannelBitmask =
@@ -114,9 +150,9 @@ where
 /// A `Source` for adding a channel bitmask to a preexisting source.
 ///
 /// This `Source` only adds the `SourceChannelBitmask` trait methods, allowing the inner source to
-/// broadcast the given bitmask metadata. It otherwise does nothing to the source's samples and
-/// refers all source methods back to the inner input. This source is provided as a convenience to
-/// add a channel bitmask to a source that does not support it.
+/// provide the given bitmask metadata. It otherwise does nothing to the source's samples and
+/// refers all `Source` methods back to the inner input. This source is provided as a convenience
+/// to add a channel bitmask to a source that does not support it.
 pub struct ChannelBitmaskAdapter<I> {
     input: I,
     channel_bitmask: ChannelBitmask,

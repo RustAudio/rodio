@@ -156,6 +156,7 @@ pub use cpal::{
 };
 
 mod conversions;
+mod channel_bitmask;
 mod sink;
 mod spatial_sink;
 mod stream;
@@ -168,6 +169,7 @@ pub mod source;
 pub mod static_buffer;
 
 pub use crate::conversions::Sample;
+pub use crate::channel_bitmask::ChannelBitmask;
 pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;

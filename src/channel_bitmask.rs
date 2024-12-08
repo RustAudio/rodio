@@ -1,6 +1,13 @@
 #![allow(dead_code)]
 
 use crate::{Sample, Source};
+
+/// Channel Bitmask
+///
+/// Each bit in a channel bitmask indicates a different speaker or channel component in a
+/// multichannel audio stream. Multichannel streams set each bit "1" for the corresponding
+/// components they provide samples for, and then provide them in the order of the place-value of
+/// the bit, right-to-left/LSB-to-MSB.
 pub type ChannelBitmask = u64;
 
 // Bitmasks 0x1...0x2_0000 are identical to speaker assignemnts in the Microsoft WAVE WAVEFORMATEX
@@ -124,7 +131,7 @@ pub const ATMOS_9_1_6: ChannelBitmask = SURROUND_7_1
 /// First-order Ambisonic components, WXYZ.
 pub const AMBISONIC_O1: ChannelBitmask = AMBISONIC_W ^ AMBISONIC_X ^ AMBISONIC_Y ^ AMBISONIC_Z;
 
-/// Second-order Ambisonic components, WXYZ+RSTUV. 
+/// Second-order Ambisonic components, WXYZ+RSTUV.
 pub const AMBISONIC_O2: ChannelBitmask =
     AMBISONIC_O1 ^ AMBISONIC_R ^ AMBISONIC_S ^ AMBISONIC_T ^ AMBISONIC_U ^ AMBISONIC_V;
 

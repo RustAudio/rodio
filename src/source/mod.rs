@@ -468,8 +468,8 @@ where
     {
         SamplesConverter::new(self)
     }
-    
-    /// Returns a source that implements the [`ChannelBitmask`] trait and reports 
+
+    /// Returns a source that implements the [`ChannelBitmask`] trait and reports
     /// the given `channel_bitmask`.
     ///
     /// # Panics

@@ -70,13 +70,13 @@ where
     ///
     /// Successive calls to `route` with the same `from` and `to` arguments will replace the
     /// previous gain value with the new one.
-    pub fn route(&mut self, from: u16, to: u16, gain: f32) -> () {
+    pub fn route(&mut self, from: u16, to: u16, gain: f32) {
         let k = InputOutputPair(from, to);
         _ = self.channel_map.insert(k, gain);
     }
 
     /// Delete an existing mapping from `from` to `to` if it exists.
-    pub fn unroute(&mut self, from: u16, to: u16) -> () {
+    pub fn unroute(&mut self, from: u16, to: u16) {
         let k = InputOutputPair(from, to);
         _ = self.channel_map.remove(&k);
     }

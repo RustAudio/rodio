@@ -1,25 +1,22 @@
 use crate::{Sample, Source};
-use std::cmp::min;
+use std::{cmp::min, sync::Mutex};
 
-#[cfg(feature = "experimental")]
-pub type ChannelMap = Vec<Vec<atomic_float::AtomicF32>>;
-
-#[cfg(not(feature = "experimental"))]
 pub type ChannelMap = Vec<Vec<f32>>;
 
 /// Internal function that builds a [`ChannelRouter<I>`] object.
-pub fn channel_router<I>(input: I, channel_count: u16, channel_map: ChannelMap) -> ChannelRouter<I>
+pub fn channel_router<I>(input: I, channel_count: u16, channel_map: ChannelMap) -> ChannelRouterSource<I>
 where
     I: Source,
     I::Item: Sample,
 {
-    ChannelRouter::new(input, channel_count, channel_map)
+    ChannelRouterSource::new(input, channel_count, channel_map)
 }
+
 
 /// A source for extracting, reordering, mixing and duplicating audio between
 /// channels.
 #[derive(Debug)]
-pub struct ChannelRouter<I>
+pub struct ChannelRouterSource<I>
 where
     I: Source,
     I::Item: Sample,
@@ -28,8 +25,8 @@ where
     input: I,
 
     /// Mapping of input to output channels
-    channel_map: ChannelMap,
-
+    channel_map: Mutex<ChannelMap>,
+    
     /// The output channel that [`next()`] will return next.
     current_channel: u16,
 
@@ -40,7 +37,7 @@ where
     input_buffer: Vec<I::Item>,
 }
 
-impl<I> ChannelRouter<I>
+impl<I> ChannelRouterSource<I>
 where
     I: Source,
     I::Item: Sample,
@@ -59,7 +56,7 @@ where
         assert!(input.channels() as usize == channel_map.len());
         Self {
             input,
-            channel_map,
+            channel_map: Mutex::new(channel_map),
             current_channel: channel_count,
             // this will cause the input buffer to fill on first call to next()
             channel_count,
@@ -72,14 +69,10 @@ where
     /// A channel from the input may be routed to any number of channels in the output, and a
     /// channel in the output may be a mix of any number of channels in the input.
     ///
-    /// Successive calls to `route` with the same `from` and `to` arguments will replace the
+    /// Successive calls to `mix` with the same `from` and `to` arguments will replace the
     /// previous gain value with the new one.
-    ///
-    /// _This is an experimental feature._
-    #[cfg(feature = "experimental")]
     pub fn mix(&mut self, from: u16, to: u16, gain: f32) {
-        _ = self.channel_map[from as usize][to as usize]
-            .store(gain, std::sync::atomic::Ordering::Relaxed);
+        self.channel_map.lock().unwrap()[from as usize][to as usize] = gain;
     }
 
     /// Destroys this router and returns the underlying source.
@@ -95,7 +88,7 @@ where
     }
 }
 
-impl<I> Source for ChannelRouter<I>
+impl<I> Source for ChannelRouterSource<I>
 where
     I: Source,
     I::Item: Sample,
@@ -121,7 +114,7 @@ where
     }
 }
 
-impl<I> Iterator for ChannelRouter<I>
+impl<I> Iterator for ChannelRouterSource<I>
 where
     I: Source,
     I::Item: Sample,
@@ -158,8 +151,7 @@ where
                 // the way this works, the input_buffer need not be totally full, the router will
                 // work with whatever samples are available and the missing samples will be assumed
                 // to be equilibrium.
-                let gain = self.channel_map[input_channel][self.current_channel as usize]
-                    .load(std::sync::atomic::Ordering::Relaxed);
+                let gain = self.channel_map.lock().unwrap()[input_channel][self.current_channel as usize];
                 in_sample.amplify(gain)
             })
             .reduce(|a, b| a.saturating_add(b));

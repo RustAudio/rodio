@@ -3,7 +3,6 @@
 use core::fmt;
 use core::time::Duration;
 
-use channel_router::InputOutputPair;
 use cpal::FromSample;
 
 use crate::Sample;
@@ -12,7 +11,7 @@ pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
-pub use self::channel_router::{ChannelMap, ChannelRouter};
+pub use self::channel_router::{ChannelMap, ChannelRouterSource};
 pub use self::channel_volume::ChannelVolume;
 pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
@@ -352,7 +351,7 @@ where
     /// Creates a [`ChannelRouter`] that can mix input channels together and
     /// assign them to new channels.
     #[inline]
-    fn channel_router(self, channel_count: u16, channel_map: ChannelMap) -> ChannelRouter<Self>
+    fn channel_router(self, channel_count: u16, channel_map: ChannelMap) -> ChannelRouterSource<Self>
     where
         Self: Sized,
     {
@@ -362,7 +361,7 @@ where
     /// Creates a one-channel output [`ChannelRouter`] that extracts the channel `channel` from
     /// this sound.
     #[inline]
-    fn extract_channel(self, channel: u16) -> ChannelRouter<Self>
+    fn extract_channel(self, channel: u16) -> ChannelRouterSource<Self>
     where
         Self: Sized,
     {
@@ -376,7 +375,7 @@ where
     ///
     /// - length of `channels` exceeds `u16::MAX`.
     #[inline]
-    fn extract_channels(self, channels: Vec<u16>) -> ChannelRouter<Self>
+    fn extract_channels(self, channels: Vec<u16>) -> ChannelRouterSource<Self>
     where
         Self: Sized,
     {
@@ -387,8 +386,7 @@ where
         let mut mapping = ChannelMap::new();
         let output_count = channels.len() as u16;
         for (output_channel, input_channel) in channels.into_iter().enumerate() {
-            let k = channel_router::InputOutputPair(input_channel, output_channel as u16);
-            _ = mapping.insert(k, 1.0f32);
+            mapping[input_channel as usize][output_channel as usize] = 1.0f32;
         }
         channel_router::channel_router(self, output_count, mapping)
     }

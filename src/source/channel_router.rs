@@ -1,14 +1,11 @@
-use std::{cmp::min, collections::HashMap};
-
 use crate::{Sample, Source};
+use std::cmp::min;
 
-/// A tuple for describing the source and destination channel for a gain setting.
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub struct InputOutputPair(pub u16, pub u16);
+#[cfg(feature = "experimental")]
+pub type ChannelMap = Vec<Vec<atomic_float::AtomicF32>>;
 
-/// A [`HashMap`] for defining a connection between an input channel and output channel, and the
-/// gain to apply to that connection.
-pub type ChannelMap = HashMap<InputOutputPair, f32>;
+#[cfg(not(feature = "experimental"))]
+pub type ChannelMap = Vec<Vec<f32>>;
 
 /// Internal function that builds a [`ChannelRouter<I>`] object.
 pub fn channel_router<I>(input: I, channel_count: u16, channel_map: ChannelMap) -> ChannelRouter<I>
@@ -21,7 +18,7 @@ where
 
 /// A source for extracting, reordering, mixing and duplicating audio between
 /// channels.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ChannelRouter<I>
 where
     I: Source,
@@ -52,7 +49,14 @@ where
     ///
     /// The new `ChannelRouter` will read samples from `input` and will mix and map them according
     /// to `channel_mappings` into its output samples.
+    ///
+    /// # Panics
+    ///
+    /// - if `channel_count` is not equal to `channel_map`'s second dimension
+    /// - if `input.channels()` is not equal to `channel_map`'s first dimension
     pub fn new(input: I, channel_count: u16, channel_map: ChannelMap) -> Self {
+        assert!(channel_count as usize == channel_map[0].len());
+        assert!(input.channels() as usize == channel_map.len());
         Self {
             input,
             channel_map,
@@ -70,15 +74,12 @@ where
     ///
     /// Successive calls to `route` with the same `from` and `to` arguments will replace the
     /// previous gain value with the new one.
-    pub fn route(&mut self, from: u16, to: u16, gain: f32) {
-        let k = InputOutputPair(from, to);
-        _ = self.channel_map.insert(k, gain);
-    }
-
-    /// Delete an existing mapping from `from` to `to` if it exists.
-    pub fn unroute(&mut self, from: u16, to: u16) {
-        let k = InputOutputPair(from, to);
-        _ = self.channel_map.remove(&k);
+    ///
+    /// _This is an experimental feature._
+    #[cfg(feature = "experimental")]
+    pub fn mix(&mut self, from: u16, to: u16, gain: f32) {
+        _ = self.channel_map[from as usize][to as usize]
+            .store(gain, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Destroys this router and returns the underlying source.
@@ -157,9 +158,9 @@ where
                 // the way this works, the input_buffer need not be totally full, the router will
                 // work with whatever samples are available and the missing samples will be assumed
                 // to be equilibrium.
-                let pair = InputOutputPair(input_channel as u16, self.current_channel);
-                let gain = self.channel_map.get(&pair).unwrap_or(&0.0f32);
-                in_sample.amplify(*gain)
+                let gain = self.channel_map[input_channel][self.current_channel as usize]
+                    .load(std::sync::atomic::Ordering::Relaxed);
+                in_sample.amplify(gain)
             })
             .reduce(|a, b| a.saturating_add(b));
 

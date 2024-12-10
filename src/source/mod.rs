@@ -395,6 +395,56 @@ where
         channel_router::channel_router(self, output_count, mapping).1
     }
 
+    /// Creates a [`ChannelRouter`] that mixes all of the input channels to mono with full gain.
+    #[inline]
+    fn mono(self) -> ChannelRouterSource<Self>
+    where
+        Self: Sized,
+    {
+        let mapping: ChannelMap = vec![vec![1.0f32]; self.channels().into()];
+        channel_router::channel_router(self, 1, mapping).1
+    }
+
+    /// Creates a [`ChannelRouter`] that splits a mono channel into two stereo channels, at half
+    /// their original gain.
+    ///
+    /// # Panics
+    ///
+    /// - `self.channels()` is not equal to 1
+    #[inline]
+    fn mono_to_stereo(self) -> ChannelRouterSource<Self>
+    where
+        Self: Sized,
+    {
+        let mapping: ChannelMap = vec![vec![0.5f32, 0.5f32]];
+        channel_router::channel_router(self, 2, mapping).1
+    }
+
+    /// Creates a [`ChannelRouter`] that mixes a 5.1 source in SMPTE channel order (L, R, C, Lfe, Ls,
+    /// Rs) into a stereo mix, with gain coefficients per [ITU-BS.775-1](itu_775).
+    ///
+    /// [itu_775]: https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.775-1-199407-S!!PDF-E.pdf
+    ///
+    /// # Panics
+    ///
+    /// - `self.channels()` is not equal to 6
+    #[inline]
+    fn downmix_51(self) -> ChannelRouterSource<Self>
+    where
+        Self: Sized,
+    {
+        let three_db_down = std::f32::consts::FRAC_1_SQRT_2;
+        let mapping: ChannelMap = vec![
+            vec![1.0f32, 0.0f32],
+            vec![0.0f32, 1.0f32],
+            vec![three_db_down, three_db_down],
+            vec![0.0f32, 0.0f32],
+            vec![three_db_down, 0.0f32],
+            vec![0.0f32, three_db_down],
+        ];
+        channel_router::channel_router(self, 6, mapping).1
+    }
+
     /// Mixes this sound fading out with another sound fading in for the given duration.
     ///
     /// Only the crossfaded portion (beginning of self, beginning of other) is returned.

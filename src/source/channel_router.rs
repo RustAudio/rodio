@@ -1,3 +1,5 @@
+// Channel router types and implementation.
+
 use crate::{Sample, Source};
 use std::{
     cmp::min,
@@ -5,6 +7,16 @@ use std::{
 };
 
 pub type ChannelMap = Vec<Vec<f32>>;
+// doing this as Vec<Vec<atomic_float::AtomicF32>> would require feature=experimental, so I decided
+// to just use a channel to do updates.
+//
+// Doing it as a HashMap<(u16,u16), f32> is an option too but there's a penalty hashing these
+// values, there's ways to speed that up though. It'd be great if the object upgraded its
+// implementation if it got sufficiently big.
+
+// pub fn empty_channel_map(inputs: u16, outputs: u16) -> ChannelMap {
+//     vec![vec![0.0f32; outputs.into()]; inputs.into()]
+// }
 
 /// Internal function that builds a [`ChannelRouter<I>`] object.
 pub fn channel_router<I>(
@@ -103,6 +115,8 @@ where
             current_channel: channel_count,
             // this will cause the input buffer to fill on first call to next()
             channel_count,
+            // we don't need to store channel count, it's implicit in the channel_map dimentions
+            // but maybe it's saving us some time, we do check this value a lot.
             input_buffer: vec![],
             receiver: rx,
         };
@@ -184,13 +198,12 @@ where
         let retval = self
             .input_buffer
             .iter()
-            // if input_buffer is empty, retval will be None
-            .enumerate()
-            .map(|(input_channel, in_sample)| {
+            .zip(&self.channel_map)
+            .map(|(in_sample, input_gains)| {
                 // the way this works, the input_buffer need not be totally full, the router will
                 // work with whatever samples are available and the missing samples will be assumed
                 // to be equilibrium.
-                let gain = self.channel_map[input_channel][self.current_channel as usize];
+                let gain = input_gains[self.current_channel as usize];
                 in_sample.amplify(gain)
             })
             .reduce(|a, b| a.saturating_add(b));
@@ -203,4 +216,11 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.input.size_hint()
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test() {}
 }

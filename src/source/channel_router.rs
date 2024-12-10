@@ -222,7 +222,7 @@ where
 mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::source::channel_router::*;
-    
+
     #[test]
     fn test_stereo_to_mono() {
         let input = SamplesBuffer::new(2, 1, [0u16, 2u16, 4u16, 6u16]);
@@ -255,10 +255,7 @@ mod tests {
     #[test]
     fn test_updates() {
         let input = SamplesBuffer::new(2, 1, [0i16, 0i16, -1i16, -1i16, 1i16, 2i16, -4i16, -3i16]);
-        let initial_map = vec![
-            vec![1.0f32],
-            vec![1.0f32],
-        ];
+        let initial_map = vec![vec![1.0f32], vec![1.0f32]];
         let (mut controller, mut source) = ChannelRouterSource::new(input, 1, initial_map);
         let v1: Vec<i16> = source.by_ref().take(2).collect();
         assert_eq!(v1.len(), 2);

@@ -9,12 +9,12 @@ use crate::{Sample, Source};
 /// components they provide samples for, and then provide them in the order of the place-value of
 /// the bit, right-to-left/LSB-to-MSB.
 ///
-/// # Note on the Immersive Audio 
+/// # Note on the Immersive Audio
 ///
 /// Constants from `0x0001...0x800_0000` are for theatrical presentations, for presentations in
 /// theaters and equipped home theaters. For immersive presentations like Oculus, Apple Vision Pro
 /// etc. the presentation of these components is undefined.
-/// 
+///
 /// 0x0001 ... 0x2_0000
 ///     Channel bitmasks 0x1 through 0x2_0000 are identical to speaker assignements in the
 ///     Microsoft Wave WAVEFORMATEX channel bitmask.
@@ -24,8 +24,8 @@ use crate::{Sample, Source};
 ///     listener, see the `DIRECT` assignments for point surrounds.
 ///
 ///     `TOP_FRONT` and `TOP_BACK` channel assignments correspond to overhead surround assignments
-///     ahead and behind the listener, accoding to Dolby Home Atmos 7.1.4 standards. 
-/// 
+///     ahead and behind the listener, accoding to Dolby Home Atmos 7.1.4 standards.
+///
 /// 0x4_0000 ... 0x20_0000
 ///     These speaker assignents are required to complete a full Dolby Atmos 9.1.6 bed.
 ///
@@ -37,7 +37,7 @@ use crate::{Sample, Source};
 ///     matrix-encoded formats. Without further qualification, channels mapped to these code
 ///     points will be interpreted as Dolby Pro Logic 2 Left Total and Right Total components, but
 ///     other possibilities here could be CBS SQ, Sansui QS or CD-4.
-/// 
+///
 /// 0x400_0000 and 0x800_0000
 ///     These are head-locked left and right compoonents of an Ambisonic presentation. These are
 ///     presented a headset without spatialization simultaneous with...
@@ -72,7 +72,7 @@ pub const FRONT_RIGHT_WIDE: ChannelBitmask = 0x8_0000;
 pub const TOP_SIDE_LEFT: ChannelBitmask = 0x10_0000;
 pub const TOP_SIDE_RIGHT: ChannelBitmask = 0x20_0000;
 
-// For IMAX and TMH 
+// For IMAX and TMH
 pub const BACK_DIRECT_LEFT: ChannelBitmask = 0x40_0000;
 pub const BACK_DIRECT_RIGHT: ChannelBitmask = 0x80_0000;
 

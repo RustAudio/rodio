@@ -12,7 +12,7 @@ use std::{
 /// - The first dimension is respective to the input channels
 /// - The second is respective to the output channels
 ///
-/// Thus, if a value at `map[1,1]` is 0.2, this signifies that the signal on 
+/// Thus, if a value at `map[1,1]` is 0.2, this signifies that the signal on
 /// channel 1 should be mixed into channel 1 with a coefficient of 0.2.
 pub type ChannelMap = Vec<Vec<f32>>;
 // doing this as Vec<Vec<atomic_float::AtomicF32>> would require feature=experimental, so I decided
@@ -56,9 +56,7 @@ impl ChannelRouterController {
     /// Successive calls to `mix` with the same `from` and `to` arguments will replace the
     /// previous gain value with the new one.
     pub fn map(&mut self, from: u16, to: u16, gain: f32) {
-        if let Err(_) = self
-            .sender
-            .send(ChannelRouterMessage(from as usize, to as usize, gain))
+        if self.sender.send(ChannelRouterMessage(from as usize, to as usize, gain)).is_err()
         {
             todo!("Probably shouldn't panic here");
         }

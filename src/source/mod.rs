@@ -390,7 +390,7 @@ where
         let mut mapping = ChannelMap::new();
         let output_count = channels.len() as u16;
         for (output_channel, input_channel) in channels.into_iter().enumerate() {
-            mapping[input_channel as usize][output_channel as usize] = 1.0f32;
+            mapping[input_channel as usize][output_channel] = 1.0f32;
         }
         channel_router::channel_router(self, output_count, mapping).1
     }

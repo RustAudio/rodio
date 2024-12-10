@@ -36,10 +36,12 @@ impl ChannelRouterController {
     /// Successive calls to `mix` with the same `from` and `to` arguments will replace the
     /// previous gain value with the new one.
     pub fn map(&mut self, from: u16, to: u16, gain: f32) {
-        if let Err(_) = self.sender
-            .send(ChannelRouterMessage(from as usize, to as usize, gain)) {
-                todo!("Probably shouldn't panic here");
-            }
+        if let Err(_) = self
+            .sender
+            .send(ChannelRouterMessage(from as usize, to as usize, gain))
+        {
+            todo!("Probably shouldn't panic here");
+        }
     }
 }
 

@@ -1,10 +1,17 @@
 use crate::{Sample, Source};
-use std::{cmp::min, sync::Mutex};
+use std::{
+    cmp::min,
+    sync::mpsc::{channel, Receiver, Sender},
+};
 
 pub type ChannelMap = Vec<Vec<f32>>;
 
 /// Internal function that builds a [`ChannelRouter<I>`] object.
-pub fn channel_router<I>(input: I, channel_count: u16, channel_map: ChannelMap) -> ChannelRouterSource<I>
+pub fn channel_router<I>(
+    input: I,
+    channel_count: u16,
+    channel_map: ChannelMap,
+) -> (ChannelRouterController, ChannelRouterSource<I>)
 where
     I: Source,
     I::Item: Sample,
@@ -12,6 +19,29 @@ where
     ChannelRouterSource::new(input, channel_count, channel_map)
 }
 
+struct ChannelRouterMessage(usize, usize, f32);
+
+/// A controller type that sends gain updates to a corresponding [`ChannelRouterSource`].
+#[derive(Debug, Clone)]
+pub struct ChannelRouterController {
+    sender: Sender<ChannelRouterMessage>,
+}
+
+impl ChannelRouterController {
+    /// Set or update the gain setting for a channel mapping.
+    ///
+    /// A channel from the input may be routed to any number of channels in the output, and a
+    /// channel in the output may be a mix of any number of channels in the input.
+    ///
+    /// Successive calls to `mix` with the same `from` and `to` arguments will replace the
+    /// previous gain value with the new one.
+    pub fn map(&mut self, from: u16, to: u16, gain: f32) {
+        if let Err(_) = self.sender
+            .send(ChannelRouterMessage(from as usize, to as usize, gain)) {
+                todo!("Probably shouldn't panic here");
+            }
+    }
+}
 
 /// A source for extracting, reordering, mixing and duplicating audio between
 /// channels.
@@ -25,8 +55,8 @@ where
     input: I,
 
     /// Mapping of input to output channels
-    channel_map: Mutex<ChannelMap>,
-    
+    channel_map: ChannelMap,
+
     /// The output channel that [`next()`] will return next.
     current_channel: u16,
 
@@ -35,6 +65,9 @@ where
 
     /// The current input audio frame
     input_buffer: Vec<I::Item>,
+
+    /// Communication channel with the controller
+    receiver: Receiver<ChannelRouterMessage>,
 }
 
 impl<I> ChannelRouterSource<I>
@@ -51,28 +84,28 @@ where
     ///
     /// - if `channel_count` is not equal to `channel_map`'s second dimension
     /// - if `input.channels()` is not equal to `channel_map`'s first dimension
-    pub fn new(input: I, channel_count: u16, channel_map: ChannelMap) -> Self {
+    pub fn new(
+        input: I,
+        channel_count: u16,
+        channel_map: ChannelMap,
+    ) -> (ChannelRouterController, Self) {
         assert!(channel_count as usize == channel_map[0].len());
         assert!(input.channels() as usize == channel_map.len());
-        Self {
+
+        let (tx, rx) = channel();
+
+        let controller = ChannelRouterController { sender: tx };
+        let source = Self {
             input,
-            channel_map: Mutex::new(channel_map),
+            channel_map,
             current_channel: channel_count,
             // this will cause the input buffer to fill on first call to next()
             channel_count,
             input_buffer: vec![],
-        }
-    }
+            receiver: rx,
+        };
 
-    /// Set or update the gain setting for a channel mapping.
-    ///
-    /// A channel from the input may be routed to any number of channels in the output, and a
-    /// channel in the output may be a mix of any number of channels in the input.
-    ///
-    /// Successive calls to `mix` with the same `from` and `to` arguments will replace the
-    /// previous gain value with the new one.
-    pub fn mix(&mut self, from: u16, to: u16, gain: f32) {
-        self.channel_map.lock().unwrap()[from as usize][to as usize] = gain;
+        (controller, source)
     }
 
     /// Destroys this router and returns the underlying source.
@@ -139,6 +172,10 @@ where
             self.input_buffer = self.inner_mut().take(samples_to_take).collect();
 
             self.current_channel = 0;
+
+            for change in self.receiver.try_iter() {
+                self.channel_map[change.0][change.1] = change.2;
+            }
         }
 
         // Find the output sample for current_channel
@@ -151,7 +188,7 @@ where
                 // the way this works, the input_buffer need not be totally full, the router will
                 // work with whatever samples are available and the missing samples will be assumed
                 // to be equilibrium.
-                let gain = self.channel_map.lock().unwrap()[input_channel][self.current_channel as usize];
+                let gain = self.channel_map[input_channel][self.current_channel as usize];
                 in_sample.amplify(gain)
             })
             .reduce(|a, b| a.saturating_add(b));

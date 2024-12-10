@@ -11,7 +11,7 @@ pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
-pub use self::channel_router::{ChannelMap, ChannelRouterSource};
+pub use self::channel_router::{ChannelMap, ChannelRouterController, ChannelRouterSource};
 pub use self::channel_volume::ChannelVolume;
 pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
@@ -351,7 +351,11 @@ where
     /// Creates a [`ChannelRouter`] that can mix input channels together and
     /// assign them to new channels.
     #[inline]
-    fn channel_router(self, channel_count: u16, channel_map: ChannelMap) -> ChannelRouterSource<Self>
+    fn channel_router(
+        self,
+        channel_count: u16,
+        channel_map: ChannelMap,
+    ) -> (ChannelRouterController, ChannelRouterSource<Self>)
     where
         Self: Sized,
     {
@@ -388,7 +392,7 @@ where
         for (output_channel, input_channel) in channels.into_iter().enumerate() {
             mapping[input_channel as usize][output_channel as usize] = 1.0f32;
         }
-        channel_router::channel_router(self, output_count, mapping)
+        channel_router::channel_router(self, output_count, mapping).1
     }
 
     /// Mixes this sound fading out with another sound fading in for the given duration.

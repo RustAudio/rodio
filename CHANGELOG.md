@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Output audio stream buffer size can now be adjusted.
+- A `ChannelRouterSource` that can mix, re-order and extract channels from a 
+  multi-channel source.
+    - Several `Source` trait helper functions including `extract_channel`, 
+      `extract_channels`, `mono`, `mono_to_stereo`, and `downmix_51`.
+    - A `ChannelRouterController` type to modify the `ChannelRouterSource` 
+      across thread boundaries.
 - Sources for directly generating square waves, traingle waves, square waves and 
   sawtooths have been added.
 - An interface for defining `SignalGenerator` patterns with an `fn`, see

@@ -115,7 +115,7 @@ where
             current_channel: channel_count,
             // this will cause the input buffer to fill on first call to next()
             channel_count,
-            // we don't need to store channel count, it's implicit in the channel_map dimentions
+            // channel_count is redundant, it's implicit in the channel_map dimensions
             // but maybe it's saving us some time, we do check this value a lot.
             input_buffer: vec![],
             receiver: rx,
@@ -220,7 +220,35 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::buffer::SamplesBuffer;
+    use crate::source::channel_router::*;
 
     #[test]
-    fn test() {}
+    fn test_stereo_to_mono() {
+        let input = SamplesBuffer::new(2, 1, [0u16, 2u16, 4u16, 6u16]);
+        let map = vec![vec![0.5f32], vec![0.5f32]];
+
+        let (_, test_source) = ChannelRouterSource::new(input, 1, map);
+        let v1: Vec<u16> = test_source.take(4).collect();
+        assert_eq!(v1.len(), 2);
+        assert_eq!(v1[0], 1u16);
+        assert_eq!(v1[1], 5u16);
+    }
+
+    #[test]
+    fn test_upmix() {
+        let input = SamplesBuffer::new(1, 1, [0i16, -10, 10, 20, -20, -50, -30, 40]);
+        let map = vec![vec![1.0f32, 0.5f32, 2.0f32]];
+        let (_, test_source) = ChannelRouterSource::new(input, 3, map);
+        assert_eq!(test_source.channels(), 3);
+        let v1: Vec<i16> = test_source.take(1000).collect();
+        assert_eq!(v1.len(), 24);
+        assert_eq!(
+            v1,
+            [
+                0i16, 0, 0, -10, -5, -20, 10, 5, 20, 20, 10, 40, -20, -10, -40, -50, -25, -100,
+                -30, -15, -60, 40, 20, 80
+            ]
+        );
+    }
 }

@@ -2,7 +2,10 @@
 
 use crate::{Sample, Source};
 use std::{
-    cmp::min, error::Error, fmt, sync::mpsc::{channel, Receiver, Sender}
+    cmp::min,
+    error::Error,
+    fmt,
+    sync::mpsc::{channel, Receiver, Sender},
 };
 
 /// A matrix to map inputs to outputs according to a gain

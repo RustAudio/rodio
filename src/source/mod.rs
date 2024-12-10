@@ -5,6 +5,7 @@ use core::time::Duration;
 
 use cpal::FromSample;
 
+use crate::channel_bitmask::{add_channel_mask, ChannelBitmask, ChannelBitmaskAdapter};
 use crate::Sample;
 
 pub use self::agc::AutomaticGainControl;
@@ -466,6 +467,19 @@ where
         D: Sample,
     {
         SamplesConverter::new(self)
+    }
+
+    /// Returns a source that implements the [`ChannelBitmask`] trait and reports
+    /// the given `channel_bitmask`.
+    ///
+    /// # Panics
+    ///
+    /// If the `channel_bitmask.count_ones()` is not equal to `self.channels()`.
+    fn add_channel_mask(self, channel_bitmask: ChannelBitmask) -> ChannelBitmaskAdapter<Self>
+    where
+        Self: Sized,
+    {
+        add_channel_mask(self, channel_bitmask)
     }
 
     /// Makes the sound pausable.

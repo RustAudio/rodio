@@ -19,11 +19,11 @@ use crate::{Sample, Source};
 ///     Channel bitmasks 0x1 through 0x2_0000 are identical to speaker assignements in the
 ///     Microsoft Wave WAVEFORMATEX channel bitmask.
 ///
-///     `BACK_`  and `SIDE_` channel assignments correspond to surround assignments in the
+///     BACK_  and SIDE_ channel assignments correspond to surround assignments in the
 ///     respective Dolby and DTS channel assignments. These are arrays of speakers arround the
 ///     listener, see the `DIRECT` assignments for point surrounds.
 ///
-///     `TOP_FRONT` and `TOP_BACK` channel assignments correspond to overhead surround assignments
+///     TOP_FRONT_ and TOP_BACK_ channel assignments correspond to overhead surround assignments
 ///     ahead and behind the listener, accoding to Dolby Home Atmos 7.1.4 standards.
 ///
 /// 0x4_0000 ... 0x20_0000

@@ -2,8 +2,7 @@
 
 use crate::{Sample, Source};
 use std::{
-    cmp::min,
-    sync::mpsc::{channel, Receiver, Sender},
+    cmp::min, error::Error, fmt, sync::mpsc::{channel, Receiver, Sender}
 };
 
 /// A matrix to map inputs to outputs according to a gain
@@ -44,6 +43,14 @@ struct ChannelRouterMessage(usize, usize, f32);
 /// `ChannelRouterController::map()` returns this error if the router source has been dropped.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ChannelRouterControllerError {}
+
+impl fmt::Display for ChannelRouterControllerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<ChannelRouterControllerError>")
+    }
+}
+
+impl Error for ChannelRouterControllerError {}
 
 /// A controller type that sends gain updates to a corresponding [`ChannelRouterSource`].
 #[derive(Debug, Clone)]

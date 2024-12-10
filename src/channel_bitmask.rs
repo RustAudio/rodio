@@ -8,10 +8,38 @@ use crate::{Sample, Source};
 /// multichannel audio stream. Multichannel streams set each bit "1" for the corresponding
 /// components they provide samples for, and then provide them in the order of the place-value of
 /// the bit, right-to-left/LSB-to-MSB.
+///
+/// # Note on the Immersive Audio 
+///
+/// Constants from `0x0001...0x800_0000` are for theatrical presentations, for presentations in
+/// theaters and equipped home theaters. For immersive presentations like Oculus, Apple Vision Pro
+/// etc. the presentation of these components is undefined.
+/// 
+/// 0x0001 ... 0x2_0000
+///     Channel bitmasks 0x1 through 0x2_0000 are identical to speaker assignements in the
+///     Microsoft Wave WAVEFORMATEX channel bitmask.
+/// 
+/// 0x4_0000 ... 0x20_0000
+///     These speaker assignents are required to complete a full Dolby Atmos 9.1.6 bed.
+///
+/// 0x40_0000 and 0x80_0000
+///     These "DIRECT" speaker assigments are required for IMAX and TMH 10.2.
+///
+/// 0x100_0000 and 0x200_0000
+///     We've dedicated these two bits for left-total and right-total components, for use with
+///     matrix-encoded formats. Without further qualification, channels mapped to these code
+///     points will be interpreted as Dolby Pro Logic 2 Left Total and Right Total components, but
+///     other possibilities here could be CBS SQ, Sansui QS or CD-4.
+/// 
+/// 0x400_0000 and 0x800_0000
+///     These are head-locked left and right compoonents of an Ambisonic presentation. These are
+///     presented a headset without spatialization simultaneous with...
+///
+/// 0x1000_0000 ... 0x800_0000_0000
+///     These are all Ambisonic components in FuMa order.
 pub type ChannelBitmask = u64;
 
-// Bitmasks 0x1...0x2_0000 are identical to speaker assignemnts in the Microsoft WAVE WAVEFORMATEX
-// channel bitmask.
+// WAVEFORMATEX
 pub const FRONT_LEFT: ChannelBitmask = 0x1;
 pub const FRONT_RIGHT: ChannelBitmask = 0x2;
 pub const FRONT_CENTER: ChannelBitmask = 0x4;
@@ -31,13 +59,13 @@ pub const TOP_BACK_LEFT: ChannelBitmask = 0x8000;
 pub const TOP_BACK_CENTER: ChannelBitmask = 0x1_0000;
 pub const TOP_BACK_RIGHT: ChannelBitmask = 0x2_0000;
 
-// These four speaker assignments are required to complete a full Dolby Atmos 9.1.6 bed.
+// For Dolby Atmos
 pub const FRONT_LEFT_WIDE: ChannelBitmask = 0x4_0000;
 pub const FRONT_RIGHT_WIDE: ChannelBitmask = 0x8_0000;
 pub const TOP_SIDE_LEFT: ChannelBitmask = 0x10_0000;
 pub const TOP_SIDE_RIGHT: ChannelBitmask = 0x20_0000;
 
-// These speaker assignments are required for IMAX and TMH 10.2
+// For IMAX and TMH 
 pub const BACK_DIRECT_LEFT: ChannelBitmask = 0x40_0000;
 pub const BACK_DIRECT_RIGHT: ChannelBitmask = 0x80_0000;
 

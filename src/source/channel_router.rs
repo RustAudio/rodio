@@ -57,7 +57,7 @@ impl ChannelRouterController {
     /// A channel from the input may be routed to any number of channels in the output, and a
     /// channel in the output may be a mix of any number of channels in the input.
     ///
-    /// Successive calls to `mix` with the same `from` and `to` arguments will replace the
+    /// Successive calls to `map` with the same `from` and `to` arguments will replace the
     /// previous gain value with the new one.
     pub fn map(
         &mut self,

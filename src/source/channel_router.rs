@@ -41,6 +41,9 @@ where
 
 struct ChannelRouterMessage(usize, usize, f32);
 
+/// `ChannelRouterController::map()` returns this error if the router source has been dropped.
+pub struct ChannelRouterControllerError {}
+
 /// A controller type that sends gain updates to a corresponding [`ChannelRouterSource`].
 #[derive(Debug, Clone)]
 pub struct ChannelRouterController {
@@ -55,10 +58,20 @@ impl ChannelRouterController {
     ///
     /// Successive calls to `mix` with the same `from` and `to` arguments will replace the
     /// previous gain value with the new one.
-    pub fn map(&mut self, from: u16, to: u16, gain: f32) {
-        if self.sender.send(ChannelRouterMessage(from as usize, to as usize, gain)).is_err()
+    pub fn map(
+        &mut self,
+        from: u16,
+        to: u16,
+        gain: f32,
+    ) -> Result<(), ChannelRouterControllerError> {
+        if self
+            .sender
+            .send(ChannelRouterMessage(from as usize, to as usize, gain))
+            .is_err()
         {
-            todo!("Probably shouldn't panic here");
+            Err(ChannelRouterControllerError {})
+        } else {
+            Ok(())
         }
     }
 }

@@ -21,7 +21,7 @@ use crate::{Sample, Source};
 ///
 ///     BACK_  and SIDE_ channel assignments correspond to surround assignments in the
 ///     respective Dolby and DTS channel assignments. These are arrays of speakers arround the
-///     listener, see the `DIRECT` assignments for point surrounds.
+///     listener, see the DIRECT assignments for point surrounds.
 ///
 ///     TOP_FRONT_ and TOP_BACK_ channel assignments correspond to overhead surround assignments
 ///     ahead and behind the listener, accoding to Dolby Home Atmos 7.1.4 standards.

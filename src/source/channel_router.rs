@@ -42,6 +42,7 @@ where
 struct ChannelRouterMessage(usize, usize, f32);
 
 /// `ChannelRouterController::map()` returns this error if the router source has been dropped.
+#[derive(Debug, Eq, PartialEq)]
 pub struct ChannelRouterControllerError {}
 
 /// A controller type that sends gain updates to a corresponding [`ChannelRouterSource`].
@@ -281,8 +282,10 @@ mod tests {
         assert_eq!(v1[0], 0i16);
         assert_eq!(v1[1], -2i16);
 
-        controller.map(0, 0, 0.0f32);
-        controller.map(1, 0, 2.0f32);
+        let r1 = controller.map(0, 0, 0.0f32);
+        let r2 = controller.map(1, 0, 2.0f32);
+        assert_eq!(r1, Ok(()));
+        assert_eq!(r2, Ok(()));
 
         let v2: Vec<i16> = source.take(3).collect();
         assert_eq!(v2.len(), 2);

@@ -6,6 +6,14 @@ use std::{
     sync::mpsc::{channel, Receiver, Sender},
 };
 
+/// A matrix to map inputs to outputs according to a gain
+///
+/// A two-dimensional matrix of `f32`s:
+/// - The first dimension is respective to the input channels
+/// - The second is respective to the output channels
+///
+/// Thus, if a value at `map[1,1]` is 0.2, this signifies that the signal on 
+/// channel 1 should be mixed into channel 1 with a coefficient of 0.2.
 pub type ChannelMap = Vec<Vec<f32>>;
 // doing this as Vec<Vec<atomic_float::AtomicF32>> would require feature=experimental, so I decided
 // to just use a channel to do updates.

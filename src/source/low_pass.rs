@@ -77,7 +77,7 @@ mod test {
     use symphonia::core::meta::StandardTagKey::Encoder;
 
     #[test]
-    fn test_low_pass() {
+    fn test_resample_low_pass() {
         let stream_handle = OutputStreamBuilder::open_default_stream().unwrap();
         let mixer = stream_handle.mixer();
         {
@@ -96,6 +96,43 @@ mod test {
                 channels_in,
             );
             
+            let lo_pass = LowPass::new(output1);
+
+            let rate_in = lo_pass.sample_rate();
+            let output2 = SampleRateConverter::new(
+                lo_pass,
+                cpal::SampleRate(rate_in),
+                cpal::SampleRate(out_freq),
+                channels_in,
+            );
+
+            mixer.add(output2);
+        }
+
+        thread::sleep(Duration::from_millis(1000));
+    }
+
+    #[test]
+    fn test_resample_biquad_low_pass() {
+        
+        let stream_handle = OutputStreamBuilder::open_default_stream().unwrap();
+        let mixer = stream_handle.mixer();
+        {
+            // Generate sine wave.
+            let wave = SineWave::new(740.0)
+                .amplify(0.1)
+                .take_duration(Duration::from_secs(1));
+
+            let rate_in = wave.sample_rate();
+            let channels_in = wave.channels();
+            let out_freq = 44_100;
+            let output1 = SampleRateConverter::new(
+                wave,
+                cpal::SampleRate(rate_in),
+                cpal::SampleRate(out_freq * 2),
+                channels_in,
+            );
+
             let lo_pass = LowPass::new(output1);
 
             let rate_in = lo_pass.sample_rate();

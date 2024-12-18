@@ -5,8 +5,6 @@ use crate::Source;
 
 use super::SeekError;
 
-// Implemented following http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
-
 /// Internal function that builds a `BltFilter` object.
 pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
 where
@@ -22,7 +20,7 @@ where
     high_pass_with_q(input, freq, 0.5)
 }
 
-/// Same as low_pass but allows the q value (bandwidth) to be changed
+/// Same as low_pass but allows the q value (bandwidth) to be changed.
 pub fn low_pass_with_q<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
 where
     I: Source<Item = f32>,
@@ -38,7 +36,7 @@ where
     }
 }
 
-/// Same as high_pass but allows the q value (bandwidth) to be changed
+/// Same as high_pass but allows the q value (bandwidth) to be changed.
 pub fn high_pass_with_q<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
 where
     I: Source<Item = f32>,
@@ -55,6 +53,8 @@ where
 }
 
 /// This applies an audio filter, it can be a high or low pass filter.
+/// Implements following 
+/// https://github.com/WebAudio/Audio-EQ-Cookbook/blob/main/Audio-EQ-Cookbook.txt
 #[derive(Clone, Debug)]
 pub struct BltFilter<I> {
     input: I,
@@ -77,13 +77,13 @@ impl<I> BltFilter<I> {
         self.to_high_pass_with_q(freq, 0.5);
     }
 
-    /// Same as to_low_pass but allows the q value (bandwidth) to be changed
+    /// Same as to_low_pass but allows the q value (bandwidth) to be changed.
     pub fn to_low_pass_with_q(&mut self, freq: u32, q: f32) {
         self.formula = BltFormula::LowPass { freq, q };
         self.applier = None;
     }
 
-    /// Same as to_high_pass but allows the q value (bandwidth) to be changed
+    /// Same as to_high_pass but allows the q value (bandwidth) to be changed.
     pub fn to_high_pass_with_q(&mut self, freq: u32, q: f32) {
         self.formula = BltFormula::HighPass { freq, q };
         self.applier = None;

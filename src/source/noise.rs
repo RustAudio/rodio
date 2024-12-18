@@ -98,6 +98,7 @@ pub struct PinkNoise {
 }
 
 impl PinkNoise {
+    /// Create new pink noise source for given sample rate.
     pub fn new(sample_rate: cpal::SampleRate) -> Self {
         Self {
             white_noise: WhiteNoise::new(sample_rate),

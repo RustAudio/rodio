@@ -456,7 +456,7 @@ mod test {
         //     .amplify(0.1)
         //     .take_duration(Duration::from_secs(1)));
         let new_source = move || {
-            let file = std::fs::File::open("tmp-584/rodio-crackling-issue/crackling.mp3")
+            let file = std::fs::File::open("assets/music.mp3")
                 .expect("open mp3 file");
             crate::Decoder::new(BufReader::new(file)).expect("can decode mp3")
         };

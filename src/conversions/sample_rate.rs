@@ -1,11 +1,11 @@
 use crate::conversions::Sample;
 
+use crate::Source;
 use num_rational::Ratio;
 use std::mem;
 use std::time::Duration;
-use crate::Source;
 
-/// Iterator that converts from a certain sample rate to another.
+/// Iterator that converts from one sample rate to another.
 #[derive(Clone, Debug)]
 pub struct SampleRateConverter<I>
 where
@@ -279,9 +279,14 @@ where
 #[cfg(test)]
 mod test {
     use super::SampleRateConverter;
+    use crate::{Sample, Source};
     use core::time::Duration;
     use cpal::{ChannelCount, SampleRate};
+    use dasp_sample::FromSample;
+    use hound::{SampleFormat, WavSpec};
     use quickcheck::{quickcheck, TestResult};
+    use std::io::BufReader;
+    use std::path;
 
     quickcheck! {
         /// Check that resampling an empty input produces no output.
@@ -423,5 +428,163 @@ mod test {
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [0, 5, 10, 15]);
         assert!((size_estimation as f32 / output.len() as f32).abs() < 2.0);
+    }
+
+    pub fn output_to_wav<S: Sample, P: AsRef<path::Path>>(
+        source: Box<dyn Source<Item = S>>,
+        wav_file: &P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let format = WavSpec {
+            channels: source.channels(),
+            sample_rate: source.sample_rate(),
+            bits_per_sample: 32,
+            sample_format: SampleFormat::Float,
+        };
+        let mut writer = hound::WavWriter::create(wav_file, format)?;
+        for sample in source {
+            writer.write_sample(sample.to_f32())?;
+        }
+        writer.finalize()?;
+        Ok(())
+    }
+
+    use crate::source::{SimpleLowPass, SineWave};
+    use crate::Sink;
+
+    #[test]
+    fn resampler_tweaks() {
+        // let new_source = || Box::new(SineWave::new_with_sample_rate(frequency, rate_in)
+        //     .amplify(0.1)
+        //     .take_duration(Duration::from_secs(1)));
+        // assert!(rate_in as f32 > frequency * 2.0);
+        let new_source = move || {
+            let sink = Sink::new();
+            let file = std::fs::File::open("tmp-584/rodio-crackling-issue/crackling.mp3")
+                .expect("open mp3 file");
+            crate::Decoder::new(BufReader::new(file)).expect("can decode mp3")
+        };
+        // resampler_tweaks_generate(740.0, 44_123, 14_707);
+        resampler_tweaks_generate("584mp3", &new_source, 44_100); // Bug #584
+    }
+
+    fn resampler_tweaks_generate<S: Sample + 'static, Src: Source<Item = S> + 'static>(
+        source_tag: &str,
+        new_source: &dyn Fn() -> Src,
+        rate_out: u32,
+    ) where
+        S: cpal::FromSample<f32>,
+        f32: cpal::FromSample<S>,
+    {
+        let format_file_name = |variant: &str| {
+            let rate_in = new_source().sample_rate();
+            format!("resample_{variant}_{source_tag}_in{rate_in}_out{rate_out}.wav")
+        };
+
+        output_to_wav(
+            resample_reference(Box::new(new_source()), rate_out),
+            &format_file_name("reference"),
+        )
+        .expect("write wav file");
+
+        output_to_wav(
+            resample_with_simple_low_pass_direct(Box::new(new_source()), rate_out),
+            &format_file_name("simple_low_pass_direct"),
+        )
+        .expect("write wav file");
+
+        output_to_wav(
+            resample_with_simple_low_pass_upsample(Box::new(new_source()), rate_out),
+            &format_file_name("simple_low_pass_upsampled"),
+        )
+        .expect("write wav file");
+
+        output_to_wav(
+            resample_with_biquad_low_pass(Box::new(new_source()), rate_out),
+            &format_file_name("biquad_low_pass"),
+        )
+        .expect("write wav file");
+    }
+
+    fn resample_reference<S: Sample + 'static>(
+        source: Box<dyn Source<Item = S>>,
+        rate_out: u32,
+    ) -> Box<dyn Source<Item = S>> {
+        // Make an output recording to compare various tweaks from the tests below.
+        let channels_in = source.channels();
+        let rate_in = source.sample_rate();
+        let output1 = SampleRateConverter::new(
+            source,
+            SampleRate(rate_in),
+            SampleRate(rate_out),
+            channels_in,
+        );
+
+        Box::new(output1)
+    }
+
+    fn resample_with_simple_low_pass_direct<S: Sample + 'static>(
+        source: Box<dyn Source<Item = S>>,
+        rate_out: u32,
+    ) -> Box<dyn Source<Item = S>> {
+        let channels_in = source.channels();
+        let rate_in = source.sample_rate();
+        let output1 = SampleRateConverter::new(
+            source,
+            SampleRate(rate_in),
+            SampleRate(rate_out),
+            channels_in,
+        );
+
+        Box::new(output1)
+    }
+
+    fn resample_with_simple_low_pass_upsample<S: Sample + 'static>(
+        source: Box<dyn Source<Item = S>>,
+        rate_out: u32,
+    ) -> Box<dyn Source<Item = S>> {
+        let channels_in = source.channels();
+        let rate_in = source.sample_rate();
+        let output1 = SampleRateConverter::new(
+            source,
+            SampleRate(rate_in),
+            SampleRate(rate_out * 2),
+            channels_in,
+        );
+
+        let lo_pass = SimpleLowPass::new(output1);
+        let rate_in = lo_pass.sample_rate();
+        let output2 = SampleRateConverter::new(
+            lo_pass,
+            SampleRate(rate_in),
+            SampleRate(rate_out),
+            channels_in,
+        );
+
+        Box::new(output2)
+    }
+
+    fn resample_with_biquad_low_pass<S: Sample + 'static>(
+        source: Box<dyn Source<Item = S>>,
+        rate_out: u32,
+    ) -> Box<dyn Source<Item = S>>
+    where
+        f32: FromSample<S>,
+        S: FromSample<f32>,
+    {
+        let channels_in = source.channels();
+        let rate_in = source.sample_rate();
+        let output1 = SampleRateConverter::new(
+            source,
+            SampleRate(rate_in),
+            SampleRate(rate_out),
+            channels_in,
+        );
+
+        let lo_pass = output1
+            .convert_samples::<f32>()
+            .low_pass(rate_in / 2)
+            .convert_samples::<S>();
+
+        Box::new(lo_pass)
     }
 }

@@ -8,7 +8,7 @@ use super::SeekError;
 /// Internal function that builds a `BltFilter` object.
 pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
 where
-    I: Source<Item = f32>,
+    I: Iterator<Item = f32>,
 {
     low_pass_with_q(input, freq, 0.5)
 }
@@ -23,7 +23,7 @@ where
 /// Same as low_pass but allows the q value (bandwidth) to be changed.
 pub fn low_pass_with_q<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
 where
-    I: Source<Item = f32>,
+    I: Iterator<Item = f32>,
 {
     BltFilter {
         input,
@@ -53,7 +53,7 @@ where
 }
 
 /// This applies an audio filter, it can be a high or low pass filter.
-/// Implements following 
+/// Implements following
 /// https://github.com/WebAudio/Audio-EQ-Cookbook/blob/main/Audio-EQ-Cookbook.txt
 #[derive(Clone, Debug)]
 pub struct BltFilter<I> {
@@ -112,7 +112,7 @@ impl<I> Iterator for BltFilter<I>
 where
     I: Source<Item = f32>,
 {
-    type Item = f32;
+    type Item = I::Item;
 
     #[inline]
     fn next(&mut self) -> Option<f32> {

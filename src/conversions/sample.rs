@@ -79,6 +79,7 @@ pub trait Sample: CpalSample {
     ///
     /// To avoid numeric overflows pick smaller numerator.
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
+
     /// Multiplies the value of this sample by the given amount.
     fn amplify(self, value: f32) -> Self;
 

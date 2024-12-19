@@ -448,17 +448,14 @@ mod test {
         Ok(())
     }
 
-    use crate::source::{SimpleLowPass, SineWave};
-    use crate::Sink;
+    use crate::source::SimpleLowPass;
 
     #[test]
     fn resampler_tweaks() {
-        // let new_source = || Box::new(SineWave::new_with_sample_rate(frequency, rate_in)
+        // let new_source = || Box::new(crate::source::SineWave::new_with_sample_rate(2345.0, 43210)
         //     .amplify(0.1)
         //     .take_duration(Duration::from_secs(1)));
-        // assert!(rate_in as f32 > frequency * 2.0);
         let new_source = move || {
-            let sink = Sink::new();
             let file = std::fs::File::open("tmp-584/rodio-crackling-issue/crackling.mp3")
                 .expect("open mp3 file");
             crate::Decoder::new(BufReader::new(file)).expect("can decode mp3")

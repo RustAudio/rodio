@@ -31,6 +31,7 @@ pub use self::repeat::Repeat;
 pub use self::samples_converter::SamplesConverter;
 pub use self::sawtooth::SawtoothWave;
 pub use self::signal_generator::{Function, SignalGenerator};
+pub use self::simple_low_pass::SimpleLowPass;
 pub use self::sine::SineWave;
 pub use self::skip::SkipDuration;
 pub use self::skippable::Skippable;
@@ -81,6 +82,8 @@ mod zero;
 
 #[cfg(feature = "noise")]
 mod noise;
+mod simple_low_pass;
+
 #[cfg(feature = "noise")]
 pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 

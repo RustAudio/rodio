@@ -5,9 +5,9 @@ use std::path;
 /// This procedure saves Source's output into a wav file. The output samples format is 32-bit float.
 /// This function is intended primarily for testing and diagnostics. It can be used to see
 /// the output without opening output stream to a real audio device.
-pub fn output_to_wav<S: Sample, P: AsRef<path::Path>, Src: Source<Item = S>>(
-    source: &mut Src,
-    wav_file: &P,
+pub fn output_to_wav<S: Sample>(
+    source: &mut impl Source<Item = S>,
+    wav_file: impl AsRef<path::Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let format = WavSpec {
         channels: source.channels(),

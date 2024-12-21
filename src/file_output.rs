@@ -27,13 +27,32 @@ pub fn output_to_wav<S: Sample>(
 mod test {
     use super::output_to_wav;
     use crate::Source;
+    use std::io::BufReader;
     use std::time::Duration;
 
     #[test]
     fn test_output_to_wav() {
-        let mut new_source = crate::source::SineWave::new(745.0)
-            .amplify(0.1)
-            .take_duration(Duration::from_secs(1));
-        output_to_wav(&mut new_source, &"target/tmp/save-to-wav-test.wav").unwrap();
+        let make_source = || {
+            crate::source::SineWave::new(745.0)
+                .amplify(0.1)
+                .take_duration(Duration::from_secs(1))
+        };
+        let wav_file_path = "target/tmp/save-to-wav-test.wav";
+        output_to_wav(&mut make_source(), wav_file_path).expect("output file can be written");
+
+        let file = std::fs::File::open(wav_file_path).expect("output file can be opened");
+        // Not using crate::Decoder bcause it is limited to i16 samples.
+        let mut reader =
+            hound::WavReader::new(BufReader::new(file)).expect("wav file can be read back");
+        let reference = make_source();
+        assert_eq!(reference.sample_rate(), reader.spec().sample_rate);
+        assert_eq!(reference.channels(), reader.spec().channels);
+
+        let actual_samples: Vec<f32> = reader.samples::<f32>().map(|x| x.unwrap()).collect();
+        let expected_samples: Vec<f32> = reference.convert_samples().collect();
+        assert!(
+            expected_samples == actual_samples,
+            "wav samples do not match the source"
+        );
     }
 }

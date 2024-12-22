@@ -3,7 +3,8 @@ use std::time::Duration;
 
 use cpal::FromSample;
 
-use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
+use crate::conversions::sample_rate::fast_inhouse::SampleRateConverter;
+use crate::conversions::{ChannelCountConverter, DataConverter};
 use crate::{Sample, Source};
 
 use super::SeekError;

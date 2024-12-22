@@ -17,6 +17,7 @@ lewton = { version = "0.10", optional = true }
 minimp3_fixed = { version = "0.5.4", optional = true}
 symphonia = { version = "0.5.4", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.8", optional = true }
+rubato = { version = "0.16.1", optional = true }
 
 rand = { version = "0.8.5", features = ["small_rng"], optional = true }
 tracing = { version = "0.1.40", optional = true }
@@ -25,7 +26,7 @@ atomic_float = { version = "1.1.0", optional = true }
 num-rational = "0.4.2"
 
 [features]
-default = ["flac", "vorbis", "wav", "mp3"]
+default = ["flac", "vorbis", "wav", "mp3", "rubato"]
 tracing = ["dep:tracing"]
 experimental = ["dep:atomic_float"]
 

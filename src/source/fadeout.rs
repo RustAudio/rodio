@@ -76,8 +76,8 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.inner().current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner().current_span_len()
     }
 
     #[inline]

@@ -59,7 +59,7 @@ impl Iterator for WhiteNoise {
 
 impl Source for WhiteNoise {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 
@@ -134,7 +134,7 @@ impl Iterator for PinkNoise {
 }
 
 impl Source for PinkNoise {
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 

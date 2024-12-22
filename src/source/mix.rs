@@ -90,9 +90,9 @@ where
     I2::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        let f1 = self.input1.current_frame_len();
-        let f2 = self.input2.current_frame_len();
+    fn current_span_len(&self) -> Option<usize> {
+        let f1 = self.input1.current_span_len();
+        let f2 = self.input2.current_span_len();
 
         match (f1, f2) {
             (Some(f1), Some(f2)) => Some(cmp::min(f1, f2)),

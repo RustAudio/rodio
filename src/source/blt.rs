@@ -116,7 +116,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        let last_in_frame = self.input.current_frame_len() == Some(1);
+        let last_in_span = self.input.current_span_len() == Some(1);
 
         if self.applier.is_none() {
             self.applier = Some(self.formula.to_applier(self.input.sample_rate()));
@@ -138,7 +138,7 @@ where
         self.y_n1 = result;
         self.x_n1 = sample;
 
-        if last_in_frame {
+        if last_in_span {
             self.applier = None;
         }
 
@@ -158,8 +158,8 @@ where
     I: Source<Item = f32>,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.input.current_span_len()
     }
 
     #[inline]

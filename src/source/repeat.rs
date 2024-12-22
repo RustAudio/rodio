@@ -59,16 +59,16 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        match self.inner.current_frame_len() {
-            Some(0) => self.next.current_frame_len(),
+    fn current_span_len(&self) -> Option<usize> {
+        match self.inner.current_span_len() {
+            Some(0) => self.next.current_span_len(),
             a => a,
         }
     }
 
     #[inline]
     fn channels(&self) -> u16 {
-        match self.inner.current_frame_len() {
+        match self.inner.current_span_len() {
             Some(0) => self.next.channels(),
             _ => self.inner.channels(),
         }
@@ -76,7 +76,7 @@ where
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        match self.inner.current_frame_len() {
+        match self.inner.current_span_len() {
             Some(0) => self.next.sample_rate(),
             _ => self.inner.sample_rate(),
         }

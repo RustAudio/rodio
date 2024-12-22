@@ -40,7 +40,7 @@ impl Iterator for SquareWave {
 
 impl Source for SquareWave {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 

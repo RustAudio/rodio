@@ -85,7 +85,7 @@ where
     S: Sample + Send + 'static,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 

@@ -135,7 +135,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 ///   that the `Iterator` trait be implemented as well. When a `Source` returns None the
 ///   sound has ended.
 ///
-/// # Frames
+/// # Spans
 ///
 /// The samples rate and number of channels of some sound sources can change by itself from time
 /// to time.
@@ -148,7 +148,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// stay the same for long periods of time and avoids calling `channels()` and
 /// `sample_rate` too frequently.
 ///
-/// In order to properly handle this situation, the `current_frame_len()` method should return
+/// In order to properly handle this situation, the `current_span_len()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
@@ -156,13 +156,13 @@ pub trait Source: Iterator
 where
     Self::Item: Sample,
 {
-    /// Returns the number of samples before the current frame ends. `None` means "infinite" or
+    /// Returns the number of samples before the current span ends. `None` means "infinite" or
     /// "until the sound ends".
     /// Should never return 0 unless there's no more data.
     ///
     /// After the engine has finished reading the specified number of samples, it will check
     /// whether the value of `channels()` and/or `sample_rate()` have changed.
-    fn current_frame_len(&self) -> Option<usize>;
+    fn current_span_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
     fn channels(&self) -> u16;
@@ -219,7 +219,7 @@ where
 
     /// Delays the sound by a certain duration.
     ///
-    /// The rate and channels of the silence will use the same format as the first frame of the
+    /// The rate and channels of the silence will use the same format as the first span of the
     /// source.
     #[inline]
     fn delay(self, duration: Duration) -> Delay<Self>
@@ -664,8 +664,8 @@ macro_rules! source_pointer_impl {
     ($($sig:tt)+) => {
         impl $($sig)+ {
             #[inline]
-            fn current_frame_len(&self) -> Option<usize> {
-                (**self).current_frame_len()
+            fn current_span_len(&self) -> Option<usize> {
+                (**self).current_span_len()
             }
 
             #[inline]

@@ -145,8 +145,8 @@
 //! it is sent to this background thread where it will be read by rodio.
 //!
 //! All the sounds are mixed together by rodio before being sent to the operating system or the
-//! hardware. Therefore there is no restriction on the number of sounds that play simultaneously or
-//! the number of sinks that can be created (except for the fact that creating too many will slow
+//! hardware. Therefore, there is no restriction on the number of sounds that play simultaneously or
+//! on the number of sinks that can be created (except for the fact that creating too many will slow
 //! down your program).
 
 #![cfg_attr(test, deny(missing_docs))]
@@ -162,6 +162,7 @@ mod stream;
 
 pub mod buffer;
 pub mod decoder;
+mod file_output;
 pub mod mixer;
 pub mod queue;
 pub mod source;
@@ -169,6 +170,7 @@ pub mod static_buffer;
 
 pub use crate::conversions::Sample;
 pub use crate::decoder::Decoder;
+pub use crate::file_output::output_to_wav;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;

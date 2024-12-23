@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `Sink::try_new` renamed to `connect_new` and does not return error anymore.
             `Sink::new_idle` was renamed to `new`.
 - Breaking: In the `Source` trait, the method `current_frame_len()` was renamed to `current_span_len()`.
-            The term 'frame' was renamed to 'span' in the crate and documentation.
+- The term 'frame' was renamed to 'span' in the crate and documentation.
 
 ### Fixed
 

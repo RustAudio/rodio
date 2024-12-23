@@ -137,7 +137,7 @@ impl Iterator for SignalGenerator {
 
 impl Source for SignalGenerator {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 

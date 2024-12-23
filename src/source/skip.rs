@@ -26,33 +26,33 @@ where
     I::Item: Sample,
 {
     while duration > Duration::new(0, 0) {
-        if input.current_frame_len().is_none() {
+        if input.current_span_len().is_none() {
             // Sample rate and the amount of channels will be the same till the end.
             do_skip_duration_unchecked(input, duration);
             return;
         }
 
-        // .unwrap() safety: if `current_frame_len()` is None, the body of the `if` statement
+        // .unwrap() safety: if `current_span_len()` is None, the body of the `if` statement
         // above returns before we get here.
-        let frame_len: usize = input.current_frame_len().unwrap();
-        // If frame_len is zero, then there is no more data to skip. Instead
+        let span_len: usize = input.current_span_len().unwrap();
+        // If span_len is zero, then there is no more data to skip. Instead
         // just bail out.
-        if frame_len == 0 {
+        if span_len == 0 {
             return;
         }
 
         let ns_per_sample: u128 =
             NS_PER_SECOND / input.sample_rate() as u128 / input.channels() as u128;
 
-        // Check if we need to skip only part of the current frame.
-        if frame_len as u128 * ns_per_sample > duration.as_nanos() {
+        // Check if we need to skip only part of the current span.
+        if span_len as u128 * ns_per_sample > duration.as_nanos() {
             skip_samples(input, (duration.as_nanos() / ns_per_sample) as usize);
             return;
         }
 
-        skip_samples(input, frame_len);
+        skip_samples(input, span_len);
 
-        duration -= Duration::from_nanos((frame_len * ns_per_sample as usize) as u64);
+        duration -= Duration::from_nanos((span_len * ns_per_sample as usize) as u64);
     }
 }
 
@@ -138,8 +138,8 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.input.current_span_len()
     }
 
     #[inline]

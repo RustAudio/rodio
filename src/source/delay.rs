@@ -88,9 +88,9 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         self.input
-            .current_frame_len()
+            .current_span_len()
             .map(|val| val + self.remaining_samples)
     }
 

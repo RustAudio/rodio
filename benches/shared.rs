@@ -26,7 +26,7 @@ impl<T> ExactSizeIterator for TestSource<T> {
 }
 
 impl<T: rodio::Sample> Source for TestSource<T> {
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None // forever
     }
 

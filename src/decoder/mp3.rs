@@ -14,8 +14,8 @@ where
 {
     // decoder: SeekDecoder<R>,
     decoder: Decoder<R>,
-    // minimp3 Frames are interpreted as rodio spans
-    current_span: Frame,
+    // what minimp3 calls frames rodio calls spans
+    current_span: minimp3::Frame,
     current_span_offset: usize,
 }
 

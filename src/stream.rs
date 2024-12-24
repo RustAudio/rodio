@@ -3,6 +3,7 @@ use std::marker::Sync;
 use std::sync::Arc;
 use std::{error, fmt};
 
+use crate::constants::DEFAULT_SAMPLE_RATE;
 use crate::decoder;
 use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
@@ -12,7 +13,7 @@ use cpal::{
     SupportedBufferSize,
 };
 
-const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
+const HZ_44100: cpal::SampleRate = cpal::SampleRate(DEFAULT_SAMPLE_RATE);
 
 /// `cpal::Stream` container.
 /// Use `mixer()` method to control output.

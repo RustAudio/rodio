@@ -1,7 +1,7 @@
-use std::time::Duration;
-
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
+use std::time::Duration;
 
 use super::SeekError;
 
@@ -22,9 +22,8 @@ impl SquareWave {
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> SquareWave {
-        let sr = cpal::SampleRate(Self::SAMPLE_RATE);
         SquareWave {
-            test_square: SignalGenerator::new(sr, freq, Function::Square),
+            test_square: SignalGenerator::new(Self::SAMPLE_RATE, freq, Function::Square),
         }
     }
 }
@@ -45,12 +44,12 @@ impl Source for SquareWave {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         1
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         Self::SAMPLE_RATE
     }
 

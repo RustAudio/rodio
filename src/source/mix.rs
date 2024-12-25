@@ -1,6 +1,7 @@
 use std::cmp;
 use std::time::Duration;
 
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::uniform::UniformSourceIterator;
 use crate::source::SeekError;
 use crate::{Sample, Source};
@@ -101,12 +102,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input1.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input1.sample_rate()
     }
 

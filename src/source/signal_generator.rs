@@ -9,13 +9,13 @@
 //! ```
 //! use rodio::source::{SignalGenerator,Function};
 //!
-//! let tone = SignalGenerator::new(cpal::SampleRate(48000), 440.0, Function::Sine);
+//! let tone = SignalGenerator::new(48000, 440.0, Function::Sine);
 //! ```
+use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::Source;
 use std::f32::consts::TAU;
 use std::time::Duration;
-
-use super::SeekError;
-use crate::Source;
 
 /// Generator function.
 ///
@@ -71,7 +71,7 @@ fn sawtooth_signal(phase: f32) -> f32 {
 /// An infinite source that produces one of a selection of test waveforms.
 #[derive(Clone, Debug)]
 pub struct SignalGenerator {
-    sample_rate: cpal::SampleRate,
+    sample_rate: SampleRate,
     function: GeneratorFunction,
     phase_step: f32,
     phase: f32,
@@ -86,7 +86,7 @@ impl SignalGenerator {
     ///
     /// Will panic if `frequency` is equal to zero.
     #[inline]
-    pub fn new(sample_rate: cpal::SampleRate, frequency: f32, f: Function) -> Self {
+    pub fn new(sample_rate: SampleRate, frequency: f32, f: Function) -> Self {
         let function: GeneratorFunction = match f {
             Function::Sine => sine_signal,
             Function::Triangle => triangle_signal,
@@ -105,12 +105,12 @@ impl SignalGenerator {
     /// Will panic if `frequency` is equal to zero.
     #[inline]
     pub fn with_function(
-        sample_rate: cpal::SampleRate,
+        sample_rate: SampleRate,
         frequency: f32,
         generator_function: GeneratorFunction,
     ) -> Self {
         assert!(frequency != 0.0, "frequency must be greater than zero");
-        let period = sample_rate.0 as f32 / frequency;
+        let period = sample_rate as f32 / frequency;
         let phase_step = 1.0f32 / period;
 
         SignalGenerator {
@@ -142,13 +142,13 @@ impl Source for SignalGenerator {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         1
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate.0
+    fn sample_rate(&self) -> SampleRate {
+        self.sample_rate
     }
 
     #[inline]
@@ -158,7 +158,7 @@ impl Source for SignalGenerator {
 
     #[inline]
     fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
-        let seek = duration.as_secs_f32() * (self.sample_rate.0 as f32) / self.period;
+        let seek = duration.as_secs_f32() * (self.sample_rate as f32) / self.period;
         self.phase = seek.rem_euclid(1.0f32);
         Ok(())
     }
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn square() {
-        let mut wf = SignalGenerator::new(cpal::SampleRate(2000), 500.0f32, Function::Square);
+        let mut wf = SignalGenerator::new(2000, 500.0f32, Function::Square);
         assert_eq!(wf.next(), Some(1.0f32));
         assert_eq!(wf.next(), Some(1.0f32));
         assert_eq!(wf.next(), Some(-1.0f32));
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn triangle() {
-        let mut wf = SignalGenerator::new(cpal::SampleRate(8000), 1000.0f32, Function::Triangle);
+        let mut wf = SignalGenerator::new(8000, 1000.0f32, Function::Triangle);
         assert_eq!(wf.next(), Some(-1.0f32));
         assert_eq!(wf.next(), Some(-0.5f32));
         assert_eq!(wf.next(), Some(0.0f32));
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn saw() {
-        let mut wf = SignalGenerator::new(cpal::SampleRate(200), 50.0f32, Function::Sawtooth);
+        let mut wf = SignalGenerator::new(200, 50.0f32, Function::Sawtooth);
         assert_eq!(wf.next(), Some(0.0f32));
         assert_eq!(wf.next(), Some(0.5f32));
         assert_eq!(wf.next(), Some(-1.0f32));
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn sine() {
-        let mut wf = SignalGenerator::new(cpal::SampleRate(1000), 100f32, Function::Sine);
+        let mut wf = SignalGenerator::new(1000, 100f32, Function::Sine);
 
         assert_abs_diff_eq!(wf.next().unwrap(), 0.0f32);
         assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525f32);

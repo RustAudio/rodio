@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 use std::time::Duration;
 
+use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
 use crate::{Sample, Source};
 use cpal::{FromSample, Sample as CpalSample};
-
-use super::SeekError;
 
 /// Wrap the input and lazily converts the samples it provides to the type
 /// specified by the generic parameter D
@@ -83,12 +83,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.inner.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.inner.sample_rate()
     }
 

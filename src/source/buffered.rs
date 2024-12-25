@@ -3,9 +3,9 @@ use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Buffered` object.
 #[inline]
@@ -63,8 +63,8 @@ where
     I::Item: Sample,
 {
     data: Vec<I::Item>,
-    channels: u16,
-    rate: u32,
+    channels: ChannelCount,
+    rate: SampleRate,
     next: Mutex<Arc<Span<I>>>,
 }
 
@@ -220,7 +220,7 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         match *self.current_span {
             Span::Data(SpanData { channels, .. }) => channels,
             Span::End => 1,
@@ -229,7 +229,7 @@ where
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         match *self.current_span {
             Span::Data(SpanData { rate, .. }) => rate,
             Span::End => 44100,

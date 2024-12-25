@@ -10,18 +10,18 @@
 //! ```
 //!
 
-use std::time::Duration;
-
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::SeekError;
 use crate::{Sample, Source};
+use std::time::Duration;
 
 /// A buffer of samples treated as a source.
 #[derive(Debug, Clone)]
 pub struct SamplesBuffer<S> {
     data: Vec<S>,
     pos: usize,
-    channels: u16,
-    sample_rate: u32,
+    channels: ChannelCount,
+    sample_rate: SampleRate,
     duration: Duration,
 }
 
@@ -38,7 +38,7 @@ where
     /// - Panics if the length of the buffer is larger than approximately 16 billion elements.
     ///   This is because the calculation of the duration would overflow.
     ///
-    pub fn new<D>(channels: u16, sample_rate: u32, data: D) -> SamplesBuffer<S>
+    pub fn new<D>(channels: ChannelCount, sample_rate: SampleRate, data: D) -> SamplesBuffer<S>
     where
         D: Into<Vec<S>>,
     {
@@ -74,12 +74,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.channels
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
 
@@ -174,12 +174,13 @@ mod tests {
     #[cfg(test)]
     mod try_seek {
         use super::*;
+        use crate::common::{ChannelCount, SampleRate};
         use std::time::Duration;
 
         #[test]
         fn channel_order_stays_correct() {
-            const SAMPLE_RATE: u32 = 100;
-            const CHANNELS: u16 = 2;
+            const SAMPLE_RATE: SampleRate = 100;
+            const CHANNELS: ChannelCount = 2;
             let mut buf = SamplesBuffer::new(
                 CHANNELS,
                 SAMPLE_RATE,

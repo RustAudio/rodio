@@ -3,9 +3,9 @@
 use core::fmt;
 use core::time::Duration;
 
-use cpal::FromSample;
-
+use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
+use cpal::FromSample;
 
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
@@ -165,10 +165,10 @@ where
     fn current_span_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
-    fn channels(&self) -> u16;
+    fn channels(&self) -> ChannelCount;
 
     /// Returns the rate at which the source should be played. In number of samples per second.
-    fn sample_rate(&self) -> u32;
+    fn sample_rate(&self) -> SampleRate;
 
     /// Returns the total duration of this source, if known.
     ///
@@ -669,12 +669,12 @@ macro_rules! source_pointer_impl {
             }
 
             #[inline]
-            fn channels(&self) -> u16 {
+            fn channels(&self) -> ChannelCount {
                 (**self).channels()
             }
 
             #[inline]
-            fn sample_rate(&self) -> u32 {
+            fn sample_rate(&self) -> SampleRate {
                 (**self).sample_rate()
             }
 

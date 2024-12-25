@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Builds a source that chains sources provided by an iterator.
 ///
@@ -114,7 +114,7 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         if let Some(src) = &self.current_source {
             src.channels()
         } else {
@@ -124,7 +124,7 @@ where
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         if let Some(src) = &self.current_source {
             src.sample_rate()
         } else {

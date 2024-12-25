@@ -31,7 +31,7 @@ pub struct WhiteNoise {
 
 impl WhiteNoise {
     /// Create a new white noise generator, seeding the RNG with `seed`.
-    pub fn new_with_seed(sample_rate: cpal::SampleRate, seed: u64) -> Self {
+    pub fn new_with_seed(sample_rate: SampleRate, seed: u64) -> Self {
         Self {
             sample_rate,
             rng: SmallRng::seed_from_u64(seed),

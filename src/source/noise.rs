@@ -2,7 +2,7 @@
 //!
 //!
 
-use crate::Source;
+use crate::{ChannelCount, Source};
 
 use super::SeekError;
 
@@ -71,7 +71,7 @@ impl Source for WhiteNoise {
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.sample_rate.0
+        self.sample_rate
     }
 
     #[inline]

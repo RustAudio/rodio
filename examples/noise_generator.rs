@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let interval_duration = Duration::from_millis(1500);
 
     stream_handle.mixer().add(
-        white(cpal::SampleRate(48000))
+        white(48000)
             .amplify(0.1)
             .take_duration(noise_duration),
     );

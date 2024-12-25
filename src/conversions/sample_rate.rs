@@ -56,9 +56,6 @@ where
         to: SampleRate,
         num_channels: ChannelCount,
     ) -> SampleRateConverter<I> {
-        let from = from;
-        let to = to;
-
         assert!(num_channels >= 1);
         assert!(from >= 1);
         assert!(to >= 1);

@@ -2,7 +2,7 @@ use std::io::Cursor;
 use std::time::Duration;
 use std::vec;
 
-use rodio::Source;
+use rodio::{ChannelCount, SampleRate, Source};
 
 pub struct TestSource<T> {
     samples: vec::IntoIter<T>,

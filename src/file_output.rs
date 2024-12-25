@@ -1,4 +1,4 @@
-use crate::{Sample, Source};
+use crate::{ChannelCount, Sample, Source};
 use hound::{SampleFormat, WavSpec};
 use std::path;
 
@@ -10,7 +10,7 @@ pub fn output_to_wav<S: Sample>(
     wav_file: impl AsRef<path::Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let format = WavSpec {
-        channels: source.channels() as u16,
+        channels: source.channels() as ChannelCount,
         sample_rate: source.sample_rate(),
         bits_per_sample: 32,
         sample_format: SampleFormat::Float,

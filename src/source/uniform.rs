@@ -1,7 +1,7 @@
 use std::cmp;
 use std::time::Duration;
 
-use cpal::FromSample;
+use dasp_sample::FromSample;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};

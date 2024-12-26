@@ -5,7 +5,7 @@ use core::time::Duration;
 
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
-use cpal::FromSample;
+use dasp_sample::FromSample;
 
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;

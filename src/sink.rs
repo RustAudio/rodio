@@ -2,9 +2,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use cpal::FromSample;
 #[cfg(feature = "crossbeam-channel")]
 use crossbeam_channel::{Receiver, Sender};
+use dasp_sample::FromSample;
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::{Receiver, Sender};
 

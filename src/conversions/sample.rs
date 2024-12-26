@@ -1,4 +1,4 @@
-use cpal::{FromSample, Sample as CpalSample};
+use dasp_sample::{FromSample, Sample as DaspSample};
 use std::marker::PhantomData;
 
 /// Converts the samples data type to `O`.
@@ -41,7 +41,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<O> {
-        self.input.next().map(|s| CpalSample::from_sample(s))
+        self.input.next().map(|s| DaspSample::from_sample(s))
     }
 
     #[inline]
@@ -71,7 +71,7 @@ where
 ///
 /// You can implement this trait on your own type as well if you wish so.
 ///
-pub trait Sample: CpalSample {
+pub trait Sample: DaspSample {
     /// Linear interpolation between two samples.
     ///
     /// The result should be equivalent to

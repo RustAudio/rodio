@@ -29,6 +29,7 @@ num-rational = "0.4.2"
 default = ["flac", "vorbis", "wav", "mp3", "cpal"]
 tracing = ["dep:tracing"]
 experimental = ["dep:atomic_float"]
+cpal = ["dep:cpal"]
 
 flac = ["claxon"]
 vorbis = ["lewton"]
@@ -75,3 +76,7 @@ required-features = ["symphonia-isomp4", "symphonia-aac"]
 [[example]]
 name = "noise_generator"
 required-features = ["noise"]
+
+[[example]]
+name = "into_file"
+required-features = ["wav", "mp3"]

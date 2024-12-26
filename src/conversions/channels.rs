@@ -1,5 +1,5 @@
 use crate::common::ChannelCount;
-use cpal::Sample;
+use dasp_sample::Sample;
 
 /// Iterator that converts from a certain channel count to another.
 #[derive(Clone, Debug)]

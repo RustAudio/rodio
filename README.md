@@ -22,7 +22,18 @@ See [the docs](https://docs.rs/rodio/latest/rodio/#alternative-decoder-backends)
 
 ## Dependencies(Linux only)
 
-Rodio uses `cpal` to send audio to the OS for playback. On Linux `cpal` needs the ALSA development files. These are provided as part of the libasound2-dev package on Debian and Ubuntu distributions and alsa-lib-devel on Fedora.
+Rodio uses `cpal` to send audio to the OS for playback. On Linux `cpal` needs the ALSA development files. These are provided as part of the `libasound2-dev` package on Debian and Ubuntu distributions and `alsa-lib-devel` on Fedora.
+
+### Minimal build
+
+It is possible to build `rodio` without support for audio output. In this mode `cpal` dependency and its requirements are excluded. This configuration may be useful, for example, only for decoding and processing audio, or in situations when the audio output is not available (e.g. in case of Linux, when ALSA is not installed). See `into_file` example that works with this build.
+
+To use `rodio` in this configuration disable default features and add the necessary ones. In this case the `Cargo.toml` dependency would look like:
+```toml
+[dependencies]
+rodio = { version = "0.20.1", default-features = false, features = ["symphonia-all"] }
+```
+
 
 # Contributing
 

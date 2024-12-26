@@ -348,7 +348,6 @@ mod test {
 
             use crate::source::{SineWave, Source};
 
-            let to = to;
             let source = SineWave::new(freq).take_duration(d);
             let from = source.sample_rate();
 

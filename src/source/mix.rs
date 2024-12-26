@@ -5,7 +5,7 @@ use crate::common::{ChannelCount, SampleRate};
 use crate::source::uniform::UniformSourceIterator;
 use crate::source::SeekError;
 use crate::{Sample, Source};
-use cpal::{FromSample, Sample as CpalSample};
+use dasp_sample::{FromSample, Sample as DaspSample};
 
 /// Internal function that builds a `Mix` object.
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
@@ -52,9 +52,9 @@ where
         let s2 = self.input2.next();
 
         match (s1, s2) {
-            (Some(s1), Some(s2)) => Some(s1.saturating_add(CpalSample::from_sample(s2))),
+            (Some(s1), Some(s2)) => Some(s1.saturating_add(DaspSample::from_sample(s2))),
             (Some(s1), None) => Some(s1),
-            (None, Some(s2)) => Some(CpalSample::from_sample(s2)),
+            (None, Some(s2)) => Some(DaspSample::from_sample(s2)),
             (None, None) => None,
         }
     }

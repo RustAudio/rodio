@@ -162,10 +162,11 @@ mod sink;
 mod spatial_sink;
 #[cfg(feature = "cpal")]
 mod stream;
+#[cfg(feature = "wav")]
+mod wav_output;
 
 pub mod buffer;
 pub mod decoder;
-mod file_output;
 pub mod mixer;
 pub mod queue;
 pub mod source;
@@ -174,9 +175,10 @@ pub mod static_buffer;
 pub use crate::common::{ChannelCount, SampleRate};
 pub use crate::conversions::Sample;
 pub use crate::decoder::Decoder;
-pub use crate::file_output::output_to_wav;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
 #[cfg(feature = "cpal")]
 pub use crate::stream::{play, OutputStream, OutputStreamBuilder, PlayError, StreamError};
+#[cfg(feature = "wav")]
+pub use crate::wav_output::output_to_wav;

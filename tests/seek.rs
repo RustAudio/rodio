@@ -233,14 +233,12 @@ fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
 fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/music").with_extension(format);
     let file = std::fs::File::open(asset).unwrap();
-    let decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    decoder
+    rodio::Decoder::new(BufReader::new(file)).unwrap()
 }
 
 fn get_rl(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/RL").with_extension(format);
     println!("opening: {}", asset.display());
     let file = std::fs::File::open(asset).unwrap();
-    let decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    decoder
+    rodio::Decoder::new(BufReader::new(file)).unwrap()
 }

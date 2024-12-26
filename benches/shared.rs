@@ -70,7 +70,7 @@ impl TestSource<i16> {
             total_duration,
         } = self;
         let samples = samples
-            .map(|s| cpal::Sample::from_sample(s))
+            .map(|s| dasp_sample::Sample::from_sample(s))
             .collect::<Vec<_>>()
             .into_iter();
         TestSource {

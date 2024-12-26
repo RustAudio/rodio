@@ -4,7 +4,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::{Sample, Source};
-use cpal::{FromSample, Sample as CpalSample};
+use dasp_sample::{FromSample, Sample as DaspSample};
 
 /// Wrap the input and lazily converts the samples it provides to the type
 /// specified by the generic parameter D
@@ -54,7 +54,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<D> {
-        self.inner.next().map(|s| CpalSample::from_sample(s))
+        self.inner.next().map(|s| DaspSample::from_sample(s))
     }
 
     #[inline]

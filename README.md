@@ -26,9 +26,9 @@ Rodio uses `cpal` to send audio to the OS for playback. On Linux `cpal` needs th
 
 ### Minimal build
 
-It is possible to build `rodio` without support for audio output. In this mode `cpal` dependency and its requirements are excluded. This configuration may be useful, for example, only for decoding and processing audio, or in situations when the audio output is not available (e.g. in case of Linux, when ALSA is not installed). See `into_file` example that works with this build.
+It is possible to build `rodio` without support for audio output. In this configuration `cpal` dependency and its requirements are excluded. This configuration may be useful, for example, for decoding and processing audio in environments when the audio output is not available (e.g. in case of Linux, when ALSA is not available). See `into_file` example that works with this build.
 
-To use `rodio` in this configuration disable default features and add the necessary ones. In this case the `Cargo.toml` dependency would look like:
+In order to use `rodio` in this configuration disable default features and add the necessary ones. In this case the `Cargo.toml` dependency would look like:
 ```toml
 [dependencies]
 rodio = { version = "0.20.1", default-features = false, features = ["symphonia-all"] }

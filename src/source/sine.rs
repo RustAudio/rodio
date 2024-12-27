@@ -1,13 +1,13 @@
-use std::time::Duration;
-
+use crate::constants::DEFAULT_SAMPLE_RATE;
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
+use std::time::Duration;
 
 use super::SeekError;
 
 /// An infinite source that produces a sine.
 ///
-/// Always has a sample rate of 48kHz and one channel.
+/// Always has default sample rate.
 ///
 /// This source is a thin interface on top of `SignalGenerator` provided for
 /// your convenience.
@@ -17,12 +17,10 @@ pub struct SineWave {
 }
 
 impl SineWave {
-    const SAMPLE_RATE: u32 = 48000;
-
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> SineWave {
-        let sr = cpal::SampleRate(Self::SAMPLE_RATE);
+        let sr = cpal::SampleRate(DEFAULT_SAMPLE_RATE);
         SineWave {
             test_sine: SignalGenerator::new(sr, freq, Function::Sine),
         }
@@ -51,7 +49,7 @@ impl Source for SineWave {
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        Self::SAMPLE_RATE
+        self.test_sine.sample_rate()
     }
 
     #[inline]

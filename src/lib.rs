@@ -161,6 +161,7 @@ mod spatial_sink;
 mod stream;
 
 pub mod buffer;
+pub mod constants;
 pub mod decoder;
 mod file_output;
 pub mod mixer;

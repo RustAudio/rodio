@@ -150,7 +150,7 @@
 //! down your program).
 
 #![cfg_attr(test, deny(missing_docs))]
-#[cfg(feature = "cpal")]
+#[cfg(feature = "playback")]
 pub use cpal::{
     self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,
     SupportedStreamConfig,
@@ -160,7 +160,7 @@ mod common;
 mod conversions;
 mod sink;
 mod spatial_sink;
-#[cfg(feature = "cpal")]
+#[cfg(feature = "playback")]
 mod stream;
 #[cfg(feature = "wav")]
 mod wav_output;
@@ -178,7 +178,7 @@ pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
-#[cfg(feature = "cpal")]
+#[cfg(feature = "playback")]
 pub use crate::stream::{play, OutputStream, OutputStreamBuilder, PlayError, StreamError};
 #[cfg(feature = "wav")]
 pub use crate::wav_output::output_to_wav;

@@ -1,11 +1,13 @@
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
 use rodio::Source;
-use std::io::BufReader;
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
 use std::time::Duration;
 
+#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
 #[test]
 fn test_flac_encodings() {
+    use std::io::BufReader;
+
     // 16 bit FLAC file exported from Audacity (2 channels, compression level 5)
     let file = std::fs::File::open("assets/audacity16bit_level5.flac").unwrap();
     let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();

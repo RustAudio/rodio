@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::source::{Empty, SeekError, Source, Zero};
 use crate::Sample;
 
+use crate::common::{ChannelCount, SampleRate};
 #[cfg(feature = "crossbeam-channel")]
 use crossbeam_channel::{unbounded as channel, Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
@@ -159,12 +160,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.current.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.current.sample_rate()
     }
 

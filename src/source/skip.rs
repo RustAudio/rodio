@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 const NS_PER_SECOND: u128 = 1_000_000_000;
 
@@ -143,12 +143,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 
@@ -171,11 +171,12 @@ mod tests {
     use std::time::Duration;
 
     use crate::buffer::SamplesBuffer;
+    use crate::common::{ChannelCount, SampleRate};
     use crate::source::Source;
 
     fn test_skip_duration_samples_left(
-        channels: u16,
-        sample_rate: u32,
+        channels: ChannelCount,
+        sample_rate: SampleRate,
         seconds: u32,
         seconds_to_skip: u32,
     ) {

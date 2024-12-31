@@ -2,21 +2,22 @@
 //!
 //!
 
-use crate::Source;
+use crate::{ChannelCount, Source};
 
 use super::SeekError;
 
+use crate::common::SampleRate;
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 
 /// Convenience function to create a new `WhiteNoise` noise source.
 #[inline]
-pub fn white(sample_rate: cpal::SampleRate) -> WhiteNoise {
+pub fn white(sample_rate: SampleRate) -> WhiteNoise {
     WhiteNoise::new(sample_rate)
 }
 
 /// Convenience function to create a new `PinkNoise` noise source.
 #[inline]
-pub fn pink(sample_rate: cpal::SampleRate) -> PinkNoise {
+pub fn pink(sample_rate: SampleRate) -> PinkNoise {
     PinkNoise::new(sample_rate)
 }
 
@@ -24,13 +25,13 @@ pub fn pink(sample_rate: cpal::SampleRate) -> PinkNoise {
 /// samples as provided by the `rand::rngs::SmallRng` randomness source.
 #[derive(Clone, Debug)]
 pub struct WhiteNoise {
-    sample_rate: cpal::SampleRate,
+    sample_rate: SampleRate,
     rng: SmallRng,
 }
 
 impl WhiteNoise {
     /// Create a new white noise generator, seeding the RNG with `seed`.
-    pub fn new_with_seed(sample_rate: cpal::SampleRate, seed: u64) -> Self {
+    pub fn new_with_seed(sample_rate: SampleRate, seed: u64) -> Self {
         Self {
             sample_rate,
             rng: SmallRng::seed_from_u64(seed),
@@ -38,7 +39,7 @@ impl WhiteNoise {
     }
 
     /// Create a new white noise generator, seeding the RNG with system entropy.
-    pub fn new(sample_rate: cpal::SampleRate) -> Self {
+    pub fn new(sample_rate: SampleRate) -> Self {
         Self {
             sample_rate,
             rng: SmallRng::from_entropy(),
@@ -64,13 +65,13 @@ impl Source for WhiteNoise {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         1
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate.0
+    fn sample_rate(&self) -> SampleRate {
+        self.sample_rate
     }
 
     #[inline]
@@ -99,7 +100,7 @@ pub struct PinkNoise {
 
 impl PinkNoise {
     /// Create new pink noise source with given sample rate.
-    pub fn new(sample_rate: cpal::SampleRate) -> Self {
+    pub fn new(sample_rate: SampleRate) -> Self {
         Self {
             white_noise: WhiteNoise::new(sample_rate),
             b: [0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32],
@@ -139,11 +140,11 @@ impl Source for PinkNoise {
         None
     }
 
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         1
     }
 
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.white_noise.sample_rate()
     }
 

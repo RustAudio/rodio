@@ -1,7 +1,7 @@
+use crate::common::{ChannelCount, SampleRate};
+use crate::Source;
 use std::f32::consts::PI;
 use std::time::Duration;
-
-use crate::Source;
 
 use super::SeekError;
 
@@ -163,12 +163,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 

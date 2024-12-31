@@ -3,16 +3,14 @@ use std::marker::Sync;
 use std::sync::Arc;
 use std::{error, fmt};
 
+use crate::common::{ChannelCount, SampleRate};
 use crate::decoder;
 use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{
-    BufferSize, ChannelCount, FrameCount, Sample, SampleFormat, SampleRate, StreamConfig,
-    SupportedBufferSize,
-};
+use cpal::{BufferSize, FrameCount, Sample, SampleFormat, StreamConfig, SupportedBufferSize};
 
-const HZ_44100: cpal::SampleRate = cpal::SampleRate(44_100);
+const HZ_44100: SampleRate = 44_100;
 
 /// `cpal::Stream` container.
 /// Use `mixer()` method to control output.
@@ -85,14 +83,14 @@ impl OutputStreamBuilder {
     }
 
     /// Sets number of output stream's channels.
-    pub fn with_channels(mut self, channel_count: cpal::ChannelCount) -> OutputStreamBuilder {
+    pub fn with_channels(mut self, channel_count: ChannelCount) -> OutputStreamBuilder {
         assert!(channel_count > 0);
         self.config.channel_count = channel_count;
         self
     }
 
     /// Sets output stream's sample rate.
-    pub fn with_sample_rate(mut self, sample_rate: cpal::SampleRate) -> OutputStreamBuilder {
+    pub fn with_sample_rate(mut self, sample_rate: SampleRate) -> OutputStreamBuilder {
         self.config.sample_rate = sample_rate;
         self
     }
@@ -118,8 +116,8 @@ impl OutputStreamBuilder {
         config: &cpal::SupportedStreamConfig,
     ) -> OutputStreamBuilder {
         self.config = OutputStreamConfig {
-            channel_count: config.channels(),
-            sample_rate: config.sample_rate(),
+            channel_count: config.channels() as ChannelCount,
+            sample_rate: config.sample_rate().0 as SampleRate,
             // In case of supported range limit buffer size to avoid unexpectedly long playback delays.
             buffer_size: clamp_supported_buffer_size(config.buffer_size(), 1024),
             sample_format: config.sample_format(),
@@ -130,8 +128,8 @@ impl OutputStreamBuilder {
     /// Set all output stream parameters at once from CPAL stream config.
     pub fn with_config(mut self, config: &cpal::StreamConfig) -> OutputStreamBuilder {
         self.config = OutputStreamConfig {
-            channel_count: config.channels,
-            sample_rate: config.sample_rate,
+            channel_count: config.channels as ChannelCount,
+            sample_rate: config.sample_rate.0 as SampleRate,
             buffer_size: config.buffer_size,
             ..self.config
         };
@@ -220,8 +218,8 @@ where
 impl From<&OutputStreamConfig> for StreamConfig {
     fn from(config: &OutputStreamConfig) -> Self {
         cpal::StreamConfig {
-            channels: config.channel_count,
-            sample_rate: config.sample_rate,
+            channels: config.channel_count as cpal::ChannelCount,
+            sample_rate: cpal::SampleRate(config.sample_rate),
             buffer_size: config.buffer_size,
         }
     }
@@ -307,7 +305,7 @@ impl OutputStream {
         device: &cpal::Device,
         config: &OutputStreamConfig,
     ) -> Result<OutputStream, StreamError> {
-        let (controller, source) = mixer(config.channel_count, config.sample_rate.0);
+        let (controller, source) = mixer(config.channel_count, config.sample_rate);
         Self::init_stream(device, config, source)
             .map_err(StreamError::BuildStreamError)
             .and_then(|stream| {
@@ -458,8 +456,9 @@ fn supported_output_configs(
         let max_rate = sf.max_sample_rate();
         let min_rate = sf.min_sample_rate();
         let mut formats = vec![sf.with_max_sample_rate()];
-        if HZ_44100 < max_rate && HZ_44100 > min_rate {
-            formats.push(sf.with_sample_rate(HZ_44100))
+        let preferred_rate = cpal::SampleRate(HZ_44100);
+        if preferred_rate < max_rate && preferred_rate > min_rate {
+            formats.push(sf.with_sample_rate(preferred_rate))
         }
         formats.push(sf.with_sample_rate(min_rate));
         formats

@@ -1,7 +1,7 @@
-use std::time::Duration;
-
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
+use std::time::Duration;
 
 use super::SeekError;
 
@@ -22,9 +22,8 @@ impl SineWave {
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> SineWave {
-        let sr = cpal::SampleRate(Self::SAMPLE_RATE);
         SineWave {
-            test_sine: SignalGenerator::new(sr, freq, Function::Sine),
+            test_sine: SignalGenerator::new(Self::SAMPLE_RATE, freq, Function::Sine),
         }
     }
 }
@@ -45,12 +44,12 @@ impl Source for SineWave {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         1
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         Self::SAMPLE_RATE
     }
 

@@ -1,7 +1,8 @@
-use std::io::BufReader;
-
+#[cfg(feature = "wav")]
 #[test]
 fn test_wav_encodings() {
+    use std::io::BufReader;
+
     // 16 bit wav file exported from Audacity (1 channel)
     let file = std::fs::File::open("assets/audacity16bit.wav").unwrap();
     let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();

@@ -14,9 +14,9 @@ use symphonia::{
     default::get_probe,
 };
 
-use crate::{source, Source};
-
 use super::DecoderError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{source, Source};
 
 // Decoder errors are not considered fatal.
 // The correct action is to just get a new packet and try again.
@@ -159,12 +159,12 @@ impl Source for SymphoniaDecoder {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.spec.channels.count() as u16
+    fn channels(&self) -> ChannelCount {
+        self.spec.channels.count() as ChannelCount
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.spec.rate
     }
 

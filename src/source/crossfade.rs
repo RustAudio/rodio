@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use cpal::FromSample;
+use dasp_sample::FromSample;
 
 use crate::source::{FadeIn, Mix, TakeDuration};
 use crate::{Sample, Source};

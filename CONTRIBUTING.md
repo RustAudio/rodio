@@ -140,10 +140,10 @@ to use their best judgment. If you have any doubts or questions about
 how to approach a particular task or contribution, don't hesitate to
 reach out to the maintainers for guidance.
 
-# Maintainers
-Guidelines for maintainers (those with write access) of rodio. Note these are
-guidelines not rules. Adhere to them as long as makes sense. This is a work in
-progress document, more might follow as we get to know what works. 
+# Guidelines for Maintainers
+Guidelines for those with write access to rodio. Adhere to them as long as makes
+sense. This is a work in progress, more might follow as we get to know
+what works. 
 
 Please feel free to open an issue and discuss these if you have a suggestion.
 

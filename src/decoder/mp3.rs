@@ -14,8 +14,9 @@ where
 {
     // decoder: SeekDecoder<R>,
     decoder: Decoder<R>,
-    current_frame: Frame,
-    current_frame_offset: usize,
+    // what minimp3 calls frames rodio calls spans
+    current_span: minimp3::Frame,
+    current_span_offset: usize,
 }
 
 impl<R> Mp3Decoder<R>
@@ -31,16 +32,16 @@ where
         // parameters are correct and minimp3 is used correctly
         // thus if we crash here one of these invariants is broken:
         // .expect("should be able to allocate memory, perform IO");
-        // let current_frame = decoder.decode_frame()
-        let current_frame = decoder.next_frame()
+        // let current_span = decoder.decode_frame()
+        let current_span = decoder.next_frame()
             // the reader makes enough data available therefore 
             // if we crash here the invariant broken is:
             .expect("data should not corrupt");
 
         Ok(Mp3Decoder {
             decoder,
-            current_frame,
-            current_frame_offset: 0,
+            current_span,
+            current_span_offset: 0,
         })
     }
     pub fn into_inner(self) -> R {
@@ -53,18 +54,18 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        Some(self.current_frame.data.len())
+    fn current_span_len(&self) -> Option<usize> {
+        Some(self.current_span.data.len())
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.current_frame.channels as _
+    fn channels(&self) -> ChannelCount {
+        self.current_span.channels as _
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.current_frame.sample_rate as _
+    fn sample_rate(&self) -> SampleRate {
+        self.current_span.sample_rate as _
     }
 
     #[inline]
@@ -76,8 +77,8 @@ where
         // TODO waiting for PR in minimp3_fixed or minimp3
 
         // let pos = (pos.as_secs_f32() * self.sample_rate() as f32) as u64;
-        // // do not trigger a sample_rate, channels and frame len update
-        // // as the seek only takes effect after the current frame is done
+        // // do not trigger a sample_rate, channels and frame/span len update
+        // // as the seek only takes effect after the current frame/span is done
         // self.decoder.seek_samples(pos)?;
         // Ok(())
 
@@ -94,18 +95,18 @@ where
     type Item = i16;
 
     fn next(&mut self) -> Option<i16> {
-        if self.current_frame_offset == self.current_frame_len().unwrap() {
-            if let Ok(frame) = self.decoder.next_frame() {
-                // if let Ok(frame) = self.decoder.decode_frame() {
-                self.current_frame = frame;
-                self.current_frame_offset = 0;
+        if self.current_span_offset == self.current_span_len().unwrap() {
+            if let Ok(span) = self.decoder.next_frame() {
+                // if let Ok(span) = self.decoder.decode_frame() {
+                self.current_span = span;
+                self.current_span_offset = 0;
             } else {
                 return None;
             }
         }
 
-        let v = self.current_frame.data[self.current_frame_offset];
-        self.current_frame_offset += 1;
+        let v = self.current_span.data[self.current_span_offset];
+        self.current_span_offset += 1;
 
         Some(v)
     }

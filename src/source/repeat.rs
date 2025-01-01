@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use crate::source::buffered::Buffered;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Repeat` object.
 pub fn repeat<I>(input: I) -> Repeat<I>
@@ -59,24 +59,24 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        match self.inner.current_frame_len() {
-            Some(0) => self.next.current_frame_len(),
+    fn current_span_len(&self) -> Option<usize> {
+        match self.inner.current_span_len() {
+            Some(0) => self.next.current_span_len(),
             a => a,
         }
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        match self.inner.current_frame_len() {
+    fn channels(&self) -> ChannelCount {
+        match self.inner.current_span_len() {
             Some(0) => self.next.channels(),
             _ => self.inner.channels(),
         }
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        match self.inner.current_frame_len() {
+    fn sample_rate(&self) -> SampleRate {
+        match self.inner.current_span_len() {
             Some(0) => self.next.sample_rate(),
             _ => self.inner.sample_rate(),
         }

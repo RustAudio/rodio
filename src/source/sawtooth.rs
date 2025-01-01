@@ -1,7 +1,7 @@
-use std::time::Duration;
-
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
+use std::time::Duration;
 
 use super::SeekError;
 
@@ -17,14 +17,13 @@ pub struct SawtoothWave {
 }
 
 impl SawtoothWave {
-    const SAMPLE_RATE: u32 = 48000;
+    const SAMPLE_RATE: SampleRate = 48000;
 
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> SawtoothWave {
-        let sr = cpal::SampleRate(Self::SAMPLE_RATE);
         SawtoothWave {
-            test_saw: SignalGenerator::new(sr, freq, Function::Sawtooth),
+            test_saw: SignalGenerator::new(Self::SAMPLE_RATE, freq, Function::Sawtooth),
         }
     }
 }
@@ -40,17 +39,17 @@ impl Iterator for SawtoothWave {
 
 impl Source for SawtoothWave {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         1
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         Self::SAMPLE_RATE
     }
 

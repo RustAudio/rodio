@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let test_signal_duration = Duration::from_millis(1000);
     let interval_duration = Duration::from_millis(1500);
-    let sample_rate = cpal::SampleRate(48000);
+    let sample_rate = 48000;
 
     println!("Playing 1000 Hz tone");
     stream_handle.mixer().add(

@@ -4,6 +4,7 @@ use std::time::Duration;
 use crate::source::SeekError;
 use crate::Source;
 
+use crate::common::{ChannelCount, SampleRate};
 use lewton::inside_ogg::OggStreamReader;
 
 /// Decoder for an OGG file that contains Vorbis sound format.
@@ -57,17 +58,17 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         Some(self.current_data.len())
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.stream_reader.ident_hdr.audio_channels as u16
+    fn channels(&self) -> ChannelCount {
+        self.stream_reader.ident_hdr.audio_channels as ChannelCount
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.stream_reader.ident_hdr.audio_sample_rate
     }
 

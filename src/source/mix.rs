@@ -1,10 +1,11 @@
 use std::cmp;
 use std::time::Duration;
 
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::uniform::UniformSourceIterator;
 use crate::source::SeekError;
 use crate::{Sample, Source};
-use cpal::{FromSample, Sample as CpalSample};
+use dasp_sample::{FromSample, Sample as DaspSample};
 
 /// Internal function that builds a `Mix` object.
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
@@ -51,9 +52,9 @@ where
         let s2 = self.input2.next();
 
         match (s1, s2) {
-            (Some(s1), Some(s2)) => Some(s1.saturating_add(CpalSample::from_sample(s2))),
+            (Some(s1), Some(s2)) => Some(s1.saturating_add(DaspSample::from_sample(s2))),
             (Some(s1), None) => Some(s1),
-            (None, Some(s2)) => Some(CpalSample::from_sample(s2)),
+            (None, Some(s2)) => Some(DaspSample::from_sample(s2)),
             (None, None) => None,
         }
     }
@@ -90,9 +91,9 @@ where
     I2::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        let f1 = self.input1.current_frame_len();
-        let f2 = self.input2.current_frame_len();
+    fn current_span_len(&self) -> Option<usize> {
+        let f1 = self.input1.current_span_len();
+        let f2 = self.input2.current_span_len();
 
         match (f1, f2) {
             (Some(f1), Some(f2)) => Some(cmp::min(f1, f2)),
@@ -101,12 +102,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input1.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input1.sample_rate()
     }
 

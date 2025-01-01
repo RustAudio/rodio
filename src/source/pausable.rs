@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Builds a `Pausable` object.
 pub fn pausable<I>(source: I, paused: bool) -> Pausable<I>
@@ -31,8 +31,8 @@ where
 #[derive(Clone, Debug)]
 pub struct Pausable<I> {
     input: I,
-    paused_channels: Option<u16>,
-    remaining_paused_samples: u16,
+    paused_channels: Option<ChannelCount>,
+    remaining_paused_samples: ChannelCount,
 }
 
 impl<I> Pausable<I>
@@ -105,17 +105,17 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.input.current_span_len()
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 

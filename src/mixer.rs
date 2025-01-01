@@ -1,11 +1,11 @@
 //! Mixer that plays multiple sounds at the same time.
 
+use crate::common::{ChannelCount, SampleRate};
+use crate::source::{SeekError, Source, UniformSourceIterator};
+use crate::Sample;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
-use crate::source::{SeekError, Source, UniformSourceIterator};
-use crate::Sample;
 
 /// Builds a new mixer.
 ///
@@ -13,7 +13,7 @@ use crate::Sample;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
-pub fn mixer<S>(channels: u16, sample_rate: u32) -> (Arc<Mixer<S>>, MixerSource<S>)
+pub fn mixer<S>(channels: ChannelCount, sample_rate: SampleRate) -> (Arc<Mixer<S>>, MixerSource<S>)
 where
     S: Sample + Send + 'static,
 {
@@ -39,8 +39,8 @@ where
 pub struct Mixer<S> {
     has_pending: AtomicBool,
     pending_sources: Mutex<Vec<Box<dyn Source<Item = S> + Send>>>,
-    channels: u16,
-    sample_rate: u32,
+    channels: ChannelCount,
+    sample_rate: SampleRate,
 }
 
 impl<S> Mixer<S>
@@ -85,17 +85,17 @@ where
     S: Sample + Send + 'static,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate
     }
 

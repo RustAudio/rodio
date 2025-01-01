@@ -13,20 +13,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let noise_duration = Duration::from_millis(1000);
     let interval_duration = Duration::from_millis(1500);
 
-    stream_handle.mixer().add(
-        white(cpal::SampleRate(48000))
-            .amplify(0.1)
-            .take_duration(noise_duration),
-    );
+    stream_handle
+        .mixer()
+        .add(white(48000).amplify(0.1).take_duration(noise_duration));
     println!("Playing white noise");
 
     thread::sleep(interval_duration);
 
-    stream_handle.mixer().add(
-        pink(cpal::SampleRate(48000))
-            .amplify(0.1)
-            .take_duration(noise_duration),
-    );
+    stream_handle
+        .mixer()
+        .add(pink(48000).amplify(0.1).take_duration(noise_duration));
     println!("Playing pink noise");
 
     thread::sleep(interval_duration);

@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 const NS_PER_SECOND: u128 = 1_000_000_000;
 
@@ -26,33 +26,33 @@ where
     I::Item: Sample,
 {
     while duration > Duration::new(0, 0) {
-        if input.current_frame_len().is_none() {
+        if input.current_span_len().is_none() {
             // Sample rate and the amount of channels will be the same till the end.
             do_skip_duration_unchecked(input, duration);
             return;
         }
 
-        // .unwrap() safety: if `current_frame_len()` is None, the body of the `if` statement
+        // .unwrap() safety: if `current_span_len()` is None, the body of the `if` statement
         // above returns before we get here.
-        let frame_len: usize = input.current_frame_len().unwrap();
-        // If frame_len is zero, then there is no more data to skip. Instead
+        let span_len: usize = input.current_span_len().unwrap();
+        // If span_len is zero, then there is no more data to skip. Instead
         // just bail out.
-        if frame_len == 0 {
+        if span_len == 0 {
             return;
         }
 
         let ns_per_sample: u128 =
             NS_PER_SECOND / input.sample_rate() as u128 / input.channels() as u128;
 
-        // Check if we need to skip only part of the current frame.
-        if frame_len as u128 * ns_per_sample > duration.as_nanos() {
+        // Check if we need to skip only part of the current span.
+        if span_len as u128 * ns_per_sample > duration.as_nanos() {
             skip_samples(input, (duration.as_nanos() / ns_per_sample) as usize);
             return;
         }
 
-        skip_samples(input, frame_len);
+        skip_samples(input, span_len);
 
-        duration -= Duration::from_nanos((frame_len * ns_per_sample as usize) as u64);
+        duration -= Duration::from_nanos((span_len * ns_per_sample as usize) as u64);
     }
 }
 
@@ -138,17 +138,17 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.input.current_span_len()
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 
@@ -171,11 +171,12 @@ mod tests {
     use std::time::Duration;
 
     use crate::buffer::SamplesBuffer;
+    use crate::common::{ChannelCount, SampleRate};
     use crate::source::Source;
 
     fn test_skip_duration_samples_left(
-        channels: u16,
-        sample_rate: u32,
+        channels: ChannelCount,
+        sample_rate: SampleRate,
         seconds: u32,
         seconds_to_skip: u32,
     ) {

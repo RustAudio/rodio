@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::{linear_ramp::linear_gain_ramp, LinearGainRamp, SeekError};
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Internal function that builds a `FadeIn` object.
 pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
@@ -76,17 +76,17 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.inner().current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner().current_span_len()
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.inner().channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.inner().sample_rate()
     }
 

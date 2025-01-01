@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// This is the same as [`skippable`](crate::source::skippable) see its docs
 pub fn stoppable<I>(source: I) -> Stoppable<I> {
@@ -73,17 +73,17 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.input.current_span_len()
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 

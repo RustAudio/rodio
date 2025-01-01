@@ -1,13 +1,13 @@
 //! Chirp/sweep source.
 
-use std::{f32::consts::TAU, time::Duration};
-
+use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
+use std::{f32::consts::TAU, time::Duration};
 
 /// Convenience function to create a new `Chirp` source.
 #[inline]
 pub fn chirp(
-    sample_rate: cpal::SampleRate,
+    sample_rate: SampleRate,
     start_frequency: f32,
     end_frequency: f32,
     duration: Duration,
@@ -21,14 +21,14 @@ pub fn chirp(
 pub struct Chirp {
     start_frequency: f32,
     end_frequency: f32,
-    sample_rate: cpal::SampleRate,
+    sample_rate: SampleRate,
     total_samples: u64,
     elapsed_samples: u64,
 }
 
 impl Chirp {
     fn new(
-        sample_rate: cpal::SampleRate,
+        sample_rate: SampleRate,
         start_frequency: f32,
         end_frequency: f32,
         duration: Duration,
@@ -37,7 +37,7 @@ impl Chirp {
             sample_rate,
             start_frequency,
             end_frequency,
-            total_samples: (duration.as_secs_f64() * (sample_rate.0 as f64)) as u64,
+            total_samples: (duration.as_secs_f64() * (sample_rate as f64)) as u64,
             elapsed_samples: 0,
         }
     }
@@ -57,20 +57,20 @@ impl Iterator for Chirp {
 }
 
 impl Source for Chirp {
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         1
     }
 
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate.0
+    fn sample_rate(&self) -> SampleRate {
+        self.sample_rate
     }
 
     fn total_duration(&self) -> Option<Duration> {
-        let secs: f64 = self.total_samples as f64 / self.sample_rate.0 as f64;
+        let secs: f64 = self.total_samples as f64 / self.sample_rate as f64;
         Some(Duration::new(1, 0).mul_f64(secs))
     }
 }

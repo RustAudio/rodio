@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
 
-    let sample_rate = cpal::SampleRate(48000);
+    let sample_rate: u32 = 48000;
 
     let (mut controller, router) = SignalGenerator::new(sample_rate, 440.0, Function::Triangle)
         .amplify(0.1)

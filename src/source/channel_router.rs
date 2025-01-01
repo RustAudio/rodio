@@ -173,8 +173,8 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.input.current_span_len()
     }
 
     #[inline]
@@ -210,7 +210,7 @@ where
             // audio frame.
             let samples_to_take = min(
                 input_channels,
-                self.input.current_frame_len().unwrap_or(usize::MAX),
+                self.input.current_span_len().unwrap_or(usize::MAX),
             );
 
             // fill the input buffer. If the input is exhausted and returning None this will make

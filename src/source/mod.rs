@@ -3,11 +3,10 @@
 use core::fmt;
 use core::time::Duration;
 
-use cpal::FromSample;
-
 use crate::channel_bitmask::{add_channel_mask, ChannelBitmask, ChannelBitmaskAdapter};
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
+use dasp_sample::FromSample;
 
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;

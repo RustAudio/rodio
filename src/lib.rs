@@ -156,6 +156,7 @@ pub use cpal::{
     SupportedStreamConfig,
 };
 
+mod channel_bitmask;
 mod common;
 mod conversions;
 mod sink;
@@ -172,6 +173,7 @@ pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
+pub use crate::channel_bitmask::ChannelBitmask;
 pub use crate::common::{ChannelCount, SampleRate};
 pub use crate::conversions::Sample;
 pub use crate::decoder::Decoder;

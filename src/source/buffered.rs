@@ -3,9 +3,9 @@ use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Internal function that builds a `Buffered` object.
 #[inline]
@@ -15,11 +15,11 @@ where
     I::Item: Sample,
 {
     let total_duration = input.total_duration();
-    let first_frame = extract(input);
+    let first_span = extract(input);
 
     Buffered {
-        current_frame: first_frame,
-        position_in_frame: 0,
+        current_span: first_span,
+        position_in_span: 0,
         total_duration,
     }
 }
@@ -30,24 +30,24 @@ where
     I: Source,
     I::Item: Sample,
 {
-    /// Immutable reference to the next frame of data. Cannot be `Frame::Input`.
-    current_frame: Arc<Frame<I>>,
+    /// Immutable reference to the next span of data. Cannot be `Span::Input`.
+    current_span: Arc<Span<I>>,
 
-    /// The position in number of samples of this iterator inside `current_frame`.
-    position_in_frame: usize,
+    /// The position in number of samples of this iterator inside `current_span`.
+    position_in_span: usize,
 
     /// Obtained once at creation and never modified again.
     total_duration: Option<Duration>,
 }
 
-enum Frame<I>
+enum Span<I>
 where
     I: Source,
     I::Item: Sample,
 {
     /// Data that has already been extracted from the iterator. Also contains a pointer to the
-    /// next frame.
-    Data(FrameData<I>),
+    /// next span.
+    Data(SpanData<I>),
 
     /// No more data.
     End,
@@ -57,35 +57,35 @@ where
     Input(Mutex<Option<I>>),
 }
 
-struct FrameData<I>
+struct SpanData<I>
 where
     I: Source,
     I::Item: Sample,
 {
     data: Vec<I::Item>,
-    channels: u16,
-    rate: u32,
-    next: Mutex<Arc<Frame<I>>>,
+    channels: ChannelCount,
+    rate: SampleRate,
+    next: Mutex<Arc<Span<I>>>,
 }
 
-impl<I> Drop for FrameData<I>
+impl<I> Drop for SpanData<I>
 where
     I: Source,
     I::Item: Sample,
 {
     fn drop(&mut self) {
         // This is necessary to prevent stack overflows deallocating long chains of the mutually
-        // recursive `Frame` and `FrameData` types. This iteratively traverses as much of the
+        // recursive `Span` and `SpanData` types. This iteratively traverses as much of the
         // chain as needs to be deallocated, and repeatedly "pops" the head off the list. This
-        // solves the problem, as when the time comes to actually deallocate the `FrameData`,
-        // the `next` field will contain a `Frame::End`, or an `Arc` with additional references,
+        // solves the problem, as when the time comes to actually deallocate the `SpanData`,
+        // the `next` field will contain a `Span::End`, or an `Arc` with additional references,
         // so the depth of recursive drops will be bounded.
         while let Ok(arc_next) = self.next.get_mut() {
             if let Some(next_ref) = Arc::get_mut(arc_next) {
-                // This allows us to own the next Frame.
-                let next = mem::replace(next_ref, Frame::End);
-                if let Frame::Data(next_data) = next {
-                    // Swap the current FrameData with the next one, allowing the current one
+                // This allows us to own the next Span.
+                let next = mem::replace(next_ref, Span::End);
+                if let Span::Data(next_data) = next {
+                    // Swap the current SpanData with the next one, allowing the current one
                     // to go out of scope.
                     *self = next_data;
                 } else {
@@ -98,34 +98,34 @@ where
     }
 }
 
-/// Builds a frame from the input iterator.
-fn extract<I>(mut input: I) -> Arc<Frame<I>>
+/// Builds a span from the input iterator.
+fn extract<I>(mut input: I) -> Arc<Span<I>>
 where
     I: Source,
     I::Item: Sample,
 {
-    let frame_len = input.current_frame_len();
+    let span_len = input.current_span_len();
 
-    if frame_len == Some(0) {
-        return Arc::new(Frame::End);
+    if span_len == Some(0) {
+        return Arc::new(Span::End);
     }
 
     let channels = input.channels();
     let rate = input.sample_rate();
     let data: Vec<I::Item> = input
         .by_ref()
-        .take(cmp::min(frame_len.unwrap_or(32768), 32768))
+        .take(cmp::min(span_len.unwrap_or(32768), 32768))
         .collect();
 
     if data.is_empty() {
-        return Arc::new(Frame::End);
+        return Arc::new(Span::End);
     }
 
-    Arc::new(Frame::Data(FrameData {
+    Arc::new(Span::Data(SpanData {
         data,
         channels,
         rate,
-        next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
+        next: Mutex::new(Arc::new(Span::Input(Mutex::new(Some(input))))),
     }))
 }
 
@@ -134,29 +134,29 @@ where
     I: Source,
     I::Item: Sample,
 {
-    /// Advances to the next frame.
-    fn next_frame(&mut self) {
-        let next_frame = {
-            let mut next_frame_ptr = match &*self.current_frame {
-                Frame::Data(FrameData { next, .. }) => next.lock().unwrap(),
+    /// Advances to the next span.
+    fn next_span(&mut self) {
+        let next_span = {
+            let mut next_span_ptr = match &*self.current_span {
+                Span::Data(SpanData { next, .. }) => next.lock().unwrap(),
                 _ => unreachable!(),
             };
 
-            let next_frame = match &**next_frame_ptr {
-                Frame::Data(_) => next_frame_ptr.clone(),
-                Frame::End => next_frame_ptr.clone(),
-                Frame::Input(input) => {
+            let next_span = match &**next_span_ptr {
+                Span::Data(_) => next_span_ptr.clone(),
+                Span::End => next_span_ptr.clone(),
+                Span::Input(input) => {
                     let input = input.lock().unwrap().take().unwrap();
                     extract(input)
                 }
             };
 
-            *next_frame_ptr = next_frame.clone();
-            next_frame
+            *next_span_ptr = next_span.clone();
+            next_span
         };
 
-        self.current_frame = next_frame;
-        self.position_in_frame = 0;
+        self.current_span = next_span;
+        self.position_in_span = 0;
     }
 }
 
@@ -170,25 +170,25 @@ where
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
         let current_sample;
-        let advance_frame;
+        let advance_span;
 
-        match &*self.current_frame {
-            Frame::Data(FrameData { data, .. }) => {
-                current_sample = Some(data[self.position_in_frame]);
-                self.position_in_frame += 1;
-                advance_frame = self.position_in_frame >= data.len();
+        match &*self.current_span {
+            Span::Data(SpanData { data, .. }) => {
+                current_sample = Some(data[self.position_in_span]);
+                self.position_in_span += 1;
+                advance_span = self.position_in_span >= data.len();
             }
 
-            Frame::End => {
+            Span::End => {
                 current_sample = None;
-                advance_frame = false;
+                advance_span = false;
             }
 
-            Frame::Input(_) => unreachable!(),
+            Span::Input(_) => unreachable!(),
         };
 
-        if advance_frame {
-            self.next_frame();
+        if advance_span {
+            self.next_span();
         }
 
         current_sample
@@ -211,29 +211,29 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        match &*self.current_frame {
-            Frame::Data(FrameData { data, .. }) => Some(data.len() - self.position_in_frame),
-            Frame::End => Some(0),
-            Frame::Input(_) => unreachable!(),
+    fn current_span_len(&self) -> Option<usize> {
+        match &*self.current_span {
+            Span::Data(SpanData { data, .. }) => Some(data.len() - self.position_in_span),
+            Span::End => Some(0),
+            Span::Input(_) => unreachable!(),
         }
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        match *self.current_frame {
-            Frame::Data(FrameData { channels, .. }) => channels,
-            Frame::End => 1,
-            Frame::Input(_) => unreachable!(),
+    fn channels(&self) -> ChannelCount {
+        match *self.current_span {
+            Span::Data(SpanData { channels, .. }) => channels,
+            Span::End => 1,
+            Span::Input(_) => unreachable!(),
         }
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
-        match *self.current_frame {
-            Frame::Data(FrameData { rate, .. }) => rate,
-            Frame::End => 44100,
-            Frame::Input(_) => unreachable!(),
+    fn sample_rate(&self) -> SampleRate {
+        match *self.current_span {
+            Span::Data(SpanData { rate, .. }) => rate,
+            Span::End => 44100,
+            Span::Input(_) => unreachable!(),
         }
     }
 
@@ -260,8 +260,8 @@ where
     #[inline]
     fn clone(&self) -> Buffered<I> {
         Buffered {
-            current_frame: self.current_frame.clone(),
-            position_in_frame: self.position_in_frame,
+            current_span: self.current_span.clone(),
+            position_in_span: self.position_in_span,
             total_duration: self.total_duration,
         }
     }

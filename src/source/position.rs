@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Internal function that builds a `TrackPosition` object. See trait docs for
 /// details
@@ -11,9 +11,9 @@ pub fn track_position<I>(source: I) -> TrackPosition<I> {
         input: source,
         samples_counted: 0,
         offset_duration: 0.0,
-        current_frame_sample_rate: 0,
-        current_frame_channels: 0,
-        current_frame_len: None,
+        current_span_sample_rate: 0,
+        current_span_channels: 0,
+        current_span_len: None,
     }
 }
 
@@ -23,9 +23,9 @@ pub struct TrackPosition<I> {
     input: I,
     samples_counted: usize,
     offset_duration: f64,
-    current_frame_sample_rate: u32,
-    current_frame_channels: u16,
-    current_frame_len: Option<usize>,
+    current_span_sample_rate: SampleRate,
+    current_span_channels: ChannelCount,
+    current_span_len: Option<usize>,
 }
 
 impl<I> TrackPosition<I> {
@@ -73,10 +73,10 @@ where
     }
 
     #[inline]
-    fn set_current_frame(&mut self) {
-        self.current_frame_len = self.current_frame_len();
-        self.current_frame_sample_rate = self.sample_rate();
-        self.current_frame_channels = self.channels();
+    fn set_current_span(&mut self) {
+        self.current_span_len = self.current_span_len();
+        self.current_span_sample_rate = self.sample_rate();
+        self.current_span_channels = self.channels();
     }
 }
 
@@ -90,24 +90,24 @@ where
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
         // This should only be executed once at the first call to next.
-        if self.current_frame_len.is_none() {
-            self.set_current_frame();
+        if self.current_span_len.is_none() {
+            self.set_current_span();
         }
 
         let item = self.input.next();
         if item.is_some() {
             self.samples_counted += 1;
 
-            // At the end of a frame add the duration of this frame to
+            // At the end of a span add the duration of this span to
             // offset_duration and start collecting samples again.
-            if Some(self.samples_counted) == self.current_frame_len() {
+            if Some(self.samples_counted) == self.current_span_len() {
                 self.offset_duration += self.samples_counted as f64
-                    / self.current_frame_sample_rate as f64
-                    / self.current_frame_channels as f64;
+                    / self.current_span_sample_rate as f64
+                    / self.current_span_channels as f64;
 
                 // Reset.
                 self.samples_counted = 0;
-                self.set_current_frame();
+                self.set_current_span();
             };
         };
         item
@@ -125,17 +125,17 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.input.current_span_len()
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 
@@ -150,7 +150,7 @@ where
         if result.is_ok() {
             self.offset_duration = pos.as_secs_f64();
             // This assumes that the seek implementation of the codec always
-            // starts again at the beginning of a frame. Which is the case with
+            // starts again at the beginning of a span. Which is the case with
             // symphonia.
             self.samples_counted = 0;
         }

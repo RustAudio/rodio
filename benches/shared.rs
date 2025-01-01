@@ -2,7 +2,7 @@ use std::io::Cursor;
 use std::time::Duration;
 use std::vec;
 
-use rodio::Source;
+use rodio::{ChannelCount, SampleRate, Source};
 
 pub struct TestSource<T> {
     samples: vec::IntoIter<T>,
@@ -26,15 +26,15 @@ impl<T> ExactSizeIterator for TestSource<T> {
 }
 
 impl<T: rodio::Sample> Source for TestSource<T> {
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None // forever
     }
 
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.channels
     }
 
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
 
@@ -70,7 +70,7 @@ impl TestSource<i16> {
             total_duration,
         } = self;
         let samples = samples
-            .map(|s| cpal::Sample::from_sample(s))
+            .map(|s| dasp_sample::Sample::from_sample(s))
             .collect::<Vec<_>>()
             .into_iter();
         TestSource {

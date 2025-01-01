@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -11,7 +11,7 @@ where
     I::Item: Sample,
 {
     TakeDuration {
-        current_frame_len: input.current_frame_len(),
+        current_span_len: input.current_span_len(),
         duration_per_sample: TakeDuration::get_duration_per_sample(&input),
         input,
         remaining_duration: duration,
@@ -54,9 +54,9 @@ pub struct TakeDuration<I> {
     remaining_duration: Duration,
     requested_duration: Duration,
     filter: Option<DurationFilter>,
-    // Remaining samples in current frame.
-    current_frame_len: Option<usize>,
-    // Only updated when the current frame len is exhausted.
+    // Remaining samples in current span.
+    current_span_len: Option<usize>,
+    // Only updated when the current span len is exhausted.
     duration_per_sample: Duration,
 }
 
@@ -111,11 +111,11 @@ where
     type Item = <I as Iterator>::Item;
 
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if let Some(frame_len) = self.current_frame_len.take() {
-            if frame_len > 0 {
-                self.current_frame_len = Some(frame_len - 1);
+        if let Some(span_len) = self.current_span_len.take() {
+            if span_len > 0 {
+                self.current_span_len = Some(span_len - 1);
             } else {
-                self.current_frame_len = self.input.current_frame_len();
+                self.current_span_len = self.input.current_span_len();
                 // Sample rate might have changed
                 self.duration_per_sample = Self::get_duration_per_sample(&self.input);
             }
@@ -146,7 +146,7 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         let remaining_nanos = self.remaining_duration.as_secs() * NANOS_PER_SEC
             + self.remaining_duration.subsec_nanos() as u64;
         let nanos_per_sample = self.duration_per_sample.as_secs() * NANOS_PER_SEC
@@ -154,18 +154,18 @@ where
         let remaining_samples = (remaining_nanos / nanos_per_sample) as usize;
 
         self.input
-            .current_frame_len()
+            .current_span_len()
             .filter(|value| *value < remaining_samples)
             .or(Some(remaining_samples))
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 

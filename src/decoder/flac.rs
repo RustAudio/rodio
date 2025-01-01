@@ -6,6 +6,7 @@ use std::time::Duration;
 use crate::source::SeekError;
 use crate::Source;
 
+use crate::common::{ChannelCount, SampleRate};
 use claxon::FlacReader;
 
 /// Decoder for the Flac format.
@@ -18,8 +19,8 @@ where
     current_block_channel_len: usize,
     current_block_off: usize,
     bits_per_sample: u32,
-    sample_rate: u32,
-    channels: u16,
+    sample_rate: SampleRate,
+    channels: ChannelCount,
     samples: Option<u64>,
 }
 
@@ -45,7 +46,7 @@ where
             current_block_off: 0,
             bits_per_sample: spec.bits_per_sample,
             sample_rate: spec.sample_rate,
-            channels: spec.channels as u16,
+            channels: spec.channels as ChannelCount,
             samples: spec.samples,
         })
     }
@@ -59,17 +60,17 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.channels
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
 

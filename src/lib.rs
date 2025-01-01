@@ -21,7 +21,7 @@
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
 //! // Get an output stream handle to the default physical sound device.
-//! // Note that the playback stops when the stream_handle is dropped.
+//! // Note that the playback stops when the stream_handle is dropped.//!
 //! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
 //!         .expect("open default audio stream");
 //! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
@@ -145,20 +145,25 @@
 //! it is sent to this background thread where it will be read by rodio.
 //!
 //! All the sounds are mixed together by rodio before being sent to the operating system or the
-//! hardware. Therefore there is no restriction on the number of sounds that play simultaneously or
-//! the number of sinks that can be created (except for the fact that creating too many will slow
+//! hardware. Therefore, there is no restriction on the number of sounds that play simultaneously or
+//! on the number of sinks that can be created (except for the fact that creating too many will slow
 //! down your program).
 
 #![cfg_attr(test, deny(missing_docs))]
+#[cfg(feature = "playback")]
 pub use cpal::{
     self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,
     SupportedStreamConfig,
 };
 
+mod common;
 mod conversions;
 mod sink;
 mod spatial_sink;
+#[cfg(feature = "playback")]
 mod stream;
+#[cfg(feature = "wav")]
+mod wav_output;
 
 pub mod buffer;
 pub mod decoder;
@@ -167,9 +172,13 @@ pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
+pub use crate::common::{ChannelCount, SampleRate};
 pub use crate::conversions::Sample;
 pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
+#[cfg(feature = "playback")]
 pub use crate::stream::{play, OutputStream, OutputStreamBuilder, PlayError, StreamError};
+#[cfg(feature = "wav")]
+pub use crate::wav_output::output_to_wav;

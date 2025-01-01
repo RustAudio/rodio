@@ -14,9 +14,9 @@ use symphonia::{
     default::get_probe,
 };
 
-use crate::{source, Source};
-
 use super::DecoderError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{source, Source};
 
 // Decoder errors are not considered fatal.
 // The correct action is to just get a new packet and try again.
@@ -25,7 +25,7 @@ const MAX_DECODE_RETRIES: usize = 3;
 
 pub(crate) struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
-    current_frame_offset: usize,
+    current_span_offset: usize,
     format: Box<dyn FormatReader>,
     total_duration: Option<Time>,
     buffer: SampleBuffer<i16>,
@@ -101,22 +101,22 @@ impl SymphoniaDecoder {
             .codec_params
             .time_base
             .zip(stream.codec_params.n_frames)
-            .map(|(base, frames)| base.calc_time(frames));
+            .map(|(base, spans)| base.calc_time(spans));
 
         let mut decode_errors: usize = 0;
         let decoded = loop {
-            let current_frame = match probed.format.next_packet() {
+            let current_span = match probed.format.next_packet() {
                 Ok(packet) => packet,
                 Err(Error::IoError(_)) => break decoder.last_decoded(),
                 Err(e) => return Err(e),
             };
 
             // If the packet does not belong to the selected track, skip over it
-            if current_frame.track_id() != track_id {
+            if current_span.track_id() != track_id {
                 continue;
             }
 
-            match decoder.decode(&current_frame) {
+            match decoder.decode(&current_span) {
                 Ok(decoded) => break decoded,
                 Err(e) => match e {
                     Error::DecodeError(_) => {
@@ -135,7 +135,7 @@ impl SymphoniaDecoder {
         let buffer = SymphoniaDecoder::get_buffer(decoded, &spec);
         Ok(Some(SymphoniaDecoder {
             decoder,
-            current_frame_offset: 0,
+            current_span_offset: 0,
             format: probed.format,
             total_duration,
             buffer,
@@ -154,17 +154,17 @@ impl SymphoniaDecoder {
 
 impl Source for SymphoniaDecoder {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         Some(self.buffer.samples().len())
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.spec.channels.count() as u16
+    fn channels(&self) -> ChannelCount {
+        self.spec.channels.count() as ChannelCount
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.spec.rate
     }
 
@@ -188,7 +188,7 @@ impl Source for SymphoniaDecoder {
         };
 
         // make sure the next sample is for the right channel
-        let to_skip = self.current_frame_offset % self.channels() as usize;
+        let to_skip = self.current_span_offset % self.channels() as usize;
 
         let seek_res = self
             .format
@@ -202,7 +202,7 @@ impl Source for SymphoniaDecoder {
             .map_err(SeekError::BaseSeek)?;
 
         self.refine_position(seek_res)?;
-        self.current_frame_offset += to_skip;
+        self.current_span_offset += to_skip;
 
         Ok(())
     }
@@ -262,7 +262,7 @@ impl std::error::Error for SeekError {
 }
 
 impl SymphoniaDecoder {
-    /// Note frame offset must be set after
+    /// Note span offset must be set after
     fn refine_position(&mut self, seek_res: SeekedTo) -> Result<(), source::SeekError> {
         let mut samples_to_pass = seek_res.required_ts - seek_res.actual_ts;
         let packet = loop {
@@ -285,7 +285,7 @@ impl SymphoniaDecoder {
         let decoded = decoded.map_err(SeekError::Decoding)?;
         decoded.spec().clone_into(&mut self.spec);
         self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
-        self.current_frame_offset = samples_to_pass as usize * self.channels() as usize;
+        self.current_span_offset = samples_to_pass as usize * self.channels() as usize;
         Ok(())
     }
 }
@@ -320,7 +320,7 @@ impl Iterator for SymphoniaDecoder {
 
     #[inline]
     fn next(&mut self) -> Option<i16> {
-        if self.current_frame_offset >= self.buffer.len() {
+        if self.current_span_offset >= self.buffer.len() {
             let packet = self.format.next_packet().ok()?;
             let mut decoded = self.decoder.decode(&packet);
             for _ in 0..MAX_DECODE_RETRIES {
@@ -332,11 +332,11 @@ impl Iterator for SymphoniaDecoder {
             let decoded = decoded.ok()?;
             decoded.spec().clone_into(&mut self.spec);
             self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
-            self.current_frame_offset = 0;
+            self.current_span_offset = 0;
         }
 
-        let sample = *self.buffer.samples().get(self.current_frame_offset)?;
-        self.current_frame_offset += 1;
+        let sample = *self.buffer.samples().get(self.current_span_offset)?;
+        self.current_span_offset += 1;
 
         Some(sample)
     }

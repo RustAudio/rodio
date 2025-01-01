@@ -1,18 +1,18 @@
 use std::cmp;
 use std::time::Duration;
 
-use cpal::FromSample;
-
-use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
-use crate::{Sample, Source};
+use dasp_sample::FromSample;
 
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
+use crate::{Sample, Source};
 
 /// An iterator that reads from a `Source` and converts the samples to a
 /// specific type, sample-rate and channels count.
 ///
 /// It implements `Source` as well, but all the data is guaranteed to be in a
-/// single frame whose channels and samples rate have been passed to `new`.
+/// single span whose channels and samples rate have been passed to `new`.
 #[derive(Clone)]
 pub struct UniformSourceIterator<I, D>
 where
@@ -21,8 +21,8 @@ where
     D: Sample,
 {
     inner: Option<DataConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D>>,
-    target_channels: u16,
-    target_sample_rate: u32,
+    target_channels: ChannelCount,
+    target_sample_rate: SampleRate,
     total_duration: Option<Duration>,
 }
 
@@ -37,8 +37,8 @@ where
     #[inline]
     pub fn new(
         input: I,
-        target_channels: u16,
-        target_sample_rate: u32,
+        target_channels: ChannelCount,
+        target_sample_rate: SampleRate,
     ) -> UniformSourceIterator<I, D> {
         let total_duration = input.total_duration();
         let input = UniformSourceIterator::bootstrap(input, target_channels, target_sample_rate);
@@ -54,25 +54,21 @@ where
     #[inline]
     fn bootstrap(
         input: I,
-        target_channels: u16,
-        target_sample_rate: u32,
+        target_channels: ChannelCount,
+        target_sample_rate: SampleRate,
     ) -> DataConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D> {
-        // Limit the frame length to something reasonable
-        let frame_len = input.current_frame_len().map(|x| x.min(32768));
+        // Limit the span length to something reasonable
+        let span_len = input.current_span_len().map(|x| x.min(32768));
 
         let from_channels = input.channels();
         let from_sample_rate = input.sample_rate();
 
         let input = Take {
             iter: input,
-            n: frame_len,
+            n: span_len,
         };
-        let input = SampleRateConverter::new(
-            input,
-            cpal::SampleRate(from_sample_rate),
-            cpal::SampleRate(target_sample_rate),
-            from_channels,
-        );
+        let input =
+            SampleRateConverter::new(input, from_sample_rate, target_sample_rate, from_channels);
         let input = ChannelCountConverter::new(input, from_channels, target_channels);
 
         DataConverter::new(input)
@@ -123,17 +119,17 @@ where
     D: FromSample<I::Item> + Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.target_channels
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.target_sample_rate
     }
 

@@ -4,8 +4,6 @@ use std::error::Error;
 use std::io::BufReader;
 use std::thread;
 use std::time::Duration;
-#[cfg(feature = "tracing")]
-use tracing;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;

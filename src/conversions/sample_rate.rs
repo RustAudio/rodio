@@ -1,5 +1,6 @@
 use crate::conversions::Sample;
 
+use crate::common::{ChannelCount, SampleRate};
 use num_rational::Ratio;
 use std::mem;
 
@@ -16,16 +17,16 @@ where
     /// We convert chunks of `from` samples into chunks of `to` samples.
     to: u32,
     /// Number of channels in the stream
-    channels: cpal::ChannelCount,
+    channels: ChannelCount,
     /// One sample per channel, extracted from `input`.
-    current_frame: Vec<I::Item>,
+    current_span: Vec<I::Item>,
     /// Position of `current_sample` modulo `from`.
-    current_frame_pos_in_chunk: u32,
+    current_span_pos_in_chunk: u32,
     /// The samples right after `current_sample` (one per channel), extracted from `input`.
-    next_frame: Vec<I::Item>,
+    next_span: Vec<I::Item>,
     /// The position of the next sample that the iterator should return, modulo `to`.
     /// This counter is incremented (modulo `to`) every time the iterator is called.
-    next_output_frame_pos_in_chunk: u32,
+    next_output_span_pos_in_chunk: u32,
     /// The buffer containing the samples waiting to be output.
     output_buffer: Vec<I::Item>,
 }
@@ -51,13 +52,10 @@ where
     #[inline]
     pub fn new(
         mut input: I,
-        from: cpal::SampleRate,
-        to: cpal::SampleRate,
-        num_channels: cpal::ChannelCount,
+        from: SampleRate,
+        to: SampleRate,
+        num_channels: ChannelCount,
     ) -> SampleRateConverter<I> {
-        let from = from.0;
-        let to = to.0;
-
         assert!(num_channels >= 1);
         assert!(from >= 1);
         assert!(to >= 1);
@@ -85,10 +83,10 @@ where
             from,
             to,
             channels: num_channels,
-            current_frame_pos_in_chunk: 0,
-            next_output_frame_pos_in_chunk: 0,
-            current_frame: first_samples,
-            next_frame: next_samples,
+            current_span_pos_in_chunk: 0,
+            next_output_span_pos_in_chunk: 0,
+            current_span: first_samples,
+            next_span: next_samples,
             output_buffer: Vec::with_capacity(num_channels as usize - 1),
         }
     }
@@ -105,14 +103,14 @@ where
         &mut self.input
     }
 
-    fn next_input_frame(&mut self) {
-        self.current_frame_pos_in_chunk += 1;
+    fn next_input_span(&mut self) {
+        self.current_span_pos_in_chunk += 1;
 
-        mem::swap(&mut self.current_frame, &mut self.next_frame);
-        self.next_frame.clear();
+        mem::swap(&mut self.current_span, &mut self.next_span);
+        self.next_span.clear();
         for _ in 0..self.channels {
             if let Some(i) = self.input.next() {
-                self.next_frame.push(i);
+                self.next_span.push(i);
             } else {
                 break;
             }
@@ -139,41 +137,41 @@ where
             return Some(self.output_buffer.remove(0));
         }
 
-        // The frame we are going to return from this function will be a linear interpolation
-        // between `self.current_frame` and `self.next_frame`.
+        // The span we are going to return from this function will be a linear interpolation
+        // between `self.current_span` and `self.next_span`.
 
-        if self.next_output_frame_pos_in_chunk == self.to {
-            // If we jump to the next frame, we reset the whole state.
-            self.next_output_frame_pos_in_chunk = 0;
+        if self.next_output_span_pos_in_chunk == self.to {
+            // If we jump to the next span, we reset the whole state.
+            self.next_output_span_pos_in_chunk = 0;
 
-            self.next_input_frame();
-            while self.current_frame_pos_in_chunk != self.from {
-                self.next_input_frame();
+            self.next_input_span();
+            while self.current_span_pos_in_chunk != self.from {
+                self.next_input_span();
             }
-            self.current_frame_pos_in_chunk = 0;
+            self.current_span_pos_in_chunk = 0;
         } else {
             // Finding the position of the first sample of the linear interpolation.
             let req_left_sample =
-                (self.from * self.next_output_frame_pos_in_chunk / self.to) % self.from;
+                (self.from * self.next_output_span_pos_in_chunk / self.to) % self.from;
 
-            // Advancing `self.current_frame`, `self.next_frame` and
-            // `self.current_frame_pos_in_chunk` until the latter variable
+            // Advancing `self.current_span`, `self.next_span` and
+            // `self.current_span_pos_in_chunk` until the latter variable
             // matches `req_left_sample`.
-            while self.current_frame_pos_in_chunk != req_left_sample {
-                self.next_input_frame();
-                debug_assert!(self.current_frame_pos_in_chunk < self.from);
+            while self.current_span_pos_in_chunk != req_left_sample {
+                self.next_input_span();
+                debug_assert!(self.current_span_pos_in_chunk < self.from);
             }
         }
 
-        // Merging `self.current_frame` and `self.next_frame` into `self.output_buffer`.
+        // Merging `self.current_span` and `self.next_span` into `self.output_buffer`.
         // Note that `self.output_buffer` can be truncated if there is not enough data in
-        // `self.next_frame`.
+        // `self.next_span`.
         let mut result = None;
-        let numerator = (self.from * self.next_output_frame_pos_in_chunk) % self.to;
+        let numerator = (self.from * self.next_output_span_pos_in_chunk) % self.to;
         for (off, (cur, next)) in self
-            .current_frame
+            .current_span
             .iter()
-            .zip(self.next_frame.iter())
+            .zip(self.next_span.iter())
             .enumerate()
         {
             let sample = Sample::lerp(*cur, *next, numerator, self.to);
@@ -186,16 +184,16 @@ where
         }
 
         // Incrementing the counter for the next iteration.
-        self.next_output_frame_pos_in_chunk += 1;
+        self.next_output_span_pos_in_chunk += 1;
 
         if result.is_some() {
             result
         } else {
-            // draining `self.current_frame`
-            if !self.current_frame.is_empty() {
-                let r = Some(self.current_frame.remove(0));
-                mem::swap(&mut self.output_buffer, &mut self.current_frame);
-                self.current_frame.clear();
+            // draining `self.current_span`
+            if !self.current_span.is_empty() {
+                let r = Some(self.current_span.remove(0));
+                mem::swap(&mut self.output_buffer, &mut self.current_span);
+                self.current_span.clear();
                 r
             } else {
                 None
@@ -210,15 +208,14 @@ where
             // currently being processed
             let samples_after_chunk = samples;
             // adding the samples of the next chunk that may have already been read
-            let samples_after_chunk = if self.current_frame_pos_in_chunk == self.from - 1 {
-                samples_after_chunk + self.next_frame.len()
+            let samples_after_chunk = if self.current_span_pos_in_chunk == self.from - 1 {
+                samples_after_chunk + self.next_span.len()
             } else {
                 samples_after_chunk
             };
             // removing the samples of the current chunk that have not yet been read
             let samples_after_chunk = samples_after_chunk.saturating_sub(
-                self.from
-                    .saturating_sub(self.current_frame_pos_in_chunk + 2) as usize
+                self.from.saturating_sub(self.current_span_pos_in_chunk + 2) as usize
                     * usize::from(self.channels),
             );
             // calculating the number of samples after the transformation
@@ -227,7 +224,7 @@ where
 
             // `samples_current_chunk` will contain the number of samples remaining to be output
             // for the chunk currently being processed
-            let samples_current_chunk = (self.to - self.next_output_frame_pos_in_chunk) as usize
+            let samples_current_chunk = (self.to - self.next_output_span_pos_in_chunk) as usize
                 * usize::from(self.channels);
 
             samples_current_chunk + samples_after_chunk + self.output_buffer.len()
@@ -252,8 +249,8 @@ where
 #[cfg(test)]
 mod test {
     use super::SampleRateConverter;
+    use crate::common::{ChannelCount, SampleRate};
     use core::time::Duration;
-    use cpal::{ChannelCount, SampleRate};
     use quickcheck::{quickcheck, TestResult};
 
     quickcheck! {
@@ -265,8 +262,8 @@ mod test {
             {
                 return TestResult::discard();
             }
-            let from = SampleRate(from as u32);
-            let to   = SampleRate(to as u32);
+            let from = from as SampleRate;
+            let to   = to as SampleRate;
 
             let input: Vec<u16> = Vec::new();
             let output =
@@ -280,7 +277,7 @@ mod test {
         /// Check that resampling to the same rate does not change the signal.
         fn identity(from: u16, channels: u8, input: Vec<u16>) -> TestResult {
             if channels == 0 || channels > 128 || from == 0 { return TestResult::discard(); }
-            let from = SampleRate(from as u32);
+            let from = from as SampleRate;
 
             let output =
                 SampleRateConverter::new(input.clone().into_iter(), from, from, channels as ChannelCount)
@@ -296,10 +293,10 @@ mod test {
                 return TestResult::discard();
             }
 
-            let to = SampleRate(to as u32);
+            let to = to as SampleRate;
             let from = to * k as u32;
 
-            // Truncate the input, so it contains an integer number of frames.
+            // Truncate the input, so it contains an integer number of spans.
             let input = {
                 let ns = channels as usize;
                 let mut i = input;
@@ -322,10 +319,10 @@ mod test {
                 return TestResult::discard();
             }
 
-            let from = SampleRate(from as u32);
+            let from = from as SampleRate;
             let to = from * k as u32;
 
-            // Truncate the input, so it contains an integer number of frames.
+            // Truncate the input, so it contains an integer number of spans.
             let input = {
                 let ns = channels as usize;
                 let mut i = input;
@@ -346,19 +343,18 @@ mod test {
         /// Check that resampling does not change the audio duration,
         ///  except by a negligible amount (± 1ms).  Reproduces #316.
         /// Ignored, pending a bug fix.
-        fn preserve_durations(d: Duration, freq: f32, to: u32) -> TestResult {
+        fn preserve_durations(d: Duration, freq: f32, to: SampleRate) -> TestResult {
             if to == 0 { return TestResult::discard(); }
 
             use crate::source::{SineWave, Source};
 
-            let to = SampleRate(to);
             let source = SineWave::new(freq).take_duration(d);
-            let from = SampleRate(source.sample_rate());
+            let from = source.sample_rate();
 
             let resampled =
                 SampleRateConverter::new(source, from, to, 1);
             let duration =
-                Duration::from_secs_f32(resampled.count() as f32 / to.0 as f32);
+                Duration::from_secs_f32(resampled.count() as f32 / to as f32);
 
             let delta = if d < duration { duration - d } else { d - duration };
             TestResult::from_bool(delta < Duration::from_millis(1))
@@ -368,8 +364,7 @@ mod test {
     #[test]
     fn upsample() {
         let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(2000), SampleRate(3000), 2);
+        let output = SampleRateConverter::new(input.into_iter(), 2000, 3000, 2);
         assert_eq!(output.len(), 12); // Test the source's Iterator::size_hint()
 
         let output = output.collect::<Vec<_>>();
@@ -379,8 +374,7 @@ mod test {
     #[test]
     fn upsample2() {
         let input = vec![1u16, 14];
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(1000), SampleRate(7000), 1);
+        let output = SampleRateConverter::new(input.into_iter(), 1000, 7000, 1);
         let size_estimation = output.len();
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [1, 2, 4, 6, 8, 10, 12, 14]);
@@ -390,8 +384,7 @@ mod test {
     #[test]
     fn downsample() {
         let input = Vec::from_iter(0u16..17);
-        let output =
-            SampleRateConverter::new(input.into_iter(), SampleRate(12000), SampleRate(2400), 1);
+        let output = SampleRateConverter::new(input.into_iter(), 12000, 2400, 1);
         let size_estimation = output.len();
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [0, 5, 10, 15]);

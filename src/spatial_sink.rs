@@ -2,7 +2,7 @@ use std::f32;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use cpal::FromSample;
+use dasp_sample::FromSample;
 
 use crate::mixer::Mixer;
 use crate::source::{SeekError, Spatial};

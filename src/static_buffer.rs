@@ -13,6 +13,7 @@
 use std::slice::Iter as SliceIter;
 use std::time::Duration;
 
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::SeekError;
 use crate::{Sample, Source};
 
@@ -23,8 +24,8 @@ where
     S: 'static,
 {
     data: SliceIter<'static, S>,
-    channels: u16,
-    sample_rate: u32,
+    channels: ChannelCount,
+    sample_rate: SampleRate,
     duration: Duration,
 }
 
@@ -41,7 +42,11 @@ where
     /// - Panics if the length of the buffer is larger than approximately 16 billion elements.
     ///   This is because the calculation of the duration would overflow.
     ///
-    pub fn new(channels: u16, sample_rate: u32, data: &'static [S]) -> StaticSamplesBuffer<S> {
+    pub fn new(
+        channels: ChannelCount,
+        sample_rate: SampleRate,
+        data: &'static [S],
+    ) -> StaticSamplesBuffer<S> {
         assert!(channels != 0);
         assert!(sample_rate != 0);
 
@@ -67,17 +72,17 @@ where
     S: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.channels
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
 

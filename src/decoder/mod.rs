@@ -13,6 +13,7 @@ use crate::Source;
 
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
+use crate::common::{ChannelCount, SampleRate};
 #[cfg(feature = "symphonia")]
 use ::symphonia::core::io::{MediaSource, MediaSourceStream};
 
@@ -101,24 +102,24 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-            DecoderImpl::Wav(source) => source.current_frame_len(),
+            DecoderImpl::Wav(source) => source.current_span_len(),
             #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-            DecoderImpl::Vorbis(source) => source.current_frame_len(),
+            DecoderImpl::Vorbis(source) => source.current_span_len(),
             #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-            DecoderImpl::Flac(source) => source.current_frame_len(),
+            DecoderImpl::Flac(source) => source.current_span_len(),
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-            DecoderImpl::Mp3(source) => source.current_frame_len(),
+            DecoderImpl::Mp3(source) => source.current_span_len(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.current_frame_len(),
+            DecoderImpl::Symphonia(source) => source.current_span_len(),
             DecoderImpl::None(_) => Some(0),
         }
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.channels(),
@@ -135,7 +136,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.sample_rate(),
@@ -413,16 +414,16 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.0.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.0.current_span_len()
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.0.channels()
     }
 
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.0.sample_rate()
     }
 
@@ -511,17 +512,17 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.0.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.0.current_span_len()
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.0.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.0.sample_rate()
     }
 

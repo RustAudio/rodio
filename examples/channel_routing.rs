@@ -1,17 +1,13 @@
 //! Channel router example
 
-use std::io::prelude::*;
+use std::io::Read;
 use std::{error::Error, io};
 
 fn main() -> Result<(), Box<dyn Error>> {
     use rodio::source::{Function, SignalGenerator, Source};
-    // use std::thread;
-    // use std::time::Duration;
 
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
 
-    // let test_signal_duration = Duration::from_millis(1000);
-    // let interval_duration = Duration::from_millis(100);
     let sample_rate = cpal::SampleRate(48000);
 
     let (mut controller, router) = SignalGenerator::new(sample_rate, 440.0, Function::Triangle)

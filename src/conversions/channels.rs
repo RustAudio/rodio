@@ -1,4 +1,5 @@
-use cpal::Sample;
+use crate::common::ChannelCount;
+use dasp_sample::Sample;
 
 /// Iterator that converts from a certain channel count to another.
 #[derive(Clone, Debug)]
@@ -7,10 +8,10 @@ where
     I: Iterator,
 {
     input: I,
-    from: cpal::ChannelCount,
-    to: cpal::ChannelCount,
+    from: ChannelCount,
+    to: ChannelCount,
     sample_repeat: Option<I::Item>,
-    next_output_sample_pos: cpal::ChannelCount,
+    next_output_sample_pos: ChannelCount,
 }
 
 impl<I> ChannelCountConverter<I>
@@ -24,11 +25,7 @@ where
     /// Panics if `from` or `to` are equal to 0.
     ///
     #[inline]
-    pub fn new(
-        input: I,
-        from: cpal::ChannelCount,
-        to: cpal::ChannelCount,
-    ) -> ChannelCountConverter<I> {
+    pub fn new(input: I, from: ChannelCount, to: ChannelCount) -> ChannelCountConverter<I> {
         assert!(from >= 1);
         assert!(to >= 1);
 
@@ -118,6 +115,7 @@ where
 #[cfg(test)]
 mod test {
     use super::ChannelCountConverter;
+    use crate::common::ChannelCount;
 
     #[test]
     fn remove_channels() {
@@ -147,7 +145,7 @@ mod test {
 
     #[test]
     fn size_hint() {
-        fn test(input: &[i16], from: cpal::ChannelCount, to: cpal::ChannelCount) {
+        fn test(input: &[i16], from: ChannelCount, to: ChannelCount) {
             let mut converter = ChannelCountConverter::new(input.iter().copied(), from, to);
             let count = converter.clone().count();
             for left_in_iter in (0..=count).rev() {

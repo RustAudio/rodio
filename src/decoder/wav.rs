@@ -4,6 +4,7 @@ use std::time::Duration;
 use crate::source::SeekError;
 use crate::Source;
 
+use crate::common::{ChannelCount, SampleRate};
 use hound::{SampleFormat, WavReader};
 
 /// Decoder for the WAV format.
@@ -13,8 +14,8 @@ where
 {
     reader: SamplesIterator<R>,
     total_duration: Duration,
-    sample_rate: u32,
-    channels: u16,
+    sample_rate: SampleRate,
+    channels: ChannelCount,
 }
 
 impl<R> WavDecoder<R>
@@ -43,8 +44,8 @@ where
         Ok(WavDecoder {
             reader,
             total_duration,
-            sample_rate,
-            channels,
+            sample_rate: sample_rate as SampleRate,
+            channels: channels as ChannelCount,
         })
     }
     pub fn into_inner(self) -> R {
@@ -110,17 +111,17 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.channels
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
 

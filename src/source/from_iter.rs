@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Builds a source that chains sources provided by an iterator.
 ///
@@ -78,22 +78,22 @@ where
     <I::Item as Iterator>::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         // This function is non-trivial because the boundary between the current source and the
-        // next must be a frame boundary as well.
+        // next must be a span boundary as well.
         //
-        // The current sound is free to return `None` for `current_frame_len()`, in which case
+        // The current sound is free to return `None` for `current_span_len()`, in which case
         // we *should* return the number of samples remaining the current sound.
         // This can be estimated with `size_hint()`.
         //
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
-        // situation we force a frame to have a maximum number of samples indicate by this
+        // situation we force a span to have a maximum number of samples indicate by this
         // constant.
         const THRESHOLD: usize = 10240;
 
-        // Try the current `current_frame_len`.
+        // Try the current `current_span_len`.
         if let Some(src) = &self.current_source {
-            if let Some(val) = src.current_frame_len() {
+            if let Some(val) = src.current_span_len() {
                 if val != 0 {
                     return Some(val);
                 }
@@ -114,7 +114,7 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         if let Some(src) = &self.current_source {
             src.channels()
         } else {
@@ -124,7 +124,7 @@ where
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         if let Some(src) = &self.current_source {
             src.sample_rate()
         } else {

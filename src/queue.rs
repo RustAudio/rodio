@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::source::{Empty, SeekError, Source, Zero};
 use crate::Sample;
 
+use crate::common::{ChannelCount, SampleRate};
 #[cfg(feature = "crossbeam-channel")]
 use crossbeam_channel::{unbounded as channel, Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
@@ -122,20 +123,20 @@ where
     S: Sample + Send + 'static,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         // This function is non-trivial because the boundary between two sounds in the queue should
-        // be a frame boundary as well.
+        // be a span boundary as well.
         //
-        // The current sound is free to return `None` for `current_frame_len()`, in which case
+        // The current sound is free to return `None` for `current_span_len()`, in which case
         // we *should* return the number of samples remaining the current sound.
         // This can be estimated with `size_hint()`.
         //
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
-        // situation we force a frame to have a maximum number of samples indicate by this
+        // situation we force a span to have a maximum number of samples indicate by this
         // constant.
 
-        // Try the current `current_frame_len`.
-        if let Some(val) = self.current.current_frame_len() {
+        // Try the current `current_span_len`.
+        if let Some(val) = self.current.current_span_len() {
             if val != 0 {
                 return Some(val);
             } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
@@ -159,12 +160,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.current.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.current.sample_rate()
     }
 

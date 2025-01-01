@@ -1,4 +1,4 @@
-use cpal::FromSample;
+use dasp_sample::FromSample;
 use divan::Bencher;
 use rodio::Source;
 

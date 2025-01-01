@@ -1,9 +1,9 @@
 use std::time::Duration;
 
+use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::ChannelVolume;
 use crate::{Sample, Source};
-
-use super::SeekError;
 
 /// A simple spatial audio source. The underlying source is transformed to Mono
 /// and then played in stereo. The left and right channel's volume are amplified
@@ -103,17 +103,17 @@ where
     I::Item: Sample,
 {
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.input.current_span_len()
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 

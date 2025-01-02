@@ -35,6 +35,18 @@ rodio = { version = "0.20.1", default-features = false, features = ["symphonia-a
 ```
 
 
+# Goals
+- Simple API
+    - you should not need to know anything about audio to use rodio
+    - its hard to make mistakes
+    - easy to move rodio parts around your program
+- Optimal
+    - rodio should be a zero cost abstraction
+    - rodio should offer options between perfect and fast
+- extensible
+    - if something is missing in rodio it should be easy to add
+    - you should be able to control rodio parts easily
+
 # Contributing
 
 For information on how to contribute to this project, please see our [Contributing Guide](https://github.com/RustAudio/rodio/CONTRIBUTING.md).
@@ -44,7 +56,7 @@ For information on how to contribute to this project, please see our [Contributi
 
 Licensed under either of
 
-* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0), or
+#* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0), or
 * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.

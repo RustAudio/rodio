@@ -50,6 +50,7 @@ symphonia-aiff = ["symphonia/aiff", "symphonia/pcm"]
 
 [dev-dependencies]
 quickcheck = "1"
+quickcheck_macros = "1"
 rstest = "0.18.2"
 rstest_reuse = "0.6.0"
 approx = "0.5.1"

@@ -1,6 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
+use super::DecoderFormat;
 use crate::source::SeekError;
 use crate::Source;
 
@@ -34,7 +35,7 @@ where
         // .expect("should be able to allocate memory, perform IO");
         // let current_span = decoder.decode_frame()
         let current_span = decoder.next_frame()
-            // the reader makes enough data available therefore 
+            // the reader makes enough data available therefore
             // if we crash here the invariant broken is:
             .expect("data should not corrupt");
 
@@ -92,9 +93,9 @@ impl<R> Iterator for Mp3Decoder<R>
 where
     R: Read + Seek,
 {
-    type Item = i16;
+    type Item = DecoderFormat;
 
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.current_span_offset == self.current_span_len().unwrap() {
             if let Ok(span) = self.decoder.next_frame() {
                 // if let Ok(span) = self.decoder.decode_frame() {

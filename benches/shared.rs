@@ -43,7 +43,7 @@ impl<T: rodio::Sample> Source for TestSource<T> {
     }
 }
 
-impl TestSource<i16> {
+impl TestSource<f32> {
     pub fn music_wav() -> Self {
         let data = include_bytes!("../assets/music.wav");
         let cursor = Cursor::new(data);

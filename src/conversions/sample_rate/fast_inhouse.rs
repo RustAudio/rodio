@@ -3,6 +3,9 @@ use crate::conversions::Sample;
 use num_rational::Ratio;
 use std::mem;
 
+#[cfg(test)]
+mod test;
+
 /// Iterator that converts from a certain sample rate to another.
 #[derive(Clone, Debug)]
 pub struct SampleRateConverter<I>

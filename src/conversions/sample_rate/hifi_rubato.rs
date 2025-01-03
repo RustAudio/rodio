@@ -2,45 +2,77 @@
 // fast in house resampler this does not provide ExactSizeIterator. We cannot
 // do that since rubato does not guaranteed the amount of samples returned
 
-use std::vec;
-
 use rubato::{Resampler, SincInterpolationParameters};
 
 use crate::Sample;
 
+#[cfg(test)]
+mod test;
+
 /// Rubato requires the samples for each channel to be in separate buffers.
 /// This wrapper around Vec<Vec<f64>> provides an iterator that returns
 /// samples interleaved.
-struct Resampled {
+struct ResamplerOutput {
     channel_buffers: Vec<Vec<f64>>,
+    frames_in_buffer: usize,
     next_channel: usize,
     next_frame: usize,
 }
 
-impl Resampled {
-    fn new(channels: u16, capacity_per_channel: usize) -> Self {
+impl ResamplerOutput {
+    fn for_resampler(resampler: &rubato::SincFixedOut<f64>) -> Self {
         Self {
-            channel_buffers: vec![Vec::with_capacity(capacity_per_channel); channels as usize],
+            channel_buffers: resampler.output_buffer_allocate(true),
+            frames_in_buffer: 0,
             next_channel: 0,
             next_frame: 0,
         }
     }
 
     fn empty_buffers(&mut self) -> &mut Vec<Vec<f64>> {
-        self.channel_buffers.clear();
         &mut self.channel_buffers
+    }
+
+    fn trim_silent_end(&mut self) {
+        let Some(longest_trimmed_len) = self
+            .channel_buffers
+            .iter()
+            .take(self.frames_in_buffer)
+            .map(|buf| {
+                let silence = buf.iter().rev().take_while(|s| **s == 0f64).count();
+                self.frames_in_buffer - silence
+            })
+            .max()
+        else {
+            return;
+        };
+
+        self.frames_in_buffer = longest_trimmed_len;
+    }
+
+    fn mark_filled(&mut self, frames_in_output: usize) {
+        self.frames_in_buffer = frames_in_output;
+        self.next_frame = 0;
     }
 }
 
-impl Iterator for Resampled {
+impl Iterator for ResamplerOutput {
     type Item = f64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let sample = self.channel_buffers[self.next_channel].get(self.next_frame)?;
-        self.next_channel = (self.next_frame + 1) % self.channel_buffers.len();
-        self.next_frame += 1;
-
-        Some(*sample)
+        if self.next_frame >= self.frames_in_buffer {
+            None
+        } else {
+            dbg!(self.frames_in_buffer);
+            let sample = self
+                .channel_buffers
+                .get(self.next_channel)
+                .expect("num channels larger then zero")
+                .get(self.next_frame)?;
+            self.next_channel = (self.next_frame + 1) % self.channel_buffers.len();
+            self.next_frame += 1;
+            Some(*sample)
+        }
     }
 }
 
@@ -53,10 +85,7 @@ where
     // for size hint
     resample_ratio: f64,
 
-    resampled: Resampled,
-    /// in number of audio frames where one frame is all the samples
-    /// for all channels.
-    resampler_chunk_size: usize,
+    resampled: ResamplerOutput,
     resampler_input: Vec<Vec<f64>>,
     resampler: rubato::SincFixedOut<f64>,
 }
@@ -92,14 +121,12 @@ where
             window,
         };
 
-        let resampler_input_size = 1024;
-        let resampler_output_size =
-            ((resampler_input_size as f64) * resample_ratio).ceil() as usize;
+        let resampler_chunk_size = 1024;
         let resampler = rubato::SincFixedOut::<f64>::new(
             resample_ratio,
             max_resample_ratio_relative,
             params,
-            resampler_input_size,
+            resampler_chunk_size,
             num_channels as usize,
         )
         .unwrap();
@@ -107,10 +134,9 @@ where
         SampleRateConverter {
             input,
             resample_ratio,
-            resampled: Resampled::new(num_channels, resampler_output_size),
-            resampler_chunk_size: 1024,
+            resampled: ResamplerOutput::for_resampler(&resampler),
+            resampler_input: resampler.input_buffer_allocate(false),
             resampler,
-            resampler_input: vec![Vec::with_capacity(resampler_input_size); num_channels as usize],
         }
     }
 
@@ -127,8 +153,12 @@ where
     }
 
     fn fill_resampler_input(&mut self) {
-        self.resampler_input.clear();
-        for _ in 0..self.resampler_chunk_size {
+        for channel_buffer in self.resampler_input.iter_mut() {
+            channel_buffer.clear();
+        }
+
+        let needed_frames = self.resampler.input_frames_max();
+        for _ in 0..needed_frames {
             for channel_buffer in self.resampler_input.iter_mut() {
                 if let Some(item) = self.input.next() {
                     channel_buffer.push(item.to_f32() as f64);
@@ -154,29 +184,49 @@ where
 
         self.fill_resampler_input();
 
-        if self.resampler_input.len() >= self.resampler_chunk_size {
-            self.resampler
-                .process_into_buffer(
-                    &self.resampler_input,
-                    self.resampled.empty_buffers(),
-                    None, // all channels active
-                )
-                .expect(
-                    "Input and output have correct number of channels, \
-                    input is long enough",
-                );
-        } else {
-            self.resampler
-                    // gets the last samples out of the resampler
-                .process_partial_into_buffer(
-                    // might have to pass in None if the input is empty
-                    // something to check if this fails near the end of a source
-                    Some(&self.resampler_input),
-                    self.resampled.empty_buffers(),
-                    None, // all channels active
-                )
-                .expect("Input and output have correct number of channels, \
-                    input is long enough");
+        let input_len = self
+            .resampler_input
+            .get(0)
+            .expect("num channels must be larger then zero")
+            .len();
+
+        if input_len == 0 {
+            return None;
+        }
+
+        let mut padded_with_silence = false;
+        if input_len < self.resampler.input_frames_max() {
+            // resampler needs more frames then the input could provide,
+            // pad with silence
+            padded_with_silence = true;
+            for channel in &mut self.resampler_input {
+                channel.resize(self.resampler.input_frames_max(), 0f64);
+            }
+        }
+
+        self.resampler_input
+            .iter()
+            .inspect(|buf| println!("{:?}", &buf[0..20]))
+            .for_each(drop);
+
+        let (_, frames_in_output) = self
+            .resampler
+            .process_into_buffer(
+                &self.resampler_input,
+                self.resampled.empty_buffers(),
+                None, // all channels active
+            )
+            .expect("buffer sizes are correct");
+        self.resampled.channel_buffers
+            .iter()
+            .inspect(|buf| println!("{:?}", &buf[0..20]))
+            .for_each(drop);
+        self.resampled.mark_filled(frames_in_output);
+
+
+        if padded_with_silence {
+            // remove padding
+            self.resampled.trim_silent_end();
         }
 
         self.resampled.next()

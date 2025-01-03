@@ -13,11 +13,11 @@ fn main() {
 fn no_resampling(bencher: Bencher) {
     bencher
         .with_inputs(|| {
-            let source = TestSource::<i16>::music_wav();
+            let source = TestSource::<f32>::music_wav();
             (source.channels(), source.sample_rate(), source)
         })
         .bench_values(|(channels, sample_rate, source)| {
-            UniformSourceIterator::<_, i16>::new(source, channels, sample_rate)
+            UniformSourceIterator::<_, f32>::new(source, channels, sample_rate)
                 .for_each(divan::black_box_drop)
         })
 }
@@ -32,11 +32,11 @@ const COMMON_SAMPLE_RATES: [u32; 12] = [
 fn resample_to(bencher: Bencher, target_sample_rate: u32) {
     bencher
         .with_inputs(|| {
-            let source = TestSource::<i16>::music_wav();
+            let source = TestSource::<f32>::music_wav();
             (source.channels(), source)
         })
         .bench_values(|(channels, source)| {
-            UniformSourceIterator::<_, i16>::new(source, channels, target_sample_rate)
+            UniformSourceIterator::<_, f32>::new(source, channels, target_sample_rate)
                 .for_each(divan::black_box_drop)
         })
 }

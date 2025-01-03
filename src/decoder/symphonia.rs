@@ -14,7 +14,7 @@ use symphonia::{
     default::get_probe,
 };
 
-use super::DecoderError;
+use super::{DecoderError, DecoderFormat};
 use crate::common::{ChannelCount, SampleRate};
 use crate::{source, Source};
 
@@ -28,7 +28,7 @@ pub(crate) struct SymphoniaDecoder {
     current_span_offset: usize,
     format: Box<dyn FormatReader>,
     total_duration: Option<Time>,
-    buffer: SampleBuffer<i16>,
+    buffer: SampleBuffer<DecoderFormat>,
     spec: SignalSpec,
 }
 
@@ -144,9 +144,9 @@ impl SymphoniaDecoder {
     }
 
     #[inline]
-    fn get_buffer(decoded: AudioBufferRef, spec: &SignalSpec) -> SampleBuffer<i16> {
+    fn get_buffer(decoded: AudioBufferRef, spec: &SignalSpec) -> SampleBuffer<DecoderFormat> {
         let duration = units::Duration::from(decoded.capacity() as u64);
-        let mut buffer = SampleBuffer::<i16>::new(duration, *spec);
+        let mut buffer = SampleBuffer::<DecoderFormat>::new(duration, *spec);
         buffer.copy_interleaved_ref(decoded);
         buffer
     }
@@ -316,10 +316,10 @@ fn time_to_duration(time: Time) -> Duration {
 }
 
 impl Iterator for SymphoniaDecoder {
-    type Item = i16;
+    type Item = DecoderFormat;
 
     #[inline]
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.current_span_offset >= self.buffer.len() {
             let packet = self.format.next_packet().ok()?;
             let mut decoded = self.decoder.decode(&packet);

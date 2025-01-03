@@ -6,6 +6,9 @@ use crate::Source;
 
 use crate::common::{ChannelCount, SampleRate};
 use lewton::inside_ogg::OggStreamReader;
+use lewton::samples::InterleavedSamples;
+
+use super::DecoderFormat;
 
 /// Decoder for an OGG file that contains Vorbis sound format.
 pub struct VorbisDecoder<R>
@@ -13,7 +16,7 @@ where
     R: Read + Seek,
 {
     stream_reader: OggStreamReader<R>,
-    current_data: Vec<i16>,
+    current_data: Vec<DecoderFormat>,
     next: usize,
 }
 
@@ -31,15 +34,18 @@ where
         Ok(Self::from_stream_reader(stream_reader))
     }
     pub fn from_stream_reader(mut stream_reader: OggStreamReader<R>) -> Self {
-        let mut data = match stream_reader.read_dec_packet_itl() {
-            Ok(Some(d)) => d,
-            _ => Vec::new(),
-        };
+        let mut data =
+            match stream_reader.read_dec_packet_generic::<InterleavedSamples<DecoderFormat>>() {
+                Ok(Some(d)) => d.samples,
+                _ => Vec::new(),
+            };
 
         // The first packet is always empty, therefore
         // we need to read the second frame to get some data
-        if let Ok(Some(mut d)) = stream_reader.read_dec_packet_itl() {
-            data.append(&mut d);
+        if let Ok(Some(mut d)) =
+            stream_reader.read_dec_packet_generic::<InterleavedSamples<DecoderFormat>>()
+        {
+            data.append(&mut d.samples);
         }
 
         VorbisDecoder {
@@ -98,22 +104,28 @@ impl<R> Iterator for VorbisDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = i16;
+    type Item = DecoderFormat;
 
     #[inline]
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<Self::Item> {
         if let Some(sample) = self.current_data.get(self.next).copied() {
             self.next += 1;
             if self.current_data.is_empty() {
-                if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
-                    self.current_data = data;
+                if let Ok(Some(data)) = self
+                    .stream_reader
+                    .read_dec_packet_generic::<InterleavedSamples<DecoderFormat>>()
+                {
+                    self.current_data = data.samples;
                     self.next = 0;
                 }
             }
             Some(sample)
         } else {
-            if let Ok(Some(data)) = self.stream_reader.read_dec_packet_itl() {
-                self.current_data = data;
+            if let Ok(Some(data)) = self
+                .stream_reader
+                .read_dec_packet_generic::<InterleavedSamples<DecoderFormat>>()
+            {
+                self.current_data = data.samples;
                 self.next = 0;
             }
             let sample = self.current_data.get(self.next).copied();

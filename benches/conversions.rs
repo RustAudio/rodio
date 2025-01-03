@@ -10,7 +10,7 @@ fn main() {
 }
 
 #[divan::bench(types = [i16, u16, f32])]
-fn from_i16_to<T: rodio::Sample + FromSample<i16>>(bencher: Bencher) {
+fn from_f32_to<T: rodio::Sample + FromSample<f32>>(bencher: Bencher) {
     bencher
         .with_inputs(|| TestSource::music_wav())
         .bench_values(|source| {

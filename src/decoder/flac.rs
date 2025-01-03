@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::time::Duration;
@@ -7,7 +6,11 @@ use crate::source::SeekError;
 use crate::Source;
 
 use crate::common::{ChannelCount, SampleRate};
+
 use claxon::FlacReader;
+use cpal::Sample;
+
+use super::DecoderFormat;
 
 /// Decoder for the Flac format.
 pub struct FlacDecoder<R>
@@ -94,10 +97,10 @@ impl<R> Iterator for FlacDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = i16;
+    type Item = DecoderFormat;
 
     #[inline]
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<Self::Item> {
         loop {
             if self.current_block_off < self.current_block.len() {
                 // Read from current block.
@@ -106,10 +109,14 @@ where
                     + self.current_block_off / self.channels as usize;
                 let raw_val = self.current_block[real_offset];
                 self.current_block_off += 1;
-                let real_val = match self.bits_per_sample.cmp(&16) {
-                    Ordering::Less => (raw_val << (16 - self.bits_per_sample)) as i16,
-                    Ordering::Equal => raw_val as i16,
-                    Ordering::Greater => (raw_val >> (self.bits_per_sample - 16)) as i16,
+                let real_val = match self.bits_per_sample {
+                    8 => (raw_val as i8).to_sample::<Self::Item>(),
+                    12 => (raw_val << 20).to_sample::<Self::Item>(),
+                    16 => (raw_val as i16).to_sample::<Self::Item>(),
+                    20 => (raw_val << 12).to_sample::<Self::Item>(),
+                    24 => (raw_val << 8).to_sample::<Self::Item>(),
+                    32 => raw_val.to_sample::<Self::Item>(),
+                    _ => panic!("Unimplemented flac spec: {} bits", self.bits_per_sample),
                 };
                 return Some(real_val);
             }

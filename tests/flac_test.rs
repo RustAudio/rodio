@@ -12,7 +12,7 @@ fn test_flac_encodings() {
     let file = std::fs::File::open("assets/audacity16bit_level5.flac").unwrap();
     let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
     // File is not just silence
-    assert!(decoder.any(|x| x != 0));
+    assert!(decoder.any(|x| x != 0.0));
     // Symphonia does not expose functionality to get the duration so this check must be disabled
     #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
     assert_eq!(decoder.total_duration(), Some(Duration::from_secs(3))); // duration is calculated correctly
@@ -21,7 +21,7 @@ fn test_flac_encodings() {
     for level in &[0, 5, 8] {
         let file = std::fs::File::open(format!("assets/audacity24bit_level{level}.flac")).unwrap();
         let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
-        assert!(decoder.any(|x| x != 0));
+        assert!(decoder.any(|x| x != 0.0));
         #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
         assert_eq!(decoder.total_duration(), Some(Duration::from_secs(3)));
     }

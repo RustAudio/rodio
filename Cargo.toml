@@ -29,6 +29,7 @@ num-rational = "0.4.2"
 default = ["flac", "vorbis", "wav", "mp3", "rubato"]
 tracing = ["dep:tracing"]
 experimental = ["dep:atomic_float"]
+# experimental-hifi-resampler = ["dep:rubato"]
 
 flac = ["claxon"]
 vorbis = ["lewton"]

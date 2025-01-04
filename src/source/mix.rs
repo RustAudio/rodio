@@ -1,10 +1,13 @@
 use std::cmp;
 use std::time::Duration;
 
+use crate::conversions::sample_rate::fast_inhouse;
 use crate::source::uniform::UniformSourceIterator;
 use crate::source::SeekError;
 use crate::{Sample, Source};
 use cpal::{FromSample, Sample as CpalSample};
+
+use super::TakeFrame;
 
 /// Internal function that builds a `Mix` object.
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
@@ -24,7 +27,6 @@ where
 }
 
 /// Filter that modifies each sample by a given value.
-#[derive(Clone)]
 pub struct Mix<I1, I2>
 where
     I1: Source,
@@ -32,8 +34,18 @@ where
     I2: Source,
     I2::Item: Sample,
 {
-    input1: UniformSourceIterator<I1, I1::Item>,
-    input2: UniformSourceIterator<I2, I2::Item>,
+    input1: UniformSourceIterator<
+        I1,
+        I1::Item,
+// #[cfg(not(feature = "experimental-hifi-resampler"))]
+        fast_inhouse::SampleRateConverter<TakeFrame<I1>, I1::Item>,
+// #[cfg(feature = "experimental-hifi-resampler")]
+    >,
+    input2: UniformSourceIterator<
+        I2,
+        I2::Item,
+        fast_inhouse::SampleRateConverter<TakeFrame<I2>, I2::Item>,
+    >,
 }
 
 impl<I1, I2> Iterator for Mix<I1, I2>

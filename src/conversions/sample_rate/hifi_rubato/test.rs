@@ -170,7 +170,7 @@ fn downsample() {
         panic!("expected known upper bound")
     };
 
-    let output = output.collect::<Vec<_>>();
+    let output = output.collect::<Vec<f32>>();
     assert_eq!(output, [0.0, 0.5]);
     assert!(lower_bound <= output.len());
     assert!(upper_bound >= output.len());

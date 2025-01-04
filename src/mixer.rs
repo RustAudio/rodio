@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{SeekError, Source, UniformSourceIterator};
+use crate::source::{SeekError, Source, UniformSourceIterator, TakeFrame};
 use crate::Sample;
 
 /// Builds a new mixer.
@@ -53,7 +53,9 @@ where
     where
         T: Source<Item = S> + Send + 'static,
     {
-        let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
+        use crate::conversions::sample_rate::fast_inhouse::SampleRateConverter;
+        let uniform_source: UniformSourceIterator<_, _, SampleRateConverter<TakeFrame<T>, S>> =
+            UniformSourceIterator::new(source, self.channels, self.sample_rate);
         self.pending_sources
             .lock()
             .unwrap()

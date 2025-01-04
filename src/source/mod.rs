@@ -6,6 +6,7 @@ use core::time::Duration;
 use cpal::FromSample;
 
 use crate::Sample;
+pub(crate) use uniform::TakeFrame;
 
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;

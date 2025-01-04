@@ -6,7 +6,6 @@ This includes conversion between sample formats, channels or sample rates.
 */
 
 pub use channels::ChannelCountConverter;
-pub use sample::DataConverter;
 pub use sample::Sample;
 
 mod channels;

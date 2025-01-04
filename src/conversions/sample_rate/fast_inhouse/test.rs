@@ -4,7 +4,6 @@ use cpal::{ChannelCount, SampleRate};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
-
 /// Check that resampling an empty input produces no output.
 #[quickcheck]
 fn empty(from: u16, to: u16, channels: u8) -> TestResult {
@@ -16,7 +15,7 @@ fn empty(from: u16, to: u16, channels: u8) -> TestResult {
 
     let input: Vec<u16> = Vec::new();
     let output = SampleRateConverter::new(input.into_iter(), from, to, channels as ChannelCount)
-        .collect::<Vec<_>>();
+        .collect::<Vec<u16>>();
 
     assert_eq!(output, []);
     TestResult::passed()
@@ -131,7 +130,7 @@ fn preserve_durations(d: Duration, freq: f32, to: u32) -> TestResult {
     let source = SineWave::new(freq).take_duration(d);
     let from = SampleRate(source.sample_rate());
 
-    let resampled = SampleRateConverter::new(source, from, to, 1);
+    let resampled = SampleRateConverter::<_, f32>::new(source, from, to, 1);
     let duration = Duration::from_secs_f32(resampled.count() as f32 / to.0 as f32);
 
     let delta = if d < duration {
@@ -145,7 +144,12 @@ fn preserve_durations(d: Duration, freq: f32, to: u32) -> TestResult {
 #[test]
 fn upsample() {
     let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
-    let output = SampleRateConverter::new(input.into_iter(), SampleRate(2000), SampleRate(3000), 2);
+    let output = SampleRateConverter::<_, u16>::new(
+        input.into_iter(),
+        SampleRate(2000),
+        SampleRate(3000),
+        2,
+    );
     assert_eq!(output.len(), 12); // Test the source's Iterator::size_hint()
 
     let output = output.collect::<Vec<_>>();
@@ -155,7 +159,12 @@ fn upsample() {
 #[test]
 fn upsample2() {
     let input = vec![1u16, 14];
-    let output = SampleRateConverter::new(input.into_iter(), SampleRate(1000), SampleRate(7000), 1);
+    let output = SampleRateConverter::<_, u16>::new(
+        input.into_iter(),
+        SampleRate(1000),
+        SampleRate(7000),
+        1,
+    );
     let size_estimation = output.len();
     let output = output.collect::<Vec<_>>();
     assert_eq!(output, [1, 2, 4, 6, 8, 10, 12, 14]);
@@ -165,8 +174,12 @@ fn upsample2() {
 #[test]
 fn downsample() {
     let input = Vec::from_iter(0u16..17);
-    let output =
-        SampleRateConverter::new(input.into_iter(), SampleRate(12000), SampleRate(2400), 1);
+    let output = SampleRateConverter::<_, u16>::new(
+        input.into_iter(),
+        SampleRate(12000),
+        SampleRate(2400),
+        1,
+    );
     let size_estimation = output.len();
     let output = output.collect::<Vec<_>>();
     assert_eq!(output, [0, 5, 10, 15]);

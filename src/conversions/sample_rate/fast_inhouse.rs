@@ -1,6 +1,7 @@
 use crate::conversions::Sample;
 
 use num_rational::Ratio;
+use std::marker::PhantomData;
 use std::mem;
 
 #[cfg(test)]
@@ -8,9 +9,10 @@ mod test;
 
 /// Iterator that converts from a certain sample rate to another.
 #[derive(Clone, Debug)]
-pub struct SampleRateConverter<I>
+pub struct SampleRateConverter<I, O>
 where
     I: Iterator,
+    O: cpal::FromSample<I::Item>,
 {
     /// The iterator that gives us samples.
     input: I,
@@ -31,12 +33,15 @@ where
     next_output_frame_pos_in_chunk: u32,
     /// The buffer containing the samples waiting to be output.
     output_buffer: Vec<I::Item>,
+
+    output_type: PhantomData<O>,
 }
 
-impl<I> SampleRateConverter<I>
+impl<I, O> SampleRateConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample,
+    O: cpal::FromSample<I::Item>,
 {
     /// Create new sample rate converter.
     ///
@@ -57,7 +62,7 @@ where
         from: cpal::SampleRate,
         to: cpal::SampleRate,
         num_channels: cpal::ChannelCount,
-    ) -> SampleRateConverter<I> {
+    ) -> SampleRateConverter<I, O> {
         let from = from.0;
         let to = to.0;
 
@@ -93,6 +98,7 @@ where
             current_frame: first_samples,
             next_frame: next_samples,
             output_buffer: Vec::with_capacity(num_channels as usize - 1),
+            output_type: PhantomData,
         }
     }
 
@@ -123,23 +129,24 @@ where
     }
 }
 
-impl<I> Iterator for SampleRateConverter<I>
+impl<I, O> Iterator for SampleRateConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample + Clone,
+    O: cpal::FromSample<I::Item>,
 {
-    type Item = I::Item;
+    type Item = O;
 
-    fn next(&mut self) -> Option<I::Item> {
+    fn next(&mut self) -> Option<O> {
         // the algorithm below doesn't work if `self.from == self.to`
         if self.from == self.to {
             debug_assert_eq!(self.from, 1);
-            return self.input.next();
+            return self.input.next().map(|s| O::from_sample_(s));
         }
 
         // Short circuit if there are some samples waiting.
         if !self.output_buffer.is_empty() {
-            return Some(self.output_buffer.remove(0));
+            return Some(self.output_buffer.remove(0)).map(|s| O::from_sample_(s));
         }
 
         // The frame we are going to return from this function will be a linear interpolation
@@ -192,14 +199,14 @@ where
         self.next_output_frame_pos_in_chunk += 1;
 
         if result.is_some() {
-            result
+            result.map(|s| O::from_sample_(s))
         } else {
             // draining `self.current_frame`
             if !self.current_frame.is_empty() {
                 let r = Some(self.current_frame.remove(0));
                 mem::swap(&mut self.output_buffer, &mut self.current_frame);
                 self.current_frame.clear();
-                r
+                r.map(|s| O::from_sample_(s))
             } else {
                 None
             }
@@ -245,9 +252,10 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for SampleRateConverter<I>
+impl<I, O> ExactSizeIterator for SampleRateConverter<I, O>
 where
     I: ExactSizeIterator,
     I::Item: Sample + Clone,
+    O: cpal::FromSample<I::Item>,
 {
 }

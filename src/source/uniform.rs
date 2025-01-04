@@ -4,8 +4,6 @@ use std::time::Duration;
 
 use cpal::FromSample;
 
-// #[cfg(not(feature = "experimental-hifi-resampler"))]
-// #[cfg(feature = "experimental-hifi-resampler")]
 use crate::conversions::sample_rate::Resampler;
 use crate::conversions::ChannelCountConverter;
 use crate::{Sample, Source};

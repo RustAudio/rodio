@@ -81,7 +81,7 @@ pub struct SampleRateConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample,
-    O: cpal::FromSample<f32>,
+    O: Sample,
 {
     input: I,
 
@@ -99,7 +99,7 @@ impl<I, O> std::fmt::Debug for SampleRateConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample,
-    O: cpal::FromSample<f32>,
+    O: Sample,
 {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         fmt.debug_struct("SampleRateConverter")
@@ -113,7 +113,7 @@ impl<I, O> SampleRateConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample,
-    O: cpal::FromSample<f32>,
+    O: Sample,
 {
     #[inline]
     pub fn new(
@@ -195,13 +195,13 @@ impl<I, O> Iterator for SampleRateConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample + Clone,
-    O: cpal::FromSample<f32>,
+    O: Sample,
 {
     type Item = O;
 
     fn next(&mut self) -> Option<O> {
         if let Some(sample) = self.resampled.next() {
-            return Some(O::from_sample_(sample));
+            return Some(O::from_f32(sample));
         }
 
         self.fill_resampler_input();
@@ -251,7 +251,7 @@ where
             self.resampled.trim_silent_end();
         }
 
-        self.resampled.next().map(|s| O::from_sample_(s))
+        self.resampled.next().map(O::from_f32)
     }
 
     #[inline]

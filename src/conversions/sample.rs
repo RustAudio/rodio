@@ -27,6 +27,9 @@ pub trait Sample: CpalSample {
     /// Converts the sample to a f32 value.
     fn to_f32(self) -> f32;
 
+    /// Construct the sample from a f32 value.
+    fn from_f32(sample: f32) -> Self;
+
     /// Calls `saturating_add` on the sample.
     fn saturating_add(self, other: Self) -> Self;
 
@@ -53,6 +56,11 @@ impl Sample for u16 {
     fn to_f32(self) -> f32 {
         // Convert u16 to f32 in the range [-1.0, 1.0]
         (self as f32 - 32768.0) / 32768.0
+    }
+
+    #[inline]
+    fn from_f32(sample: f32) -> Self {
+        cpal::Sample::from_sample(sample)
     }
 
     #[inline]
@@ -85,6 +93,11 @@ impl Sample for i16 {
     }
 
     #[inline]
+    fn from_f32(sample: f32) -> Self {
+        cpal::Sample::from_sample(sample)
+    }
+
+    #[inline]
     fn saturating_add(self, other: i16) -> i16 {
         self.saturating_add(other)
     }
@@ -110,6 +123,11 @@ impl Sample for f32 {
     fn to_f32(self) -> f32 {
         // f32 is already in the correct format
         self
+    }
+
+    #[inline]
+    fn from_f32(sample: f32) -> Self {
+        cpal::Sample::from_sample(sample)
     }
 
     #[inline]

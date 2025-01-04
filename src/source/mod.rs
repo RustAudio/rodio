@@ -183,8 +183,8 @@ where
     #[inline]
     fn mix<S>(self, other: S) -> Mix<Self, S>
     where
-        Self: Sized,
-        Self::Item: FromSample<S::Item>,
+        Self: Source + Sized,
+        Self::Item: FromSample<S::Item> + Sample,
         S: Source,
         S::Item: Sample,
     {
@@ -345,11 +345,12 @@ where
     ///
     /// Only the crossfaded portion (beginning of self, beginning of other) is returned.
     #[inline]
-    fn take_crossfade_with<S: Source>(self, other: S, duration: Duration) -> Crossfade<Self, S>
+    fn take_crossfade_with<S>(self, other: S, duration: Duration) -> Crossfade<Self, S>
     where
-        Self: Sized,
-        Self::Item: FromSample<S::Item>,
-        <S as Iterator>::Item: Sample,
+        Self: Source + Sized,
+        Self::Item: FromSample<S::Item> + Sample,
+        S: Source,
+        S::Item: Sample,
     {
         crossfade::crossfade(self, other, duration)
     }

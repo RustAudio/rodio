@@ -1,7 +1,5 @@
 use std::time::Duration;
 
-use cpal::FromSample;
-
 use crate::source::{FadeIn, Mix, TakeDuration};
 use crate::{Sample, Source};
 
@@ -18,7 +16,7 @@ pub fn crossfade<I1, I2>(
 where
     I1: Source,
     I2: Source,
-    I1::Item: FromSample<I2::Item> + Sample,
+    I1::Item: cpal::FromSample<I2::Item> + Sample,
     I2::Item: Sample,
 {
     let mut input_fadeout = input_fadeout.take_duration(duration);

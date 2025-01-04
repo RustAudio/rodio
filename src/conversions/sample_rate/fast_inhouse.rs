@@ -12,7 +12,7 @@ mod test;
 pub struct SampleRateConverter<I, O>
 where
     I: Iterator,
-    O: cpal::FromSample<I::Item>,
+    O: Sample,
 {
     /// The iterator that gives us samples.
     input: I,
@@ -41,7 +41,7 @@ impl<I, O> SampleRateConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample,
-    O: cpal::FromSample<I::Item>,
+    O: Sample,
 {
     /// Create new sample rate converter.
     ///
@@ -133,7 +133,7 @@ impl<I, O> Iterator for SampleRateConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample + Clone,
-    O: cpal::FromSample<I::Item>,
+    O: Sample + cpal::FromSample<I::Item>,
 {
     type Item = O;
 
@@ -141,12 +141,12 @@ where
         // the algorithm below doesn't work if `self.from == self.to`
         if self.from == self.to {
             debug_assert_eq!(self.from, 1);
-            return self.input.next().map(|s| O::from_sample_(s));
+            return self.input.next().map(|s| cpal::Sample::from_sample(s));
         }
 
         // Short circuit if there are some samples waiting.
         if !self.output_buffer.is_empty() {
-            return Some(self.output_buffer.remove(0)).map(|s| O::from_sample_(s));
+            return Some(self.output_buffer.remove(0)).map(|s| cpal::Sample::from_sample(s));
         }
 
         // The frame we are going to return from this function will be a linear interpolation
@@ -199,14 +199,14 @@ where
         self.next_output_frame_pos_in_chunk += 1;
 
         if result.is_some() {
-            result.map(|s| O::from_sample_(s))
+            result.map(|s| cpal::Sample::from_sample(s))
         } else {
             // draining `self.current_frame`
             if !self.current_frame.is_empty() {
                 let r = Some(self.current_frame.remove(0));
                 mem::swap(&mut self.output_buffer, &mut self.current_frame);
                 self.current_frame.clear();
-                r.map(|s| O::from_sample_(s))
+                r.map(|s| cpal::Sample::from_sample(s))
             } else {
                 None
             }
@@ -256,6 +256,6 @@ impl<I, O> ExactSizeIterator for SampleRateConverter<I, O>
 where
     I: ExactSizeIterator,
     I::Item: Sample + Clone,
-    O: cpal::FromSample<I::Item>,
+    O: Sample + cpal::FromSample<I::Item>,
 {
 }

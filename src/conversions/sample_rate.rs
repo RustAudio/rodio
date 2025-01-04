@@ -1,3 +1,5 @@
+use crate::Sample;
+
 pub(crate) mod fast_inhouse;
 // #[cfg(feature = "experimental-hifi-resampler")]
 pub(crate) mod hifi_rubato;
@@ -5,8 +7,8 @@ pub(crate) mod hifi_rubato;
 pub trait Resampler<I, O>: Iterator<Item = O>
 where
     I: Iterator,
-    I::Item: crate::Sample + Clone,
-    O: crate::Sample,
+    I::Item: Sample + Clone,
+    O: Sample,
 {
     type Parts;
     fn new_parts() -> Self::Parts;
@@ -25,8 +27,8 @@ where
 impl<I, O> Resampler<I, O> for fast_inhouse::SampleRateConverter<I, O>
 where
     I: Iterator,
-    I::Item: crate::Sample + Clone,
-    O: crate::Sample + cpal::FromSample<I::Item>,
+    I::Item: Sample + Clone,
+    O: Sample + cpal::FromSample<I::Item>,
 {
     type Parts = ();
 
@@ -55,8 +57,8 @@ where
 impl<I, O> Resampler<I, O> for hifi_rubato::SampleRateConverter<I, O>
 where
     I: Iterator,
-    I::Item: crate::Sample + Clone,
-    O: crate::Sample + cpal::FromSample<f32>,
+    I::Item: Sample + Clone,
+    O: Sample,
 {
     type Parts = ();
 

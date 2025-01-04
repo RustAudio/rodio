@@ -1,7 +1,7 @@
 use std::cmp;
 use std::time::Duration;
 
-use crate::conversions::sample_rate::fast_inhouse;
+use crate::conversions::sample_rate::{fast_inhouse, hifi_rubato};
 use crate::source::uniform::UniformSourceIterator;
 use crate::source::SeekError;
 use crate::{Sample, Source};
@@ -13,15 +13,15 @@ use super::TakeFrame;
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
 where
     I1: Source,
-    I1::Item: FromSample<I2::Item> + Sample,
     I2: Source,
+    I1::Item: Sample,
     I2::Item: Sample,
 {
     let channels = input1.channels();
     let rate = input1.sample_rate();
 
     Mix {
-        input1: UniformSourceIterator::new(input1, channels, rate),
+        input1,
         input2: UniformSourceIterator::new(input2, channels, rate),
     }
 }
@@ -30,21 +30,16 @@ where
 pub struct Mix<I1, I2>
 where
     I1: Source,
-    I1::Item: FromSample<I2::Item> + Sample,
     I2: Source,
+    I1::Item: Sample,
     I2::Item: Sample,
 {
-    input1: UniformSourceIterator<
-        I1,
-        I1::Item,
-// #[cfg(not(feature = "experimental-hifi-resampler"))]
-        fast_inhouse::SampleRateConverter<TakeFrame<I1>, I1::Item>,
-// #[cfg(feature = "experimental-hifi-resampler")]
-    >,
+    input1: I1,
     input2: UniformSourceIterator<
         I2,
         I2::Item,
-        fast_inhouse::SampleRateConverter<TakeFrame<I2>, I2::Item>,
+        // fast_inhouse::SampleRateConverter<TakeFrame<I2>, I2::Item>,
+        hifi_rubato::SampleRateConverter<TakeFrame<I2>, I2::Item>,
     >,
 }
 
@@ -87,19 +82,21 @@ where
 
 impl<I1, I2> ExactSizeIterator for Mix<I1, I2>
 where
-    I1: Source + ExactSizeIterator,
-    I1::Item: FromSample<I2::Item> + Sample,
-    I2: Source + ExactSizeIterator,
+    I1: Source,
+    I2: Source,
+    I1::Item: Sample,
     I2::Item: Sample,
+    I1::Item: cpal::FromSample<I2::Item>,
 {
 }
 
 impl<I1, I2> Source for Mix<I1, I2>
 where
     I1: Source,
-    I1::Item: FromSample<I2::Item> + Sample,
     I2: Source,
+    I1::Item: Sample,
     I2::Item: Sample,
+    I1::Item: cpal::FromSample<I2::Item>,
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {

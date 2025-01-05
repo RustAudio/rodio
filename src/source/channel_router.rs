@@ -195,8 +195,6 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_channel >= self.channel_count {
             self.current_channel = 0;
-
-            /// I::Item::zero_value() zero value is not 0 for some sample types
             self.output_frame.fill(None);
             let input_channels = self.input.channels() as usize;
             let mut li = 0;
@@ -212,11 +210,7 @@ where
                     } else if link.0 == ch_in as u16 {
                         let amplified = s.amplify(link.2);
                         let mut c = &mut self.output_frame[link.1 as usize];
-                        if c.is_none() {
-                            *c = Some(amplified);
-                        } else {
-                            *c = c.map(|x| x.saturating_add(amplified));
-                        }
+                        *c = Some(c.map_or(amplified, |x| x.saturating_add(amplified)));
                     }
                     li += 1;
                 }

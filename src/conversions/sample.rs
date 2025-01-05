@@ -1,4 +1,4 @@
-use dasp_sample::{FromSample, Sample as DaspSample};
+use dasp_sample::{FromSample, Sample as DaspSample, ToSample};
 use std::marker::PhantomData;
 
 /// Converts the samples data type to `O`.
@@ -71,7 +71,7 @@ where
 ///
 /// You can implement this trait on your own type as well if you wish so.
 ///
-pub trait Sample: DaspSample {
+pub trait Sample: DaspSample + ToSample<f32> {
     /// Linear interpolation between two samples.
     ///
     /// The result should be equivalent to
@@ -81,16 +81,22 @@ pub trait Sample: DaspSample {
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
 
     /// Multiplies the value of this sample by the given amount.
-    fn amplify(self, value: f32) -> Self;
+    fn amplify(self, value: f32) -> Self {
+        self.mul_amp(value.to_sample())
+    }
 
     /// Converts the sample to a f32 value.
-    fn to_f32(self) -> f32;
+    fn to_f32(self) -> f32 {
+        self.to_sample()
+    }
 
     /// Calls `saturating_add` on the sample.
     fn saturating_add(self, other: Self) -> Self;
 
     /// Returns the value corresponding to the absence of sound.
-    fn zero_value() -> Self;
+    fn zero_value() -> Self {
+        Self::EQUILIBRIUM
+    }
 }
 
 impl Sample for u16 {
@@ -104,24 +110,8 @@ impl Sample for u16 {
     }
 
     #[inline]
-    fn amplify(self, value: f32) -> u16 {
-        ((self as f32) * value) as u16
-    }
-
-    #[inline]
-    fn to_f32(self) -> f32 {
-        // Convert u16 to f32 in the range [-1.0, 1.0]
-        (self as f32 - 32768.0) / 32768.0
-    }
-
-    #[inline]
     fn saturating_add(self, other: u16) -> u16 {
         self.saturating_add(other)
-    }
-
-    #[inline]
-    fn zero_value() -> u16 {
-        32768
     }
 }
 
@@ -133,24 +123,8 @@ impl Sample for i16 {
     }
 
     #[inline]
-    fn amplify(self, value: f32) -> i16 {
-        ((self as f32) * value) as i16
-    }
-
-    #[inline]
-    fn to_f32(self) -> f32 {
-        // Convert i16 to f32 in the range [-1.0, 1.0]
-        self as f32 / 32768.0
-    }
-
-    #[inline]
     fn saturating_add(self, other: i16) -> i16 {
         self.saturating_add(other)
-    }
-
-    #[inline]
-    fn zero_value() -> i16 {
-        0
     }
 }
 
@@ -161,24 +135,8 @@ impl Sample for f32 {
     }
 
     #[inline]
-    fn amplify(self, value: f32) -> f32 {
-        self * value
-    }
-
-    #[inline]
-    fn to_f32(self) -> f32 {
-        // f32 is already in the correct format
-        self
-    }
-
-    #[inline]
     fn saturating_add(self, other: f32) -> f32 {
         self + other
-    }
-
-    #[inline]
-    fn zero_value() -> f32 {
-        0.0
     }
 }
 

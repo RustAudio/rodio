@@ -3,10 +3,6 @@
 use core::fmt;
 use core::time::Duration;
 
-use crate::common::{ChannelCount, SampleRate};
-use crate::Sample;
-use dasp_sample::FromSample;
-
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
@@ -43,6 +39,9 @@ pub use self::take::TakeDuration;
 pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
+use crate::common::{ChannelCount, SampleRate};
+use crate::Sample;
+use dasp_sample::FromSample;
 
 mod agc;
 mod amplify;
@@ -354,7 +353,7 @@ where
     fn channel_router(
         self,
         channel_count: u16,
-        channel_map: ChannelMap,
+        channel_map: &ChannelMap,
     ) -> (ChannelRouterController, ChannelRouterSource<Self>)
     where
         Self: Sized,
@@ -390,9 +389,9 @@ where
         let mut mapping = ChannelMap::new();
         let output_count = channels.len() as u16;
         for (output_channel, input_channel) in channels.into_iter().enumerate() {
-            mapping[input_channel as usize][output_channel] = 1.0f32;
+            mapping.push((input_channel, output_channel as ChannelCount, 1.0f32));
         }
-        channel_router::channel_router(self, output_count, mapping).1
+        channel_router::channel_router(self, output_count, &mapping).1
     }
 
     /// Creates a [`ChannelRouter`] that mixes all of the input channels to mono with full gain.
@@ -401,8 +400,8 @@ where
     where
         Self: Sized,
     {
-        let mapping: ChannelMap = vec![vec![1.0f32]; self.channels().into()];
-        channel_router::channel_router(self, 1, mapping).1
+        let mapping: ChannelMap = (0..self.channels()).map(|oc| (0, oc, 1.0f32)).collect();
+        channel_router::channel_router(self, 1, &mapping).1
     }
 
     /// Creates a [`ChannelRouter`] that splits a mono channel into two stereo channels, at half
@@ -416,8 +415,8 @@ where
     where
         Self: Sized,
     {
-        let mapping: ChannelMap = vec![vec![0.5f32, 0.5f32]];
-        channel_router::channel_router(self, 2, mapping).1
+        let mapping: ChannelMap = vec![(0, 1, 0.5f32), (0, 1, 0.5f32)];
+        channel_router::channel_router(self, 2, &mapping).1
     }
 
     /// Creates a [`ChannelRouter`] that mixes a 5.1 source in SMPTE channel order (L, R, C, Lfe, Ls,
@@ -434,15 +433,17 @@ where
         Self: Sized,
     {
         let three_db_down = std::f32::consts::FRAC_1_SQRT_2;
+        todo!();
         let mapping: ChannelMap = vec![
-            vec![1.0f32, 0.0f32],
-            vec![0.0f32, 1.0f32],
-            vec![three_db_down, three_db_down],
-            vec![0.0f32, 0.0f32],
-            vec![three_db_down, 0.0f32],
-            vec![0.0f32, three_db_down],
+            // FIXME update (coeffs should be transposed)
+            // vec![1.0f32, 0.0f32],
+            // vec![0.0f32, 1.0f32],
+            // vec![three_db_down, three_db_down],
+            // vec![0.0f32, 0.0f32],
+            // vec![three_db_down, 0.0f32],
+            // vec![0.0f32, three_db_down],
         ];
-        channel_router::channel_router(self, 6, mapping).1
+        channel_router::channel_router(self, 6, &mapping).1
     }
 
     /// Mixes this sound fading out with another sound fading in for the given duration.

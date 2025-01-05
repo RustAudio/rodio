@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (mut controller, router) = SignalGenerator::new(sample_rate, 440.0, Function::Triangle)
         .amplify(0.1)
-        .channel_router(2, vec![vec![0.0f32, 0.0f32]]);
+        .channel_router(2, &vec![]);
 
     println!("Control left and right levels separately:");
     println!("q: left+\na: left-\nw: right+\ns: right-\nx: quit");
@@ -20,8 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     stream_handle.mixer().add(router);
 
     let (mut left_level, mut right_level) = (0.5f32, 0.5f32);
-    controller.map(0, 0, left_level)?;
-    controller.map(0, 1, right_level)?;
+    controller.set_map(&vec![(0, 0, left_level), (0, 1, right_level)])?;
     println!("Left: {left_level:.04}, Right: {right_level:.04}");
 
     let bytes = io::stdin().bytes();
@@ -35,8 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             b'\n' => {
                 left_level = left_level.clamp(0.0, 1.0);
                 right_level = right_level.clamp(0.0, 1.0);
-                controller.map(0, 0, left_level)?;
-                controller.map(0, 1, right_level)?;
+                controller.set_map(&vec![(0, 0, left_level), (0, 1, right_level)])?;
                 println!("Left: {left_level:.04}, Right: {right_level:.04}");
             }
             _ => continue,

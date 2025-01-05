@@ -8,9 +8,10 @@ use crate::Source;
 use crate::common::{ChannelCount, SampleRate};
 
 use claxon::FlacReader;
-use cpal::Sample;
+use cpal::I24;
+use dasp_sample::Sample;
 
-use super::DecoderFormat;
+use super::DecoderSample;
 
 /// Decoder for the Flac format.
 pub struct FlacDecoder<R>
@@ -97,7 +98,7 @@ impl<R> Iterator for FlacDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderFormat;
+    type Item = DecoderSample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -109,14 +110,19 @@ where
                     + self.current_block_off / self.channels as usize;
                 let raw_val = self.current_block[real_offset];
                 self.current_block_off += 1;
-                let real_val = match self.bits_per_sample {
-                    8 => (raw_val as i8).to_sample::<Self::Item>(),
-                    12 => (raw_val << 20).to_sample::<Self::Item>(),
-                    16 => (raw_val as i16).to_sample::<Self::Item>(),
-                    20 => (raw_val << 12).to_sample::<Self::Item>(),
-                    24 => (raw_val << 8).to_sample::<Self::Item>(),
-                    32 => raw_val.to_sample::<Self::Item>(),
-                    _ => panic!("Unimplemented flac spec: {} bits", self.bits_per_sample),
+                let bits = self.bits_per_sample;
+                let real_val = match bits {
+                    8 => (raw_val as i8).to_sample(),
+                    16 => (raw_val as i16).to_sample(),
+                    24 => I24::new(raw_val).unwrap_or(Sample::EQUILIBRIUM).to_sample(),
+                    32 => raw_val.to_sample(),
+                    _ => {
+                        // FLAC also supports 12 and 20 bits per sample. We use bit
+                        // shifts to convert them to 32 bits, because:
+                        // - I12 does not exist as a type
+                        // - I20 exists but does not have `ToSample` implemented
+                        (raw_val << (32 - bits)).to_sample()
+                    }
                 };
                 return Some(real_val);
             }

@@ -6,10 +6,10 @@ use crate::Source;
 
 use crate::common::{ChannelCount, SampleRate};
 
-use cpal::Sample;
+use dasp_sample::{Sample, I24};
 use hound::{SampleFormat, WavReader};
 
-use super::DecoderFormat;
+use super::DecoderSample;
 
 /// Decoder for the WAV format.
 pub struct WavDecoder<R>
@@ -69,42 +69,64 @@ impl<R> Iterator for SamplesIterator<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderFormat;
+    type Item = DecoderSample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.samples_read += 1;
         let spec = self.reader.spec();
-        match (spec.sample_format, spec.bits_per_sample) {
-            (SampleFormat::Float, 32) => self
-                .reader
-                .samples()
-                .next()
-                .map(|value| value.unwrap_or(0.0)),
-            (SampleFormat::Int, 8) => self
-                .reader
-                .samples()
-                .next()
-                .map(|value| (value.unwrap_or(0) as i8).to_sample::<Self::Item>()),
-            (SampleFormat::Int, 16) => self
-                .reader
-                .samples()
-                .next()
-                .map(|value| (value.unwrap_or(0) as i16).to_sample::<Self::Item>()),
-            (SampleFormat::Int, 24) => self
-                .reader
-                .samples()
-                .next()
-                .map(|value| (value.unwrap_or(0) << 8).to_sample::<Self::Item>()),
-            (SampleFormat::Int, 32) => self
-                .reader
-                .samples()
-                .next()
-                .map(|value| value.unwrap_or(0).to_sample::<Self::Item>()),
-            (sample_format, bits_per_sample) => {
-                panic!("Unimplemented wav spec: {sample_format:?}, {bits_per_sample}")
-            }
-        }
+        let next_sample: Option<Self::Item> =
+            match (spec.sample_format, spec.bits_per_sample as u32) {
+                (SampleFormat::Float, bits) => {
+                    if bits == 32 {
+                        self.reader.samples().next().and_then(|value| value.ok())
+                    } else {
+                        // > 32 bits we cannot handle, so we'll just return equilibrium
+                        // and let the iterator continue
+                        Some(Self::Item::EQUILIBRIUM)
+                    }
+                }
+
+                (SampleFormat::Int, bits) => {
+                    let next_i32 = self.reader.samples().next();
+                    match bits {
+                        8 => next_i32.and_then(|value| {
+                            value
+                                .ok()
+                                .map(|value| (value as i8).to_sample::<Self::Item>())
+                        }),
+                        16 => next_i32.and_then(|value| {
+                            value
+                                .ok()
+                                .map(|value| (value as i16).to_sample::<Self::Item>())
+                        }),
+                        24 => next_i32.and_then(|value| {
+                            value
+                                .ok()
+                                .and_then(I24::new)
+                                .map(|value| value.to_sample::<Self::Item>())
+                        }),
+                        32 => next_i32.and_then(|value| {
+                            value.ok().map(|value| value.to_sample::<Self::Item>())
+                        }),
+                        _ => {
+                            // Unofficial WAV integer bit depth, try to handle it anyway
+                            next_i32.and_then(|value| {
+                                value.ok().map(|value| {
+                                    if bits <= 32 {
+                                        (value << (32 - bits)).to_sample::<Self::Item>()
+                                    } else {
+                                        // > 32 bits we cannot handle, so we'll just return
+                                        // equilibrium and let the iterator continue
+                                        Self::Item::EQUILIBRIUM
+                                    }
+                                })
+                            })
+                        }
+                    }
+                }
+            };
+        next_sample
     }
 
     #[inline]
@@ -169,7 +191,7 @@ impl<R> Iterator for WavDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderFormat;
+    type Item = DecoderSample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {

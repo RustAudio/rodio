@@ -84,21 +84,34 @@ pub trait Sample: DaspSample + ToSample<f32> {
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
 
     /// Multiplies the value of this sample by the given amount.
+    #[inline]
     fn amplify(self, value: f32) -> Self {
         self.mul_amp(value.to_sample())
     }
 
-    /// Converts the sample to a f32 value.
+    /// Converts the sample to a normalized `f32` value.
+    #[inline]
     fn to_f32(self) -> f32 {
         self.to_sample()
     }
 
-    /// Calls `saturating_add` on the sample.
-    fn saturating_add(self, other: Self) -> Self;
+    /// Adds the amplitude of another sample to this one.
+    #[inline]
+    fn saturating_add(self, other: Self) -> Self {
+        self.add_amp(other.to_signed_sample())
+    }
 
     /// Returns true if the sample is the zero value.
+    #[inline]
     fn is_zero(self) -> bool {
         self == Self::ZERO_VALUE
+    }
+
+    /// Returns the value corresponding to the absence of sound.
+    #[deprecated(note = "Please use `Self::ZERO_VALUE` instead")]
+    #[inline]
+    fn zero_value() -> Self {
+        Self::ZERO_VALUE
     }
 }
 
@@ -111,11 +124,6 @@ impl Sample for u16 {
         let d = denominator as i32;
         (a + (b - a) * n / d) as u16
     }
-
-    #[inline]
-    fn saturating_add(self, other: u16) -> u16 {
-        self.saturating_add(other)
-    }
 }
 
 impl Sample for i16 {
@@ -124,22 +132,12 @@ impl Sample for i16 {
         (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32)
             as i16
     }
-
-    #[inline]
-    fn saturating_add(self, other: i16) -> i16 {
-        self.saturating_add(other)
-    }
 }
 
 impl Sample for f32 {
     #[inline]
     fn lerp(first: f32, second: f32, numerator: u32, denominator: u32) -> f32 {
         first + (second - first) * numerator as f32 / denominator as f32
-    }
-
-    #[inline]
-    fn saturating_add(self, other: f32) -> f32 {
-        self + other
     }
 }
 

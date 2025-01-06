@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GeneratorFunction`.
 - Minimal builds without `cpal` audio output are now supported.
   See `README.md` for instructions. (#349)
+- Added `Sample::is_zero()` method for checking zero samples.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.
@@ -35,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Symphonia decoder `total_duration` incorrect value caused by conversion from `Time` to `Duration`.
 - An issue with `SignalGenerator` that caused it to create increasingly distorted waveforms
   over long run times has been corrected. (#201)
+
+### Deprecated
+- Deprecated `Sample::zero_value()` function in favor of `Sample::ZERO_VALUE` constant
 
 # Version 0.20.1 (2024-11-08)
 

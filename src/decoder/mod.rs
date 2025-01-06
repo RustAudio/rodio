@@ -31,6 +31,10 @@ mod vorbis;
 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
 mod wav;
 
+#[cfg(feature = "integer-samples")]
+/// Output format of the decoders.
+pub type DecoderSample = i16;
+#[cfg(not(feature = "integer-samples"))]
 /// Output format of the decoders.
 pub type DecoderSample = f32;
 

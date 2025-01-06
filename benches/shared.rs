@@ -2,6 +2,7 @@ use std::io::Cursor;
 use std::time::Duration;
 use std::vec;
 
+use dasp_sample::Sample;
 use rodio::{ChannelCount, SampleRate, Source};
 
 pub struct TestSource<T> {
@@ -57,7 +58,11 @@ impl TestSource<f32> {
             channels: sound.channels(),
             sample_rate: sound.sample_rate(),
             total_duration: duration,
-            samples: sound.into_iter().collect::<Vec<_>>().into_iter(),
+            samples: sound
+                .into_iter()
+                .map(|s| s.to_sample())
+                .collect::<Vec<_>>()
+                .into_iter(),
         }
     }
 
@@ -70,7 +75,7 @@ impl TestSource<f32> {
             total_duration,
         } = self;
         let samples = samples
-            .map(|s| dasp_sample::Sample::from_sample(s))
+            .map(|s| s.to_sample())
             .collect::<Vec<_>>()
             .into_iter();
         TestSource {

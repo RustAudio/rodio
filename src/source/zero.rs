@@ -54,12 +54,12 @@ where
         if let Some(num_samples) = self.num_samples {
             if num_samples > 0 {
                 self.num_samples = Some(num_samples - 1);
-                Some(S::zero_value())
+                Some(S::ZERO_VALUE)
             } else {
                 None
             }
         } else {
-            Some(S::zero_value())
+            Some(S::ZERO_VALUE)
         }
     }
 }

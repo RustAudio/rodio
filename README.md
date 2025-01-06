@@ -33,7 +33,14 @@ In order to use `rodio` in this configuration disable default features and add t
 [dependencies]
 rodio = { version = "0.20.1", default-features = false, features = ["symphonia-all"] }
 ```
+### Cross compling aarch64/arm
 
+Through cpal rodio depends on the alsa library (libasound & libasound-dev), this can make crosscompiling hard. Cpal has some guides on crosscompling in their Readme (https://github.com/RustAudio/cpal). They are missing instructions on aarch64 (arm linux) so we have some here:
+
+#### aarch64/arm on Debian like (Ubuntu/pop)
+- Install crossbuild-essential-arm64: `sudo apt-get install crossbuild-essential-arm64 clang`
+- Add the aarch64 target for rust: `rustup target add aarch64-unknown-linux-gnu`
+- Build with the pkg config sysroot set to /usr/aarch64-linux-gnu and aarch64-linux-gnu as linker: `PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc" cargo build --target aarch64-unknown-linux-gnu`
 
 # Contributing
 

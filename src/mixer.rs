@@ -197,7 +197,7 @@ where
     }
 
     fn sum_current_sources(&mut self) -> S {
-        let mut sum = S::zero_value();
+        let mut sum = S::ZERO_VALUE;
 
         for mut source in self.current_sources.drain(..) {
             if let Some(value) = source.next() {

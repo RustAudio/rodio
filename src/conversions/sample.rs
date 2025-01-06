@@ -72,6 +72,9 @@ where
 /// You can implement this trait on your own type as well if you wish so.
 ///
 pub trait Sample: DaspSample + ToSample<f32> {
+    /// The value corresponding to the absence of sound.
+    const ZERO_VALUE: Self = DaspSample::EQUILIBRIUM;
+
     /// Linear interpolation between two samples.
     ///
     /// The result should be equivalent to
@@ -93,9 +96,9 @@ pub trait Sample: DaspSample + ToSample<f32> {
     /// Calls `saturating_add` on the sample.
     fn saturating_add(self, other: Self) -> Self;
 
-    /// Returns the value corresponding to the absence of sound.
-    fn zero_value() -> Self {
-        Self::EQUILIBRIUM
+    /// Returns true if the sample is the zero value.
+    fn is_zero(self) -> bool {
+        self == Self::ZERO_VALUE
     }
 }
 

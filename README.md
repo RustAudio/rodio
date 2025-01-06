@@ -40,7 +40,15 @@ Through cpal rodio depends on the alsa library (libasound & libasound-dev), this
 #### aarch64/arm on Debian like (Ubuntu/pop)
 - Install crossbuild-essential-arm64: `sudo apt-get install crossbuild-essential-arm64 clang`
 - Add the aarch64 target for rust: `rustup target add aarch64-unknown-linux-gnu`
+- Add the architecture arm64 to apt using: `sudo dpkg --add-architecture arm64`
+- Install the [multi-arch](https://wiki.debian.org/Multiarch/HOWTO) version of libasound2-dev for arm64 using: `sudo apt install libasound2-dev:arm64` 
 - Build with the pkg config sysroot set to /usr/aarch64-linux-gnu and aarch64-linux-gnu as linker: `PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc" cargo build --target aarch64-unknown-linux-gnu`
+
+This will work for other Linux targets too if you change the architecture in the
+command and if there are multi-arch packages available.
+
+You might want to look at [cross](https://github.com/cross-rs/cross) if you are
+running on a non debian system or want to make this more repeatable.
 
 # Contributing
 

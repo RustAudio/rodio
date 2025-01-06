@@ -79,7 +79,8 @@ where
             match (spec.sample_format, spec.bits_per_sample as u32) {
                 (SampleFormat::Float, bits) => {
                     if bits == 32 {
-                        self.reader.samples().next().and_then(|value| value.ok())
+                        let next_f32: Option<Result<f32, _>> = self.reader.samples().next();
+                        next_f32.and_then(|value| value.ok().map(|value| value.to_sample()))
                     } else {
                         // > 32 bits we cannot handle, so we'll just return equilibrium
                         // and let the iterator continue
@@ -87,43 +88,38 @@ where
                     }
                 }
 
+                (SampleFormat::Int, 8) => {
+                    let next_i8: Option<Result<i8, _>> = self.reader.samples().next();
+                    next_i8.and_then(|value| value.ok().map(|value| value.to_sample()))
+                }
+                (SampleFormat::Int, 16) => {
+                    let next_i16: Option<Result<i16, _>> = self.reader.samples().next();
+                    next_i16.and_then(|value| value.ok().map(|value| value.to_sample()))
+                }
+                (SampleFormat::Int, 24) => {
+                    let next_i24_in_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                    next_i24_in_i32.and_then(|value| {
+                        value.ok().and_then(I24::new).map(|value| value.to_sample())
+                    })
+                }
+                (SampleFormat::Int, 32) => {
+                    let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                    next_i32.and_then(|value| value.ok().map(|value| value.to_sample()))
+                }
                 (SampleFormat::Int, bits) => {
-                    let next_i32 = self.reader.samples().next();
-                    match bits {
-                        8 => next_i32.and_then(|value| {
-                            value
-                                .ok()
-                                .map(|value| (value as i8).to_sample::<Self::Item>())
-                        }),
-                        16 => next_i32.and_then(|value| {
-                            value
-                                .ok()
-                                .map(|value| (value as i16).to_sample::<Self::Item>())
-                        }),
-                        24 => next_i32.and_then(|value| {
-                            value
-                                .ok()
-                                .and_then(I24::new)
-                                .map(|value| value.to_sample::<Self::Item>())
-                        }),
-                        32 => next_i32.and_then(|value| {
-                            value.ok().map(|value| value.to_sample::<Self::Item>())
-                        }),
-                        _ => {
-                            // Unofficial WAV integer bit depth, try to handle it anyway
-                            next_i32.and_then(|value| {
-                                value.ok().map(|value| {
-                                    if bits <= 32 {
-                                        (value << (32 - bits)).to_sample::<Self::Item>()
-                                    } else {
-                                        // > 32 bits we cannot handle, so we'll just return
-                                        // equilibrium and let the iterator continue
-                                        Self::Item::EQUILIBRIUM
-                                    }
-                                })
-                            })
-                        }
-                    }
+                    // Unofficial WAV integer bit depth, try to handle it anyway
+                    let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                    next_i32.and_then(|value| {
+                        value.ok().map(|value| {
+                            if bits <= 32 {
+                                (value << (32 - bits)).to_sample()
+                            } else {
+                                // > 32 bits we cannot handle, so we'll just return
+                                // equilibrium and let the iterator continue
+                                Self::Item::EQUILIBRIUM
+                            }
+                        })
+                    })
                 }
             };
         next_sample

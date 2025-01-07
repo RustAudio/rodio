@@ -7,7 +7,7 @@ pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
-pub use self::channel_router::{ChannelMap, ChannelRouterController, ChannelRouterSource};
+pub use self::channel_router::{ChannelMap, ChannelMixer, ChannelMixerSource};
 pub use self::channel_volume::ChannelVolume;
 pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
@@ -347,38 +347,38 @@ where
         )
     }
 
-    /// Creates a [`ChannelRouter`] that can mix input channels together and
+    /// Creates a [`ChannelMixerSource`] that can mix input channels together and
     /// assign them to new channels.
     #[inline]
     fn channel_router(
         self,
         channel_count: u16,
         channel_map: &ChannelMap,
-    ) -> (ChannelRouterController, ChannelRouterSource<Self>)
+    ) -> (ChannelMixer, ChannelMixerSource<Self>)
     where
         Self: Sized,
     {
-        channel_router::channel_router(self, channel_count, channel_map)
+        channel_router::channel_mixer(self, channel_count, channel_map)
     }
 
-    /// Creates a one-channel output [`ChannelRouter`] that extracts the channel `channel` from
+    /// Creates a one-channel output [`ChannelMixerSource`] that extracts the channel `channel` from
     /// this sound.
     #[inline]
-    fn extract_channel(self, channel: u16) -> ChannelRouterSource<Self>
+    fn extract_channel(self, channel: u16) -> ChannelMixerSource<Self>
     where
         Self: Sized,
     {
         self.extract_channels(vec![channel])
     }
 
-    /// Creates a [`ChannelRouter`] that reorders this sound's channels according to the order of
+    /// Creates a [`ChannelMixerSource`] that reorders this sound's channels according to the order of
     /// the channels in the `channels` parameter.
     ///
     /// # Panics
     ///
     /// - length of `channels` exceeds `u16::MAX`.
     #[inline]
-    fn extract_channels(self, channels: Vec<u16>) -> ChannelRouterSource<Self>
+    fn extract_channels(self, channels: Vec<u16>) -> ChannelMixerSource<Self>
     where
         Self: Sized,
     {
@@ -391,35 +391,35 @@ where
         for (output_channel, input_channel) in channels.into_iter().enumerate() {
             mapping.push((input_channel, output_channel as ChannelCount, 1.0f32));
         }
-        channel_router::channel_router(self, output_count, &mapping).1
+        channel_router::channel_mixer(self, output_count, &mapping).1
     }
 
-    /// Creates a [`ChannelRouter`] that mixes all of the input channels to mono with full gain.
+    /// Creates a [`ChannelMixerSource`] that mixes all of the input channels to mono with full gain.
     #[inline]
-    fn mono(self) -> ChannelRouterSource<Self>
+    fn mono(self) -> ChannelMixerSource<Self>
     where
         Self: Sized,
     {
         let mapping: ChannelMap = (0..self.channels()).map(|oc| (0, oc, 1.0f32)).collect();
-        channel_router::channel_router(self, 1, &mapping).1
+        channel_router::channel_mixer(self, 1, &mapping).1
     }
 
-    /// Creates a [`ChannelRouter`] that splits a mono channel into two stereo channels, at half
+    /// Creates a [`ChannelMixerSource`] that splits a mono channel into two stereo channels, at half
     /// their original gain.
     ///
     /// # Panics
     ///
     /// - `self.channels()` is not equal to 1
     #[inline]
-    fn mono_to_stereo(self) -> ChannelRouterSource<Self>
+    fn mono_to_stereo(self) -> ChannelMixerSource<Self>
     where
         Self: Sized,
     {
         let mapping: ChannelMap = vec![(0, 1, 0.5f32), (0, 1, 0.5f32)];
-        channel_router::channel_router(self, 2, &mapping).1
+        channel_router::channel_mixer(self, 2, &mapping).1
     }
 
-    /// Creates a [`ChannelRouter`] that mixes a 5.1 source in SMPTE channel order (L, R, C, Lfe, Ls,
+    /// Creates a [`ChannelMixerSource`] that mixes a 5.1 source in SMPTE channel order (L, R, C, Lfe, Ls,
     /// Rs) into a stereo mix, with gain coefficients per [ITU-BS.775-1](itu_775).
     ///
     /// [itu_775]: https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.775-1-199407-S!!PDF-E.pdf
@@ -428,7 +428,7 @@ where
     ///
     /// - `self.channels()` is not equal to 6
     #[inline]
-    fn downmix_51(self) -> ChannelRouterSource<Self>
+    fn downmix_51(self) -> ChannelMixerSource<Self>
     where
         Self: Sized,
     {
@@ -443,7 +443,7 @@ where
             // vec![three_db_down, 0.0f32],
             // vec![0.0f32, three_db_down],
         ];
-        channel_router::channel_router(self, 6, &mapping).1
+        channel_router::channel_mixer(self, 6, &mapping).1
     }
 
     /// Mixes this sound fading out with another sound fading in for the given duration.

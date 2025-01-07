@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-/// Builds a new mixer.
+/// Builds a new mixer that sums corresponding channels from incoming streams.
 ///
 /// You can choose the characteristics of the output thanks to this constructor. All the sounds
 /// added to the mixer will be converted to these values.

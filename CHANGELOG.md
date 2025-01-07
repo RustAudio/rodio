@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An issue with `SignalGenerator` that caused it to create increasingly distorted waveforms
   over long run times has been corrected. (#201)
 - WAV and FLAC decoder duration calculation now calculated once and handles very large files correctly
-- Removed unwrap() calls in WAV and FLAC format detection for better error handling
+- Removed unwrap() calls in MP3, WAV and FLAC format detection for better error handling
 
 ### Deprecated
 - Deprecated `Sample::zero_value()` function in favor of `Sample::ZERO_VALUE` constant

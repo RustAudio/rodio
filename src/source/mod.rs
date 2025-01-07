@@ -433,15 +433,13 @@ where
         Self: Sized,
     {
         let three_db_down = std::f32::consts::FRAC_1_SQRT_2;
-        todo!();
         let mapping: ChannelMap = vec![
-            // FIXME update (coeffs should be transposed)
-            // vec![1.0f32, 0.0f32],
-            // vec![0.0f32, 1.0f32],
-            // vec![three_db_down, three_db_down],
-            // vec![0.0f32, 0.0f32],
-            // vec![three_db_down, 0.0f32],
-            // vec![0.0f32, three_db_down],
+            (0, 0, 1f32),
+            (1, 1, 1f32),
+            (2, 0, three_db_down),
+            (2, 1, three_db_down),
+            (4, 0, three_db_down),
+            (5, 1, three_db_down),
         ];
         channel_router::channel_mixer(self, 6, &mapping).1
     }

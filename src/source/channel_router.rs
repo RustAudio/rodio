@@ -1,7 +1,7 @@
 // Channel router types and implementation.
 
 use crate::{ChannelCount, Sample, Source};
-use dasp_sample::{Sample as DaspSample, ToSample};
+use dasp_sample::Sample as DaspSample;
 use std::cell::Cell;
 use std::{
     error::Error,
@@ -90,7 +90,7 @@ impl ChannelMixer {
     fn prepare_map(&self, new_channel_map: &mut ChannelMap) -> Result<(), ChannelMixerError> {
         if !new_channel_map
             .iter()
-            .all(|(from, to, _gain)| to < &self.out_channels_count)
+            .all(|(_from, to, _gain)| to < &self.out_channels_count)
         {
             return Err(ChannelMixerError::ConfigError);
         }
@@ -205,7 +205,8 @@ where
                     let link = &self.channel_map[li];
                     if link.0 > ch_in as u16 {
                         break;
-                    } else if link.0 == ch_in as u16 {
+                    }
+                    if link.0 == ch_in as u16 {
                         let amplified = s.amplify(link.2);
                         let c = &mut self.output_frame[link.1 as usize];
                         // This can be simpler if samples had a way to get additive zero (0, or 0.0).

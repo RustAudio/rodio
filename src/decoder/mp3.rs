@@ -1,13 +1,16 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use super::DecoderFormat;
+use super::DecoderSample;
+use crate::common::{ChannelCount, SampleRate};
 use crate::source::SeekError;
 use crate::Source;
 
 use minimp3::Decoder;
 use minimp3::Frame;
 use minimp3_fixed as minimp3;
+
+use dasp_sample::Sample;
 
 pub struct Mp3Decoder<R>
 where
@@ -16,7 +19,7 @@ where
     // decoder: SeekDecoder<R>,
     decoder: Decoder<R>,
     // what minimp3 calls frames rodio calls spans
-    current_span: minimp3::Frame,
+    current_span: Frame,
     current_span_offset: usize,
 }
 
@@ -34,10 +37,7 @@ where
         // thus if we crash here one of these invariants is broken:
         // .expect("should be able to allocate memory, perform IO");
         // let current_span = decoder.decode_frame()
-        let current_span = decoder.next_frame()
-            // the reader makes enough data available therefore
-            // if we crash here the invariant broken is:
-            .expect("data should not corrupt");
+        let current_span = decoder.next_frame().unwrap();
 
         Ok(Mp3Decoder {
             decoder,
@@ -74,7 +74,7 @@ where
         None
     }
 
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+    fn try_seek(&mut self, _pos: Duration) -> Result<(), SeekError> {
         // TODO waiting for PR in minimp3_fixed or minimp3
 
         // let pos = (pos.as_secs_f32() * self.sample_rate() as f32) as u64;
@@ -93,7 +93,7 @@ impl<R> Iterator for Mp3Decoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderFormat;
+    type Item = DecoderSample;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_span_offset == self.current_span_len().unwrap() {
@@ -109,7 +109,7 @@ where
         let v = self.current_span.data[self.current_span_offset];
         self.current_span_offset += 1;
 
-        Some(v)
+        Some(v.to_sample())
     }
 }
 
@@ -118,10 +118,9 @@ fn is_mp3<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.seek(SeekFrom::Current(0)).unwrap();
+    let stream_pos = data.stream_position().unwrap_or_default();
     let mut decoder = Decoder::new(data.by_ref());
-    let ok = decoder.next_frame().is_ok();
-    data.seek(SeekFrom::Start(stream_pos)).unwrap();
-
-    ok
+    let result = decoder.next_frame().is_ok();
+    let _ = data.seek(SeekFrom::Start(stream_pos));
+    result
 }

@@ -46,7 +46,7 @@ where
         output_frame: vec![None; out_channels_count.into()],
         receiver: rx,
     };
-    // TODO Return an error here? Requires to change API. Alternatively, 
+    // TODO Return an error here? Requires to change API. Alternatively,
     //      map can be set separately, or this can panic.
     controller
         .set_map(channel_map)
@@ -94,7 +94,9 @@ impl ChannelMixer {
         {
             return Err(ChannelMixerError::ConfigError);
         }
-        Ok(new_channel_map.sort_by(|a, b| a.0.cmp(&b.0)))
+        new_channel_map.retain(|(_from, _to, gain)| *gain != 0.0);
+        new_channel_map.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(())
     }
 }
 
@@ -275,11 +277,7 @@ mod tests {
 
     #[test]
     fn test_arbitrary_mixing() {
-        let input = SamplesBuffer::new(
-            4,
-            1,
-            [10i16, 100, 300, 700, 1100, 1300, 1705].repeat(4),
-        );
+        let input = SamplesBuffer::new(4, 1, [10i16, 100, 300, 700, 1100, 1300, 1705].repeat(4));
         // 4 to 3 channels.
         let map = vec![
             // Intentionally left 1 without mapping to test the case.
@@ -294,8 +292,6 @@ mod tests {
         let (_controller, mut source) = channel_mixer(input, 3, &map);
         let v1: Vec<i16> = source.by_ref().collect();
         assert_eq!(v1.len(), 21);
-        0     1      2     3
-         1100, 1300, 1705, 10
         assert_eq!(
             v1,
             vec![

@@ -8,12 +8,11 @@ use crate::Source;
 use crate::common::{ChannelCount, SampleRate};
 
 use claxon::FlacReader;
-use cpal::I24;
-use dasp_sample::Sample;
+use dasp_sample::{Sample, I24};
 
 use super::DecoderSample;
 
-/// Decoder for the Flac format.
+/// Decoder for the FLAC format.
 pub struct FlacDecoder<R>
 where
     R: Read + Seek,
@@ -25,21 +24,34 @@ where
     bits_per_sample: u32,
     sample_rate: SampleRate,
     channels: ChannelCount,
-    samples: Option<u64>,
+    total_duration: Option<Duration>,
 }
 
 impl<R> FlacDecoder<R>
 where
     R: Read + Seek,
 {
-    /// Attempts to decode the data as Flac.
+    /// Attempts to decode the data as FLAC.
     pub fn new(mut data: R) -> Result<FlacDecoder<R>, R> {
         if !is_flac(data.by_ref()) {
             return Err(data);
         }
 
         let reader = FlacReader::new(data).unwrap();
+
         let spec = reader.streaminfo();
+        let sample_rate = spec.sample_rate;
+
+        // `samples` in FLAC means "inter-channel samples" aka frames
+        // so we do not divide by `self.channels` here.
+        let total_duration = spec.samples.map(|s| {
+            // Calculate duration as (samples * 1_000_000) / sample_rate
+            // but do the division first to avoid overflow
+            let sample_rate = sample_rate as u64;
+            let secs = s / sample_rate;
+            let nanos = ((s % sample_rate) * 1_000_000_000) / sample_rate;
+            Duration::new(secs, nanos as u32)
+        });
 
         Ok(FlacDecoder {
             reader,
@@ -49,11 +61,12 @@ where
             current_block_channel_len: 1,
             current_block_off: 0,
             bits_per_sample: spec.bits_per_sample,
-            sample_rate: spec.sample_rate,
+            sample_rate,
             channels: spec.channels as ChannelCount,
-            samples: spec.samples,
+            total_duration,
         })
     }
+
     pub fn into_inner(self) -> R {
         self.reader.into_inner()
     }
@@ -80,10 +93,7 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        // `samples` in FLAC means "inter-channel samples" aka frames
-        // so we do not divide by `self.channels` here.
-        self.samples
-            .map(|s| Duration::from_micros(s * 1_000_000 / self.sample_rate as u64))
+        self.total_duration
     }
 
     #[inline]
@@ -141,18 +151,13 @@ where
     }
 }
 
-/// Returns true if the stream contains Flac data, then resets it to where it was.
+/// Returns true if the stream contains FLAC data, then tries to rewind it to where it was.
 fn is_flac<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.stream_position().unwrap();
-
-    if FlacReader::new(data.by_ref()).is_err() {
-        data.seek(SeekFrom::Start(stream_pos)).unwrap();
-        return false;
-    }
-
-    data.seek(SeekFrom::Start(stream_pos)).unwrap();
-    true
+    let stream_pos = data.stream_position().unwrap_or_default();
+    let result = FlacReader::new(data.by_ref()).is_ok();
+    let _ = data.seek(SeekFrom::Start(stream_pos));
+    result
 }

@@ -139,6 +139,11 @@ impl Sample for f32 {
     fn lerp(first: f32, second: f32, numerator: u32, denominator: u32) -> f32 {
         first + (second - first) * numerator as f32 / denominator as f32
     }
+
+    #[inline]
+    fn to_f32(self) -> f32 {
+        self
+    }
 }
 
 #[cfg(test)]

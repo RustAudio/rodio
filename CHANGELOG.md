@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Symphonia decoder `total_duration` incorrect value caused by conversion from `Time` to `Duration`.
 - An issue with `SignalGenerator` that caused it to create increasingly distorted waveforms
   over long run times has been corrected. (#201)
+- FLAC decoder duration calculation now calculated once and handles very large files correctly
+- Removed unwrap() calls in FLAC format detection for better error handling
 
 ### Deprecated
 - Deprecated `Sample::zero_value()` function in favor of `Sample::ZERO_VALUE` constant

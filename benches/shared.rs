@@ -2,8 +2,7 @@ use std::io::Cursor;
 use std::time::Duration;
 use std::vec;
 
-use dasp_sample::Sample;
-use rodio::{ChannelCount, SampleRate, Source};
+use rodio::{decoder::DecoderSample, ChannelCount, Sample, SampleRate, Source};
 
 pub struct TestSource<T> {
     samples: vec::IntoIter<T>,
@@ -26,7 +25,7 @@ impl<T> ExactSizeIterator for TestSource<T> {
     }
 }
 
-impl<T: rodio::Sample> Source for TestSource<T> {
+impl<T: Sample> Source for TestSource<T> {
     fn current_span_len(&self) -> Option<usize> {
         None // forever
     }
@@ -44,28 +43,7 @@ impl<T: rodio::Sample> Source for TestSource<T> {
     }
 }
 
-impl TestSource<f32> {
-    pub fn music_wav() -> Self {
-        let data = include_bytes!("../assets/music.wav");
-        let cursor = Cursor::new(data);
-
-        let duration = Duration::from_secs(10);
-        let sound = rodio::Decoder::new(cursor)
-            .expect("music.wav is correctly encoded & wav is supported")
-            .take_duration(duration);
-
-        TestSource {
-            channels: sound.channels(),
-            sample_rate: sound.sample_rate(),
-            total_duration: duration,
-            samples: sound
-                .into_iter()
-                .map(|s| s.to_sample())
-                .collect::<Vec<_>>()
-                .into_iter(),
-        }
-    }
-
+impl TestSource<i16> {
     #[allow(unused, reason = "not everything from shared is used in all libs")]
     pub fn to_f32s(self) -> TestSource<f32> {
         let TestSource {
@@ -74,15 +52,36 @@ impl TestSource<f32> {
             sample_rate,
             total_duration,
         } = self;
-        let samples = samples
-            .map(|s| s.to_sample())
-            .collect::<Vec<_>>()
-            .into_iter();
+        let samples = samples.map(|s| s.to_f32()).collect::<Vec<_>>().into_iter();
         TestSource {
             samples,
             channels,
             sample_rate,
             total_duration,
         }
+    }
+}
+
+impl TestSource<f32> {
+    #[allow(unused, reason = "not everything from shared is used in all libs")]
+    pub fn to_f32s(self) -> TestSource<f32> {
+        self
+    }
+}
+
+pub fn music_wav() -> TestSource<DecoderSample> {
+    let data = include_bytes!("../assets/music.wav");
+    let cursor = Cursor::new(data);
+
+    let duration = Duration::from_secs(10);
+    let sound = rodio::Decoder::new(cursor)
+        .expect("music.wav is correctly encoded & wav is supported")
+        .take_duration(duration);
+
+    TestSource {
+        channels: sound.channels(),
+        sample_rate: sound.sample_rate(),
+        total_duration: duration,
+        samples: sound.into_iter().collect::<Vec<_>>().into_iter(),
     }
 }

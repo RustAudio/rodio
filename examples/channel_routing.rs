@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let sample_rate: u32 = 48000;
 
-    let (mut controller, router) = SignalGenerator::new(sample_rate, 440.0, Function::Triangle)
+    let (controller, router) = SignalGenerator::new(sample_rate, 440.0, Function::Triangle)
         .amplify(0.1)
         .channel_router(2, &vec![]);
 

@@ -264,7 +264,7 @@ mod tests {
     fn test_updates() {
         let input = SamplesBuffer::new(2, 1, [0i16, 0i16, -1i16, -1i16, 1i16, 2i16, -4i16, -3i16]);
         let mut map = vec![(0, 0, 1.0f32), (1, 0, 1.0f32)];
-        let (mut controller, mut source) = channel_mixer(input, 1, &map);
+        let (controller, mut source) = channel_mixer(input, 1, &map);
         let v1: Vec<i16> = source.by_ref().take(2).collect();
         assert_eq!(v1, vec![0i16, -2i16]);
 

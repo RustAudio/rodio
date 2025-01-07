@@ -52,7 +52,7 @@ running on a non debian system or want to make this more repeatable.
 
 # Contributing
 
-For information on how to contribute to this project, please see our [Contributing Guide](https://github.com/RustAudio/rodio/CONTRIBUTING.md).
+For information on how to contribute to this project, please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## License
 [License]: #license

@@ -42,8 +42,13 @@ where
 
         let sample_rate = spec.sample_rate;
         let channels = spec.channels;
-        let total_duration =
-            Duration::from_micros((1_000_000 * len) / (sample_rate as u64 * channels as u64));
+
+        let total_duration = {
+            let sample_rate = sample_rate as u64;
+            let secs = len / sample_rate;
+            let nanos = ((len % sample_rate) * 1_000_000_000) / sample_rate;
+            Duration::new(secs, nanos as u32)
+        };
 
         Ok(WavDecoder {
             reader,
@@ -207,13 +212,8 @@ fn is_wave<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.stream_position().unwrap();
-
-    if WavReader::new(data.by_ref()).is_err() {
-        data.seek(SeekFrom::Start(stream_pos)).unwrap();
-        return false;
-    }
-
-    data.seek(SeekFrom::Start(stream_pos)).unwrap();
-    true
+    let stream_pos = data.stream_position().unwrap_or_default();
+    let result = WavReader::new(data.by_ref()).is_ok();
+    let _ = data.seek(SeekFrom::Start(stream_pos));
+    result
 }

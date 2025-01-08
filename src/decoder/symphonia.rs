@@ -88,12 +88,15 @@ impl SymphoniaDecoder {
             ))?
             .id;
 
-        let track = probed
+        let track = match probed
             .format
             .tracks()
             .iter()
             .find(|track| track.id == track_id)
-            .unwrap();
+        {
+            Some(track) => track,
+            None => return Ok(None),
+        };
 
         let mut decoder = symphonia::default::get_codecs()
             .make(&track.codec_params, &DecoderOptions::default())?;

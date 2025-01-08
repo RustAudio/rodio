@@ -14,30 +14,36 @@ pub struct TestSource<T> {
 impl<T> Iterator for TestSource<T> {
     type Item = T;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.samples.next()
     }
 }
 
 impl<T> ExactSizeIterator for TestSource<T> {
+    #[inline]
     fn len(&self) -> usize {
         self.samples.len()
     }
 }
 
 impl<T: Sample> Source for TestSource<T> {
+    #[inline]
     fn current_span_len(&self) -> Option<usize> {
         None // forever
     }
 
+    #[inline]
     fn channels(&self) -> ChannelCount {
         self.channels
     }
 
+    #[inline]
     fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
 
+    #[inline]
     fn total_duration(&self) -> Option<Duration> {
         Some(self.total_duration)
     }

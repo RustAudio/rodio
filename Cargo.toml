@@ -30,7 +30,7 @@ default = ["playback", "flac", "vorbis", "wav", "mp3"]
 tracing = ["dep:tracing"]
 experimental = ["dep:atomic_float"]
 playback = ["dep:cpal"]
-integer-samples = []
+integer-decoder = []
 
 flac = ["claxon"]
 vorbis = ["lewton"]

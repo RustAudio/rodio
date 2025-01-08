@@ -67,6 +67,7 @@ where
         })
     }
 
+    #[inline]
     pub fn into_inner(self) -> R {
         self.reader.into_inner()
     }

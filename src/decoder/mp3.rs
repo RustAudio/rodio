@@ -45,6 +45,8 @@ where
             current_span_offset: 0,
         })
     }
+
+    #[inline]
     pub fn into_inner(self) -> R {
         self.decoder.into_inner()
     }

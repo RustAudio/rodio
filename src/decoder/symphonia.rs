@@ -53,6 +53,7 @@ impl SymphoniaDecoder {
         }
     }
 
+    #[inline]
     pub(crate) fn into_inner(self) -> MediaSourceStream {
         self.format.into_inner()
     }

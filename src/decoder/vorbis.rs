@@ -54,6 +54,8 @@ where
             next: 0,
         }
     }
+
+    #[inline]
     pub fn into_inner(self) -> OggStreamReader<R> {
         self.stream_reader
     }

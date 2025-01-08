@@ -37,7 +37,7 @@ where
             return Err(data);
         }
 
-        let reader = FlacReader::new(data).unwrap();
+        let reader = FlacReader::new(data).expect("should still be flac");
 
         let spec = reader.streaminfo();
         let sample_rate = spec.sample_rate;

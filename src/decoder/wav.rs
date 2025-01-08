@@ -32,7 +32,7 @@ where
             return Err(data);
         }
 
-        let reader = WavReader::new(data).unwrap();
+        let reader = WavReader::new(data).expect("should still be wav");
         let spec = reader.spec();
         let len = reader.len() as u64;
         let reader = SamplesIterator {
@@ -57,6 +57,7 @@ where
             channels: channels as ChannelCount,
         })
     }
+
     pub fn into_inner(self) -> R {
         self.reader.reader.into_inner()
     }

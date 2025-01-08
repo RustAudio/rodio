@@ -30,17 +30,28 @@ default = ["playback", "flac", "vorbis", "wav", "mp3"]
 tracing = ["dep:tracing"]
 experimental = ["dep:atomic_float"]
 playback = ["dep:cpal"]
+integer-decoder = []
 
 flac = ["claxon"]
 vorbis = ["lewton"]
 wav = ["hound"]
 mp3 = ["symphonia-mp3"]
 minimp3 = ["dep:minimp3_fixed"]
+
 noise = ["rand"]
+
 wasm-bindgen = ["cpal/wasm-bindgen"]
 cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
+
 symphonia-aac = ["symphonia/aac"]
-symphonia-all = ["symphonia-aac", "symphonia-flac", "symphonia-isomp4", "symphonia-mp3", "symphonia-vorbis", "symphonia-wav"]
+symphonia-all = [
+    "symphonia-aac",
+    "symphonia-flac",
+    "symphonia-isomp4",
+    "symphonia-mp3",
+    "symphonia-vorbis",
+    "symphonia-wav",
+]
 symphonia-flac = ["symphonia/flac"]
 symphonia-isomp4 = ["symphonia/isomp4"]
 symphonia-mp3 = ["symphonia/mp3"]

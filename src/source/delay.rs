@@ -70,7 +70,7 @@ where
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
         if self.remaining_samples >= 1 {
             self.remaining_samples -= 1;
-            Some(Sample::zero_value())
+            Some(Sample::ZERO_VALUE)
         } else {
             self.input.next()
         }

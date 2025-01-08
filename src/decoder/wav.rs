@@ -86,7 +86,13 @@ where
                 (SampleFormat::Float, bits) => {
                     if bits == 32 {
                         let next_f32: Option<Result<f32, _>> = self.reader.samples().next();
-                        next_f32.and_then(|value| value.ok().map(|value| value.to_sample()))
+                        next_f32.and_then(|value| {
+                            value.ok().map(|value| {
+                                #[cfg(feature = "integer-decoder")] // perf
+                                let value = value.to_sample();
+                                value
+                            })
+                        })
                     } else {
                         // > 32 bits we cannot handle, so we'll just return equilibrium
                         // and let the iterator continue
@@ -100,7 +106,13 @@ where
                 }
                 (SampleFormat::Int, 16) => {
                     let next_i16: Option<Result<i16, _>> = self.reader.samples().next();
-                    next_i16.and_then(|value| value.ok().map(|value| value.to_sample()))
+                    next_i16.and_then(|value| {
+                        value.ok().map(|value| {
+                            #[cfg(not(feature = "integer-decoder"))] // perf
+                            let value = value.to_sample();
+                            value
+                        })
+                    })
                 }
                 (SampleFormat::Int, 24) => {
                     let next_i24_in_i32: Option<Result<i32, _>> = self.reader.samples().next();

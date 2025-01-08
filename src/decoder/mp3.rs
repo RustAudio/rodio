@@ -37,7 +37,7 @@ where
         // thus if we crash here one of these invariants is broken:
         // .expect("should be able to allocate memory, perform IO");
         // let current_span = decoder.decode_frame()
-        let current_span = decoder.next_frame().unwrap();
+        let current_span = decoder.next_frame().expect("should still be mp3");
 
         Ok(Mp3Decoder {
             decoder,
@@ -96,7 +96,8 @@ where
     type Item = DecoderSample;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_span_offset == self.current_span_len().unwrap() {
+        let current_span_len = self.current_span_len()?;
+        if self.current_span_offset == current_span_len {
             if let Ok(span) = self.decoder.next_frame() {
                 // if let Ok(span) = self.decoder.decode_frame() {
                 self.current_span = span;

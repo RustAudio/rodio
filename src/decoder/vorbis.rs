@@ -30,7 +30,7 @@ where
             return Err(data);
         }
 
-        let stream_reader = OggStreamReader::new(data).unwrap();
+        let stream_reader = OggStreamReader::new(data).expect("should still be vorbis");
         Ok(Self::from_stream_reader(stream_reader))
     }
     pub fn from_stream_reader(mut stream_reader: OggStreamReader<R>) -> Self {
@@ -145,13 +145,8 @@ fn is_vorbis<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.stream_position().unwrap();
-
-    if OggStreamReader::new(data.by_ref()).is_err() {
-        data.seek(SeekFrom::Start(stream_pos)).unwrap();
-        return false;
-    }
-
-    data.seek(SeekFrom::Start(stream_pos)).unwrap();
-    true
+    let stream_pos = data.stream_position().unwrap_or_default();
+    let result = OggStreamReader::new(data.by_ref()).is_ok();
+    let _ = data.seek(SeekFrom::Start(stream_pos));
+    result
 }

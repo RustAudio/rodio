@@ -123,6 +123,7 @@ where
         }
 
         let sample = self.input.next()?;
+
         let result = self
             .applier
             .as_ref()

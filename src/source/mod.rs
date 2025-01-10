@@ -7,6 +7,7 @@ use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
 use amplify::to_linear;
 use dasp_sample::FromSample;
+use split_at::SplitAt;
 
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
@@ -73,6 +74,7 @@ mod skip;
 mod skippable;
 mod spatial;
 mod speed;
+mod split_at;
 mod square;
 mod stoppable;
 mod take;
@@ -518,6 +520,15 @@ pub trait Source: Iterator<Item = Sample> {
         skippable::skippable(self)
     }
 
+    /// returns two sources, the second source is inactive and will return
+    /// `None` until the first has passed the split_point.
+    fn split_once(self, at: Duration) -> [SplitAt<Self>; 2]
+    where
+        Self: Sized,
+    {
+        SplitAt::new(self, at)
+    }
+
     /// Start tracking the elapsed duration since the start of the underlying
     /// source.
     ///
@@ -635,6 +646,8 @@ pub enum SeekError {
     // own `try_seek` implementations.
     /// Any other error probably in a custom Source
     Other(Box<dyn std::error::Error + Send>),
+    /// Can not seek, this part of the split is not active
+    SplitNotActive,
 }
 impl fmt::Display for SeekError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -651,6 +664,9 @@ impl fmt::Display for SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {}", err),
             SeekError::Other(_) => write!(f, "An error occurred"),
+            SeekError::SplitNotActive => {
+                write!(f, "Can not seek, this part of the split is still active")
+            }
         }
     }
 }
@@ -663,6 +679,7 @@ impl std::error::Error for SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(err) => Some(err),
             SeekError::Other(err) => Some(err.as_ref()),
+            SeekError::SplitNotActive => None,
         }
     }
 }
@@ -685,6 +702,7 @@ impl SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(_) => false,
             SeekError::Other(_) => false,
+            SeekError::SplitNotActive => true,
         }
     }
 }

@@ -122,10 +122,7 @@ where
             self.applier = Some(self.formula.to_applier(self.input.sample_rate()));
         }
 
-        let sample = match self.input.next() {
-            None => return None,
-            Some(s) => s,
-        };
+        let sample = self.input.next()?;
 
         let result = self
             .applier

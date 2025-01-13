@@ -94,9 +94,11 @@ where
                             value
                         })
                     } else {
-                        // > 32 bits we cannot handle, so we'll just return equilibrium
-                        // and let the iterator continue
-                        Some(Self::Item::EQUILIBRIUM)
+                        #[cfg(feature = "tracing")]
+                        tracing::error!("Unsupported WAV float bit depth: {}", bits);
+                        #[cfg(not(feature = "tracing"))]
+                        println!("Unsupported WAV float bit depth: {}", bits);
+                        None
                     }
                 }
 
@@ -126,17 +128,17 @@ where
                 (SampleFormat::Int, bits) => {
                     // Unofficial WAV integer bit depth, try to handle it anyway
                     let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
-                    next_i32.and_then(|value| {
-                        value.ok().map(|value| {
-                            if bits <= 32 {
-                                (value << (32 - bits)).to_sample()
-                            } else {
-                                // > 32 bits we cannot handle, so we'll just return
-                                // equilibrium and let the iterator continue
-                                Self::Item::EQUILIBRIUM
-                            }
+                    if bits <= 32 {
+                        next_i32.and_then(|value| {
+                            value.ok().map(|value| (value << (32 - bits)).to_sample())
                         })
-                    })
+                    } else {
+                        #[cfg(feature = "tracing")]
+                        tracing::error!("Unsupported WAV integer bit depth: {}", bits);
+                        #[cfg(not(feature = "tracing"))]
+                        println!("Unsupported WAV integer bit depth: {}", bits);
+                        None
+                    }
                 }
             };
         next_sample

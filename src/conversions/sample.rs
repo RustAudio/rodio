@@ -144,6 +144,12 @@ impl Sample for f32 {
     fn to_f32(self) -> f32 {
         self
     }
+
+    #[inline]
+    fn is_zero(self) -> bool {
+        2.0 * (self - Self::ZERO_VALUE).abs()
+            <= f32::EPSILON * (self.abs() + Self::ZERO_VALUE.abs())
+    }
 }
 
 #[cfg(test)]

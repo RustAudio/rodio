@@ -23,15 +23,7 @@ where
     S: Source,
     <S as Iterator>::Item: crate::Sample,
 {
-    /// returns two new sources that are continues segments of `self`.
-    /// The second segment is inactive and will return None until the
-    /// first segment has passed the provided split_point.
-    ///
-    /// # Seeking
-    /// If you seek outside the range of a segment the segment will
-    /// deactivate itself such that the other segment can play. This
-    /// works well when searching forward. Seeking back can require you
-    /// to play the previous segment again.
+    /// see docs at [Source::split_once];
     pub(crate) fn new(input: S, split_point: Duration) -> [Self; 2] {
         let shared_source = Arc::new(Mutex::new(None));
         let first_span_sample_rate = input.sample_rate();
@@ -61,7 +53,11 @@ where
         let Some(input) = self.active.take() else {
             return;
         };
-        *self.shared_source.lock().expect("todo") = Some(input);
+        let mut shared = self
+            .shared_source
+            .lock()
+            .expect("The audio thread can not panic while taking the shared source");
+        *shared = Some(input);
     }
 }
 
@@ -80,7 +76,7 @@ where
             let mut shared = self
                 .shared_source
                 .lock()
-                .expect("audio thread should not panic");
+                .expect("The audio thread cant panic deactivating");
             let input_pos = shared.as_mut()?.get_pos();
             if self.segment_range.contains(&input_pos) {
                 self.active = shared.take();

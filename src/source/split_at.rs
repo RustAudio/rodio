@@ -9,14 +9,14 @@ use crate::SampleRate;
 use super::Source;
 use super::TrackPosition;
 
-pub struct SplitAt<S> {
+pub struct Segment<S> {
     shared_source: Arc<Mutex<Option<TrackPosition<S>>>>,
     active: Option<TrackPosition<S>>,
     segment_range: Range<Duration>,
     split_duration: Option<Duration>,
 }
 
-impl<S> SplitAt<S>
+impl<S> Segment<S>
 where
     S: Source,
     <S as Iterator>::Item: crate::Sample,
@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<S> Iterator for SplitAt<S>
+impl<S> Iterator for Segment<S>
 where
     S: Source,
     S::Item: crate::Sample,
@@ -89,7 +89,7 @@ where
     }
 }
 
-impl<S> Source for SplitAt<S>
+impl<S> Source for Segment<S>
 where
     S: Source,
     S::Item: crate::Sample,
@@ -131,7 +131,7 @@ where
             }
             Ok(())
         } else {
-            Err(super::SeekError::SplitNotActive)
+            Err(super::SeekError::SegmentNotActive)
         }
     }
 }

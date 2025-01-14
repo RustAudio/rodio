@@ -7,7 +7,7 @@ use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
 use amplify::to_linear;
 use dasp_sample::FromSample;
-use split_at::SplitAt;
+use split_at::Segment;
 
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
@@ -529,11 +529,11 @@ pub trait Source: Iterator<Item = Sample> {
     /// deactivate itself such that the other segment can play. This
     /// works well when searching forward. Seeking back can require you
     /// to play the previous segment again.
-    fn split_once(self, at: Duration) -> [SplitAt<Self>; 2]
+    fn split_once(self, at: Duration) -> [Segment<Self>; 2]
     where
         Self: Sized,
     {
-        SplitAt::new(self, at)
+        Segment::new(self, at)
     }
 
     /// Start tracking the elapsed duration since the start of the underlying
@@ -654,7 +654,7 @@ pub enum SeekError {
     /// Any other error probably in a custom Source
     Other(Box<dyn std::error::Error + Send>),
     /// Can not seek, this part of the split is not active
-    SplitNotActive,
+    SegmentNotActive,
 }
 impl fmt::Display for SeekError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -671,8 +671,8 @@ impl fmt::Display for SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {}", err),
             SeekError::Other(_) => write!(f, "An error occurred"),
-            SeekError::SplitNotActive => {
-                write!(f, "Can not seek, this part of the split is still active")
+            SeekError::SegmentNotActive => {
+                write!(f, "Can not seek, this segement is still active")
             }
         }
     }
@@ -686,7 +686,7 @@ impl std::error::Error for SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(err) => Some(err),
             SeekError::Other(err) => Some(err.as_ref()),
-            SeekError::SplitNotActive => None,
+            SeekError::SegmentNotActive => None,
         }
     }
 }
@@ -709,7 +709,7 @@ impl SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(_) => false,
             SeekError::Other(_) => false,
-            SeekError::SplitNotActive => true,
+            SeekError::SegmentNotActive => true,
         }
     }
 }

@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -11,6 +12,7 @@ use super::TrackPosition;
 pub struct SplitAt<S> {
     shared_source: Arc<Mutex<Option<TrackPosition<S>>>>,
     active: Option<TrackPosition<S>>,
+    segment_range: Range<Duration>,
     split_duration: Option<Duration>,
     split_point: Duration,
     first_span_sample_rate: SampleRate,
@@ -37,6 +39,7 @@ where
                 split_point,
                 first_span_sample_rate,
                 first_span_channel_count,
+                segment_range: todo!(),
             },
             Self {
                 shared_source,
@@ -45,6 +48,7 @@ where
                 split_point: Duration::MAX,
                 first_span_sample_rate,
                 first_span_channel_count,
+                segment_range: todo!(),
             },
         ]
     }
@@ -61,14 +65,18 @@ where
         let input = if let Some(active) = self.active.as_mut() {
             active
         } else {
-            // did they other stop?
-            let shared = self
+            // did they other stop and is it in our segment?
+            let mut shared = self
                 .shared_source
                 .lock()
-                .expect("audio thread should not panic")
-                .take();
-            self.active = shared;
-            self.active.as_mut()?
+                .expect("audio thread should not panic");
+            let input_pos = shared.as_mut()?.get_pos();
+            if self.segment_range.contains(&input_pos) {
+                self.active = shared.take();
+                self.active.as_mut()?
+            } else {
+                return None;
+            }
         };
 
         // There is some optimization potential here we are not using currently.

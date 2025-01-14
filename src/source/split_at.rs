@@ -14,8 +14,6 @@ pub struct SplitAt<S> {
     active: Option<TrackPosition<S>>,
     segment_range: Range<Duration>,
     split_duration: Option<Duration>,
-    first_span_sample_rate: SampleRate,
-    first_span_channel_count: ChannelCount,
 }
 
 impl<S> SplitAt<S>
@@ -26,24 +24,18 @@ where
     /// see docs at [Source::split_once];
     pub(crate) fn new(input: S, split_point: Duration) -> [Self; 2] {
         let shared_source = Arc::new(Mutex::new(None));
-        let first_span_sample_rate = input.sample_rate();
-        let first_span_channel_count = input.channels();
         let total_duration = input.total_duration();
         [
             Self {
                 shared_source: shared_source.clone(),
                 active: Some(input.track_position()),
                 split_duration: Some(split_point),
-                first_span_sample_rate,
-                first_span_channel_count,
                 segment_range: Duration::ZERO..split_point,
             },
             Self {
                 shared_source,
                 active: None,
                 split_duration: total_duration.map(|d| d.saturating_sub(split_point)),
-                first_span_sample_rate,
-                first_span_channel_count,
                 segment_range: split_point..Duration::MAX,
             },
         ]
@@ -103,21 +95,28 @@ where
     S::Item: crate::Sample,
 {
     fn current_span_len(&self) -> Option<usize> {
-        self.active.as_ref()?.current_span_len()
+        if let Some(input) = self.active.as_ref() {
+            input.current_span_len()
+        } else {
+            // We do not know the channel count nor sample rate if the source
+            // is inactive. We will provide dummy values. This ensures the
+            // caller will recheck when we become active
+            Some(1)
+        }
     }
 
     fn channels(&self) -> ChannelCount {
         self.active
             .as_ref()
             .map(Source::channels)
-            .unwrap_or(self.first_span_channel_count)
+            .unwrap_or_default()
     }
 
     fn sample_rate(&self) -> SampleRate {
         self.active
             .as_ref()
             .map(Source::sample_rate)
-            .unwrap_or(self.first_span_sample_rate)
+            .unwrap_or_default()
     }
 
     fn total_duration(&self) -> Option<Duration> {

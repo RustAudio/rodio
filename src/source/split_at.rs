@@ -14,7 +14,6 @@ pub struct SplitAt<S> {
     active: Option<TrackPosition<S>>,
     segment_range: Range<Duration>,
     split_duration: Option<Duration>,
-    split_point: Duration,
     first_span_sample_rate: SampleRate,
     first_span_channel_count: ChannelCount,
 }
@@ -24,8 +23,15 @@ where
     S: Source,
     <S as Iterator>::Item: crate::Sample,
 {
-    /// returns two sources, the second is inactive and will return
-    /// none until the first has passed the split_point.
+    /// returns two new sources that are continues segments of `self`.
+    /// The second segment is inactive and will return None until the
+    /// first segment has passed the provided split_point.
+    ///
+    /// # Seeking
+    /// If you seek outside the range of a segment the segment will
+    /// deactivate itself such that the other segment can play. This
+    /// works well when searching forward. Seeking back can require you
+    /// to play the previous segment again.
     pub(crate) fn new(input: S, split_point: Duration) -> [Self; 2] {
         let shared_source = Arc::new(Mutex::new(None));
         let first_span_sample_rate = input.sample_rate();
@@ -36,21 +42,26 @@ where
                 shared_source: shared_source.clone(),
                 active: Some(input.track_position()),
                 split_duration: Some(split_point),
-                split_point,
                 first_span_sample_rate,
                 first_span_channel_count,
-                segment_range: todo!(),
+                segment_range: Duration::ZERO..split_point,
             },
             Self {
                 shared_source,
                 active: None,
                 split_duration: total_duration.map(|d| d.saturating_sub(split_point)),
-                split_point: Duration::MAX,
                 first_span_sample_rate,
                 first_span_channel_count,
-                segment_range: todo!(),
+                segment_range: split_point..Duration::MAX,
             },
         ]
+    }
+
+    fn deactivate(&mut self) {
+        let Some(input) = self.active.take() else {
+            return;
+        };
+        *self.shared_source.lock().expect("todo") = Some(input);
     }
 }
 
@@ -81,14 +92,10 @@ where
 
         // There is some optimization potential here we are not using currently.
         // Calling get_pos once per span should be enough
-        if input.get_pos() < self.split_point {
+        if input.get_pos() < self.segment_range.end {
             input.next()
         } else {
-            let source = self.active.take();
-            *self
-                .shared_source
-                .lock()
-                .expect("audio thread should not panic") = source;
+            self.deactivate();
             None
         }
     }
@@ -123,7 +130,11 @@ where
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), super::SeekError> {
         if let Some(active) = self.active.as_mut() {
-            active.try_seek(pos)
+            active.try_seek(pos)?;
+            if !self.segment_range.contains(&pos) {
+                self.deactivate();
+            }
+            Ok(())
         } else {
             Err(super::SeekError::SplitNotActive)
         }

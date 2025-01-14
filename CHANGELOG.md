@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Source::amplify_normalized()` method to perceptually modify volume.
 - Adds a function to write a `Source` to a `wav` file, see `output_to_wav`.
 - Output audio stream buffer size can now be adjusted.
+- Adds a method to split sources in two: `Source::split_once`
 - Sources for directly generating square waves, triangle waves, square waves, and
   sawtooths have been added.
 - An interface for defining `SignalGenerator` patterns with an `fn`, see

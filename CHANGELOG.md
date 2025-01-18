@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The term 'frame' was renamed to 'span' in the crate and documentation.
 
 ### Fixed
+- `ChannelVolume` no longer clips/overflows when converting from many channels to
+  fewer.
 - Symphonia decoder `total_duration` incorrect value caused by conversion from `Time` to `Duration`.
 - An issue with `SignalGenerator` that caused it to create increasingly distorted waveforms
   over long run times has been corrected. (#201)

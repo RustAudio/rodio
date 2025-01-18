@@ -1,0 +1,28 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Rodio version git tag to publish.'
+        required: true
+
+jobs:
+  cargo-publish:
+    env:
+      CRATESIO_TOKEN: ${{ secrets.CRATESIO_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if the git reference looks like a version tag.
+        run: |
+          echo "${{ inputs.version_tag }}" \
+          | grep --quiet "^v[0-9]\{1,2\}\.[0-9]\{1,3\}\(\.[0-9]\{1,3\}\)\?$"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version_tag }}
+      - name: Update list of apt packages.
+        run: sudo apt update
+      - name: Install alsa.
+        run: sudo apt install --yes --no-install-recommends libasound2-dev pkg-config
+      - name: Publish rodio to crates.io.
+        run: cargo publish --token "$CRATESIO_TOKEN"

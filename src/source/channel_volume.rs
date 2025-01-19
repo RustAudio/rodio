@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use crate::{Sample, Source};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -34,12 +34,14 @@ where
         I::Item: Sample,
     {
         let mut sample = None;
-        for _ in 0..input.channels() {
+        let num_channels = input.channels();
+
+        for _ in 0..num_channels {
             if let Some(s) = input.next() {
                 sample = Some(
                     sample
                         .get_or_insert_with(I::Item::zero_value)
-                        .saturating_add(s),
+                        .saturating_add(s.amplify(1.0 / num_channels as f32)),
                 );
             }
         }
@@ -92,12 +94,15 @@ where
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             self.current_sample = None;
-            for _ in 0..self.input.channels() {
+
+            let num_channels = self.input.channels();
+
+            for _ in 0..num_channels {
                 if let Some(s) = self.input.next() {
                     self.current_sample = Some(
                         self.current_sample
                             .get_or_insert_with(I::Item::zero_value)
-                            .saturating_add(s),
+                            .saturating_add(s.amplify(1.0 / num_channels as f32)),
                     );
                 }
             }
@@ -129,12 +134,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.channel_volumes.len() as u16
+    fn channels(&self) -> ChannelCount {
+        self.channel_volumes.len() as ChannelCount
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
     }
 

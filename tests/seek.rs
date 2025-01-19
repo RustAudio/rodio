@@ -1,10 +1,9 @@
+use rodio::{ChannelCount, Decoder, Source};
+use rstest::rstest;
+use rstest_reuse::{self, *};
 use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use std::time::Duration;
-
-use rodio::{Decoder, Source};
-use rstest::rstest;
-use rstest_reuse::{self, *};
 
 #[template]
 #[rstest]
@@ -203,17 +202,22 @@ where
         .next_multiple_of(channels);
 
     let samples = &samples[beep_starts..beep_starts + 100];
-    assert!(is_silent(samples, channels as u16, 0), "{samples:?}");
-    assert!(!is_silent(samples, channels as u16, 1), "{samples:?}");
+    assert!(
+        is_silent(samples, channels as ChannelCount, 0),
+        "{samples:?}"
+    );
+    assert!(
+        !is_silent(samples, channels as ChannelCount, 1),
+        "{samples:?}"
+    );
 
     beep_starts..beep_ends
 }
 
-fn is_silent(samples: &[f32], channels: u16, channel: usize) -> bool {
+fn is_silent(samples: &[f32], channels: ChannelCount, channel: usize) -> bool {
     assert_eq!(samples.len(), 100);
     let channel = samples.iter().skip(channel).step_by(channels as usize);
-    let volume =
-        channel.map(|s| s.abs()).sum::<f32>() as f32 / samples.len() as f32 * channels as f32;
+    let volume = channel.map(|s| s.abs()).sum::<f32>() / samples.len() as f32 * channels as f32;
 
     const BASICALLY_ZERO: f32 = 0.0001;
     volume < BASICALLY_ZERO
@@ -229,14 +233,12 @@ fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
 fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/music").with_extension(format);
     let file = std::fs::File::open(asset).unwrap();
-    let decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    decoder
+    rodio::Decoder::new(BufReader::new(file)).unwrap()
 }
 
 fn get_rl(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/RL").with_extension(format);
     println!("opening: {}", asset.display());
     let file = std::fs::File::open(asset).unwrap();
-    let decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    decoder
+    rodio::Decoder::new(BufReader::new(file)).unwrap()
 }

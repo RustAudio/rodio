@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 use std::time::Duration;
 
-use crate::{Sample, Source};
-use cpal::{FromSample, Sample as CpalSample};
-
 use super::SeekError;
+use crate::common::{ChannelCount, SampleRate};
+use crate::{Sample, Source};
+use dasp_sample::{FromSample, Sample as DaspSample};
 
 /// Wrap the input and lazily converts the samples it provides to the type
 /// specified by the generic parameter D
@@ -54,7 +54,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<D> {
-        self.inner.next().map(|s| CpalSample::from_sample(s))
+        self.inner.next().map(|s| DaspSample::from_sample(s))
     }
 
     #[inline]
@@ -83,12 +83,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.inner.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.inner.sample_rate()
     }
 

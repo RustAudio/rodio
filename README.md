@@ -20,13 +20,39 @@ See [the docs](https://docs.rs/rodio/latest/rodio/#alternative-decoder-backends)
 
 [The documentation](http://docs.rs/rodio) contains an introduction to the library.
 
-## Dependencies(Linux only)
+## Dependencies (Linux only)
 
-Rodio uses `cpal` to send audio to the OS for playback. On Linux `cpal` needs the ALSA development files. These are provided as part of the libasound2-dev package on Debian and Ubuntu distributions and alsa-lib-devel on Fedora.
+Rodio uses `cpal` library to send audio to the OS for playback. ALSA development files are needed to build `cpal` on Linux. These are provided as part of the `libasound2-dev` package on Debian and Ubuntu distributions and `alsa-lib-devel` on Fedora.
+
+### Minimal build
+
+It is possible to build `rodio` without support for audio playback. In this configuration `cpal` dependency and its requirements are excluded. This configuration may be useful, for example, for decoding and processing audio in environments when the audio output is not available (e.g. in case of Linux, when ALSA is not available). See `into_file` example that works with this build.
+
+In order to use `rodio` in this configuration disable default features and add the necessary ones. In this case the `Cargo.toml` dependency would look like:
+```toml
+[dependencies]
+rodio = { version = "0.20.1", default-features = false, features = ["symphonia-all"] }
+```
+### Cross compling aarch64/arm
+
+Through cpal rodio depends on the alsa library (libasound & libasound-dev), this can make crosscompiling hard. Cpal has some guides on crosscompling in their Readme (https://github.com/RustAudio/cpal). They are missing instructions on aarch64 (arm linux) so we have some here:
+
+#### aarch64/arm on Debian like (Ubuntu/pop)
+- Install crossbuild-essential-arm64: `sudo apt-get install crossbuild-essential-arm64 clang`
+- Add the aarch64 target for rust: `rustup target add aarch64-unknown-linux-gnu`
+- Add the architecture arm64 to apt using: `sudo dpkg --add-architecture arm64`
+- Install the [multi-arch](https://wiki.debian.org/Multiarch/HOWTO) version of libasound2-dev for arm64 using: `sudo apt install libasound2-dev:arm64` 
+- Build with the pkg config sysroot set to /usr/aarch64-linux-gnu and aarch64-linux-gnu as linker: `PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc" cargo build --target aarch64-unknown-linux-gnu`
+
+This will work for other Linux targets too if you change the architecture in the
+command and if there are multi-arch packages available.
+
+You might want to look at [cross](https://github.com/cross-rs/cross) if you are
+running on a non debian system or want to make this more repeatable.
 
 # Contributing
 
-For information on how to contribute to this project, please see our [Contributing Guide](https://github.com/RustAudio/rodio/CONTRIBUTING.md).
+For information on how to contribute to this project, please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## License
 [License]: #license

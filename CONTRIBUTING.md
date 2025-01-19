@@ -140,9 +140,18 @@ to use their best judgment. If you have any doubts or questions about
 how to approach a particular task or contribution, don't hesitate to
 reach out to the maintainers for guidance.
 
-## Guidelines for Maintainers
+# Guidelines for Maintainers
 
-### Release Procedure
+Guidelines for those with write access to rodio. Adhere to them as long as makes
+sense. This is a work in progress, more might follow as we get to know
+what works. 
+
+Please feel free to open an issue and discuss these if you have a suggestion.
+
+Do not merge your own code to main, unless of course its a trivial change.
+For example spelling/grammar or fixing up a PR by someone else.
+
+## Release Procedure
 
 The project is built automatically by a GitHub action when a new revision is pushed to the master branch.
 The crate is published by triggering `.github/workflows/manual.yml` GitHub action.

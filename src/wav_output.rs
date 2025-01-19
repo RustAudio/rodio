@@ -1,4 +1,4 @@
-use crate::{Sample, Source};
+use crate::{ChannelCount, Sample, Source};
 use hound::{SampleFormat, WavSpec};
 use std::path;
 
@@ -10,7 +10,7 @@ pub fn output_to_wav<S: Sample>(
     wav_file: impl AsRef<path::Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let format = WavSpec {
-        channels: source.channels(),
+        channels: source.channels() as ChannelCount,
         sample_rate: source.sample_rate(),
         bits_per_sample: 32,
         sample_format: SampleFormat::Float,
@@ -26,6 +26,7 @@ pub fn output_to_wav<S: Sample>(
 #[cfg(test)]
 mod test {
     use super::output_to_wav;
+    use crate::common::ChannelCount;
     use crate::Source;
     use std::io::BufReader;
     use std::time::Duration;
@@ -46,7 +47,7 @@ mod test {
             hound::WavReader::new(BufReader::new(file)).expect("wav file can be read back");
         let reference = make_source();
         assert_eq!(reference.sample_rate(), reader.spec().sample_rate);
-        assert_eq!(reference.channels(), reader.spec().channels);
+        assert_eq!(reference.channels(), reader.spec().channels as ChannelCount);
 
         let actual_samples: Vec<f32> = reader.samples::<f32>().map(|x| x.unwrap()).collect();
         let expected_samples: Vec<f32> = reference.convert_samples().collect();

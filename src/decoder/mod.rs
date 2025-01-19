@@ -13,6 +13,7 @@ use crate::Source;
 
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
+use crate::common::{ChannelCount, SampleRate};
 #[cfg(feature = "symphonia")]
 use ::symphonia::core::io::{MediaSource, MediaSourceStream};
 
@@ -118,7 +119,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.channels(),
@@ -135,7 +136,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.sample_rate(),
@@ -418,11 +419,11 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.0.channels()
     }
 
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.0.sample_rate()
     }
 
@@ -516,12 +517,12 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.0.channels()
     }
 
     #[inline]
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.0.sample_rate()
     }
 

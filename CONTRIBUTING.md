@@ -139,3 +139,17 @@ We understand that every situation is unique and encourage contributors
 to use their best judgment. If you have any doubts or questions about
 how to approach a particular task or contribution, don't hesitate to
 reach out to the maintainers for guidance.
+
+## Guidelines for Maintainers
+
+### Release Procedure
+
+The project is built automatically by a GitHub action when a new revision is pushed to the master branch.
+The crate is published by triggering `.github/workflows/manual.yml` GitHub action.
+After the crate is successfully published a new git tag is created in the repository.
+
+So to publish a new version
+1. Update `project.version` field in `Cargo.toml`.
+2. Push the changes to the `master` branch.
+3. Wait until GitHub build job completes successfully.
+4. [On the Actions page](https://github.com/RustAudio/rodio/actions) start `.github/workflows/manual.yml`.

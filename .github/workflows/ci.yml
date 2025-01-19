@@ -28,14 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install linux deps
-        run: |
-          sudo apt update
-          sudo apt install -y --no-install-recommends libasound2-dev pkg-config
+      - name: Install linux build requirements
+        run: sudo apt install --yes --no-install-recommends libasound2-dev pkg-config
         if: contains(matrix.os, 'ubuntu')
 
       - name: install ${{ matrix.toolchain }} toolchain
-        id: install_toolchain
         run: rustup toolchain install ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
 
       - run: cargo clippy -- -D warnings
@@ -55,33 +52,3 @@ jobs:
       # Check minimal build. `tests/seek.rs` fails if there are no decoders at all,
       # adding one to make the tests check pass.
       - run: cargo check --tests --lib --no-default-features --features mp3
-
-  create-git-tag:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout the code.
-        uses: actions/checkout@v4
-
-      - name: Fetch tags.
-        #### FIXME Test this (it should fetch all tags without getting the history).
-        run: git fetch --prune --unshallow --tags
-
-      - name: Create a tag for current version if it does not exist yet.
-        id: create_version_tag
-        run: |
-          echo "Current git commit is $(git rev-list -n 1 HEAD)."
-          VERSION="$(yq '.package.version' Cargo.toml)"
-          echo "Project version from Cargo.toml: $VERSION"
-          VERSION_TAG="v$VERSION"
-          if git tag | grep "$VERSION_TAG"; then
-            echo "Tag $VERSION_TAG already exists at $(git rev-list -n 1 $VERSION_TAG), leaving it unchanged."
-          else
-            echo "Creating new tag $VERSION_TAG ..."
-            ###### FIXME Review this using https://github.com/actions/checkout
-            ######        User name and email may need to be updated.
-            git config user.name 'github-actions'
-            git config user.email 'github-actions@github.com'
-            git tag --annotate "$VERSION_TAG" --message "Release version $VERSION_TAG"
-            git push origin "$VERSION_TAG"
-          endif

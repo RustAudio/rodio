@@ -152,13 +152,17 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
+/// ## Span length
+/// A span *must* consists of whole frames and start at the beginning of a frame. In other words:
+/// the first sample of a span must be for channel 0 while the last sample must be for the last
+/// channel. That way the next span again starts at channel 0.
 pub trait Source: Iterator
 where
     Self::Item: Sample,
 {
-    /// Returns the number of samples before the current span ends. `None` means "infinite" or
-    /// "until the sound ends".
-    /// Should never return 0 unless there's no more data.
+    /// Returns the number of samples before the current span ends. This number **must** be a
+    /// multiple of channel count. `None` means "infinite" or "until the sound ends". Should never
+    /// return 0 unless there's no more data.
     ///
     /// After the engine has finished reading the specified number of samples, it will check
     /// whether the value of `channels()` and/or `sample_rate()` have changed.

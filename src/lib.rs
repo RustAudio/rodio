@@ -133,10 +133,20 @@
 //! The "tracing" feature replaces the print to stderr when a stream error happens with a
 //! recording an error event with tracing.
 //!
-//! ### Feature "Noise"
+//! ### Feature "noise"
 //!
 //! The "noise" feature adds support for white and pink noise sources. This feature requires the
 //! "rand" crate.
+//!
+//! ### Feature "playback"
+//!
+//! The "playback" feature adds support for playing audio. This feature requires the "cpal" crate.
+//!
+//! ### Feature "integer-decoder"
+//!
+//! The "integer-decoder" changes the output format of the decoders to use `i16` instead of `f32`.
+//! This is useful if you want to decode audio on an exotic, low-spec or old device that does not
+//! have hardware support for floating-point operations.
 //!
 //! ## How it works under the hood
 //!

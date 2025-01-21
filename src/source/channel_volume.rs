@@ -40,7 +40,7 @@ where
             if let Some(s) = input.next() {
                 sample = Some(
                     sample
-                        .get_or_insert_with(I::Item::zero_value)
+                        .get_or_insert(I::Item::ZERO_VALUE)
                         .saturating_add(s.amplify(1.0 / num_channels as f32)),
                 );
             }
@@ -101,7 +101,7 @@ where
                 if let Some(s) = self.input.next() {
                     self.current_sample = Some(
                         self.current_sample
-                            .get_or_insert_with(I::Item::zero_value)
+                            .get_or_insert(I::Item::ZERO_VALUE)
                             .saturating_add(s.amplify(1.0 / num_channels as f32)),
                     );
                 }

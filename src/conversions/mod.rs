@@ -11,7 +11,5 @@ pub use self::sample::Sample;
 pub use self::sample_rate::SampleRateConverter;
 
 mod channels;
-// TODO: < shouldn't be public ; there's a bug in Rust 1.4 and below that makes This
-// `pub` mandatory
-pub mod sample;
+mod sample;
 mod sample_rate;

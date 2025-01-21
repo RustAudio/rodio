@@ -31,6 +31,13 @@ mod vorbis;
 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
 mod wav;
 
+#[cfg(feature = "integer-decoder")]
+/// Output format of the decoders.
+pub type DecoderSample = i16;
+#[cfg(not(feature = "integer-decoder"))]
+/// Output format of the decoders.
+pub type DecoderSample = f32;
+
 /// Source of audio samples from decoding a file.
 ///
 /// Supports MP3, WAV, Vorbis and Flac.
@@ -68,7 +75,7 @@ where
 
 impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<DecoderSample> {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.next(),
@@ -396,10 +403,10 @@ impl<R> Iterator for Decoder<R>
 where
     R: Read + Seek,
 {
-    type Item = i16;
+    type Item = DecoderSample;
 
     #[inline]
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
 
@@ -442,10 +449,10 @@ impl<R> Iterator for LoopedDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = i16;
+    type Item = DecoderSample;
 
     #[inline]
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<Self::Item> {
         if let Some(sample) = self.0.next() {
             Some(sample)
         } else {

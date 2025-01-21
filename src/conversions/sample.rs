@@ -1,4 +1,4 @@
-use dasp_sample::{FromSample, Sample as DaspSample};
+use dasp_sample::{FromSample, Sample as DaspSample, ToSample};
 use std::marker::PhantomData;
 
 /// Converts the samples data type to `O`.
@@ -71,7 +71,10 @@ where
 ///
 /// You can implement this trait on your own type as well if you wish so.
 ///
-pub trait Sample: DaspSample {
+pub trait Sample: DaspSample + ToSample<f32> {
+    /// The value corresponding to the absence of sound.
+    const ZERO_VALUE: Self = DaspSample::EQUILIBRIUM;
+
     /// Linear interpolation between two samples.
     ///
     /// The result should be equivalent to
@@ -81,16 +84,35 @@ pub trait Sample: DaspSample {
     fn lerp(first: Self, second: Self, numerator: u32, denominator: u32) -> Self;
 
     /// Multiplies the value of this sample by the given amount.
-    fn amplify(self, value: f32) -> Self;
+    #[inline]
+    fn amplify(self, value: f32) -> Self {
+        self.mul_amp(value.to_sample())
+    }
 
-    /// Converts the sample to a f32 value.
-    fn to_f32(self) -> f32;
+    /// Converts the sample to a normalized `f32` value.
+    #[inline]
+    fn to_f32(self) -> f32 {
+        self.to_sample()
+    }
 
-    /// Calls `saturating_add` on the sample.
-    fn saturating_add(self, other: Self) -> Self;
+    /// Adds the amplitude of another sample to this one.
+    #[inline]
+    fn saturating_add(self, other: Self) -> Self {
+        self.add_amp(other.to_signed_sample())
+    }
+
+    /// Returns true if the sample is the zero value.
+    #[inline]
+    fn is_zero(self) -> bool {
+        self == Self::ZERO_VALUE
+    }
 
     /// Returns the value corresponding to the absence of sound.
-    fn zero_value() -> Self;
+    #[deprecated(note = "Please use `Self::ZERO_VALUE` instead")]
+    #[inline]
+    fn zero_value() -> Self {
+        Self::ZERO_VALUE
+    }
 }
 
 impl Sample for u16 {
@@ -102,27 +124,6 @@ impl Sample for u16 {
         let d = denominator as i32;
         (a + (b - a) * n / d) as u16
     }
-
-    #[inline]
-    fn amplify(self, value: f32) -> u16 {
-        ((self as f32) * value) as u16
-    }
-
-    #[inline]
-    fn to_f32(self) -> f32 {
-        // Convert u16 to f32 in the range [-1.0, 1.0]
-        (self as f32 - 32768.0) / 32768.0
-    }
-
-    #[inline]
-    fn saturating_add(self, other: u16) -> u16 {
-        self.saturating_add(other)
-    }
-
-    #[inline]
-    fn zero_value() -> u16 {
-        32768
-    }
 }
 
 impl Sample for i16 {
@@ -130,27 +131,6 @@ impl Sample for i16 {
     fn lerp(first: i16, second: i16, numerator: u32, denominator: u32) -> i16 {
         (first as i32 + (second as i32 - first as i32) * numerator as i32 / denominator as i32)
             as i16
-    }
-
-    #[inline]
-    fn amplify(self, value: f32) -> i16 {
-        ((self as f32) * value) as i16
-    }
-
-    #[inline]
-    fn to_f32(self) -> f32 {
-        // Convert i16 to f32 in the range [-1.0, 1.0]
-        self as f32 / 32768.0
-    }
-
-    #[inline]
-    fn saturating_add(self, other: i16) -> i16 {
-        self.saturating_add(other)
-    }
-
-    #[inline]
-    fn zero_value() -> i16 {
-        0
     }
 }
 
@@ -161,24 +141,14 @@ impl Sample for f32 {
     }
 
     #[inline]
-    fn amplify(self, value: f32) -> f32 {
-        self * value
-    }
-
-    #[inline]
     fn to_f32(self) -> f32 {
-        // f32 is already in the correct format
         self
     }
 
     #[inline]
-    fn saturating_add(self, other: f32) -> f32 {
-        self + other
-    }
-
-    #[inline]
-    fn zero_value() -> f32 {
-        0.0
+    fn is_zero(self) -> bool {
+        2.0 * (self - Self::ZERO_VALUE).abs()
+            <= f32::EPSILON * (self.abs() + Self::ZERO_VALUE.abs())
     }
 }
 

@@ -5,7 +5,11 @@ use crate::source::SeekError;
 use crate::Source;
 
 use crate::common::{ChannelCount, SampleRate};
+
+use dasp_sample::{Sample, I24};
 use hound::{SampleFormat, WavReader};
+
+use super::DecoderSample;
 
 /// Decoder for the WAV format.
 pub struct WavDecoder<R>
@@ -28,7 +32,7 @@ where
             return Err(data);
         }
 
-        let reader = WavReader::new(data).unwrap();
+        let reader = WavReader::new(data).expect("should still be wav");
         let spec = reader.spec();
         let len = reader.len() as u64;
         let reader = SamplesIterator {
@@ -38,8 +42,13 @@ where
 
         let sample_rate = spec.sample_rate;
         let channels = spec.channels;
-        let total_duration =
-            Duration::from_micros((1_000_000 * len) / (sample_rate as u64 * channels as u64));
+
+        let total_duration = {
+            let sample_rate = sample_rate as u64;
+            let secs = len / sample_rate;
+            let nanos = ((len % sample_rate) * 1_000_000_000) / sample_rate;
+            Duration::new(secs, nanos as u32)
+        };
 
         Ok(WavDecoder {
             reader,
@@ -48,6 +57,8 @@ where
             channels: channels as ChannelCount,
         })
     }
+
+    #[inline]
     pub fn into_inner(self) -> R {
         self.reader.reader.into_inner()
     }
@@ -65,36 +76,72 @@ impl<R> Iterator for SamplesIterator<R>
 where
     R: Read + Seek,
 {
-    type Item = i16;
+    type Item = DecoderSample;
 
     #[inline]
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<Self::Item> {
+        self.samples_read += 1;
         let spec = self.reader.spec();
-        match (spec.sample_format, spec.bits_per_sample) {
-            (SampleFormat::Float, 32) => self.reader.samples().next().map(|value| {
-                self.samples_read += 1;
-                f32_to_i16(value.unwrap_or(0.0))
-            }),
-            (SampleFormat::Int, 8) => self.reader.samples().next().map(|value| {
-                self.samples_read += 1;
-                i8_to_i16(value.unwrap_or(0))
-            }),
-            (SampleFormat::Int, 16) => self.reader.samples().next().map(|value| {
-                self.samples_read += 1;
-                value.unwrap_or(0)
-            }),
-            (SampleFormat::Int, 24) => self.reader.samples().next().map(|value| {
-                self.samples_read += 1;
-                i24_to_i16(value.unwrap_or(0))
-            }),
-            (SampleFormat::Int, 32) => self.reader.samples().next().map(|value| {
-                self.samples_read += 1;
-                i32_to_i16(value.unwrap_or(0))
-            }),
-            (sample_format, bits_per_sample) => {
-                panic!("Unimplemented wav spec: {sample_format:?}, {bits_per_sample}")
-            }
-        }
+        let next_sample: Option<Self::Item> =
+            match (spec.sample_format, spec.bits_per_sample as u32) {
+                (SampleFormat::Float, bits) => {
+                    if bits == 32 {
+                        let next_f32: Option<Result<f32, _>> = self.reader.samples().next();
+                        next_f32.and_then(|value| {
+                            let value = value.ok();
+                            #[cfg(feature = "integer-decoder")] // perf
+                            let value = value.map(|value| value.to_sample());
+                            value
+                        })
+                    } else {
+                        #[cfg(feature = "tracing")]
+                        tracing::error!("Unsupported WAV float bit depth: {}", bits);
+                        #[cfg(not(feature = "tracing"))]
+                        eprintln!("Unsupported WAV float bit depth: {}", bits);
+                        None
+                    }
+                }
+
+                (SampleFormat::Int, 8) => {
+                    let next_i8: Option<Result<i8, _>> = self.reader.samples().next();
+                    next_i8.and_then(|value| value.ok().map(|value| value.to_sample()))
+                }
+                (SampleFormat::Int, 16) => {
+                    let next_i16: Option<Result<i16, _>> = self.reader.samples().next();
+                    next_i16.and_then(|value| {
+                        let value = value.ok();
+                        #[cfg(not(feature = "integer-decoder"))] // perf
+                        let value = value.map(|value| value.to_sample());
+                        value
+                    })
+                }
+                (SampleFormat::Int, 24) => {
+                    let next_i24_in_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                    next_i24_in_i32.and_then(|value| {
+                        value.ok().and_then(I24::new).map(|value| value.to_sample())
+                    })
+                }
+                (SampleFormat::Int, 32) => {
+                    let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                    next_i32.and_then(|value| value.ok().map(|value| value.to_sample()))
+                }
+                (SampleFormat::Int, bits) => {
+                    // Unofficial WAV integer bit depth, try to handle it anyway
+                    let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                    if bits <= 32 {
+                        next_i32.and_then(|value| {
+                            value.ok().map(|value| (value << (32 - bits)).to_sample())
+                        })
+                    } else {
+                        #[cfg(feature = "tracing")]
+                        tracing::error!("Unsupported WAV integer bit depth: {}", bits);
+                        #[cfg(not(feature = "tracing"))]
+                        eprintln!("Unsupported WAV integer bit depth: {}", bits);
+                        None
+                    }
+                }
+            };
+        next_sample
     }
 
     #[inline]
@@ -159,10 +206,10 @@ impl<R> Iterator for WavDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = i16;
+    type Item = DecoderSample;
 
     #[inline]
-    fn next(&mut self) -> Option<i16> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.reader.next()
     }
 
@@ -179,44 +226,8 @@ fn is_wave<R>(mut data: R) -> bool
 where
     R: Read + Seek,
 {
-    let stream_pos = data.stream_position().unwrap();
-
-    if WavReader::new(data.by_ref()).is_err() {
-        data.seek(SeekFrom::Start(stream_pos)).unwrap();
-        return false;
-    }
-
-    data.seek(SeekFrom::Start(stream_pos)).unwrap();
-    true
-}
-
-/// Returns a 32 bit WAV float as an i16. WAV floats are typically in the range of
-/// [-1.0, 1.0] while i16s are in the range [-32768, 32767]. Note that this
-/// function definitely causes precision loss but hopefully this isn't too
-/// audiable when actually playing?
-fn f32_to_i16(f: f32) -> i16 {
-    // prefer to clip the input rather than be excessively loud.
-    (f.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
-}
-
-/// Returns an 8-bit WAV int as an i16. This scales the sample value by a factor
-/// of 256.
-fn i8_to_i16(i: i8) -> i16 {
-    i as i16 * 256
-}
-
-/// Returns a 24 bit WAV int as an i16. Note that this is a 24 bit integer, not a
-/// 32 bit one. 24 bit ints are in the range [−8,388,608, 8,388,607] while i16s
-/// are in the range [-32768, 32767]. Note that this function definitely causes
-/// precision loss but hopefully this isn't too audiable when actually playing?
-fn i24_to_i16(i: i32) -> i16 {
-    (i >> 8) as i16
-}
-
-/// Returns a 32 bit WAV int as an i16. 32 bit ints are in the range
-/// [-2,147,483,648, 2,147,483,647] while i16s are in the range [-32768, 32767].
-/// Note that this function definitely causes precision loss but hopefully this
-/// isn't too audiable when actually playing?
-fn i32_to_i16(i: i32) -> i16 {
-    (i >> 16) as i16
+    let stream_pos = data.stream_position().unwrap_or_default();
+    let result = WavReader::new(data.by_ref()).is_ok();
+    let _ = data.seek(SeekFrom::Start(stream_pos));
+    result
 }

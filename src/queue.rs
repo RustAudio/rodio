@@ -117,7 +117,6 @@ pub struct SourcesQueueOutput<S> {
     input: Arc<SourcesQueueInput<S>>,
 }
 
-const THRESHOLD: usize = 512;
 impl<S> Source for SourcesQueueOutput<S>
 where
     S: Sample + Send + 'static,
@@ -143,7 +142,7 @@ where
                 && self.input.next_sounds.lock().unwrap().is_empty()
             {
                 // The next source will be a filler silence which will have the length of `THRESHOLD`
-                return Some(THRESHOLD);
+                return Some(self.silent_span_length());
             }
         }
 
@@ -156,7 +155,7 @@ where
         }
 
         // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        Some(self.silent_span_length())
     }
 
     #[inline]
@@ -234,7 +233,10 @@ where
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.len() == 0 {
-                let silence = Box::new(Zero::<S>::new_samples(1, 44100, THRESHOLD)) as Box<_>;
+                // queue reports number of channels for the current source. Not the silence source.
+                // `self.silent_span_length` accounts for this.
+                let silence =
+                    Box::new(Zero::<S>::new_samples(1, 44100, self.silent_span_length())) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
                     (silence, None)
@@ -249,6 +251,11 @@ where
         self.current = next;
         self.signal_after_end = signal_after_end;
         Ok(())
+    }
+
+    /// 200 frames of silence
+    fn silent_span_length(&self) -> usize {
+        200 * self.channels() as usize
     }
 }
 

@@ -141,11 +141,24 @@ how to approach a particular task or contribution, don't hesitate to
 reach out to the maintainers for guidance.
 
 # Guidelines for Maintainers
+
 Guidelines for those with write access to rodio. Adhere to them as long as makes
 sense. This is a work in progress, more might follow as we get to know
 what works. 
 
 Please feel free to open an issue and discuss these if you have a suggestion.
 
-1. Do not merge your own code to main, unless of course its a trivial change.
-   For example spelling/grammar or fixing up a PR by someone else.
+Do not merge your own code to main, unless of course its a trivial change.
+For example spelling/grammar or fixing up a PR by someone else.
+
+## Release Procedure
+
+The project is built automatically by a GitHub action when a new revision is pushed to the master branch.
+The crate is published by triggering `.github/workflows/publish.yml` GitHub action.
+After the crate is successfully published a new version's git tag is created in the repository.
+
+So to publish a new version
+1. Update `project.version` field in `Cargo.toml`.
+2. Push the changes to the `master` branch.
+3. Wait until GitHub build job completes successfully.
+4. [On the Actions page](https://github.com/RustAudio/rodio/actions) start `.github/workflows/publish.yml`.

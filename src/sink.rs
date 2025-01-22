@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
 #[cfg(feature = "crossbeam-channel")]
@@ -9,7 +9,7 @@ use dasp_sample::FromSample;
 use std::sync::mpsc::{Receiver, Sender};
 
 use crate::mixer::Mixer;
-use crate::source::SeekError;
+use crate::source::{EmptyCallback, SeekError};
 use crate::{queue, source::Done, Sample, Source};
 
 /// Handle to a device that outputs sounds.
@@ -159,7 +159,15 @@ impl Sink {
             .convert_samples();
         self.sound_count.fetch_add(1, Ordering::Relaxed);
         let source = Done::new(source, self.sound_count.clone());
-        *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
+        self.queue_tx.append(source);
+
+        let (tx, rx) = mpsc::channel();
+        let callback_source = EmptyCallback::<f32>::new(Box::new(move || {
+            let _ = tx.send(());
+        }));
+        let callback_source = Box::new(callback_source) as Box<dyn Source<Item = f32> + Send>;
+        self.queue_tx.append(callback_source);
+        *self.sleep_until_end.lock().unwrap() = Some(rx);
     }
 
     /// Gets the volume of the sound.

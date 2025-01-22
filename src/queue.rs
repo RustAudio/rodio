@@ -1,5 +1,6 @@
 //! Queue that plays sounds one after the other.
 
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -8,10 +9,6 @@ use crate::source::{Empty, SeekError, Source, Zero};
 use crate::Sample;
 
 use crate::common::{ChannelCount, SampleRate};
-#[cfg(feature = "crossbeam-channel")]
-use crossbeam_channel::{unbounded as channel, Receiver, Sender};
-#[cfg(not(feature = "crossbeam-channel"))]
-use std::sync::mpsc::{channel, Receiver, Sender};
 
 /// Builds a new queue. It consists of an input and an output.
 ///
@@ -29,27 +26,28 @@ where
     S: Sample + Send + 'static,
 {
     let input = Arc::new(SourcesQueueInput {
-        next_sounds: Mutex::new(Vec::new()),
+        next_sounds: Mutex::new(VecDeque::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
     });
 
     let output = SourcesQueueOutput {
         current: Box::new(Empty::<S>::new()) as Box<_>,
-        signal_after_end: None,
         input: input.clone(),
+        filling_silence: true,
+        curr_span_params: std::cell::Cell::new(SpanParams {
+            len: 0,
+            channels: 2,
+            sample_rate: 44_100,
+        }),
     };
 
     (input, output)
 }
 
-// TODO: consider reimplementing this with `from_factory`
-
 type Sound<S> = Box<dyn Source<Item = S> + Send>;
-type SignalDone = Option<Sender<()>>;
-
 /// The input of the queue.
 pub struct SourcesQueueInput<S> {
-    next_sounds: Mutex<Vec<(Sound<S>, SignalDone)>>,
+    next_sounds: Mutex<VecDeque<Sound<S>>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
@@ -60,6 +58,9 @@ where
     S: Sample + Send + 'static,
 {
     /// Adds a new source to the end of the queue.
+    ///
+    /// If silence was playing it can take up to <TODO> milliseconds before
+    /// the new sound is played.
     #[inline]
     pub fn append<T>(&self, source: T)
     where
@@ -68,25 +69,7 @@ where
         self.next_sounds
             .lock()
             .unwrap()
-            .push((Box::new(source) as Box<_>, None));
-    }
-
-    /// Adds a new source to the end of the queue.
-    ///
-    /// The `Receiver` will be signalled when the sound has finished playing.
-    ///
-    /// Enable the feature flag `crossbeam-channel` in rodio to use a `crossbeam_channel::Receiver` instead.
-    #[inline]
-    pub fn append_with_signal<T>(&self, source: T) -> Receiver<()>
-    where
-        T: Source<Item = S> + Send + 'static,
-    {
-        let (tx, rx) = channel();
-        self.next_sounds
-            .lock()
-            .unwrap()
-            .push((Box::new(source) as Box<_>, Some(tx)));
-        rx
+            .push_back(Box::new(source) as Box<_>);
     }
 
     /// Sets whether the queue stays alive if there's no more sound to play.
@@ -107,14 +90,15 @@ where
 }
 /// The output of the queue. Implements `Source`.
 pub struct SourcesQueueOutput<S> {
+    curr_span_params: std::cell::Cell<SpanParams>,
+
     // The current iterator that produces samples.
     current: Box<dyn Source<Item = S> + Send>,
 
-    // Signal this sender before picking from `next`.
-    signal_after_end: Option<Sender<()>>,
-
     // The next sounds.
     input: Arc<SourcesQueueInput<S>>,
+
+    filling_silence: bool,
 }
 
 impl<S> Source for SourcesQueueOutput<S>
@@ -123,49 +107,91 @@ where
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        // This function is non-trivial because the boundary between two sounds in the queue should
-        // be a span boundary as well.
+        // This function is non-trivial because the boundary between two
+        // sounds in the queue should be a span boundary as well. Further more
+        // we can *only* return Some(0) if the queue should stop playing.
+        // This function can be called at any time though its normally only
+        // called at the end of the span to get how long the next span will be.
         //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
-        // we *should* return the number of samples remaining the current sound.
-        // This can be estimated with `size_hint()`.
+        // The current sound is free to return `None` for
+        // `current_span_len()`. That means there is only one span left and it
+        // lasts until the end of the sound. We get a lower bound on that
+        // length using `size_hint()`.
         //
-        // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
-        // situation we force a span to have a maximum number of samples indicate by this
-        // constant.
+        // If the `size_hint` is `None` as well, we are in the worst case
+        // scenario. To handle this situation we force a span to have a
+        // maximum number of samples with a constant.
+        //
+        // There are a lot of cases here:
+        // - not filling silence, current span is done
+        //     move to next
+        // - not filling silence, known span length.
+        //     report span length from current
+        // - not filling silence, unknown span length have lower bound.
+        //     report lower bound
+        // - not filling silence, unknown span length, no lower bound.
+        //     report fixed number of frames, if its too long we will get
+        //     silence for that length
+        // - filling silence, we have a next, however span is not finished,
+        //   next is same channel count and sample rate.
+        //     move to next,
+        // - filling silence, we have a next, however span is not finished,
+        //   next is diff channel count or sample rate.
+        //     play silence for rest of span
+        // - filling silence, we have a next, span is done
+        //     move to next
+        // - filling silence, no next, however span is not finished.
+        //     return samples left in span
+        // - filling silence, no next, span is done.
+        //     new silence span with fixed length, match previous sample_rate
+        //     and channel count.
 
-        // Try the current `current_span_len`.
-        if let Some(val) = self.current.current_span_len() {
-            if val != 0 {
-                return Some(val);
-            } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
-                && self.input.next_sounds.lock().unwrap().is_empty()
-            {
-                // The next source will be a filler silence which will have the length of `THRESHOLD`
-                return Some(self.silent_span_length());
-            }
+        if self.span_done() {
+            return if let Some(next) = self.next_non_zero_span() {
+                self.curr_span_params.set(next);
+                Some(self.curr_span_params.get().len)
+            } else if self.should_end_when_input_empty() {
+                Some(0)
+            } else {
+                Some(self.silence_span_len())
+            };
         }
 
-        // Try the size hint.
-        let (lower_bound, _) = self.current.size_hint();
-        // The iterator default implementation just returns 0.
-        // That's a problematic value, so skip it.
-        if lower_bound > 0 {
-            return Some(lower_bound);
+        if self.filling_silence {
+            // since this is silence the remaining span len never None
+            // and the `if self.span_done()` guarantees its not zero.
+            self.current.current_span_len()
+        } else if let Some(len) = self.current.current_span_len() {
+            Some(len) // Not zero since `self.span_done` is false
+        } else if self.current.size_hint().0 > 0 {
+            Some(self.current.size_hint().0)
+        } else {
+            Some(self.fallback_span_length())
         }
-
-        // Otherwise we use the constant value.
-        Some(self.silent_span_length())
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.current.channels()
+        // could have been called before curr_span_params is update
+        // check if they need updating
+        if self.span_done() {
+            if let Some(next) = self.next_non_zero_span() {
+                self.curr_span_params.set(next);
+            }
+        }
+        self.curr_span_params.get().channels
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.current.sample_rate()
+        // could have been called before curr_span_params is update
+        // check if they need updating
+        if self.span_done() {
+            if let Some(next) = self.next_non_zero_span() {
+                self.curr_span_params.set(next);
+            }
+        }
+        self.curr_span_params.get().sample_rate
     }
 
     #[inline]
@@ -178,7 +204,7 @@ where
     // that it advances the queue if the position is beyond the current song.
     //
     // We would then however need to enable seeking backwards across sources too.
-    // That no longer seems in line with the queue behaviour.
+    // That no longer seems in line with the queue behavior.
     //
     // A final pain point is that we would need the total duration for the
     // next few songs.
@@ -196,16 +222,27 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<S> {
+        // returning None is never acceptable unless the queue should end
+
+        // might need to retry for an unknown amount of times, next (few) queue item
+        // could be zero samples long (`EmptyCallback` & friends)
         loop {
             // Basic situation that will happen most of the time.
             if let Some(sample) = self.current.next() {
                 return Some(sample);
             }
 
-            // Since `self.current` has finished, we need to pick the next sound.
-            // In order to avoid inlining this expensive operation, the code is in another function.
-            if self.go_next().is_err() {
+            if let Some(next) = self.next_sound() {
+                self.current = next;
+                if let Some(params) = self.next_non_zero_span() {
+                    self.curr_span_params.set(params);
+                }
+                self.filling_silence = false;
+            } else if self.should_end_when_input_empty() {
                 return None;
+            } else {
+                self.current = self.silence();
+                self.filling_silence = true;
             }
         }
     }
@@ -220,43 +257,63 @@ impl<S> SourcesQueueOutput<S>
 where
     S: Sample + Send + 'static,
 {
-    // Called when `current` is empty and we must jump to the next element.
-    // Returns `Ok` if the sound should continue playing, or an error if it should stop.
-    //
-    // This method is separate so that it is not inlined.
-    fn go_next(&mut self) -> Result<(), ()> {
-        if let Some(signal_after_end) = self.signal_after_end.take() {
-            let _ = signal_after_end.send(());
-        }
-
-        let (next, signal_after_end) = {
-            let mut next = self.input.next_sounds.lock().unwrap();
-
-            if next.len() == 0 {
-                // queue reports number of channels for the current source. Not the silence source.
-                // `self.silent_span_length` accounts for this.
-                let silence =
-                    Box::new(Zero::<S>::new_samples(1, 44100, self.silent_span_length())) as Box<_>;
-                if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
-                    // Play a short silence in order to avoid spinlocking.
-                    (silence, None)
-                } else {
-                    return Err(());
-                }
-            } else {
-                next.remove(0)
-            }
-        };
-
-        self.current = next;
-        self.signal_after_end = signal_after_end;
-        Ok(())
-    }
-
-    /// 200 frames of silence
-    fn silent_span_length(&self) -> usize {
+    fn fallback_span_length(&self) -> usize {
         200 * self.channels() as usize
     }
+
+    fn silence_span_len(&self) -> usize {
+        200 * self.channels() as usize
+    }
+
+    fn silence(&self) -> Sound<S> {
+        let samples = self.silence_span_len();
+        // silence matches span params to make sure resampling
+        // gives not popping. It also makes the queue code simpler
+        let silence = Zero::<S>::new_samples(
+            self.curr_span_params.get().channels,
+            self.curr_span_params.get().sample_rate,
+            samples,
+        );
+        Box::new(silence)
+    }
+
+    fn should_end_when_input_empty(&self) -> bool {
+        !self.input.keep_alive_if_empty.load(Ordering::Acquire)
+    }
+
+    fn next_non_zero_span(&self) -> Option<SpanParams> {
+        dbg!(self.input
+            .next_sounds
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|s| s.current_span_len().is_some_and(|len| len > 0))
+            .map(|s| SpanParams {
+                len: s.current_span_len().expect("filter checks this"),
+                channels: s.channels(),
+                sample_rate: s.sample_rate(),
+            })
+            .next())
+    }
+
+    fn next_sound(&self) -> Option<Sound<S>> {
+        self.input.next_sounds.lock().unwrap().pop_front()
+    }
+
+    fn span_done(&self) -> bool {
+        if let Some(left) = self.current.current_span_len() {
+            left == 0
+        } else {
+            self.current.size_hint().0 == 0
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+struct SpanParams {
+    len: usize,
+    channels: ChannelCount,
+    sample_rate: SampleRate,
 }
 
 #[cfg(test)]
@@ -266,7 +323,7 @@ mod tests {
     use crate::source::Source;
 
     #[test]
-    #[ignore] // FIXME: samples rate and channel not updated immediately after transition
+    // #[ignore] // FIXME: samples rate and channel not updated immediately after transition
     fn basic() {
         let (tx, mut rx) = queue::queue(false);
 

@@ -127,7 +127,6 @@ mod source_without_span_or_lower_bound_ending_early {
 
 // should be made into its own crate called: `rodio-test-support`
 mod test_support {
-    use rodio::Source;
     use std::time::Duration;
 
     pub struct TestSource {
@@ -162,6 +161,10 @@ mod test_support {
             self.channels = count;
             self
         }
+        #[expect(
+            dead_code,
+            reason = "will be moved to seperate rodio-test-support crate hopefully"
+        )]
         pub fn with_total_duration(mut self, duration: Duration) -> Self {
             self.total_duration = Some(duration);
             self

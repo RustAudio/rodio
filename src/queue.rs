@@ -36,6 +36,7 @@ where
         input: input.clone(),
         filling_initial_silence: Cell::new(false),
         next_sample: None,
+        fallback_span_index: Cell::new(None),
     };
 
     (input, output)
@@ -96,6 +97,7 @@ pub struct QueueSource<S> {
     input: Arc<QueueControls<S>>,
 
     filling_initial_silence: Cell<bool>,
+    fallback_span_index: Cell<Option<usize>>,
 
     next_sample: Option<S>,
 }
@@ -119,7 +121,8 @@ where
         //
         // If the `size_hint` is `None` as well, we are in the worst case
         // scenario. To handle this situation we force a span to have a
-        // maximum number of samples with a constant.
+        // maximum number of samples with a constant. If the source ends before
+        // that point we need to start silence for the remainder of the forced span.
         //
         // There are a lot of cases here:
         // - not filling silence, current span is done
@@ -161,9 +164,9 @@ where
                 Some(self.silence_span_len())
             }
         } else if self.current.size_hint().0 == 0 {
-            // This is still an issue, span could end earlier
-            // we *could* correct for that by playing silence if that happens
-            // but that gets really involved.
+            // span could end earlier we correct for that by playing silence
+            // if that happens
+            self.fallback_span_index.set(Some(0));
             Some(self.fallback_span_length())
         } else {
             Some(self.current.size_hint().0)
@@ -208,6 +211,9 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<S> {
+        self.fallback_span_index
+            .set(self.fallback_span_index.get().map(|idx| idx + 1));
+
         // may only return None when the queue should end
         match (self.next_sample.take(), self.current.next()) {
             (Some(sample1), Some(samples2)) => {
@@ -235,7 +241,15 @@ where
     S: Sample + Send + 'static,
 {
     fn fallback_span_length(&self) -> usize {
+        // ~ 5 milliseconds at 44100
         200 * self.channels() as usize
+    }
+
+    fn finish_forced_span(&self, span_idx: usize) -> Sound<S> {
+        let samples = self.fallback_span_length() - span_idx;
+        let silence =
+            Zero::<S>::new_samples(self.current.channels(), self.current.sample_rate(), samples);
+        Box::new(silence)
     }
 
     fn silence_span_len(&self) -> usize {
@@ -288,6 +302,14 @@ where
     }
 
     fn current_is_ending(&mut self, sample1: S) -> Option<S> {
+        if let Some(idx) = self.fallback_span_index.get() {
+            if idx < self.fallback_span_length() {
+                self.fallback_span_index.set(None);
+                self.current = self.finish_forced_span(idx);
+                return Some(sample1);
+            }
+        }
+
         loop {
             if let Some(mut sound) = self.next_sound() {
                 if let Some(sample2) = sound.next() {

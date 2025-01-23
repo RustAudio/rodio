@@ -303,7 +303,7 @@ fn skip_back_a_tiny_bit(
     frac -= 0.0001;
     if frac < 0.0 {
         seconds = seconds.saturating_sub(1);
-        frac += 1.0;
+        frac = 1.0 - frac;
     }
     Time { seconds, frac }
 }
@@ -343,5 +343,24 @@ impl Iterator for SymphoniaDecoder {
         self.current_span_offset += 1;
 
         Some(sample)
+    }
+}
+
+#[cfg(feature = "symphonia-mp3")]
+#[cfg(test)]
+mod tests {
+    use std::{io::BufReader, path::Path, time::Duration};
+
+    use crate::{Decoder, Source};
+
+    #[test]
+    fn test_overseek_exact_length_mp3() {
+        let asset = Path::new("assets/music-zero-ms.mp3");
+        let file = std::fs::File::open(asset).unwrap();
+        let mut decoder = Decoder::new(BufReader::new(file)).unwrap();
+
+        let res = decoder.try_seek(Duration::from_millis(195000));
+
+        assert!(res.is_ok(), "err: {res:?}");
     }
 }

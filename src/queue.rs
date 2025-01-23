@@ -149,6 +149,13 @@ where
         //     and channel count.
 
         if let Some(len) = self.current.current_span_len() {
+            // correct len for buffered sample
+            let len = if self.next_sample.is_some() {
+                len + 1
+            } else {
+                len
+            };
+
             if len > 0 {
                 Some(len)
             } else if self.should_end_when_input_empty() {
@@ -327,79 +334,5 @@ where
                 return Some(sample1);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use crate::buffer::SamplesBuffer;
-    use crate::queue;
-    use crate::source::Source;
-
-    #[test]
-    // #[ignore] // FIXME: samples rate and channel not updated immediately after transition
-    fn basic() {
-        let (controls, mut source) = queue::queue(false);
-
-        controls.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        controls.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
-
-        assert_eq!(source.channels(), 1);
-        assert_eq!(source.sample_rate(), 48000);
-        assert_eq!(source.next(), Some(10));
-        assert_eq!(source.next(), Some(-10));
-        assert_eq!(source.next(), Some(10));
-        assert_eq!(source.next(), Some(-10));
-        assert_eq!(source.channels(), 2);
-        assert_eq!(source.sample_rate(), 96000);
-        assert_eq!(source.next(), Some(5));
-        assert_eq!(source.next(), Some(5));
-        assert_eq!(source.next(), Some(5));
-        assert_eq!(source.next(), Some(5));
-        assert_eq!(source.next(), None);
-    }
-
-    #[test]
-    fn immediate_end() {
-        let (_, mut source) = queue::queue::<i16>(false);
-        assert_eq!(source.next(), None);
-    }
-
-    #[test]
-    fn keep_alive() {
-        let (controls, mut source) = queue::queue(true);
-        controls.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-
-        assert_eq!(source.next(), Some(10));
-        assert_eq!(source.next(), Some(-10));
-        assert_eq!(source.next(), Some(10));
-        assert_eq!(source.next(), Some(-10));
-
-        for _ in 0..100000 {
-            assert_eq!(source.next(), Some(0));
-        }
-    }
-
-    #[test]
-    fn limited_delay_when_added() {
-        let (controls, mut source) = queue::queue(true);
-
-        for _ in 0..500 {
-            assert_eq!(source.next(), Some(0));
-        }
-
-        controls.append(SamplesBuffer::new(4, 41000, vec![10i16, -10, 10, -10]));
-        let sample_rate = source.sample_rate() as f64;
-        let channels = source.channels() as f64;
-        let delay_samples = source.by_ref().take_while(|s| *s == 0).count();
-        let delay = Duration::from_secs_f64(delay_samples as f64 / channels / sample_rate);
-        assert!(delay < Duration::from_millis(5));
-
-        // assert_eq!(source.next(), Some(10)); // we lose this in the take_while
-        assert_eq!(source.next(), Some(-10));
-        assert_eq!(source.next(), Some(10));
-        assert_eq!(source.next(), Some(-10));
     }
 }

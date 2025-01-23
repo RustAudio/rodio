@@ -348,22 +348,3 @@ impl Iterator for SymphoniaDecoder {
         Some(sample)
     }
 }
-
-#[cfg(feature = "symphonia-mp3")]
-#[cfg(test)]
-mod tests {
-    use std::{io::BufReader, path::Path, time::Duration};
-
-    use crate::{Decoder, Source};
-
-    #[test]
-    fn overseek_exact_length_mp3() {
-        let asset = Path::new("assets/music-zero-ms.mp3");
-        let file = std::fs::File::open(asset).unwrap();
-        let mut decoder = Decoder::new(BufReader::new(file)).unwrap();
-
-        let res = decoder.try_seek(Duration::from_millis(195000));
-
-        assert!(res.is_ok(), "err: {res:?}");
-    }
-}

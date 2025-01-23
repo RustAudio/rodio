@@ -301,10 +301,13 @@ fn skip_back_a_tiny_bit(
     }: Time,
 ) -> Time {
     frac -= 0.0001;
+
+    // Frac must be between 0.0 and 1.0 for Symphonia
     if frac < 0.0 {
         seconds = seconds.saturating_sub(1);
-        frac = 1.0 - frac;
+        frac += 1.0;
     }
+
     Time { seconds, frac }
 }
 
@@ -354,7 +357,7 @@ mod tests {
     use crate::{Decoder, Source};
 
     #[test]
-    fn test_overseek_exact_length_mp3() {
+    fn overseek_exact_length_mp3() {
         let asset = Path::new("assets/music-zero-ms.mp3");
         let file = std::fs::File::open(asset).unwrap();
         let mut decoder = Decoder::new(BufReader::new(file)).unwrap();

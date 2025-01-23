@@ -17,7 +17,7 @@ use crate::{queue, source::Done, Sample, Source};
 /// Dropping the `Sink` stops all its sounds. You can use `detach` if you want the sounds to continue
 /// playing.
 pub struct Sink {
-    queue_tx: Arc<queue::SourcesQueueInput<f32>>,
+    queue_tx: Arc<queue::QueueControls<f32>>,
     sleep_until_end: Mutex<Option<Receiver<()>>>,
 
     controls: Arc<Controls>,
@@ -78,7 +78,7 @@ impl Sink {
 
     /// Builds a new `Sink`.
     #[inline]
-    pub fn new() -> (Sink, queue::SourcesQueueOutput<f32>) {
+    pub fn new() -> (Sink, queue::QueueSource<f32>) {
         let (queue_tx, queue_rx) = queue::queue(true);
 
         let sink = Sink {

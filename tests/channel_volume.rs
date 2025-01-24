@@ -4,10 +4,10 @@ use std::io::BufReader;
 use itertools::Itertools;
 
 use rodio::source::ChannelVolume;
-use rodio::{Decoder, Source};
+use rodio::{queue, Decoder, Source};
 
 #[test]
-fn tomato() {
+fn no_queue() {
     let file = fs::File::open("assets/music.mp3").unwrap();
     let decoder = Decoder::new(BufReader::new(file)).unwrap();
     assert_eq!(decoder.channels(), 2);
@@ -15,6 +15,20 @@ fn tomato() {
     assert_eq!(channel_volume.channels(), 6);
 
     assert_output_only_on_channel_1_and_2(channel_volume);
+}
+
+#[test]
+fn with_queue_in_between() {
+    let file = fs::File::open("assets/music.mp3").unwrap();
+    let decoder = Decoder::new(BufReader::new(file)).unwrap();
+    assert_eq!(decoder.channels(), 2);
+    let channel_volume = ChannelVolume::new(decoder, vec![1.0, 1.0, 0.0, 0.0, 0.0, 0.0]);
+    assert_eq!(channel_volume.channels(), 6);
+
+    let (controls, queue) = queue::queue(false);
+    controls.append(channel_volume);
+
+    assert_output_only_on_channel_1_and_2(queue);
 }
 
 fn assert_output_only_on_channel_1_and_2(source: impl Source<Item = i16>) {
@@ -25,7 +39,7 @@ fn assert_output_only_on_channel_1_and_2(source: impl Source<Item = i16>) {
         assert_eq!(
             &frame[2..],
             &[0, 0, 0, 0],
-            "frame number {frame_number} had nonzero volume on channels 3,4,5 & 6"
+            "frame {frame_number} had nonzero volume on a channel that should be zero"
         )
     }
 }

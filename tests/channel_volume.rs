@@ -31,14 +31,14 @@ fn with_queue_in_between() {
     assert_output_only_on_channel_1_and_2(queue);
 }
 
-fn assert_output_only_on_channel_1_and_2(source: impl Source<Item = i16>) {
+fn assert_output_only_on_channel_1_and_2(source: impl Source<Item = f32>) {
     for (frame_number, mut frame) in source.chunks(6).into_iter().enumerate() {
         let frame: [_; 6] = frame.next_array().expect(&format!(
             "Source should contain whole frames, frame {frame_number} was partial"
         ));
         assert_eq!(
             &frame[2..],
-            &[0, 0, 0, 0],
+            &[0., 0., 0., 0.],
             "frame {frame_number} had nonzero volume on a channel that should be zero"
         )
     }

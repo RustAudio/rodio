@@ -67,6 +67,7 @@ rstest_reuse = "0.6.0"
 approx = "0.5.1"
 dasp_sample = "0.11.0"
 divan = "0.1.14"
+itertools = "0.14"
 
 [[bench]]
 name = "effects"

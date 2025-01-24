@@ -111,6 +111,7 @@ where
         // This function is non-trivial because the boundary between two
         // sounds in the queue should be a span boundary as well. Further more
         // we can *only* return Some(0) if the queue should stop playing.
+        //
         // This function can be called at any time though its normally only
         // called at the end of the span to get how long the next span will be.
         //
@@ -123,30 +124,6 @@ where
         // scenario. To handle this situation we force a span to have a
         // maximum number of samples with a constant. If the source ends before
         // that point we need to start silence for the remainder of the forced span.
-        //
-        // There are a lot of cases here:
-        // - not filling silence, current span is done
-        //     move to next
-        // - not filling silence, known span length.
-        //     report span length from current
-        // - not filling silence, unknown span length have lower bound.
-        //     report lower bound
-        // - not filling silence, unknown span length, no lower bound.
-        //     report fixed number of frames, if its too long we will get
-        //     silence for that length
-        // - filling silence, we have a next, however span is not finished,
-        //   next is same channel count and sample rate.
-        //     move to next,
-        // - filling silence, we have a next, however span is not finished,
-        //   next is diff channel count or sample rate.
-        //     play silence for rest of span
-        // - filling silence, we have a next, span is done
-        //     move to next
-        // - filling silence, no next, however span is not finished.
-        //     return samples left in span
-        // - filling silence, no next, span is done.
-        //     new silence span with fixed length, match previous sample_rate
-        //     and channel count.
 
         if let Some(len) = self.current.current_span_len() {
             // correct len for buffered sample

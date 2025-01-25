@@ -24,6 +24,12 @@ See [the docs](https://docs.rs/rodio/latest/rodio/#alternative-decoder-backends)
 
 We are currently making large improvements to rodio. This does mean the updated examples do not work with the current crates.io release. You will have to look at the examples from commit `f1eaaa4a`. They are available [on github](https://github.com/RustAudio/rodio/tree/f1eaaa4a6346933fc8a58d5fd1ace170946b3a94/examples).
 
+## Requirements
+
+Rodio playback works in environments supported by [cpal](https://github.com/RustAudio/cpal) library.
+
+The CPU of the target system should have hardware support for 32-bit floating point (`f32`), and atomic operations that are at least 32 bit wide. Without these the CPU may not be fast enough to keep up with real-time.
+
 ## Dependencies (Linux only)
 
 Rodio uses `cpal` library to send audio to the OS for playback. ALSA development files are needed to build `cpal` on Linux. These are provided as part of the `libasound2-dev` package on Debian and Ubuntu distributions and `alsa-lib-devel` on Fedora.

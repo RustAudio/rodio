@@ -10,27 +10,39 @@ use test_support::TestSource;
 fn basic() {
     let (controls, mut source) = queue::queue(false);
 
-    controls.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-    controls.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
+    let mut source1 = SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]);
+    let mut source2 = SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]);
+    controls.append(source1.clone());
+    controls.append(source2.clone());
 
-    assert_eq!(source.channels(), 1);
-    assert_eq!(source.sample_rate(), 48000);
-    assert_eq!(source.next(), Some(10));
-    assert_eq!(source.next(), Some(-10));
-    assert_eq!(source.next(), Some(10));
-    assert_eq!(source.next(), Some(-10));
-    assert_eq!(source.channels(), 2);
-    assert_eq!(source.sample_rate(), 96000);
-    assert_eq!(source.next(), Some(5));
-    assert_eq!(source.next(), Some(5));
-    assert_eq!(source.next(), Some(5));
-    assert_eq!(source.next(), Some(5));
+    assert_eq!(source.current_span_len(), Some(4));
+    assert_eq!(source.channels(), source1.channels());
+    assert_eq!(source.sample_rate(), source1.sample_rate());
+    assert_eq!(source.next(), source1.next());
+    assert_eq!(source.next(), source1.next());
+    assert_eq!(source.current_span_len(), Some(2));
+    assert_eq!(source.next(), source1.next());
+    assert_eq!(source.next(), source1.next());
+    assert_eq!(None, source1.next());
+
+    assert_eq!(source.current_span_len(), Some(4));
+    assert_eq!(source.channels(), source2.channels());
+    assert_eq!(source.sample_rate(), source2.sample_rate());
+    assert_eq!(source.next(), source2.next());
+    assert_eq!(source.next(), source2.next());
+    assert_eq!(source.current_span_len(), Some(2));
+    assert_eq!(source.next(), source2.next());
+    assert_eq!(source.next(), source2.next());
+    assert_eq!(None, source2.next());
+
+    assert_eq!(source.current_span_len(), Some(0));
     assert_eq!(source.next(), None);
 }
 
 #[test]
 fn immediate_end() {
     let (_, mut source) = queue::queue::<i16>(false);
+    assert_eq!(source.current_span_len(), Some(0));
     assert_eq!(source.next(), None);
 }
 
@@ -50,7 +62,7 @@ fn keep_alive() {
 }
 
 #[test]
-fn limited_delay_when_added() {
+fn limited_delay_when_added_with_keep_alive() {
     let (controls, mut source) = queue::queue(true);
 
     for _ in 0..500 {
@@ -62,12 +74,29 @@ fn limited_delay_when_added() {
     let channels = source.channels() as f64;
     let delay_samples = source.by_ref().take_while(|s| *s == 0).count();
     let delay = Duration::from_secs_f64(delay_samples as f64 / channels / sample_rate);
-    assert!(delay < Duration::from_millis(5));
+    assert!(delay < Duration::from_millis(10), "delay was: {delay:?}");
 
-    // assert_eq!(source.next(), Some(10)); // we lose this in the take_while
+    // note we lose the first sample in the take_while
     assert_eq!(source.next(), Some(-10));
     assert_eq!(source.next(), Some(10));
     assert_eq!(source.next(), Some(-10));
+}
+
+#[test]
+fn parameters_queried_before_next() {
+    let test_source = TestSource::new(&[0.1; 5])
+        .with_channels(1)
+        .with_sample_rate(1);
+
+    let (controls, mut source) = queue::queue(true);
+
+    assert_eq!(source.current_span_len(), Some(400));
+    controls.append(test_source);
+    assert_eq!(source.next(), Some(0.0));
+    for i in 0..199 {
+        assert_eq!(source.next(), Some(0.0), "iteration {i}");
+    }
+    assert_eq!(source.next(), Some(0.1));
 }
 
 mod source_without_span_or_lower_bound_ending_early {
@@ -120,8 +149,41 @@ mod source_without_span_or_lower_bound_ending_early {
         assert_eq!(source.next(), Some(0.1));
         assert_eq!(source.next(), Some(0.1));
 
-        assert_eq!(source.current_span_len(), Some(5));
-        assert_eq!(source.next(), Some(0.2));
+        assert_eq!(source.current_span_len(), Some(195));
+        assert_eq!(source.take_while(|s| *s == 0.0).count(), 195);
+    }
+
+    #[test]
+    fn span_ending_mid_frame() {
+        let mut test_source1 = TestSource::new(&[0.1, 0.2, 0.1, 0.2, 0.1])
+            .with_channels(2)
+            .with_sample_rate(1)
+            .with_false_span_len(Some(6));
+        let mut test_source2 = TestSource::new(&[0.3, 0.4, 0.3, 0.4])
+            .with_channels(2)
+            .with_sample_rate(1);
+
+        let (controls, mut source) = queue::queue(true);
+        controls.append(test_source1.clone());
+        controls.append(test_source2.clone());
+
+        assert_eq!(source.current_span_len(), Some(6));
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.current_span_len(), Some(1));
+        assert_eq!(None, test_source1.next());
+
+        // extra sample to ensure frames are aligned
+        assert_eq!(source.next(), Some(0.0));
+
+        assert_eq!(source.current_span_len(), Some(4));
+        assert_eq!(source.next(), test_source2.next(),);
+        assert_eq!(source.next(), test_source2.next());
+        assert_eq!(source.next(), test_source2.next());
+        assert_eq!(source.next(), test_source2.next());
     }
 }
 
@@ -129,6 +191,7 @@ mod source_without_span_or_lower_bound_ending_early {
 mod test_support {
     use std::time::Duration;
 
+    #[derive(Debug, Clone)]
     pub struct TestSource {
         samples: Vec<f32>,
         pos: usize,

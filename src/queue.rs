@@ -34,9 +34,11 @@ where
     let output = QueueSource {
         current: Box::new(Empty::<S>::new()) as Box<_>,
         input: input.clone(),
-        filling_initial_silence: Cell::new(false),
-        next_sample: None,
-        fallback_span_index: Cell::new(None),
+        starting_silence: Cell::new(false),
+        buffered: None,
+        samples_left_in_span: Cell::new(0),
+        starting_silence_channels: Cell::new(2),
+        starting_silence_sample_rate: Cell::new(4100),
     };
 
     (input, output)
@@ -96,15 +98,18 @@ pub struct QueueSource<S> {
     // The next sounds.
     input: Arc<QueueControls<S>>,
 
-    filling_initial_silence: Cell<bool>,
-    fallback_span_index: Cell<Option<usize>>,
+    starting_silence: Cell<bool>,
+    starting_silence_channels: Cell<ChannelCount>,
+    starting_silence_sample_rate: Cell<SampleRate>,
 
-    next_sample: Option<S>,
+    samples_left_in_span: Cell<usize>,
+
+    buffered: Option<S>,
 }
 
 impl<S> Source for QueueSource<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + 'static + core::fmt::Debug,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
@@ -125,9 +130,26 @@ where
         // maximum number of samples with a constant. If the source ends before
         // that point we need to start silence for the remainder of the forced span.
 
-        if let Some(len) = self.current.current_span_len() {
+        let (span_len, size_lower_bound) = if self.buffered.is_none() {
+            if let Some(next) = self.next_non_empty_sound_params() {
+                (next.span_len, next.size_lower_bound)
+            } else if self.should_end_when_input_empty() {
+                return Some(0);
+            } else {
+                self.starting_silence.set(true);
+                return Some(self.silence_span_len());
+            }
+        } else {
+            (self.current.current_span_len(), self.current.size_hint().0)
+        };
+
+        if self.samples_left_in_span.get() > 0 {
+            return Some(self.samples_left_in_span.get());
+        }
+
+        let res = if let Some(len) = span_len {
             // correct len for buffered sample
-            let len = if self.next_sample.is_some() {
+            let len = if self.buffered.is_some() {
                 len + 1
             } else {
                 len
@@ -144,27 +166,57 @@ where
                 //
                 // We signal to next that we need a silence now even if a new
                 // source is available
-                self.filling_initial_silence.set(true);
+                self.starting_silence.set(true);
+                if let Some(params) = self.next_non_empty_sound_params() {
+                    self.starting_silence_sample_rate.set(params.sample_rate);
+                    self.starting_silence_channels.set(params.channels);
+                } else {
+                    self.starting_silence_sample_rate.set(44_100);
+                    self.starting_silence_channels.set(2);
+                };
                 Some(self.silence_span_len())
             }
-        } else if self.current.size_hint().0 == 0 {
+        } else if size_lower_bound == 0 {
             // span could end earlier we correct for that by playing silence
             // if that happens
-            self.fallback_span_index.set(Some(0));
             Some(self.fallback_span_length())
         } else {
-            Some(self.current.size_hint().0)
+            Some(size_lower_bound)
+        };
+
+        if let Some(len) = res {
+            self.samples_left_in_span.set(len);
         }
+
+        res
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.current.channels()
+        if self.buffered.is_none() {
+            if let Some(next) = self.next_non_empty_sound_params() {
+                next.channels
+            } else {
+                self.starting_silence_channels.set(2);
+                2
+            }
+        } else {
+            self.current.channels()
+        }
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.current.sample_rate()
+        if self.buffered.is_none() {
+            if let Some(next) = self.next_non_empty_sound_params() {
+                next.sample_rate
+            } else {
+                self.starting_silence_sample_rate.set(44_100);
+                44100
+            }
+        } else {
+            self.current.sample_rate()
+        }
     }
 
     #[inline]
@@ -189,48 +241,50 @@ where
 
 impl<S> Iterator for QueueSource<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + 'static + std::fmt::Debug,
 {
     type Item = S;
 
     #[inline]
     fn next(&mut self) -> Option<S> {
-        self.fallback_span_index
-            .set(self.fallback_span_index.get().map(|idx| idx + 1));
-
         // may only return None when the queue should end
-        match (self.next_sample.take(), self.current.next()) {
+        let res = match dbg!((self.buffered.take(), self.current.next())) {
             (Some(sample1), Some(samples2)) => {
-                self.next_sample = Some(samples2);
+                self.buffered = Some(samples2);
                 Some(sample1)
             }
             (Some(sample1), None) => self.current_is_ending(sample1),
             (None, Some(sample1)) => {
                 // start, populate the buffer
-                self.next_sample = self.current.next();
+                self.buffered = self.current.next();
                 Some(sample1)
             }
             (None, None) => self.no_buffer_no_source(),
+        };
+
+        if let Some(samples_left) = self.samples_left_in_span.get().checked_sub(1) {
+            self.samples_left_in_span.set(dbg!(samples_left));
         }
+
+        res
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.current.size_hint().0, None)
+        (0, None)
     }
 }
 
 impl<S> QueueSource<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + 'static + core::fmt::Debug,
 {
     fn fallback_span_length(&self) -> usize {
         // ~ 5 milliseconds at 44100
         200 * self.channels() as usize
     }
 
-    fn finish_forced_span(&self, span_idx: usize) -> Sound<S> {
-        let samples = self.fallback_span_length() - span_idx;
+    fn finish_span_with_silence(&self, samples: usize) -> Sound<S> {
         let silence =
             Zero::<S>::new_samples(self.current.channels(), self.current.sample_rate(), samples);
         Box::new(silence)
@@ -261,9 +315,9 @@ where
     fn no_buffer_no_source(&mut self) -> Option<S> {
         // Prevents a race condition where a call `current_span_len`
         // precedes the call to `next`
-        if self.filling_initial_silence.get() {
+        if dbg!(self.starting_silence.get()) {
             self.current = self.silence();
-            self.filling_initial_silence.set(true);
+            self.starting_silence.set(true);
             return self.current.next();
         }
 
@@ -271,7 +325,8 @@ where
             if let Some(mut sound) = self.next_sound() {
                 if let Some((sample1, sample2)) = sound.next().zip(sound.next()) {
                     self.current = sound;
-                    self.next_sample = Some(sample2);
+                    self.buffered = Some(sample2);
+                    self.current_span_len();
                     return Some(sample1);
                 } else {
                     continue;
@@ -286,19 +341,25 @@ where
     }
 
     fn current_is_ending(&mut self, sample1: S) -> Option<S> {
-        if let Some(idx) = self.fallback_span_index.get() {
-            if idx < self.fallback_span_length() {
-                self.fallback_span_index.set(None);
-                self.current = self.finish_forced_span(idx);
-                return Some(sample1);
-            }
+        // note sources are free to stop (return None) mid frame and
+        // mid span, we must handle that here
+
+        // check if the span we reported is ended after returning the
+        // buffered source. If not we need to provide a silence to guarantee
+        // the span ends when we promised
+        if self.samples_left_in_span.get() > 1 {
+            dbg!(&self.samples_left_in_span);
+            self.current = self.finish_span_with_silence(self.samples_left_in_span.get() - 1);
+            return Some(sample1);
         }
 
         loop {
             if let Some(mut sound) = self.next_sound() {
                 if let Some(sample2) = sound.next() {
                     self.current = sound;
-                    self.next_sample = Some(sample2);
+                    // updates samples_left_in_span
+                    self.buffered = Some(sample2);
+                    self.current_span_len();
                     return Some(sample1);
                 } else {
                     continue;
@@ -307,9 +368,31 @@ where
                 return Some(sample1);
             } else {
                 self.current = self.silence();
-                self.next_sample = self.current.next();
+                self.current_span_len();
+                self.buffered = self.current.next();
                 return Some(sample1);
             }
         }
     }
+
+    fn next_non_empty_sound_params(&self) -> Option<NonEmptySourceParams> {
+        let next_sounds = self.input.next_sounds.lock().unwrap();
+        next_sounds
+            .iter()
+            .find(|s| s.current_span_len().is_none_or(|l| l > 0))
+            .map(|s| NonEmptySourceParams {
+                size_lower_bound: s.size_hint().0,
+                span_len: s.current_span_len(),
+                channels: s.channels(),
+                sample_rate: s.sample_rate(),
+            })
+    }
+}
+
+#[derive(Debug)]
+struct NonEmptySourceParams {
+    size_lower_bound: usize,
+    span_len: Option<usize>,
+    channels: ChannelCount,
+    sample_rate: SampleRate,
 }

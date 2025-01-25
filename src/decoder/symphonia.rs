@@ -301,10 +301,13 @@ fn skip_back_a_tiny_bit(
     }: Time,
 ) -> Time {
     frac -= 0.0001;
+
+    // Frac must be between 0.0 and 1.0 for Symphonia
     if frac < 0.0 {
         seconds = seconds.saturating_sub(1);
-        frac = 1.0 - frac;
+        frac += 1.0;
     }
+
     Time { seconds, frac }
 }
 

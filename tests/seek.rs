@@ -161,6 +161,18 @@ fn seek_does_not_break_channel_order(
     }
 }
 
+#[rstest]
+fn seek_beyond_end_saturates_fixed_length_mp3() {
+    let asset = Path::new("assets/music-zero-ms.mp3");
+    let file = std::fs::File::open(asset).unwrap();
+    let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
+
+    let res = decoder.try_seek(Duration::from_millis(195000));
+
+    assert!(res.is_ok(), "err: {res:?}");
+    assert!(time_remaining(decoder) < Duration::from_secs(1));
+}
+
 fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize>
 where
     R: Iterator<Item = f32>,

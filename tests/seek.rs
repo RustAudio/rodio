@@ -145,7 +145,7 @@ fn seek_does_not_break_channel_order(
         let channel0 = 0 + channel_offset;
         assert!(
             is_silent(&samples, source.channels(), channel0),
-            "channel0 should be silent, 
+            "channel0 should be silent,
     channel0 starts at idx: {channel0}
     seek: {beep_start:?} + {offset:?}
     samples: {samples:?}"
@@ -153,7 +153,7 @@ fn seek_does_not_break_channel_order(
         let channel1 = (1 + channel_offset) % 2;
         assert!(
             !is_silent(&samples, source.channels(), channel1),
-            "channel1 should not be silent, 
+            "channel1 should not be silent,
     channel1; starts at idx: {channel1}
     seek: {beep_start:?} + {offset:?}
     samples: {samples:?}"

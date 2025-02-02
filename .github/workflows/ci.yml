@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, master]
+    branches: [ main, master ]
 
 env:
   RUSTFLAGS: "-C debuginfo=0 -D warnings"
@@ -18,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-        toolchain: [stable, beta, nightly]
+        os: [ macos-latest, windows-latest, ubuntu-latest ]
+        toolchain: [ stable, beta, nightly ]
         include:
           - os: macos-latest
             MACOS: true
@@ -28,14 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install linux deps
-        run: |
-          sudo apt update
-          sudo apt install -y --no-install-recommends libasound2-dev pkg-config
+      - name: Install linux build requirements
+        run: sudo apt install --yes --no-install-recommends libasound2-dev pkg-config
         if: contains(matrix.os, 'ubuntu')
 
       - name: install ${{ matrix.toolchain }} toolchain
-        id: install_toolchain
         run: rustup toolchain install ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
 
       - run: cargo clippy -- -D warnings
@@ -55,72 +52,3 @@ jobs:
       # Check minimal build. `tests/seek.rs` fails if there are no decoders at all,
       # adding one to make the tests check pass.
       - run: cargo check --tests --lib --no-default-features --features mp3
-  cargo-publish:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    env:
-      CRATESIO_TOKEN: ${{ secrets.CRATESIO_TOKEN }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Update apt
-        run: sudo apt update
-      - name: Install alsa
-        run: sudo apt install -y --no-install-recommends libasound2-dev pkg-config
-      - name: Run cargo publish for rodio
-        continue-on-error: true
-        run: |
-          RODIO_TMP=$(mktemp /tmp/rodioXXX.txt) || echo "::error::mktemp error"
-          echo "RODIO_TMP=$RODIO_TMP" >> $GITHUB_ENV
-          cargo publish --token $CRATESIO_TOKEN 2> $RODIO_TMP
-      - name: Check if rodio is already published
-        run: |
-          empty=0
-          RODIO_TMP="${{ env.RODIO_TMP }}"
-          grep -q '[^[:space:]]' < $RODIO_TMP || empty=1
-          [ $empty -eq 0 ] && cat $RODIO_TMP
-          [ $empty -eq 1 ] || grep -q "is already uploaded" < $RODIO_TMP
-
-  create-git-tag:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check if WORKFLOW_TOKEN is set
-      run: |
-        if [ -z "${{ secrets.WORKFLOW_TOKEN }}" ]; then
-          echo "Personal access token WORKFLOW_TOKEN is not set"
-          exit 1
-        else
-          echo "Checked `WORKFLOW_TOKEN` is set"
-        fi
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Fetch all history to list all existing tags
-        token: ${{ secrets.WORKFLOW_TOKEN }}
-    - name: Extract version from Cargo.toml
-      id: extract_version
-      run: |
-        version=$(awk '/\[package\]/,/^version/ { if ($1 == "version") { gsub(/"/, "", $3); print $3 } }' Cargo.toml)
-        echo "Version value found: $version"
-        echo "version=$version" >> $GITHUB_OUTPUT
-    - name: Check if tag exists
-      id: check_tag
-      run: |
-        version=${{ steps.extract_version.outputs.version }}
-        version_name="v$version"
-        if git rev-parse "refs/tags/$version_name" >/dev/null 2>&1; then
-          echo "Tag $version_name already exists"
-          echo "tag_exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "Tag $version_name does not exist"
-          echo "tag_exists=false" >> $GITHUB_OUTPUT
-        fi
-    - name: Create and push tag
-      if: steps.check_tag.outputs.tag_exists == 'false'
-      run: |
-        version=${{ steps.extract_version.outputs.version }}
-        git config --global user.name 'github-actions'
-        git config --global user.email 'github-actions@github.com'
-        version_name="v$version"
-        git tag -a "$version_name" -m "Release for $version_name"
-        git push origin $version_name

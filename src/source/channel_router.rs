@@ -227,7 +227,7 @@ where
         }
         let sample = self.output_frame[self.current_out_channel as usize];
         self.current_out_channel += 1;
-        Some(sample.unwrap_or(I::Item::zero_value()).to_sample())
+        Some(sample.unwrap_or(I::Item::zero_value()))
     }
 
     #[inline]

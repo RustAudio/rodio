@@ -3,6 +3,7 @@
 use crate::{ChannelCount, Sample, Source};
 use dasp_sample::Sample as DaspSample;
 use std::cell::Cell;
+use std::fmt::{Debug, Formatter};
 use std::{
     error::Error,
     fmt,
@@ -102,7 +103,6 @@ impl ChannelMixer {
 
 /// A source for extracting, reordering, mixing and duplicating audio between
 /// channels.
-// #[derive(Debug)] // TODO Reimplement debug? A Cell is not Debug.
 pub struct ChannelMixerSource<I>
 where
     I: Source,
@@ -128,6 +128,20 @@ where
 
     /// Communication channel with the controller.
     receiver: Receiver<ChannelMap>,
+}
+
+impl<I> Debug for ChannelMixerSource<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ChannelMixerSource")
+            .field("channel_map", &self.channel_map)
+            .field("channel_count", &self.channel_count)
+            .field("current_channel", &self.current_channel)
+            .finish()
+    }
 }
 
 impl<I> ChannelMixerSource<I>

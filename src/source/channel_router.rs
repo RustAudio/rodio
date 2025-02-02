@@ -2,7 +2,6 @@
 
 use crate::{ChannelCount, Sample, Source};
 use dasp_sample::Sample as DaspSample;
-use std::cell::Cell;
 use std::fmt::{Debug, Formatter};
 use std::{
     error::Error,
@@ -39,9 +38,8 @@ where
         input,
         channel_map: vec![],
         // this will cause the input buffer to fill on first call to next()
-        current_channel: out_channels_count,
-        channel_count: out_channels_count,
-        input_frame: Cell::new(vec![]),
+        current_out_channel: out_channels_count,
+        out_channel_count: out_channels_count,
         // I::Item::zero_value() zero value is not 0 for some sample types,
         // so have to use an option.
         output_frame: vec![None; out_channels_count.into()],
@@ -115,13 +113,10 @@ where
     channel_map: ChannelMap,
 
     /// The output channel that [`next()`] will return next.
-    current_channel: u16,
+    current_out_channel: ChannelCount,
 
     /// The number of output channels.
-    channel_count: u16,
-
-    /// Helps to reduce dynamic allocation.
-    input_frame: Cell<Vec<I::Item>>,
+    out_channel_count: ChannelCount,
 
     /// The current input audio frame.
     output_frame: Vec<Option<I::Item>>,
@@ -138,8 +133,8 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("ChannelMixerSource")
             .field("channel_map", &self.channel_map)
-            .field("channel_count", &self.channel_count)
-            .field("current_channel", &self.current_channel)
+            .field("channel_count", &self.out_channel_count)
+            .field("current_channel", &self.current_out_channel)
             .finish()
     }
 }
@@ -173,8 +168,8 @@ where
     }
 
     #[inline]
-    fn channels(&self) -> u16 {
-        self.channel_count
+    fn channels(&self) -> ChannelCount {
+        self.out_channel_count
     }
 
     #[inline]
@@ -197,42 +192,41 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_channel >= self.channel_count {
-            // TODO One may want to change mapping when incoming channel count changes.
+        if self.current_out_channel >= self.out_channel_count {
+            // An improvement idea: one may want to update the mapping when incoming channel count changes.
+            // TODO This condition is normally false. Use an atomic to speedup polling?
             if let Some(map_update) = self.receiver.try_iter().last() {
                 self.channel_map = map_update;
             }
 
-            self.current_channel = 0;
+            self.current_out_channel = 0;
             self.output_frame.fill(None);
-            let input_channels = self.input.channels() as usize;
-
-            let mut input_frame = self.input_frame.take();
-            input_frame.truncate(0);
-            input_frame.extend(self.inner_mut().take(input_channels));
-            if input_frame.len() < input_channels {
-                return None;
-            }
-            let mut li = 0;
-            for (ch_in, s) in input_frame.iter().enumerate() {
-                while li < self.channel_map.len() {
-                    let link = &self.channel_map[li];
-                    if link.0 > ch_in as u16 {
+            let input_channels = self.input.channels();
+            let mut link_index = 0;
+            let mut in_channel_count = 0;
+            let input = &mut self.input;
+            for (input_channel, sample) in input.take(input_channels as usize).enumerate() {
+                while link_index < self.channel_map.len() {
+                    let (from_channel, to_channel, weight) = self.channel_map[link_index];
+                    if from_channel > input_channel as ChannelCount {
                         break;
                     }
-                    if link.0 == ch_in as u16 {
-                        let amplified = s.amplify(link.2);
-                        let c = &mut self.output_frame[link.1 as usize];
-                        // This can be simpler if samples had a way to get additive zero (0, or 0.0).
+                    if from_channel == input_channel as ChannelCount {
+                        let amplified = sample.amplify(weight);
+                        let c = &mut self.output_frame[to_channel as usize];
+                        // This could be simpler if samples had a way to get additive zero (0, or 0.0).
                         *c = Some(c.map_or(amplified, |x| x.saturating_add(amplified)));
                     }
-                    li += 1;
+                    link_index += 1;
                 }
+                in_channel_count += 1;
             }
-            self.input_frame.replace(input_frame);
+            if in_channel_count < input_channels {
+                return None;
+            }
         }
-        let sample = self.output_frame[self.current_channel as usize];
-        self.current_channel += 1;
+        let sample = self.output_frame[self.current_out_channel as usize];
+        self.current_out_channel += 1;
         Some(sample.unwrap_or(I::Item::zero_value()).to_sample())
     }
 

@@ -1,4 +1,32 @@
-//! Decodes samples from an audio file.
+//! Decodes audio samples from various audio file formats.
+//!
+//! This module provides decoders for common audio formats like MP3, WAV, Vorbis and FLAC.
+//! It supports both one-shot playback and looped playback of audio files.
+//!
+//! # Examples
+//!
+//! Basic usage:
+//! ```no_run
+//! use std::fs::File;
+//! use rodio::Decoder;
+//!
+//! let file = File::open("audio.mp3").unwrap();
+//! let decoder = Decoder::new(file).unwrap();
+//! ```
+//!
+//! Using the builder pattern for more control:
+//! ```no_run
+//! use std::fs::File;
+//! use rodio::Decoder;
+//!
+//! let file = File::open("audio.mp3").unwrap();
+//! let decoder = Decoder::builder()
+//!     .with_data(file)
+//!     .with_hint("mp3")
+//!     .with_gapless(true)
+//!     .build()
+//!     .unwrap();
+//! ```
 
 use std::error::Error;
 use std::fmt;
@@ -33,15 +61,33 @@ mod wav;
 
 /// Source of audio samples from decoding a file.
 ///
-/// Supports MP3, WAV, Vorbis and Flac.
+/// # Examples
+///
+/// ```no_run
+/// use std::fs::File;
+/// use rodio::Decoder;
+///
+/// let file = File::open("audio.mp3").unwrap();
+/// let decoder = Decoder::new(file).unwrap();
+/// ```
 pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 
-/// Source of audio samples from decoding a file that never ends. When the
-/// end of the file is reached the decoder starts again from the beginning.
+/// Source of audio samples from decoding a file that never ends.
+/// When the end of the file is reached, the decoder starts again from the beginning.
 ///
-/// Supports MP3, WAV, Vorbis and Flac.
+/// # Examples
+///
+/// ```no_run
+/// use std::fs::File;
+/// use rodio::Decoder;
+///
+/// let file = File::open("audio.mp3").unwrap();
+/// let looped_decoder = Decoder::new_looped(file).unwrap();
+/// ```
 pub struct LoopedDecoder<R: Read + Seek> {
+    /// The underlying decoder implementation.
     inner: DecoderImpl<R>,
+    /// Configuration settings for the decoder.
     settings: Settings,
 }
 
@@ -62,7 +108,7 @@ enum DecoderImpl<R: Read + Seek> {
     None(::std::marker::PhantomData<R>),
 }
 
-/// Settings for configuring decoders.
+/// Audio decoder configuration settings.
 /// Support for these settings depends on the underlying decoder implementation.
 #[derive(Clone, Debug)]
 pub struct Settings {
@@ -91,11 +137,32 @@ impl Default for Settings {
     }
 }
 
-/// Builder for configuring and creating a Decoder
-#[derive(Clone)]
+/// Builder for configuring and creating a decoder.
+///
+/// This provides a flexible way to configure decoder settings before creating
+/// the actual decoder instance.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::fs::File;
+/// use rodio::Decoder;
+///
+/// let file = File::open("audio.mp3").unwrap();
+/// let decoder = Decoder::builder()
+///     .with_data(file)
+///     .with_hint("mp3")
+///     .with_gapless(true)
+///     .build()
+///     .unwrap();
+/// ```
+#[derive(Clone, Debug)]
 pub struct DecoderBuilder<R> {
+    /// The input data source to decode.
     data: Option<R>,
+    /// Configuration settings for the decoder.
     settings: Settings,
+    /// Whether the decoder should loop playback.
     looped: bool,
 }
 
@@ -109,65 +176,92 @@ impl<R> Default for DecoderBuilder<R> {
     }
 }
 
-/// The output type from building a decoder
+/// Output type from building a decoder.
+///
+/// This enum represents either a normal decoder or a looped decoder,
+/// depending on how the decoder was configured during building.
 pub enum DecoderOutput<R>
 where
     R: Read + Seek,
 {
-    /// A normal decoder
+    /// A normal decoder that plays once.
     Normal(Decoder<R>),
-    /// A looped decoder
+    /// A looped decoder that repeats playback.
     Looped(LoopedDecoder<R>),
 }
 
 impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
-    /// Create a new decoder builder.
+    /// Creates a new decoder builder with default settings.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.mp3").unwrap();
+    /// let decoder = Decoder::builder()
+    ///     .with_data(file)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Set the input data source.
+    /// Sets the input data source to decode.
     pub fn with_data(mut self, data: R) -> Self {
         self.data = Some(data);
         self
     }
 
-    /// Set the byte length of the stream.
+    /// Sets the byte length of the stream.
     /// When known, this can be used to optimize operations like seeking and calculating durations.
     pub fn with_byte_len(mut self, byte_len: u64) -> Self {
         self.settings.byte_len = Some(byte_len);
         self
     }
 
-    /// Enable or disable coarse seeking.
-    /// This needs byte_len to be set.
-    /// Coarse seeking is faster but less accurate: it may seek to a position slightly before or
-    /// after the requested one, especially when the bitrate is variable.
+    /// Enables or disables coarse seeking.
+    ///
+    /// This needs byte_len to be set. Coarse seeking is faster but less accurate:
+    /// it may seek to a position slightly before or after the requested one,
+    /// especially when the bitrate is variable.
     pub fn with_coarse_seek(mut self, coarse_seek: bool) -> Self {
         self.settings.coarse_seek = coarse_seek;
         self
     }
 
-    /// Enable or disable gapless playback
+    /// Enables or disables gapless playback.
+    ///
+    /// When enabled, removes silence between tracks for formats that support it.
     pub fn with_gapless(mut self, gapless: bool) -> Self {
         self.settings.gapless = gapless;
         self
     }
 
-    /// Set a format hint for the decoder.
+    /// Sets a format hint for the decoder.
+    ///
     /// When known, this can help the decoder to select the correct demuxer.
+    /// Common values are "mp3", "wav", "flac", "ogg", etc.
     pub fn with_hint(mut self, hint: &str) -> Self {
         self.settings.hint = Some(hint.to_string());
         self
     }
 
-    /// Configure the decoder to loop playback.
+    /// Configures the decoder to loop playback.
+    ///
+    /// When enabled, the decoder will restart from the beginning when it reaches the end.
     pub fn looped(mut self, looped: bool) -> Self {
         self.looped = looped;
         self
     }
 
-    /// Build the decoder with the configured settings.
+    /// Builds the decoder with the configured settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+    /// or is not supported.
     pub fn build(self) -> Result<DecoderOutput<R>, DecoderError> {
         let data = self.data.ok_or(DecoderError::UnrecognizedFormat)?;
 
@@ -377,7 +471,21 @@ impl<R: Read + Seek> DecoderImpl<R> {
 }
 
 impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
-    /// Create a new DecoderBuilder to configure decoder settings
+    /// Creates a new decoder builder to configure decoder settings.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.mp3").unwrap();
+    /// let decoder = Decoder::builder()
+    ///     .with_data(file)
+    ///     .with_hint("mp3")
+    ///     .with_gapless(true)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn builder() -> DecoderBuilder<R> {
         DecoderBuilder::new()
     }
@@ -385,6 +493,11 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// Builds a new decoder with default settings.
     ///
     /// Attempts to automatically detect the format of the source of data.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+    /// or is not supported.
     pub fn new(data: R) -> Result<Self, DecoderError> {
         match Self::builder().with_data(data).build()? {
             DecoderOutput::Normal(decoder) => Ok(decoder),
@@ -395,6 +508,12 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// Builds a new looped decoder with default settings.
     ///
     /// Attempts to automatically detect the format of the source of data.
+    /// The decoder will restart from the beginning when it reaches the end.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+    /// or is not supported.
     pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
         match Self::builder().with_data(data).looped(true).build()? {
             DecoderOutput::Looped(decoder) => Ok(decoder),
@@ -402,7 +521,24 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
         }
     }
 
-    /// Builds a new decoder from wav data with default settings.
+    /// Builds a new decoder with WAV format hint.
+    ///
+    /// This method provides a hint that the data is WAV format, which may help the decoder
+    /// identify the format more quickly. However, if WAV decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.wav").unwrap();
+    /// let decoder = Decoder::new_wav(file).unwrap();
+    /// ```
     #[cfg(any(feature = "wav", feature = "symphonia-wav"))]
     pub fn new_wav(data: R) -> Result<Self, DecoderError> {
         match Self::builder().with_data(data).with_hint("wav").build()? {
@@ -411,7 +547,24 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
         }
     }
 
-    /// Builds a new decoder from flac data with default settings.
+    /// Builds a new decoder with FLAC format hint.
+    ///
+    /// This method provides a hint that the data is FLAC format, which may help the decoder
+    /// identify the format more quickly. However, if FLAC decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.flac").unwrap();
+    /// let decoder = Decoder::new_flac(file).unwrap();
+    /// ```
     #[cfg(any(feature = "flac", feature = "symphonia-flac"))]
     pub fn new_flac(data: R) -> Result<Self, DecoderError> {
         match Self::builder().with_data(data).with_hint("flac").build()? {
@@ -420,7 +573,24 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
         }
     }
 
-    /// Builds a new decoder from vorbis data with default settings.
+    /// Builds a new decoder with Vorbis format hint.
+    ///
+    /// This method provides a hint that the data is Vorbis format, which may help the decoder
+    /// identify the format more quickly. However, if Vorbis decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.ogg").unwrap();
+    /// let decoder = Decoder::new_vorbis(file).unwrap();
+    /// ```
     #[cfg(any(feature = "vorbis", feature = "symphonia-vorbis"))]
     pub fn new_vorbis(data: R) -> Result<Self, DecoderError> {
         match Self::builder().with_data(data).with_hint("ogg").build()? {
@@ -429,7 +599,24 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
         }
     }
 
-    /// Builds a new decoder from mp3 data with default settings.
+    /// Builds a new decoder with MP3 format hint.
+    ///
+    /// This method provides a hint that the data is MP3 format, which may help the decoder
+    /// identify the format more quickly. However, if MP3 decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.mp3").unwrap();
+    /// let decoder = Decoder::new_mp3(file).unwrap();
+    /// ```
     #[cfg(any(feature = "minimp3", feature = "symphonia-mp3"))]
     pub fn new_mp3(data: R) -> Result<Self, DecoderError> {
         match Self::builder().with_data(data).with_hint("mp3").build()? {
@@ -438,7 +625,24 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
         }
     }
 
-    /// Builds a new decoder from aac data with default settings.
+    /// Builds a new decoder with AAC format hint.
+    ///
+    /// This method provides a hint that the data is AAC format, which may help the decoder
+    /// identify the format more quickly. However, if AAC decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.aac").unwrap();
+    /// let decoder = Decoder::new_aac(file).unwrap();
+    /// ```
     #[cfg(feature = "symphonia-aac")]
     pub fn new_aac(data: R) -> Result<Self, DecoderError> {
         match Self::builder().with_data(data).with_hint("aac").build()? {
@@ -447,7 +651,24 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
         }
     }
 
-    /// Builds a new decoder from mp4 data with default settings.
+    /// Builds a new decoder with MP4 container format hint.
+    ///
+    /// This method provides a hint about the MP4 container type, which may help the decoder
+    /// identify the format more quickly. However, if MP4 decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::{Decoder, Mp4Type};
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.m4a").unwrap();
+    /// let decoder = Decoder::new_mp4(file, Mp4Type::M4a).unwrap();
+    /// ```
     #[cfg(feature = "symphonia-isomp4")]
     pub fn new_mp4(data: R, hint: Mp4Type) -> Result<Self, DecoderError> {
         match Self::builder()
@@ -461,6 +682,7 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     }
 }
 
+/// Type for specifying MP4 container format variants.
 #[allow(missing_docs)] // Reason: will be removed, see: #612
 #[derive(Debug)]
 pub enum Mp4Type {
@@ -650,7 +872,7 @@ where
     }
 }
 
-/// Error that can happen when creating a decoder.
+/// Errors that can occur when creating a decoder.
 #[derive(Debug, Clone)]
 pub enum DecoderError {
     /// The format of the data has not been recognized.

@@ -4,14 +4,15 @@ use symphonia::core::io::MediaSource;
 
 pub struct ReadSeekSource<T: Read + Seek + Send + Sync> {
     inner: T,
+    byte_len: Option<u64>,
 }
 
 impl<T: Read + Seek + Send + Sync> ReadSeekSource<T> {
     /// Instantiates a new `ReadSeekSource<T>` by taking ownership and wrapping the provided
     /// `Read + Seek`er.
     #[inline]
-    pub fn new(inner: T) -> Self {
-        ReadSeekSource { inner }
+    pub fn new(inner: T, byte_len: Option<u64>) -> Self {
+        ReadSeekSource { inner, byte_len }
     }
 }
 
@@ -23,7 +24,7 @@ impl<T: Read + Seek + Send + Sync> MediaSource for ReadSeekSource<T> {
 
     #[inline]
     fn byte_len(&self) -> Option<u64> {
-        None
+        self.byte_len
     }
 }
 

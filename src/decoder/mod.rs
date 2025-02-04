@@ -34,25 +34,21 @@ mod wav;
 /// Source of audio samples from decoding a file.
 ///
 /// Supports MP3, WAV, Vorbis and Flac.
-pub struct Decoder<R>(DecoderImpl<R>)
-where
-    R: Read + Seek;
+pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 
 /// Source of audio samples from decoding a file that never ends. When the
 /// end of the file is reached the decoder starts again from the beginning.
 ///
 /// Supports MP3, WAV, Vorbis and Flac.
-pub struct LoopedDecoder<R>(DecoderImpl<R>)
-where
-    R: Read + Seek;
+pub struct LoopedDecoder<R: Read + Seek> {
+    inner: DecoderImpl<R>,
+    settings: Settings,
+}
 
 // Cannot really reduce the size of the VorbisDecoder. There are not any
 // arrays just a lot of struct fields.
 #[allow(clippy::large_enum_variant)]
-enum DecoderImpl<R>
-where
-    R: Read + Seek,
-{
+enum DecoderImpl<R: Read + Seek> {
     #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
     Wav(wav::WavDecoder<R>),
     #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
@@ -64,6 +60,197 @@ where
     #[cfg(feature = "symphonia")]
     Symphonia(symphonia::SymphoniaDecoder),
     None(::std::marker::PhantomData<R>),
+}
+
+/// Settings for configuring decoders.
+/// Support for these settings depends on the underlying decoder implementation.
+#[derive(Clone, Debug)]
+pub struct Settings {
+    /// The length of the stream in bytes.
+    /// When known, this can be used to optimize operations like seeking and calculating durations.
+    pub(crate) byte_len: Option<u64>,
+    /// Whether to use coarse seeking. This needs `byte_len` to be set.
+    /// Coarse seeking is faster but less accurate: it may seek to a position slightly before or
+    /// after the requested one, especially when the bitrate is variable.
+    pub(crate) coarse_seek: bool,
+    /// Whether to trim frames for gapless playback.
+    pub(crate) gapless: bool,
+    /// A hint or extension for the decoder about the format of the stream.
+    /// When known, this can help the decoder to select the correct demuxer.
+    pub(crate) hint: Option<String>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            byte_len: None,
+            coarse_seek: false,
+            gapless: true,
+            hint: None,
+        }
+    }
+}
+
+/// Builder for configuring and creating a Decoder
+#[derive(Clone)]
+pub struct DecoderBuilder<R> {
+    data: Option<R>,
+    settings: Settings,
+    looped: bool,
+}
+
+impl<R> Default for DecoderBuilder<R> {
+    fn default() -> Self {
+        Self {
+            data: None,
+            settings: Settings::default(),
+            looped: false,
+        }
+    }
+}
+
+/// The output type from building a decoder
+pub enum DecoderOutput<R>
+where
+    R: Read + Seek,
+{
+    /// A normal decoder
+    Normal(Decoder<R>),
+    /// A looped decoder
+    Looped(LoopedDecoder<R>),
+}
+
+impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
+    /// Create a new decoder builder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the input data source.
+    pub fn with_data(mut self, data: R) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    /// Set the byte length of the stream.
+    /// When known, this can be used to optimize operations like seeking and calculating durations.
+    pub fn with_byte_len(mut self, byte_len: u64) -> Self {
+        self.settings.byte_len = Some(byte_len);
+        self
+    }
+
+    /// Enable or disable coarse seeking.
+    /// This needs byte_len to be set.
+    /// Coarse seeking is faster but less accurate: it may seek to a position slightly before or
+    /// after the requested one, especially when the bitrate is variable.
+    pub fn with_coarse_seek(mut self, coarse_seek: bool) -> Self {
+        self.settings.coarse_seek = coarse_seek;
+        self
+    }
+
+    /// Enable or disable gapless playback
+    pub fn with_gapless(mut self, gapless: bool) -> Self {
+        self.settings.gapless = gapless;
+        self
+    }
+
+    /// Set a format hint for the decoder.
+    /// When known, this can help the decoder to select the correct demuxer.
+    pub fn with_hint(mut self, hint: &str) -> Self {
+        self.settings.hint = Some(hint.to_string());
+        self
+    }
+
+    /// Configure the decoder to loop playback.
+    pub fn looped(mut self, looped: bool) -> Self {
+        self.looped = looped;
+        self
+    }
+
+    /// Build the decoder with the configured settings.
+    pub fn build(self) -> Result<DecoderOutput<R>, DecoderError> {
+        let data = self.data.ok_or(DecoderError::UnrecognizedFormat)?;
+
+        #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
+        let data = match wav::WavDecoder::new(data) {
+            Ok(decoder) => {
+                return Ok(wrap_decoder(
+                    DecoderImpl::Wav(decoder),
+                    self.settings,
+                    self.looped,
+                ))
+            }
+            Err(data) => data,
+        };
+
+        #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
+        let data = match flac::FlacDecoder::new(data) {
+            Ok(decoder) => {
+                return Ok(wrap_decoder(
+                    DecoderImpl::Flac(decoder),
+                    self.settings,
+                    self.looped,
+                ))
+            }
+            Err(data) => data,
+        };
+
+        #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
+        let data = match vorbis::VorbisDecoder::new(data) {
+            Ok(decoder) => {
+                return Ok(wrap_decoder(
+                    DecoderImpl::Vorbis(decoder),
+                    self.settings,
+                    self.looped,
+                ))
+            }
+            Err(data) => data,
+        };
+
+        #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+        let data = match mp3::Mp3Decoder::new(data) {
+            Ok(decoder) => {
+                return Ok(wrap_decoder(
+                    DecoderImpl::Mp3(decoder),
+                    self.settings,
+                    self.looped,
+                ))
+            }
+            Err(data) => data,
+        };
+
+        #[cfg(feature = "symphonia")]
+        {
+            let mss = MediaSourceStream::new(
+                Box::new(ReadSeekSource::new(data, self.settings.byte_len)) as Box<dyn MediaSource>,
+                Default::default(),
+            );
+
+            symphonia::SymphoniaDecoder::new(mss, &self.settings).map(|decoder| {
+                wrap_decoder(DecoderImpl::Symphonia(decoder), self.settings, self.looped)
+            })
+        }
+
+        #[cfg(not(feature = "symphonia"))]
+        Err(DecoderError::UnrecognizedFormat)
+    }
+}
+
+/// Helper function to wrap a DecoderImpl in the appropriate DecoderOutput variant
+#[inline]
+fn wrap_decoder<R: Read + Seek>(
+    decoder: DecoderImpl<R>,
+    settings: Settings,
+    looped: bool,
+) -> DecoderOutput<R> {
+    if looped {
+        DecoderOutput::Looped(LoopedDecoder {
+            inner: decoder,
+            settings,
+        })
+    } else {
+        DecoderOutput::Normal(Decoder(decoder))
+    }
 }
 
 impl<R: Read + Seek> DecoderImpl<R> {
@@ -189,152 +376,87 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 }
 
-impl<R> Decoder<R>
-where
-    R: Read + Seek + Send + Sync + 'static,
-{
-    /// Builds a new decoder.
-    ///
-    /// Attempts to automatically detect the format of the source of data.
-    #[allow(unused_variables)]
-    pub fn new(data: R) -> Result<Decoder<R>, DecoderError> {
-        #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-        let data = match wav::WavDecoder::new(data) {
-            Err(data) => data,
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Wav(decoder)));
-            }
-        };
-
-        #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-        let data = match flac::FlacDecoder::new(data) {
-            Err(data) => data,
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Flac(decoder)));
-            }
-        };
-
-        #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-        let data = match vorbis::VorbisDecoder::new(data) {
-            Err(data) => data,
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Vorbis(decoder)));
-            }
-        };
-
-        #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-        let data = match mp3::Mp3Decoder::new(data) {
-            Err(data) => data,
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Mp3(decoder)));
-            }
-        };
-
-        #[cfg(feature = "symphonia")]
-        {
-            let mss = MediaSourceStream::new(
-                Box::new(ReadSeekSource::new(data)) as Box<dyn MediaSource>,
-                Default::default(),
-            );
-
-            match symphonia::SymphoniaDecoder::new(mss, None) {
-                Err(e) => Err(e),
-                Ok(decoder) => Ok(Decoder(DecoderImpl::Symphonia(decoder))),
-            }
-        }
-        #[cfg(not(feature = "symphonia"))]
-        Err(DecoderError::UnrecognizedFormat)
+impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
+    /// Create a new DecoderBuilder to configure decoder settings
+    pub fn builder() -> DecoderBuilder<R> {
+        DecoderBuilder::new()
     }
 
-    /// Builds a new looped decoder.
+    /// Builds a new decoder with default settings.
+    ///
+    /// Attempts to automatically detect the format of the source of data.
+    pub fn new(data: R) -> Result<Self, DecoderError> {
+        match Self::builder().with_data(data).build()? {
+            DecoderOutput::Normal(decoder) => Ok(decoder),
+            DecoderOutput::Looped(_) => unreachable!("Builder defaults to non-looped"),
+        }
+    }
+
+    /// Builds a new looped decoder with default settings.
     ///
     /// Attempts to automatically detect the format of the source of data.
     pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
-        Self::new(data).map(LoopedDecoder::new)
-    }
-
-    /// Builds a new decoder from wav data.
-    #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-    pub fn new_wav(data: R) -> Result<Decoder<R>, DecoderError> {
-        match wav::WavDecoder::new(data) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Wav(decoder))),
+        match Self::builder().with_data(data).looped(true).build()? {
+            DecoderOutput::Looped(decoder) => Ok(decoder),
+            DecoderOutput::Normal(_) => unreachable!("Builder was set to looped"),
         }
     }
 
-    /// Builds a new decoder from wav data.
-    #[cfg(feature = "symphonia-wav")]
-    pub fn new_wav(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "wav")
-    }
-
-    /// Builds a new decoder from flac data.
-    #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-    pub fn new_flac(data: R) -> Result<Decoder<R>, DecoderError> {
-        match flac::FlacDecoder::new(data) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Flac(decoder))),
+    /// Builds a new decoder from wav data with default settings.
+    #[cfg(any(feature = "wav", feature = "symphonia-wav"))]
+    pub fn new_wav(data: R) -> Result<Self, DecoderError> {
+        match Self::builder().with_data(data).with_hint("wav").build()? {
+            DecoderOutput::Normal(decoder) => Ok(decoder),
+            DecoderOutput::Looped(_) => unreachable!(),
         }
     }
 
-    /// Builds a new decoder from flac data.
-    #[cfg(feature = "symphonia-flac")]
-    pub fn new_flac(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "flac")
-    }
-
-    /// Builds a new decoder from vorbis data.
-    #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-    pub fn new_vorbis(data: R) -> Result<Decoder<R>, DecoderError> {
-        match vorbis::VorbisDecoder::new(data) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Vorbis(decoder))),
+    /// Builds a new decoder from flac data with default settings.
+    #[cfg(any(feature = "flac", feature = "symphonia-flac"))]
+    pub fn new_flac(data: R) -> Result<Self, DecoderError> {
+        match Self::builder().with_data(data).with_hint("flac").build()? {
+            DecoderOutput::Normal(decoder) => Ok(decoder),
+            DecoderOutput::Looped(_) => unreachable!(),
         }
     }
 
-    /// Builds a new decoder from vorbis data.
-    #[cfg(feature = "symphonia-vorbis")]
-    pub fn new_vorbis(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "ogg")
-    }
-
-    /// Builds a new decoder from mp3 data.
-    #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-    pub fn new_mp3(data: R) -> Result<Decoder<R>, DecoderError> {
-        match mp3::Mp3Decoder::new(data) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Mp3(decoder))),
+    /// Builds a new decoder from vorbis data with default settings.
+    #[cfg(any(feature = "vorbis", feature = "symphonia-vorbis"))]
+    pub fn new_vorbis(data: R) -> Result<Self, DecoderError> {
+        match Self::builder().with_data(data).with_hint("ogg").build()? {
+            DecoderOutput::Normal(decoder) => Ok(decoder),
+            DecoderOutput::Looped(_) => unreachable!(),
         }
     }
 
-    /// Builds a new decoder from mp3 data.
-    #[cfg(feature = "symphonia-mp3")]
-    pub fn new_mp3(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "mp3")
+    /// Builds a new decoder from mp3 data with default settings.
+    #[cfg(any(feature = "minimp3", feature = "symphonia-mp3"))]
+    pub fn new_mp3(data: R) -> Result<Self, DecoderError> {
+        match Self::builder().with_data(data).with_hint("mp3").build()? {
+            DecoderOutput::Normal(decoder) => Ok(decoder),
+            DecoderOutput::Looped(_) => unreachable!(),
+        }
     }
 
-    /// Builds a new decoder from aac data.
+    /// Builds a new decoder from aac data with default settings.
     #[cfg(feature = "symphonia-aac")]
-    pub fn new_aac(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "aac")
+    pub fn new_aac(data: R) -> Result<Self, DecoderError> {
+        match Self::builder().with_data(data).with_hint("aac").build()? {
+            DecoderOutput::Normal(decoder) => Ok(decoder),
+            DecoderOutput::Looped(_) => unreachable!(),
+        }
     }
 
-    /// Builds a new decoder from mp4 data.
+    /// Builds a new decoder from mp4 data with default settings.
     #[cfg(feature = "symphonia-isomp4")]
-    pub fn new_mp4(data: R, hint: Mp4Type) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, &hint.to_string())
-    }
-
-    #[cfg(feature = "symphonia")]
-    fn new_symphonia(data: R, hint: &str) -> Result<Decoder<R>, DecoderError> {
-        let mss = MediaSourceStream::new(
-            Box::new(ReadSeekSource::new(data)) as Box<dyn MediaSource>,
-            Default::default(),
-        );
-
-        match symphonia::SymphoniaDecoder::new(mss, Some(hint)) {
-            Err(e) => Err(e),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Symphonia(decoder))),
+    pub fn new_mp4(data: R, hint: Mp4Type) -> Result<Self, DecoderError> {
+        match Self::builder()
+            .with_data(data)
+            .with_hint(&hint.to_string())
+            .build()?
+        {
+            DecoderOutput::Normal(decoder) => Ok(decoder),
+            DecoderOutput::Looped(_) => unreachable!(),
         }
     }
 }
@@ -380,15 +502,6 @@ impl fmt::Display for Mp4Type {
             Mp4Type::Mov => "mov",
         };
         write!(f, "{text}")
-    }
-}
-
-impl<R> LoopedDecoder<R>
-where
-    R: Read + Seek,
-{
-    fn new(decoder: Decoder<R>) -> LoopedDecoder<R> {
-        Self(decoder.0)
     }
 }
 
@@ -446,10 +559,10 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(sample) = self.0.next() {
+        if let Some(sample) = self.inner.next() {
             Some(sample)
         } else {
-            let decoder = mem::replace(&mut self.0, DecoderImpl::None(Default::default()));
+            let decoder = mem::replace(&mut self.inner, DecoderImpl::None(Default::default()));
             let (decoder, sample) = match decoder {
                 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
                 DecoderImpl::Wav(source) => {
@@ -490,20 +603,21 @@ where
                 DecoderImpl::Symphonia(source) => {
                     let mut reader = source.into_inner();
                     reader.seek(SeekFrom::Start(0)).ok()?;
-                    let mut source = symphonia::SymphoniaDecoder::new(reader, None).ok()?;
+                    let mut source =
+                        symphonia::SymphoniaDecoder::new(reader, &self.settings).ok()?;
                     let sample = source.next();
                     (DecoderImpl::Symphonia(source), sample)
                 }
                 none @ DecoderImpl::None(_) => (none, None),
             };
-            self.0 = decoder;
+            self.inner = decoder;
             sample
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
+        self.inner.size_hint()
     }
 }
 
@@ -513,17 +627,17 @@ where
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        self.0.current_span_len()
+        self.inner.current_span_len()
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.0.channels()
+        self.inner.channels()
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.0.sample_rate()
+        self.inner.sample_rate()
     }
 
     #[inline]
@@ -532,7 +646,7 @@ where
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.0.try_seek(pos)
+        self.inner.try_seek(pos)
     }
 }
 

@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minimal builds without `cpal` audio output are now supported.
   See `README.md` for instructions. (#349)
 - Added `Sample::is_zero()` method for checking zero samples.
+- Added `DecoderBuilder` for improved configuration.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.

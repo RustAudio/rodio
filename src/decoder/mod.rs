@@ -32,7 +32,6 @@ use std::error::Error;
 use std::fmt;
 #[allow(unused_imports)]
 use std::io::{Read, Seek, SeekFrom};
-use std::mem;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -75,6 +74,9 @@ pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 /// Source of audio samples from decoding a file that never ends.
 /// When the end of the file is reached, the decoder starts again from the beginning.
 ///
+/// A `LoopedDecoder` will attempt to seek back to the start of the stream when it reaches
+/// the end. If seeking fails for any reason (like IO errors), iteration will stop.
+///
 /// # Examples
 ///
 /// ```no_run
@@ -86,7 +88,7 @@ pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 /// ```
 pub struct LoopedDecoder<R: Read + Seek> {
     /// The underlying decoder implementation.
-    inner: DecoderImpl<R>,
+    inner: Option<DecoderImpl<R>>,
     /// Configuration settings for the decoder.
     settings: Settings,
 }
@@ -105,7 +107,6 @@ enum DecoderImpl<R: Read + Seek> {
     Mp3(mp3::Mp3Decoder<R>),
     #[cfg(feature = "symphonia")]
     Symphonia(symphonia::SymphoniaDecoder),
-    None(::std::marker::PhantomData<R>),
 }
 
 /// Audio decoder configuration settings.
@@ -339,7 +340,7 @@ fn wrap_decoder<R: Read + Seek>(
 ) -> DecoderOutput<R> {
     if looped {
         DecoderOutput::Looped(LoopedDecoder {
-            inner: decoder,
+            inner: Some(decoder),
             settings,
         })
     } else {
@@ -361,7 +362,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.next(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.next(),
-            DecoderImpl::None(_) => None,
         }
     }
 
@@ -378,7 +378,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.size_hint(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.size_hint(),
-            DecoderImpl::None(_) => (0, None),
         }
     }
 
@@ -395,7 +394,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.current_span_len(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.current_span_len(),
-            DecoderImpl::None(_) => Some(0),
         }
     }
 
@@ -412,7 +410,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.channels(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.channels(),
-            DecoderImpl::None(_) => 0,
         }
     }
 
@@ -429,7 +426,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.sample_rate(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.sample_rate(),
-            DecoderImpl::None(_) => 1,
         }
     }
 
@@ -446,7 +442,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.total_duration(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.total_duration(),
-            DecoderImpl::None(_) => Some(Duration::default()),
         }
     }
 
@@ -463,9 +458,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.try_seek(pos),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.try_seek(pos),
-            DecoderImpl::None(_) => Err(SeekError::NotSupported {
-                underlying_source: "DecoderImpl::None",
-            }),
         }
     }
 }
@@ -779,13 +771,24 @@ where
 {
     type Item = Sample;
 
-    #[inline]
+    /// Returns the next sample in the audio stream.
+    ///
+    /// When the end of the stream is reached, attempts to seek back to the start
+    /// and continue playing. If seeking fails, or if no decoder is available,
+    /// returns `None`.
+    ///
+    /// Note that a return value of `None` means either:
+    /// - The decoder failed to seek back to the start
+    /// - There is no decoder available (should not happen in normal operation)
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(sample) = self.inner.next() {
-            Some(sample)
-        } else {
-            let decoder = mem::replace(&mut self.inner, DecoderImpl::None(Default::default()));
-            let (decoder, sample) = match decoder {
+        if let Some(inner) = &mut self.inner {
+            if let Some(sample) = inner.next() {
+                return Some(sample);
+            }
+
+            // Take ownership of the decoder to reset it
+            let decoder = self.inner.take()?;
+            let (new_decoder, sample) = match decoder {
                 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
                 DecoderImpl::Wav(source) => {
                     let mut reader = source.into_inner();
@@ -830,16 +833,18 @@ where
                     let sample = source.next();
                     (DecoderImpl::Symphonia(source), sample)
                 }
-                none @ DecoderImpl::None(_) => (none, None),
             };
-            self.inner = decoder;
+            self.inner = Some(new_decoder);
             sample
+        } else {
+            None
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
+        // The size hint is unknown because the decoder may loop indefinitely.
+        (0, None)
     }
 }
 
@@ -849,26 +854,36 @@ where
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        self.inner.current_span_len()
+        self.inner.as_ref()?.current_span_len()
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.inner.channels()
+        self.inner
+            .as_ref()
+            .map_or(ChannelCount::default(), |inner| inner.channels())
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.inner.sample_rate()
+        self.inner
+            .as_ref()
+            .map_or(SampleRate::default(), |inner| inner.sample_rate())
     }
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
+        // The total duration is unknown because the decoder may loop indefinitely.
         None
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.inner.try_seek(pos)
+        match &mut self.inner {
+            Some(inner) => inner.try_seek(pos),
+            None => Err(SeekError::NotSupported {
+                underlying_source: "No decoder available",
+            }),
+        }
     }
 }
 

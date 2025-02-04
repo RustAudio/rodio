@@ -24,16 +24,6 @@ impl<T: Read + Seek + Send + Sync> ReadSeekSource<T> {
     /// # Arguments
     /// * `inner` - The reader/seeker to wrap
     /// * `settings` - Decoder settings for configuring the source
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use std::fs::File;
-    /// use rodio::decoder::{read_seek_source::ReadSeekSource, Settings};
-    ///
-    /// let file = File::open("audio.mp3").unwrap();
-    /// let settings = Settings::default();
-    /// let source = ReadSeekSource::new(file, &settings);
-    /// ```
     #[inline]
     pub fn new(inner: T, settings: &Settings) -> Self {
         ReadSeekSource {

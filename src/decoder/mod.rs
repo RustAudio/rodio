@@ -28,12 +28,12 @@
 //!     .unwrap();
 //! ```
 
-use std::error::Error;
 use std::fmt;
 #[allow(unused_imports)]
 use std::io::{Read, Seek, SeekFrom};
 use std::str::FromStr;
 use std::time::Duration;
+use std::{error::Error, marker::PhantomData};
 
 use crate::source::SeekError;
 use crate::Source;
@@ -113,7 +113,7 @@ enum DecoderImpl<R: Read + Seek> {
     #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
     Mp3(mp3::Mp3Decoder<R>),
     #[cfg(feature = "symphonia")]
-    Symphonia(symphonia::SymphoniaDecoder),
+    Symphonia(symphonia::SymphoniaDecoder, PhantomData<R>),
 }
 
 /// Audio decoder configuration settings.
@@ -338,7 +338,11 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
             );
 
             symphonia::SymphoniaDecoder::new(mss, &self.settings).map(|decoder| {
-                wrap_decoder(DecoderImpl::Symphonia(decoder), self.settings, self.looped)
+                wrap_decoder(
+                    DecoderImpl::Symphonia(decoder, PhantomData),
+                    self.settings,
+                    self.looped,
+                )
             })
         }
 
@@ -377,7 +381,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.next(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.next(),
+            DecoderImpl::Symphonia(source, PhantomData) => source.next(),
         }
     }
 
@@ -393,7 +397,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.size_hint(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.size_hint(),
+            DecoderImpl::Symphonia(source, PhantomData) => source.size_hint(),
         }
     }
 
@@ -409,7 +413,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.current_span_len(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.current_span_len(),
+            DecoderImpl::Symphonia(source, PhantomData) => source.current_span_len(),
         }
     }
 
@@ -425,7 +429,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.channels(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.channels(),
+            DecoderImpl::Symphonia(source, PhantomData) => source.channels(),
         }
     }
 
@@ -441,7 +445,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.sample_rate(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.sample_rate(),
+            DecoderImpl::Symphonia(source, PhantomData) => source.sample_rate(),
         }
     }
 
@@ -457,7 +461,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.total_duration(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.total_duration(),
+            DecoderImpl::Symphonia(source, PhantomData) => source.total_duration(),
         }
     }
 
@@ -473,7 +477,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.try_seek(pos),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.try_seek(pos),
+            DecoderImpl::Symphonia(source, PhantomData) => source.try_seek(pos),
         }
     }
 }
@@ -841,13 +845,13 @@ where
                     (DecoderImpl::Mp3(source), sample)
                 }
                 #[cfg(feature = "symphonia")]
-                DecoderImpl::Symphonia(source) => {
+                DecoderImpl::Symphonia(source, PhantomData) => {
                     let mut reader = source.into_inner();
                     reader.seek(SeekFrom::Start(0)).ok()?;
                     let mut source =
                         symphonia::SymphoniaDecoder::new(reader, &self.settings).ok()?;
                     let sample = source.next();
-                    (DecoderImpl::Symphonia(source), sample)
+                    (DecoderImpl::Symphonia(source, PhantomData), sample)
                 }
             };
             self.inner = Some(new_decoder);

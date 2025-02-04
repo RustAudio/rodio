@@ -5,7 +5,7 @@ use symphonia::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
         codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
         errors::Error,
-        formats::{FormatOptions, FormatReader, SeekedTo},
+        formats::{FormatOptions, FormatReader, SeekMode, SeekTo, SeekedTo},
         io::MediaSourceStream,
         meta::MetadataOptions,
         probe::Hint,
@@ -14,7 +14,7 @@ use symphonia::{
     default::get_probe,
 };
 
-use super::{DecoderError, DecoderSample};
+use super::{DecoderError, DecoderSample, Settings};
 use crate::common::{ChannelCount, SampleRate};
 use crate::{source, Source};
 
@@ -30,14 +30,12 @@ pub(crate) struct SymphoniaDecoder {
     total_duration: Option<Time>,
     buffer: SampleBuffer<DecoderSample>,
     spec: SignalSpec,
+    seek_mode: SeekMode,
 }
 
 impl SymphoniaDecoder {
-    pub(crate) fn new(
-        mss: MediaSourceStream,
-        extension: Option<&str>,
-    ) -> Result<Self, DecoderError> {
-        match SymphoniaDecoder::init(mss, extension) {
+    pub(crate) fn new(mss: MediaSourceStream, settings: &Settings) -> Result<Self, DecoderError> {
+        match SymphoniaDecoder::init(mss, settings) {
             Err(e) => match e {
                 Error::IoError(e) => Err(DecoderError::IoError(e.to_string())),
                 Error::DecodeError(e) => Err(DecoderError::DecodeError(e)),
@@ -60,17 +58,22 @@ impl SymphoniaDecoder {
 
     fn init(
         mss: MediaSourceStream,
-        extension: Option<&str>,
+        settings: &Settings,
     ) -> symphonia::core::errors::Result<Option<SymphoniaDecoder>> {
         let mut hint = Hint::new();
-        if let Some(ext) = extension {
+        if let Some(ext) = settings.hint.as_ref() {
             hint.with_extension(ext);
         }
         let format_opts: FormatOptions = FormatOptions {
-            enable_gapless: true,
+            enable_gapless: settings.gapless,
             ..Default::default()
         };
         let metadata_opts: MetadataOptions = Default::default();
+        let seek_mode = if settings.coarse_seek {
+            SeekMode::Coarse
+        } else {
+            SeekMode::Accurate
+        };
         let mut probed = get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
 
         let stream = match probed.format.default_track() {
@@ -144,6 +147,7 @@ impl SymphoniaDecoder {
             total_duration,
             buffer,
             spec,
+            seek_mode,
         }))
     }
 
@@ -178,8 +182,6 @@ impl Source for SymphoniaDecoder {
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), source::SeekError> {
-        use symphonia::core::formats::{SeekMode, SeekTo};
-
         let seek_beyond_end = self
             .total_duration()
             .is_some_and(|dur| dur.saturating_sub(pos).as_millis() < 1);
@@ -197,7 +199,7 @@ impl Source for SymphoniaDecoder {
         let seek_res = self
             .format
             .seek(
-                SeekMode::Accurate,
+                self.seek_mode,
                 SeekTo::Time {
                     time,
                     track_id: None,

@@ -132,6 +132,8 @@ pub struct Settings {
     /// A hint or extension for the decoder about the format of the stream.
     /// When known, this can help the decoder to select the correct demuxer.
     pub(crate) hint: Option<String>,
+    /// Whether the decoder should report as seekable.
+    pub(crate) is_seekable: bool,
 }
 
 impl Default for Settings {
@@ -141,6 +143,7 @@ impl Default for Settings {
             coarse_seek: false,
             gapless: true,
             hint: None,
+            is_seekable: true,
         }
     }
 }
@@ -256,6 +259,12 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
         self
     }
 
+    /// Configure whether the decoder should report as seekable.
+    pub fn with_seekable(mut self, is_seekable: bool) -> Self {
+        self.settings.is_seekable = is_seekable;
+        self
+    }
+
     /// Configures the decoder to loop playback.
     ///
     /// When enabled, the decoder will restart from the beginning when it reaches the end.
@@ -324,7 +333,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
         #[cfg(feature = "symphonia")]
         {
             let mss = MediaSourceStream::new(
-                Box::new(ReadSeekSource::new(data, self.settings.byte_len)) as Box<dyn MediaSource>,
+                Box::new(ReadSeekSource::new(data, &self.settings)) as Box<dyn MediaSource>,
                 Default::default(),
             );
 

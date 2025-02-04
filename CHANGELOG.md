@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `Decoder` now outputs `f32` samples by default instead of `i16`.
   Enable the `integer-decoder` to revert to `i16` samples.
 - The term 'frame' was renamed to 'span' in the crate and documentation.
-- Breaking: `LoopedDecoder` now returns `None` if seeking fails during loop reset
+- Breaking: `LoopedDecoder` now returns `None` if seeking fails during loop reset.
+- Breaking: `ReadSeekSource::new()` now takes `Settings`.
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to

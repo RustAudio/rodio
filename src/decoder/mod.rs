@@ -789,10 +789,6 @@ where
     /// When the end of the stream is reached, attempts to seek back to the start
     /// and continue playing. If seeking fails, or if no decoder is available,
     /// returns `None`.
-    ///
-    /// Note that a return value of `None` means either:
-    /// - The decoder failed to seek back to the start
-    /// - There is no decoder available (should not happen in normal operation)
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(inner) = &mut self.inner {
             if let Some(sample) = inner.next() {
@@ -854,10 +850,23 @@ where
         }
     }
 
+    /// Returns the size hint for this iterator.
+    ///
+    /// The lower bound is:
+    /// - The minimum number of samples remaining in the current iteration if there is an active decoder
+    /// - 0 if there is no active decoder (inner is None)
+    ///
+    /// The upper bound is always `None` since the decoder loops indefinitely.
+    /// This differs from non-looped decoders which may provide a finite upper bound.
+    ///
+    /// Note that even with an active decoder, reaching the end of the stream may result
+    /// in the decoder becoming inactive if seeking back to the start fails.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        // The size hint is unknown because the decoder may loop indefinitely.
-        (0, None)
+        (
+            self.inner.as_ref().map_or(0, |inner| inner.size_hint().0),
+            None,
+        )
     }
 }
 
@@ -865,11 +874,17 @@ impl<R> Source for LoopedDecoder<R>
 where
     R: Read + Seek,
 {
+    /// Returns the current span length of the underlying decoder.
+    ///
+    /// Returns `None` if there is no active decoder.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         self.inner.as_ref()?.current_span_len()
     }
 
+    /// Returns the number of channels in the audio stream.
+    ///
+    /// Returns the default channel count if there is no active decoder.
     #[inline]
     fn channels(&self) -> ChannelCount {
         self.inner
@@ -877,6 +892,9 @@ where
             .map_or(ChannelCount::default(), |inner| inner.channels())
     }
 
+    /// Returns the sample rate of the audio stream.
+    ///
+    /// Returns the default sample rate if there is no active decoder.
     #[inline]
     fn sample_rate(&self) -> SampleRate {
         self.inner
@@ -884,12 +902,31 @@ where
             .map_or(SampleRate::default(), |inner| inner.sample_rate())
     }
 
+    /// Returns the total duration of this audio source.
+    ///
+    /// Always returns `None` for looped decoders since they have no fixed end point -
+    /// they will continue playing indefinitely by seeking back to the start when reaching
+    /// the end of the audio data.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        // The total duration is unknown because the decoder may loop indefinitely.
         None
     }
 
+    /// Attempts to seek to a specific position in the audio stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SeekError::NotSupported` if:
+    /// - There is no active decoder
+    /// - The underlying decoder does not support seeking
+    ///
+    /// May also return other `SeekError` variants if the underlying decoder's seek operation fails.
+    ///
+    /// # Note
+    ///
+    /// Even for looped playback, seeking past the end of the stream will not automatically
+    /// wrap around to the beginning - it will return an error just like a normal decoder.
+    /// Looping only occurs when reaching the end through normal playback.
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         match &mut self.inner {
             Some(inner) => inner.try_seek(pos),
@@ -923,7 +960,7 @@ pub enum DecoderError {
     #[cfg(feature = "symphonia")]
     ResetRequired,
 
-    /// No streams were found by the decoder
+    /// No streams were found by the decoder.
     #[cfg(feature = "symphonia")]
     NoStreams,
 }

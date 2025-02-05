@@ -66,7 +66,9 @@ fn seek_returns_err_if_unsupported(
     let decoder = get_music(format);
     let res = decoder
         .total_duration()
-        .expect(&format!("did not return a total duration, decoder: {decoder_name}"))
+        .expect(&format!(
+            "did not return a total duration, decoder: {decoder_name}"
+        ))
         .as_secs_f64();
     let correct_duration = correct_duration.as_secs_f64();
     let abs_diff = (res - correct_duration).abs();

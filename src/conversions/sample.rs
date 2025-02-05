@@ -3,16 +3,16 @@ use std::marker::PhantomData;
 
 /// Converts the samples data type to `O`.
 #[derive(Clone, Debug)]
-pub struct DataConverter<I, O> {
+pub struct SampleTypeConverter<I, O> {
     input: I,
     marker: PhantomData<O>,
 }
 
-impl<I, O> DataConverter<I, O> {
+impl<I, O> SampleTypeConverter<I, O> {
     /// Builds a new converter.
     #[inline]
-    pub fn new(input: I) -> DataConverter<I, O> {
-        DataConverter {
+    pub fn new(input: I) -> SampleTypeConverter<I, O> {
+        SampleTypeConverter {
             input,
             marker: PhantomData,
         }
@@ -31,7 +31,7 @@ impl<I, O> DataConverter<I, O> {
     }
 }
 
-impl<I, O> Iterator for DataConverter<I, O>
+impl<I, O> Iterator for SampleTypeConverter<I, O>
 where
     I: Iterator,
     I::Item: Sample,
@@ -50,7 +50,7 @@ where
     }
 }
 
-impl<I, O> ExactSizeIterator for DataConverter<I, O>
+impl<I, O> ExactSizeIterator for SampleTypeConverter<I, O>
 where
     I: ExactSizeIterator,
     I::Item: Sample,

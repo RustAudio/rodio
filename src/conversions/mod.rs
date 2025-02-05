@@ -6,8 +6,8 @@ This includes conversion between sample formats, channels or sample rates.
 */
 
 pub use self::channels::ChannelCountConverter;
-pub use self::sample::DataConverter;
 pub use self::sample::Sample;
+pub use self::sample::SampleTypeConverter;
 pub use self::sample_rate::SampleRateConverter;
 
 mod channels;

@@ -5,7 +5,7 @@ use dasp_sample::FromSample;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::conversions::{ChannelCountConverter, DataConverter, SampleRateConverter};
+use crate::conversions::{ChannelCountConverter, SampleRateConverter, SampleTypeConverter};
 use crate::{Sample, Source};
 
 /// An iterator that reads from a `Source` and converts the samples to a
@@ -20,7 +20,7 @@ where
     I::Item: Sample,
     D: Sample,
 {
-    inner: Option<DataConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D>>,
+    inner: Option<SampleTypeConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D>>,
     target_channels: ChannelCount,
     target_sample_rate: SampleRate,
     total_duration: Option<Duration>,
@@ -56,7 +56,7 @@ where
         input: I,
         target_channels: ChannelCount,
         target_sample_rate: SampleRate,
-    ) -> DataConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D> {
+    ) -> SampleTypeConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D> {
         // Limit the span length to something reasonable
         let span_len = input.current_span_len().map(|x| x.min(32768));
 
@@ -71,7 +71,7 @@ where
             SampleRateConverter::new(input, from_sample_rate, target_sample_rate, from_channels);
         let input = ChannelCountConverter::new(input, from_channels, target_channels);
 
-        DataConverter::new(input)
+        SampleTypeConverter::new(input)
     }
 }
 

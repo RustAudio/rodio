@@ -197,6 +197,91 @@ where
     Looped(LoopedDecoder<R>),
 }
 
+impl<R> Source for DecoderOutput<R>
+where
+    R: Read + Seek,
+{
+    /// Delegates to the underlying decoder's `current_span_len` implementation.
+    #[inline]
+    fn current_span_len(&self) -> Option<usize> {
+        match self {
+            DecoderOutput::Normal(decoder) => decoder.current_span_len(),
+            DecoderOutput::Looped(decoder) => decoder.current_span_len(),
+        }
+    }
+
+    /// Delegates to the underlying decoder's `channels` implementation.
+    #[inline]
+    fn channels(&self) -> ChannelCount {
+        match self {
+            DecoderOutput::Normal(decoder) => decoder.channels(),
+            DecoderOutput::Looped(decoder) => decoder.channels(),
+        }
+    }
+
+    /// Delegates to the underlying decoder's `sample_rate` implementation.
+    fn sample_rate(&self) -> SampleRate {
+        match self {
+            DecoderOutput::Normal(decoder) => decoder.sample_rate(),
+            DecoderOutput::Looped(decoder) => decoder.sample_rate(),
+        }
+    }
+
+    /// Delegates to the underlying decoder's `total_duration` implementation.
+    ///
+    /// Returns `None` for looped decoders since they have no fixed end point.
+    #[inline]
+    fn total_duration(&self) -> Option<Duration> {
+        match self {
+            DecoderOutput::Normal(decoder) => decoder.total_duration(),
+            DecoderOutput::Looped(decoder) => decoder.total_duration(),
+        }
+    }
+
+    /// Delegates to the underlying decoder's `try_seek` implementation.
+    ///
+    /// For looped decoders, seeking past the end of the stream will return an error
+    /// rather than wrapping around to the beginning.
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        match self {
+            DecoderOutput::Normal(decoder) => decoder.try_seek(pos),
+            DecoderOutput::Looped(decoder) => decoder.try_seek(pos),
+        }
+    }
+}
+
+impl<R> Iterator for DecoderOutput<R>
+where
+    R: Read + Seek,
+{
+    type Item = DecoderSample;
+
+    /// Delegates to the underlying decoder's `next` implementation.
+    ///
+    /// For looped decoders, returns `None` only if seeking back to start fails
+    /// when reaching the end of the stream.
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            DecoderOutput::Normal(decoder) => decoder.next(),
+            DecoderOutput::Looped(decoder) => decoder.next(),
+        }
+    }
+
+    /// Delegates to the underlying decoder's `size_hint` implementation.
+    ///
+    /// For looped decoders, the upper bound is always `None` since they loop
+    /// indefinitely.
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            DecoderOutput::Normal(decoder) => decoder.size_hint(),
+            DecoderOutput::Looped(decoder) => decoder.size_hint(),
+        }
+    }
+}
+
 impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// Creates a new decoder builder with default settings.
     ///

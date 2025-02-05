@@ -177,6 +177,7 @@ mod wav_output;
 
 pub mod buffer;
 pub mod decoder;
+mod math;
 pub mod mixer;
 pub mod queue;
 pub mod source;

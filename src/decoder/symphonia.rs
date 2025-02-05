@@ -66,6 +66,9 @@ impl SymphoniaDecoder {
         if let Some(ext) = settings.hint.as_ref() {
             hint.with_extension(ext);
         }
+        if let Some(typ) = settings.mime_type.as_ref() {
+            hint.mime_type(typ);
+        }
         let format_opts: FormatOptions = FormatOptions {
             enable_gapless: settings.gapless,
             ..Default::default()

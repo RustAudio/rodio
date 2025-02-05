@@ -31,7 +31,6 @@
 use std::fmt;
 #[allow(unused_imports)]
 use std::io::{Read, Seek, SeekFrom};
-use std::str::FromStr;
 use std::time::Duration;
 use std::{error::Error, marker::PhantomData};
 
@@ -122,9 +121,12 @@ pub struct Settings {
     pub(crate) coarse_seek: bool,
     /// Whether to trim frames for gapless playback.
     pub(crate) gapless: bool,
-    /// A hint or extension for the decoder about the format of the stream.
-    /// When known, this can help the decoder to select the correct demuxer.
+    /// An extension hint for the decoder about the format of the stream.
+    /// When known, this can help the decoder to select the correct codec.
     pub(crate) hint: Option<String>,
+    /// An MIME type hint for the decoder about the format of the stream.
+    /// When known, this can help the decoder to select the correct demuxer.
+    pub(crate) mime_type: Option<String>,
     /// Whether the decoder should report as seekable.
     pub(crate) is_seekable: bool,
 }
@@ -136,6 +138,7 @@ impl Default for Settings {
             coarse_seek: false,
             gapless: true,
             hint: None,
+            mime_type: None,
             is_seekable: true,
         }
     }
@@ -245,10 +248,19 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Sets a format hint for the decoder.
     ///
-    /// When known, this can help the decoder to select the correct demuxer.
+    /// When known, this can help the decoder to select the correct codec.
     /// Common values are "mp3", "wav", "flac", "ogg", etc.
     pub fn with_hint(mut self, hint: &str) -> Self {
         self.settings.hint = Some(hint.to_string());
+        self
+    }
+
+    /// Sets a mime type hint for the decoder.
+    ///
+    /// When known, this can help the decoder to select the correct demuxer.
+    /// Common values are "audio/mpeg", "audio/vnd.wav", "audio/flac", "audio/ogg", etc.
+    pub fn with_mime_type(mut self, mime_type: &str) -> Self {
+        self.settings.mime_type = Some(mime_type.to_string());
         self
     }
 
@@ -658,9 +670,9 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
 
     /// Builds a new decoder with MP4 container format hint.
     ///
-    /// This method provides a hint about the MP4 container type, which may help the decoder
-    /// identify the format more quickly. However, if MP4 decoding fails, other formats
-    /// will still be attempted.
+    /// This method provides a hint that the data is in MP4 container format by setting
+    /// the MIME type to "audio/mp4". This may help the decoder identify the format
+    /// more quickly. However, if MP4 decoding fails, other formats will still be attempted.
     ///
     /// # Errors
     ///
@@ -668,67 +680,22 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     ///
     /// # Examples
     /// ```no_run
-    /// use rodio::{Decoder, Mp4Type};
+    /// use rodio::Decoder;
     /// use std::fs::File;
     ///
     /// let file = File::open("audio.m4a").unwrap();
-    /// let decoder = Decoder::new_mp4(file, Mp4Type::M4a).unwrap();
+    /// let decoder = Decoder::new_mp4(file).unwrap();
     /// ```
     #[cfg(feature = "symphonia-isomp4")]
-    pub fn new_mp4(data: R, hint: Mp4Type) -> Result<Self, DecoderError> {
+    pub fn new_mp4(data: R) -> Result<Self, DecoderError> {
         match Self::builder()
             .with_data(data)
-            .with_hint(&hint.to_string())
+            .with_mime_type("audio/mp4")
             .build()?
         {
             DecoderOutput::Normal(decoder) => Ok(decoder),
             DecoderOutput::Looped(_) => unreachable!(),
         }
-    }
-}
-
-/// Type for specifying MP4 container format variants.
-#[allow(missing_docs)] // Reason: will be removed, see: #612
-#[derive(Debug)]
-pub enum Mp4Type {
-    Mp4,
-    M4a,
-    M4p,
-    M4b,
-    M4r,
-    M4v,
-    Mov,
-}
-
-impl FromStr for Mp4Type {
-    type Err = String;
-
-    fn from_str(input: &str) -> Result<Mp4Type, Self::Err> {
-        match &input.to_lowercase()[..] {
-            "mp4" => Ok(Mp4Type::Mp4),
-            "m4a" => Ok(Mp4Type::M4a),
-            "m4p" => Ok(Mp4Type::M4p),
-            "m4b" => Ok(Mp4Type::M4b),
-            "m4r" => Ok(Mp4Type::M4r),
-            "m4v" => Ok(Mp4Type::M4v),
-            "mov" => Ok(Mp4Type::Mov),
-            _ => Err(format!("{input} is not a valid mp4 extension")),
-        }
-    }
-}
-
-impl fmt::Display for Mp4Type {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let text = match self {
-            Mp4Type::Mp4 => "mp4",
-            Mp4Type::M4a => "m4a",
-            Mp4Type::M4p => "m4p",
-            Mp4Type::M4b => "m4b",
-            Mp4Type::M4r => "m4r",
-            Mp4Type::M4v => "m4v",
-            Mp4Type::Mov => "mov",
-        };
-        write!(f, "{text}")
     }
 }
 

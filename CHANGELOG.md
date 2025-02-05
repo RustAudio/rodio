@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 - Deprecated `Sample::zero_value()` function in favor of `Sample::ZERO_VALUE` constant
 
+### Removed
+- Breaking: Removed `Mp4Type` enum in favor of using MIME type string "audio/mp4" for MP4 format detection with `Decoder::new_mp4`.
+
 # Version 0.20.1 (2024-11-08)
 
 ### Fixed

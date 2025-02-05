@@ -10,8 +10,6 @@ use minimp3::Decoder;
 use minimp3::Frame;
 use minimp3_fixed as minimp3;
 
-use dasp_sample::Sample;
-
 pub struct Mp3Decoder<R>
 where
     R: Read + Seek,

@@ -18,7 +18,6 @@ fn remaining_samples(
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     Delay {
         remaining_samples: remaining_samples(duration, input.sample_rate(), input.channels()),
@@ -38,7 +37,6 @@ pub struct Delay<I> {
 impl<I> Delay<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns a reference to the inner source.
     #[inline]
@@ -62,7 +60,6 @@ where
 impl<I> Iterator for Delay<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = <I as Iterator>::Item;
 
@@ -89,7 +86,6 @@ where
 impl<I> Source for Delay<I>
 where
     I: Iterator + Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

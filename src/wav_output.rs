@@ -1,12 +1,12 @@
-use crate::{ChannelCount, Sample, Source};
+use crate::{ChannelCount, Source};
 use hound::{SampleFormat, WavSpec};
 use std::path;
 
 /// This procedure saves Source's output into a wav file. The output samples format is 32-bit float.
 /// This function is intended primarily for testing and diagnostics. It can be used to see
 /// the output without opening output stream to a real audio device.
-pub fn output_to_wav<S: Sample>(
-    source: &mut impl Source<Item = S>,
+pub fn output_to_wav(
+    source: &mut impl Source,
     wav_file: impl AsRef<path::Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let format = WavSpec {
@@ -17,7 +17,7 @@ pub fn output_to_wav<S: Sample>(
     };
     let mut writer = hound::WavWriter::create(wav_file, format)?;
     for sample in source {
-        writer.write_sample(sample.to_f32())?;
+        writer.write_sample(sample)?;
     }
     writer.finalize()?;
     Ok(())

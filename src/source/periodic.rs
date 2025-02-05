@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `PeriodicAccess` object.
 pub fn periodic<I, F>(source: I, period: Duration, modifier: F) -> PeriodicAccess<I, F>
 where
     I: Source,
-    I::Item: Sample,
 {
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong
@@ -47,7 +46,7 @@ pub struct PeriodicAccess<I, F> {
 impl<I, F> PeriodicAccess<I, F>
 where
     I: Source,
-    I::Item: Sample,
+
     F: FnMut(&mut I),
 {
     /// Returns a reference to the inner source.
@@ -72,7 +71,7 @@ where
 impl<I, F> Iterator for PeriodicAccess<I, F>
 where
     I: Source,
-    I::Item: Sample,
+
     F: FnMut(&mut I),
 {
     type Item = I::Item;
@@ -97,7 +96,7 @@ where
 impl<I, F> Source for PeriodicAccess<I, F>
 where
     I: Source,
-    I::Item: Sample,
+
     F: FnMut(&mut I),
 {
     #[inline]

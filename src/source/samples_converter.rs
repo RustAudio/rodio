@@ -3,8 +3,14 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 use dasp_sample::{FromSample, Sample as DaspSample};
+
+// TODO Can we reuse conversions::SampleTypeConverter here? This file declares a
+//      converting source while conversions::SampleTypeConverter is an iterator.
+
+// FIXME (implementation, #678) Clarify how the input should now be provided
+//       (need a non f32 source or an iterator still).
 
 /// Wrap the input and lazily converts the samples it provides to the type
 /// specified by the generic parameter D
@@ -47,8 +53,7 @@ impl<I, D> SamplesConverter<I, D> {
 impl<I, D> Iterator for SamplesConverter<I, D>
 where
     I: Source,
-    I::Item: Sample,
-    D: FromSample<I::Item> + Sample,
+    D: FromSample<I::Item>,
 {
     type Item = D;
 
@@ -66,16 +71,14 @@ where
 impl<I, D> ExactSizeIterator for SamplesConverter<I, D>
 where
     I: Source + ExactSizeIterator,
-    I::Item: Sample,
-    D: FromSample<I::Item> + Sample,
+    D: FromSample<I::Item>,
 {
 }
 
 impl<I, D> Source for SamplesConverter<I, D>
 where
     I: Source,
-    I::Item: Sample,
-    D: FromSample<I::Item> + Sample,
+    D: FromSample<I::Item>,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

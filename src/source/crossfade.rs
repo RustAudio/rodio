@@ -1,9 +1,6 @@
-use std::time::Duration;
-
-use dasp_sample::FromSample;
-
 use crate::source::{FadeIn, Mix, TakeDuration};
-use crate::{Sample, Source};
+use crate::Source;
+use std::time::Duration;
 
 /// Mixes one sound fading out with another sound fading in for the given
 /// duration.
@@ -18,8 +15,6 @@ pub fn crossfade<I1, I2>(
 where
     I1: Source,
     I2: Source,
-    I1::Item: FromSample<I2::Item> + Sample,
-    I2::Item: Sample,
 {
     let mut input_fadeout = input_fadeout.take_duration(duration);
     input_fadeout.set_filter_fadeout();
@@ -38,7 +33,7 @@ pub type Crossfade<I1, I2> = Mix<TakeDuration<I1>, FadeIn<TakeDuration<I2>>>;
 mod tests {
     use super::*;
     use crate::buffer::SamplesBuffer;
-    fn dummysource(length: u8) -> SamplesBuffer<f32> {
+    fn dummysource(length: u8) -> SamplesBuffer {
         let data: Vec<f32> = (1..=length).map(f32::from).collect();
         SamplesBuffer::new(1, 1, data)
     }

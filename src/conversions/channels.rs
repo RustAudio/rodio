@@ -54,11 +54,10 @@ where
 impl<I> Iterator for ChannelCountConverter<I>
 where
     I: Iterator,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
-    fn next(&mut self) -> Option<I::Item> {
+    fn next(&mut self) -> Option<Self::Item> {
         let result = match self.next_output_sample_pos {
             0 => {
                 // save first sample for mono -> stereo conversion
@@ -68,7 +67,7 @@ where
             }
             x if x < self.from => self.input.next(),
             1 => self.sample_repeat,
-            _ => Some(I::Item::EQUILIBRIUM),
+            _ => Some(0.0),
         };
 
         if result.is_some() {

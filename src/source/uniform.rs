@@ -1,12 +1,10 @@
 use std::cmp;
 use std::time::Duration;
 
-use dasp_sample::FromSample;
-
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::conversions::{ChannelCountConverter, SampleRateConverter, SampleTypeConverter};
-use crate::{Sample, Source};
+use crate::conversions::{ChannelCountConverter, SampleRateConverter};
+use crate::Source;
 
 /// An iterator that reads from a `Source` and converts the samples to a
 /// specific type, sample-rate and channels count.
@@ -14,23 +12,19 @@ use crate::{Sample, Source};
 /// It implements `Source` as well, but all the data is guaranteed to be in a
 /// single span whose channels and samples rate have been passed to `new`.
 #[derive(Clone)]
-pub struct UniformSourceIterator<I, D>
+pub struct UniformSourceIterator<I>
 where
     I: Source,
-    I::Item: Sample,
-    D: Sample,
 {
-    inner: Option<SampleTypeConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D>>,
+    inner: Option<ChannelCountConverter<SampleRateConverter<Take<I>>>>,
     target_channels: ChannelCount,
     target_sample_rate: SampleRate,
     total_duration: Option<Duration>,
 }
 
-impl<I, D> UniformSourceIterator<I, D>
+impl<I> UniformSourceIterator<I>
 where
     I: Source,
-    I::Item: Sample,
-    D: Sample,
 {
     /// Wrap a `Source` and lazily convert its samples to a specific type,
     /// sample-rate and channels count.
@@ -39,7 +33,7 @@ where
         input: I,
         target_channels: ChannelCount,
         target_sample_rate: SampleRate,
-    ) -> UniformSourceIterator<I, D> {
+    ) -> UniformSourceIterator<I> {
         let total_duration = input.total_duration();
         let input = UniformSourceIterator::bootstrap(input, target_channels, target_sample_rate);
 
@@ -56,7 +50,7 @@ where
         input: I,
         target_channels: ChannelCount,
         target_sample_rate: SampleRate,
-    ) -> SampleTypeConverter<ChannelCountConverter<SampleRateConverter<Take<I>>>, D> {
+    ) -> ChannelCountConverter<SampleRateConverter<Take<I>>> {
         // Limit the span length to something reasonable
         let span_len = input.current_span_len().map(|x| x.min(32768));
 
@@ -69,22 +63,18 @@ where
         };
         let input =
             SampleRateConverter::new(input, from_sample_rate, target_sample_rate, from_channels);
-        let input = ChannelCountConverter::new(input, from_channels, target_channels);
-
-        SampleTypeConverter::new(input)
+        ChannelCountConverter::new(input, from_channels, target_channels)
     }
 }
 
-impl<I, D> Iterator for UniformSourceIterator<I, D>
+impl<I> Iterator for UniformSourceIterator<I>
 where
     I: Source,
-    I::Item: Sample,
-    D: FromSample<I::Item> + Sample,
 {
-    type Item = D;
+    type Item = I::Item;
 
     #[inline]
-    fn next(&mut self) -> Option<D> {
+    fn next(&mut self) -> Option<Self::Item> {
         if let Some(value) = self.inner.as_mut().unwrap().next() {
             return Some(value);
         }
@@ -112,11 +102,9 @@ where
     }
 }
 
-impl<I, D> Source for UniformSourceIterator<I, D>
+impl<I> Source for UniformSourceIterator<I>
 where
     I: Iterator + Source,
-    I::Item: Sample,
-    D: FromSample<I::Item> + Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

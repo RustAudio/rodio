@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     TakeDuration {
         current_span_len: input.current_span_len(),
@@ -31,9 +30,7 @@ impl DurationFilter {
         sample: <I as Iterator>::Item,
         parent: &TakeDuration<I>,
     ) -> <I as Iterator>::Item
-    where
-        I::Item: Sample,
-    {
+where {
         use self::DurationFilter::*;
         match self {
             FadeOut => {
@@ -63,7 +60,6 @@ pub struct TakeDuration<I> {
 impl<I> TakeDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns the duration elapsed for each sample extracted.
     #[inline]
@@ -106,7 +102,6 @@ where
 impl<I> Iterator for TakeDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = <I as Iterator>::Item;
 
@@ -143,7 +138,6 @@ where
 impl<I> Source for TakeDuration<I>
 where
     I: Iterator + Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

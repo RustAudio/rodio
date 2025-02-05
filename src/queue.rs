@@ -24,17 +24,14 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 ///   a new sound.
 /// - If you pass `false`, then the queue will report that it has finished playing.
 ///
-pub fn queue<S>(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput<S>>, SourcesQueueOutput<S>)
-where
-    S: Sample + Send + 'static,
-{
+pub fn queue<S>(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
     let input = Arc::new(SourcesQueueInput {
         next_sounds: Mutex::new(Vec::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
     });
 
     let output = SourcesQueueOutput {
-        current: Box::new(Empty::<S>::new()) as Box<_>,
+        current: Box::new(Empty::new()) as Box<_>,
         signal_after_end: None,
         input: input.clone(),
     };
@@ -44,26 +41,23 @@ where
 
 // TODO: consider reimplementing this with `from_factory`
 
-type Sound<S> = Box<dyn Source<Item = S> + Send>;
+type Sound = Box<dyn Source + Send>;
 type SignalDone = Option<Sender<()>>;
 
 /// The input of the queue.
-pub struct SourcesQueueInput<S> {
-    next_sounds: Mutex<Vec<(Sound<S>, SignalDone)>>,
+pub struct SourcesQueueInput {
+    next_sounds: Mutex<Vec<(Sound, SignalDone)>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
 }
 
-impl<S> SourcesQueueInput<S>
-where
-    S: Sample + Send + 'static,
-{
+impl SourcesQueueInput {
     /// Adds a new source to the end of the queue.
     #[inline]
     pub fn append<T>(&self, source: T)
     where
-        T: Source<Item = S> + Send + 'static,
+        T: Source + Send + 'static,
     {
         self.next_sounds
             .lock()
@@ -79,7 +73,7 @@ where
     #[inline]
     pub fn append_with_signal<T>(&self, source: T) -> Receiver<()>
     where
-        T: Source<Item = S> + Send + 'static,
+        T: Source + Send + 'static,
     {
         let (tx, rx) = channel();
         self.next_sounds
@@ -106,22 +100,20 @@ where
     }
 }
 /// The output of the queue. Implements `Source`.
-pub struct SourcesQueueOutput<S> {
+pub struct SourcesQueueOutput {
     // The current iterator that produces samples.
-    current: Box<dyn Source<Item = S> + Send>,
+    current: Box<dyn Source + Send>,
 
     // Signal this sender before picking from `next`.
     signal_after_end: Option<Sender<()>>,
 
     // The next sounds.
-    input: Arc<SourcesQueueInput<S>>,
+    input: Arc<SourcesQueueInput>,
 }
 
 const THRESHOLD: usize = 512;
-impl<S> Source for SourcesQueueOutput<S>
-where
-    S: Sample + Send + 'static,
-{
+
+impl Source for SourcesQueueOutput {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         // This function is non-trivial because the boundary between two sounds in the queue should
@@ -189,14 +181,11 @@ where
     }
 }
 
-impl<S> Iterator for SourcesQueueOutput<S>
-where
-    S: Sample + Send + 'static,
-{
-    type Item = S;
+impl Iterator for SourcesQueueOutput {
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         loop {
             // Basic situation that will happen most of the time.
             if let Some(sample) = self.current.next() {
@@ -217,11 +206,8 @@ where
     }
 }
 
-impl<S> SourcesQueueOutput<S>
-where
-    S: Sample + Send + 'static,
-{
-    // Called when `current` is empty and we must jump to the next element.
+impl SourcesQueueOutput {
+    // Called when `current` is empty, and we must jump to the next element.
     // Returns `Ok` if the sound should continue playing, or an error if it should stop.
     //
     // This method is separate so that it is not inlined.
@@ -234,7 +220,7 @@ where
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.len() == 0 {
-                let silence = Box::new(Zero::<S>::new_samples(1, 44100, THRESHOLD)) as Box<_>;
+                let silence = Box::new(Zero::new_samples(1, 44100, THRESHOLD)) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
                     (silence, None)

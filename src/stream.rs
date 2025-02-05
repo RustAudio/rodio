@@ -16,13 +16,13 @@ const HZ_44100: SampleRate = 44_100;
 /// Use `mixer()` method to control output.
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
-    mixer: Arc<Mixer<f32>>,
+    mixer: Arc<Mixer>,
     _stream: cpal::Stream,
 }
 
 impl OutputStream {
     /// Access the output stream's mixer.
-    pub fn mixer(&self) -> Arc<Mixer<f32>> {
+    pub fn mixer(&self) -> Arc<Mixer> {
         self.mixer.clone()
     }
 }
@@ -205,7 +205,7 @@ fn clamp_supported_buffer_size(
 
 /// A convenience function. Plays a sound once.
 /// Returns a `Sink` that can be used to control the sound.
-pub fn play<R>(mixer: &Mixer<f32>, input: R) -> Result<Sink, PlayError>
+pub fn play<R>(mixer: &Mixer, input: R) -> Result<Sink, PlayError>
 where
     R: Read + Seek + Send + Sync + 'static,
 {
@@ -320,7 +320,7 @@ impl OutputStream {
     fn init_stream(
         device: &cpal::Device,
         config: &OutputStreamConfig,
-        mut samples: MixerSource<f32>,
+        mut samples: MixerSource,
     ) -> Result<cpal::Stream, cpal::BuildStreamError> {
         let error_callback = |err| {
             #[cfg(feature = "tracing")]

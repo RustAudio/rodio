@@ -1,6 +1,5 @@
-use crate::conversions::Sample;
-
 use crate::common::{ChannelCount, SampleRate};
+use crate::math;
 use num_rational::Ratio;
 use std::mem;
 
@@ -34,7 +33,6 @@ where
 impl<I> SampleRateConverter<I>
 where
     I: Iterator,
-    I::Item: Sample,
 {
     /// Create new sample rate converter.
     ///
@@ -121,7 +119,6 @@ where
 impl<I> Iterator for SampleRateConverter<I>
 where
     I: Iterator,
-    I::Item: Sample + Clone,
 {
     type Item = I::Item;
 
@@ -174,7 +171,7 @@ where
             .zip(self.next_span.iter())
             .enumerate()
         {
-            let sample = Sample::lerp(*cur, *next, numerator, self.to);
+            let sample = math::lerp(&cur, &next, numerator, self.to);
 
             if off == 0 {
                 result = Some(sample);
@@ -239,12 +236,7 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for SampleRateConverter<I>
-where
-    I: ExactSizeIterator,
-    I::Item: Sample + Clone,
-{
-}
+impl<I> ExactSizeIterator for SampleRateConverter<I> where I: ExactSizeIterator {}
 
 #[cfg(test)]
 mod test {

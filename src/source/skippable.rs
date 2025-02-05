@@ -1,5 +1,4 @@
 use crate::common::{ChannelCount, SampleRate};
-use crate::Sample;
 use crate::Source;
 use std::time::Duration;
 
@@ -53,7 +52,6 @@ impl<I> Skippable<I> {
 impl<I> Iterator for Skippable<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -75,7 +73,6 @@ where
 impl<I> Source for Skippable<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

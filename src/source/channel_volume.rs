@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -10,7 +10,6 @@ use crate::{Sample, Source};
 pub struct ChannelVolume<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     input: I,
     // Channel number is used as index for amplification value.
@@ -23,7 +22,6 @@ where
 impl<I> ChannelVolume<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Wrap the input source and make it mono. Play that mono sound to each
     /// channel at the volume set by the user. The volume can be changed using
@@ -31,8 +29,8 @@ where
     pub fn new(mut input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I>
     where
         I: Source,
-        I::Item: Sample,
     {
+        // TODO (review) Can we use 0.0 here now (instead of Option)?
         let mut sample = None;
         let num_channels = input.channels();
 
@@ -40,7 +38,7 @@ where
             if let Some(s) = input.next() {
                 sample = Some(
                     sample
-                        .get_or_insert(I::Item::ZERO_VALUE)
+                        .get_or_insert(0.0)
                         .saturating_add(s.amplify(1.0 / num_channels as f32)),
                 );
             }
@@ -81,7 +79,6 @@ where
 impl<I> Iterator for ChannelVolume<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -116,17 +113,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for ChannelVolume<I>
-where
-    I: Source + ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for ChannelVolume<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for ChannelVolume<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

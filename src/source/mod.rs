@@ -152,10 +152,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
-pub trait Source: Iterator
-where
-    Self::Item: Sample,
-{
+pub trait Source: Iterator<Item = Sample> {
     /// Returns the number of samples before the current span ends. `None` means "infinite" or
     /// "until the sound ends".
     /// Should never return 0 unless there's no more data.
@@ -189,9 +186,7 @@ where
     fn mix<S>(self, other: S) -> Mix<Self, S>
     where
         Self: Sized,
-        Self::Item: FromSample<S::Item>,
         S: Source,
-        S::Item: Sample,
     {
         mix::mix(self, other)
     }
@@ -354,7 +349,6 @@ where
     where
         Self: Sized,
         Self::Item: FromSample<S::Item>,
-        <S as Iterator>::Item: Sample,
     {
         crossfade::crossfade(self, other, duration)
     }
@@ -463,8 +457,9 @@ where
     fn convert_samples<D>(self) -> SamplesConverter<Self, D>
     where
         Self: Sized,
-        D: Sample,
     {
+        // FIXME (#678) How would we adapt sample types now? Using SampleTypeConverter iterator?
+        todo!();
         SamplesConverter::new(self)
     }
 
@@ -691,10 +686,10 @@ macro_rules! source_pointer_impl {
     };
 }
 
-source_pointer_impl!(<S> Source for Box<dyn Source<Item = S>> where S: Sample,);
+source_pointer_impl!(Source for Box<dyn Source>);
 
-source_pointer_impl!(<S> Source for Box<dyn Source<Item = S> + Send> where S: Sample,);
+source_pointer_impl!(Source for Box<dyn Source + Send>);
 
-source_pointer_impl!(<S> Source for Box<dyn Source<Item = S> + Send + Sync> where S: Sample,);
+source_pointer_impl!(Source for Box<dyn Source + Send + Sync>);
 
-source_pointer_impl!(<'a, S, C> Source for &'a mut C where S: Sample, C: Source<Item = S>,);
+source_pointer_impl!(<'a, Src> Source for &'a mut Src where Src: Source,);

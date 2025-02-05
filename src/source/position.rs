@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `TrackPosition` object. See trait docs for
 /// details
@@ -51,7 +51,6 @@ impl<I> TrackPosition<I> {
 impl<I> TrackPosition<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns the position of the underlying source relative to its start.
     ///
@@ -83,7 +82,6 @@ where
 impl<I> Iterator for TrackPosition<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -122,7 +120,6 @@ where
 impl<I> Source for TrackPosition<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

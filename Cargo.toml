@@ -48,12 +48,14 @@ symphonia-all = [
     "symphonia-flac",
     "symphonia-isomp4",
     "symphonia-mp3",
+    "symphonia-ogg",
     "symphonia-vorbis",
     "symphonia-wav",
 ]
 symphonia-flac = ["symphonia/flac"]
 symphonia-isomp4 = ["symphonia/isomp4"]
 symphonia-mp3 = ["symphonia/mp3"]
+symphonia-ogg = ["symphonia/ogg"]
 symphonia-vorbis = ["symphonia/vorbis"]
 symphonia-wav = ["symphonia/wav", "symphonia/pcm", "symphonia/adpcm"]
 symphonia-alac = ["symphonia/isomp4", "symphonia/alac"]

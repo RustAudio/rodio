@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   See `README.md` for instructions. (#349)
 - Added `Sample::is_zero()` method for checking zero samples.
 - Added `DecoderBuilder` for improved configuration.
+- Using `Decoder::TryFrom` for `File` now automatically wraps in `BufReader` and sets `byte_len`.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.
@@ -42,15 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An issue with `SignalGenerator` that caused it to create increasingly distorted waveforms
   over long run times has been corrected. (#201)
 - WAV and FLAC decoder duration calculation now calculated once and handles very large files
-  correctly
-- Removed unwrap() calls in MP3, WAV, FLAC and Vorbis format detection for better error handling
-- `LoopedDecoder::size_hint` now correctly indicates an infinite stream
+  correctly.
+- Removed unwrap() calls in MP3, WAV, FLAC and Vorbis format detection for better error handling.
+- `LoopedDecoder::size_hint` now correctly indicates an infinite stream.
+- Symphonia decoder `total_duration` for Vorbis now return the correct value (#696).
+- Symphonia decoder for MP4 now seeks correctly (#577).
 
 ### Deprecated
 - Deprecated `Sample::zero_value()` function in favor of `Sample::ZERO_VALUE` constant
 
 ### Removed
-- Breaking: Removed `Mp4Type` enum in favor of using MIME type string "audio/mp4" for MP4 format detection with `Decoder::new_mp4`.
+- Breaking: Removed `Mp4Type` enum in favor of using MIME type string "audio/mp4" for MP4 format detection with `Decoder::new_mp4` (#612).
 
 # Version 0.20.1 (2024-11-08)
 

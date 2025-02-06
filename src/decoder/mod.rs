@@ -8,32 +8,20 @@
 //! Basic usage:
 //! ```no_run
 //! use std::fs::File;
-//! use rodio::Decoder;
-//!
-//! let file = File::open("audio.mp3").unwrap();
-//! let decoder = Decoder::new(file).unwrap();
-//! ```
-//!
-//! Using `TryFrom` for automatic optimizations:
-//! ```no_run
-//! use std::fs::File;
 //! use std::convert::TryFrom;
 //! use rodio::Decoder;
 //!
 //! let file = File::open("audio.mp3").unwrap();
-//! // This automatically:
-//! // - Wraps the file in a `BufReader` for better performance
-//! // - Sets `byte_len` from file metadata when available
 //! let decoder = Decoder::try_from(file).unwrap();
 //! ```
 //!
 //! Using the builder pattern for more control:
 //! ```no_run
 //! use std::fs::File;
-//! use rodio::Decoder;
+//! use rodio::decoder::DecoderBuilder;
 //!
 //! let file = File::open("audio.mp3").unwrap();
-//! let decoder = Decoder::builder()
+//! let decoder = DecoderBuilder::new()
 //!     .with_data(file)
 //!     .with_hint("mp3")
 //!     .with_gapless(true)
@@ -167,10 +155,10 @@ impl Default for Settings {
 ///
 /// ```no_run
 /// use std::fs::File;
-/// use rodio::Decoder;
+/// use rodio::decoder::DecoderBuilder;
 ///
 /// let file = File::open("audio.mp3").unwrap();
-/// let decoder = Decoder::builder()
+/// let decoder = DecoderBuilder::new()
 ///     .with_data(file)
 ///     .with_hint("mp3")
 ///     .with_gapless(true)
@@ -301,11 +289,11 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     ///
     /// # Examples
     /// ```no_run
-    /// use rodio::Decoder;
     /// use std::fs::File;
+    /// use rodio::decoder::DecoderBuilder;
     ///
     /// let file = File::open("audio.mp3").unwrap();
-    /// let decoder = Decoder::builder()
+    /// let decoder = DecoderBuilder::new()
     ///     .with_data(file)
     ///     .build()
     ///     .unwrap();

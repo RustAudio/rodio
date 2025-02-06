@@ -1,4 +1,4 @@
-use std::io::{BufReader, Read, Seek};
+use std::io::{Read, Seek};
 use std::path::Path;
 use std::time::Duration;
 
@@ -11,7 +11,7 @@ use rstest_reuse::{self, *};
 #[rstest]
 #[cfg_attr(
     feature = "symphonia-vorbis",
-    case("ogg", Duration::from_secs_f64(0.0), "symphonia")
+    case("ogg", Duration::from_secs_f64(69.00000003), "symphonia")
 )]
 #[cfg_attr(
     all(feature = "minimp3", not(feature = "symphonia-mp3")),
@@ -29,7 +29,6 @@ use rstest_reuse::{self, *};
     feature = "symphonia-mp3",
     case("mp3", Duration::from_secs_f64(10.000000), "symphonia mp3")
 )]
-// note: disabled, broken decoder see issue: #577
 #[cfg_attr(
     feature = "symphonia-isomp4",
     case("m4a", Duration::from_secs_f64(10.000000), "symphonia m4a")
@@ -52,7 +51,7 @@ fn all_decoders(
 fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/music").with_extension(format);
     let file = std::fs::File::open(asset).unwrap();
-    rodio::Decoder::new(BufReader::new(file)).unwrap()
+    rodio::decoder::Decoder::try_from(file).unwrap()
 }
 
 #[apply(all_decoders)]

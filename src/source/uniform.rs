@@ -79,14 +79,7 @@ where
             return Some(value);
         }
 
-        let input = self
-            .inner
-            .take()
-            .unwrap()
-            .into_inner()
-            .into_inner()
-            .into_inner()
-            .iter;
+        let input = self.inner.take().unwrap().into_inner().into_inner().iter;
 
         let mut input =
             UniformSourceIterator::bootstrap(input, self.target_channels, self.target_sample_rate);
@@ -129,12 +122,7 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         if let Some(input) = self.inner.as_mut() {
-            input
-                .inner_mut()
-                .inner_mut()
-                .inner_mut()
-                .inner_mut()
-                .try_seek(pos)
+            input.inner_mut().inner_mut().inner_mut().try_seek(pos)
         } else {
             Ok(())
         }

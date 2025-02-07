@@ -454,13 +454,13 @@ pub trait Source: Iterator<Item = Sample> {
 
     /// Converts the samples of this source to another type.
     #[inline]
-    fn convert_samples<D>(self) -> SamplesConverter<Self, D>
+    fn convert_samples(self) -> SamplesConverter<Self>
     where
         Self: Sized,
     {
         // FIXME (#678) How would we adapt sample types now? Using SampleTypeConverter iterator?
         todo!();
-        SamplesConverter::new(self)
+        // SamplesConverter::new(self)
     }
 
     /// Makes the sound pausable.

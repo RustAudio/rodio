@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn stereo_access() {
         // Stereo, 1Hz audio buffer
-        let inner = SamplesBuffer::new(2, 1, vec![10i16, -10, 10, -10, 20, -20]);
+        let inner = SamplesBuffer::new(2, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
 
         let cnt = RefCell::new(0);
 
@@ -146,25 +146,25 @@ mod tests {
 
         assert_eq!(*cnt.borrow(), 0);
         // Always called on first access!
-        assert_eq!(source.next(), Some(10));
+        assert_eq!(source.next(), Some(10.0));
         assert_eq!(*cnt.borrow(), 1);
         // Called every 1 second afterwards
-        assert_eq!(source.next(), Some(-10));
+        assert_eq!(source.next(), Some(-10.0));
         assert_eq!(*cnt.borrow(), 1);
-        assert_eq!(source.next(), Some(10));
+        assert_eq!(source.next(), Some(10.0));
         assert_eq!(*cnt.borrow(), 2);
-        assert_eq!(source.next(), Some(-10));
+        assert_eq!(source.next(), Some(-10.0));
         assert_eq!(*cnt.borrow(), 2);
-        assert_eq!(source.next(), Some(20));
+        assert_eq!(source.next(), Some(20.0));
         assert_eq!(*cnt.borrow(), 3);
-        assert_eq!(source.next(), Some(-20));
+        assert_eq!(source.next(), Some(-20.0));
         assert_eq!(*cnt.borrow(), 3);
     }
 
     #[test]
     fn fast_access_overflow() {
         // 1hz is lower than 0.5 samples per 5ms
-        let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
+        let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
         let mut source = inner.periodic_access(Duration::from_millis(5), |_src| {});
 
         source.next();

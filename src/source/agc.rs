@@ -14,7 +14,7 @@
 //
 
 use super::SeekError;
-use crate::{Sample, Source};
+use crate::Source;
 #[cfg(feature = "experimental")]
 use atomic_float::AtomicF32;
 #[cfg(feature = "experimental")]

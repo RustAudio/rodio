@@ -165,17 +165,17 @@ mod tests {
 
         assert_eq!(rx.channels(), 1);
         assert_eq!(rx.sample_rate(), 48000);
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
         /*assert_eq!(rx.channels(), 2);
         assert_eq!(rx.sample_rate(), 96000);*/
         // FIXME: not working
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), None);
     }
 }

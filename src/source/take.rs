@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -25,18 +25,12 @@ enum DurationFilter {
     FadeOut,
 }
 impl DurationFilter {
-    fn apply<I: Iterator>(
-        &self,
-        sample: <I as Iterator>::Item,
-        parent: &TakeDuration<I>,
-    ) -> <I as Iterator>::Item
-where {
-        use self::DurationFilter::*;
+    fn apply<I: Iterator>(&self, sample: Sample, parent: &TakeDuration<I>) -> Sample {
         match self {
-            FadeOut => {
+            DurationFilter::FadeOut => {
                 let remaining = parent.remaining_duration.as_millis() as f32;
                 let total = parent.requested_duration.as_millis() as f32;
-                sample.amplify(remaining / total)
+                sample * remaining / total
             }
         }
     }

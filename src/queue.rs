@@ -24,7 +24,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 ///   a new sound.
 /// - If you pass `false`, then the queue will report that it has finished playing.
 ///
-pub fn queue<S>(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
+pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
     let input = Arc::new(SourcesQueueInput {
         next_sounds: Mutex::new(Vec::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
@@ -249,42 +249,42 @@ mod tests {
     fn basic() {
         let (tx, mut rx) = queue::queue(false);
 
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        tx.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
+        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.append(SamplesBuffer::new(2, 96000, vec![5.0, 5.0, 5.0, 5.0]));
 
         assert_eq!(rx.channels(), 1);
         assert_eq!(rx.sample_rate(), 48000);
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
         assert_eq!(rx.channels(), 2);
         assert_eq!(rx.sample_rate(), 96000);
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), None);
     }
 
     #[test]
     fn immediate_end() {
-        let (_, mut rx) = queue::queue::<i16>(false);
+        let (_, mut rx) = queue::queue(false);
         assert_eq!(rx.next(), None);
     }
 
     #[test]
     fn keep_alive() {
         let (tx, mut rx) = queue::queue(true);
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
 
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
 
         for _ in 0..100000 {
-            assert_eq!(rx.next(), Some(0));
+            assert_eq!(rx.next(), Some(0.0));
         }
     }
 
@@ -294,13 +294,13 @@ mod tests {
         let (tx, mut rx) = queue::queue(true);
 
         for _ in 0..500 {
-            assert_eq!(rx.next(), Some(0));
+            assert_eq!(rx.next(), Some(0.0));
         }
 
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
     }
 }

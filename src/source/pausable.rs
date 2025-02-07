@@ -79,12 +79,12 @@ where
     fn next(&mut self) -> Option<I::Item> {
         if self.remaining_paused_samples > 0 {
             self.remaining_paused_samples -= 1;
-            return Some(I::Item::ZERO_VALUE);
+            return Some(0.0);
         }
 
         if let Some(paused_channels) = self.paused_channels {
             self.remaining_paused_samples = paused_channels - 1;
-            return Some(I::Item::ZERO_VALUE);
+            return Some(0.0);
         }
 
         self.input.next()

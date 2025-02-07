@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 fn remaining_samples(
     until_playback: Duration,
@@ -67,7 +67,7 @@ where
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
         if self.remaining_samples >= 1 {
             self.remaining_samples -= 1;
-            Some(Sample::ZERO_VALUE)
+            Some(0.0)
         } else {
             self.input.next()
         }

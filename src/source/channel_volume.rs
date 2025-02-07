@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -16,7 +16,7 @@ where
     channel_volumes: Vec<f32>,
     // Current listener being processed.
     current_channel: usize,
-    current_sample: Option<I::Item>,
+    current_sample: Option<Sample>,
 }
 
 impl<I> ChannelVolume<I>
@@ -30,17 +30,13 @@ where
     where
         I: Source,
     {
-        // TODO (review) Can we use 0.0 here now (instead of Option)?
-        let mut sample = None;
+        let mut sample = 0.0;
         let num_channels = input.channels();
+        input.take(num_channels as usize).sum() / num_channels as f32;
 
         for _ in 0..num_channels {
             if let Some(s) = input.next() {
-                sample = Some(
-                    sample
-                        .get_or_insert(0.0)
-                        .saturating_add(s.amplify(1.0 / num_channels as f32)),
-                );
+                sample += s / num_channels as f32;
             }
         }
         ChannelVolume {
@@ -80,27 +76,20 @@ impl<I> Iterator for ChannelVolume<I>
 where
     I: Source,
 {
-    type Item = I::Item;
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<I::Item> {
-        let ret = self
-            .current_sample
-            .map(|sample| sample.amplify(self.channel_volumes[self.current_channel]));
+    fn next(&mut self) -> Option<Self::Item> {
+        let ret = self.current_sample * self.channel_volumes[self.current_channel];
         self.current_channel += 1;
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
-            self.current_sample = None;
+            self.current_sample = 0.0;
 
             let num_channels = self.input.channels();
-
             for _ in 0..num_channels {
                 if let Some(s) = self.input.next() {
-                    self.current_sample = Some(
-                        self.current_sample
-                            .get_or_insert(I::Item::ZERO_VALUE)
-                            .saturating_add(s.amplify(1.0 / num_channels as f32)),
-                    );
+                    self.current_sample += s / num_channels as f32;
                 }
             }
         }

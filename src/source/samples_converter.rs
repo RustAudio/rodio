@@ -1,10 +1,9 @@
-use std::marker::PhantomData;
 use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
-use dasp_sample::{FromSample, Sample as DaspSample};
+use crate::{Sample, Source};
+use dasp_sample::{Sample as DaspSample, ToSample};
 
 // TODO Can we reuse conversions::SampleTypeConverter here? This file declares a
 //      converting source while conversions::SampleTypeConverter is an iterator.
@@ -15,20 +14,20 @@ use dasp_sample::{FromSample, Sample as DaspSample};
 /// Wrap the input and lazily converts the samples it provides to the type
 /// specified by the generic parameter D
 #[derive(Clone)]
-pub struct SamplesConverter<I, D> {
+pub struct SamplesConverter<I> {
     inner: I,
-    dest: PhantomData<D>,
 }
 
-impl<I, D> SamplesConverter<I, D> {
+impl<I> SamplesConverter<I>
+where
+    I: Iterator,
+    I::Item: ToSample<Sample>,
+{
     /// Wrap the input and lazily converts the samples it provides to the type
     /// specified by the generic parameter D
     #[inline]
-    pub fn new(input: I) -> SamplesConverter<I, D> {
-        SamplesConverter {
-            inner: input,
-            dest: PhantomData,
-        }
+    pub fn new(input: I) -> SamplesConverter<I> {
+        SamplesConverter { inner: input }
     }
 
     /// Returns a reference to the inner source.
@@ -50,16 +49,16 @@ impl<I, D> SamplesConverter<I, D> {
     }
 }
 
-impl<I, D> Iterator for SamplesConverter<I, D>
+impl<I> Iterator for SamplesConverter<I>
 where
-    I: Source,
-    D: FromSample<I::Item>,
+    I: Iterator,
+    I::Item: ToSample<Sample> + DaspSample,
 {
-    type Item = D;
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<D> {
-        self.inner.next().map(|s| DaspSample::from_sample(s))
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|s| DaspSample::to_sample(s))
     }
 
     #[inline]
@@ -68,40 +67,45 @@ where
     }
 }
 
-impl<I, D> ExactSizeIterator for SamplesConverter<I, D>
+impl<I> ExactSizeIterator for SamplesConverter<I>
 where
-    I: Source + ExactSizeIterator,
-    D: FromSample<I::Item>,
+    I: Iterator + ExactSizeIterator,
+    I::Item: ToSample<Sample> + DaspSample,
 {
 }
 
-impl<I, D> Source for SamplesConverter<I, D>
+impl<I> Source for SamplesConverter<I>
 where
-    I: Source,
-    D: FromSample<I::Item>,
+    I: Iterator,
+    I::Item: ToSample<Sample> + DaspSample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        self.inner.current_span_len()
+        todo!();
+        // self.inner.current_span_len()
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.inner.channels()
+        todo!();
+        // self.inner.channels()
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.inner.sample_rate()
+        todo!();
+        // self.inner.sample_rate()
     }
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.inner.total_duration()
+        todo!();
+        // self.inner.total_duration()
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.inner.try_seek(pos)
+    fn try_seek(&mut self, _pos: Duration) -> Result<(), SeekError> {
+        todo!();
+        // self.inner.try_seek(pos)
     }
 }

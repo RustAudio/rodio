@@ -1,22 +1,22 @@
 use crate::common::ChannelCount;
-use dasp_sample::Sample;
+use crate::Sample;
 
 /// Iterator that converts from a certain channel count to another.
 #[derive(Clone, Debug)]
 pub struct ChannelCountConverter<I>
 where
-    I: Iterator,
+    I: Iterator<Item = Sample>,
 {
     input: I,
     from: ChannelCount,
     to: ChannelCount,
-    sample_repeat: Option<I::Item>,
+    sample_repeat: Option<Sample>,
     next_output_sample_pos: ChannelCount,
 }
 
 impl<I> ChannelCountConverter<I>
 where
-    I: Iterator,
+    I: Iterator<Item = Sample>,
 {
     /// Initializes the iterator.
     ///
@@ -53,7 +53,7 @@ where
 
 impl<I> Iterator for ChannelCountConverter<I>
 where
-    I: Iterator,
+    I: Iterator<Item = Sample>,
 {
     type Item = I::Item;
 
@@ -104,47 +104,43 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for ChannelCountConverter<I>
-where
-    I: ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for ChannelCountConverter<I> where I: ExactSizeIterator<Item = Sample> {}
 
 #[cfg(test)]
 mod test {
     use super::ChannelCountConverter;
     use crate::common::ChannelCount;
+    use crate::Sample;
 
     #[test]
     fn remove_channels() {
-        let input = vec![1u16, 2, 3, 4, 5, 6];
+        let input = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         let output = ChannelCountConverter::new(input.into_iter(), 3, 2).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 4, 5]);
+        assert_eq!(output, [1.0, 2.0, 4.0, 5.0]);
 
-        let input = vec![1u16, 2, 3, 4, 5, 6, 7, 8];
+        let input = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let output = ChannelCountConverter::new(input.into_iter(), 4, 1).collect::<Vec<_>>();
-        assert_eq!(output, [1, 5]);
+        assert_eq!(output, [1.0, 5.0]);
     }
 
     #[test]
     fn add_channels() {
-        let input = vec![1i16, 2, 3, 4];
+        let input = vec![1.0, 2.0, 3.0, 4.0];
         let output = ChannelCountConverter::new(input.into_iter(), 1, 2).collect::<Vec<_>>();
-        assert_eq!(output, [1, 1, 2, 2, 3, 3, 4, 4]);
+        assert_eq!(output, [1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]);
 
-        let input = vec![1i16, 2];
+        let input = vec![1.0, 2.0];
         let output = ChannelCountConverter::new(input.into_iter(), 1, 4).collect::<Vec<_>>();
-        assert_eq!(output, [1, 1, 0, 0, 2, 2, 0, 0]);
+        assert_eq!(output, [1.0, 1.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0]);
 
-        let input = vec![1i16, 2, 3, 4];
+        let input = vec![1.0, 2.0, 3.0, 4.0];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 4).collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 0, 0, 3, 4, 0, 0]);
+        assert_eq!(output, [1.0, 2.0, 0.0, 0.0, 3.0, 4.0, 0.0, 0.0]);
     }
 
     #[test]
     fn size_hint() {
-        fn test(input: &[i16], from: ChannelCount, to: ChannelCount) {
+        fn test(input: &[Sample], from: ChannelCount, to: ChannelCount) {
             let mut converter = ChannelCountConverter::new(input.iter().copied(), from, to);
             let count = converter.clone().count();
             for left_in_iter in (0..=count).rev() {
@@ -155,23 +151,23 @@ mod test {
             assert_eq!(converter.size_hint(), (0, Some(0)));
         }
 
-        test(&[1i16, 2, 3], 1, 2);
-        test(&[1i16, 2, 3, 4], 2, 4);
-        test(&[1i16, 2, 3, 4], 4, 2);
-        test(&[1i16, 2, 3, 4, 5, 6], 3, 8);
-        test(&[1i16, 2, 3, 4, 5, 6, 7, 8], 4, 1);
+        test(&[1.0, 2.0, 3.0], 1, 2);
+        test(&[1.0, 2.0, 3.0, 4.0], 2, 4);
+        test(&[1.0, 2.0, 3.0, 4.0], 4, 2);
+        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 3, 8);
+        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], 4, 1);
     }
 
     #[test]
     fn len_more() {
-        let input = vec![1i16, 2, 3, 4];
+        let input = vec![1.0, 2.0, 3.0, 4.0];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 3);
         assert_eq!(output.len(), 6);
     }
 
     #[test]
     fn len_less() {
-        let input = vec![1i16, 2, 3, 4];
+        let input = vec![1.0, 2.0, 3.0, 4.0];
         let output = ChannelCountConverter::new(input.into_iter(), 2, 1);
         assert_eq!(output.len(), 2);
     }

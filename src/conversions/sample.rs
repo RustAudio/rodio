@@ -34,12 +34,12 @@ impl<I, O> SampleTypeConverter<I, O> {
 impl<I, O> Iterator for SampleTypeConverter<I, O>
 where
     I: Iterator,
-    O: FromSample<I::Item>,
+    O: FromSample<I::Item> + DaspSample,
 {
     type Item = O;
 
     #[inline]
-    fn next(&mut self) -> Option<O> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.input.next().map(|s| DaspSample::from_sample(s))
     }
 
@@ -52,6 +52,6 @@ where
 impl<I, O> ExactSizeIterator for SampleTypeConverter<I, O>
 where
     I: ExactSizeIterator,
-    O: FromSample<I::Item>,
+    O: FromSample<I::Item> + DaspSample,
 {
 }

@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_position() {
-        let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
+        let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
         let mut source = inner.track_position();
 
         assert_eq!(source.get_pos().as_secs_f32(), 0.0);
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_position_in_presence_of_speedup() {
-        let inner = SamplesBuffer::new(1, 1, vec![10i16, -10, 10, -10, 20, -20]);
+        let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
         let mut source = inner.speed(2.0).track_position();
 
         assert_eq!(source.get_pos().as_secs_f32(), 0.0);

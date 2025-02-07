@@ -8,7 +8,6 @@
 //! Basic usage:
 //! ```no_run
 //! use std::fs::File;
-//! use std::convert::TryFrom;
 //! use rodio::Decoder;
 //!
 //! let file = File::open("audio.mp3").unwrap();
@@ -18,10 +17,10 @@
 //! Using the builder pattern for more control:
 //! ```no_run
 //! use std::fs::File;
-//! use rodio::decoder::DecoderBuilder;
+//! use rodio::Decoder;
 //!
 //! let file = File::open("audio.mp3").unwrap();
-//! let decoder = DecoderBuilder::new()
+//! let decoder = Decoder::builder()
 //!     .with_data(file)
 //!     .with_hint("mp3")
 //!     .with_gapless(true)
@@ -59,17 +58,8 @@ mod vorbis;
 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
 mod wav;
 
-/// Source of audio samples from decoding a file.
-///
-/// # Examples
-///
-/// ```no_run
-/// use std::fs::File;
-/// use rodio::Decoder;
-///
-/// let file = File::open("audio.mp3").unwrap();
-/// let decoder = Decoder::new(file).unwrap();
-/// ```
+/// Source of audio samples decoded from an input stream.
+/// See the [module-level documentation](self) for examples and usage.
 pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 
 /// Source of audio samples from decoding a file that never ends.
@@ -257,7 +247,7 @@ impl<R> Iterator for DecoderOutput<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     /// Delegates to the underlying decoder's `next` implementation.
     ///
@@ -583,7 +573,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
 /// # Examples
 /// ```no_run
 /// use std::fs::File;
-/// use std::convert::TryFrom;
 /// use rodio::Decoder;
 ///
 /// let file = File::open("audio.mp3").unwrap();
@@ -606,6 +595,25 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
 }
 
 impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
+    /// Returns a builder for creating a new decoder with customizable settings.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use std::fs::File;
+    /// use rodio::Decoder;
+    ///
+    /// let file = File::open("audio.mp3").unwrap();
+    /// let decoder = Decoder::builder()
+    ///     .with_data(file)
+    ///     .with_hint("mp3")
+    ///     .with_gapless(true)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
+    pub fn builder() -> DecoderBuilder<R> {
+        DecoderBuilder::new()
+    }
+
     /// Builds a new decoder with default settings.
     ///
     /// Attempts to automatically detect the format of the source of data.

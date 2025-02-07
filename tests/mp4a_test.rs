@@ -12,5 +12,5 @@ fn test_mp4a_encodings() {
     // http://creativecommons.org/licenses/by/3.0/
     let file = std::fs::File::open("assets/monkeys.mp4a").unwrap();
     let mut decoder = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    assert!(!decoder.all(|x| x.is_zero())); // Assert not all zeros
+    assert!(decoder.any(|x| x != 0.0)); // Assert not all zeros
 }

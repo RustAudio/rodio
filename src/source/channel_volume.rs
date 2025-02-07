@@ -12,9 +12,7 @@ where
     I: Source,
 {
     input: I,
-    // Channel number is used as index for amplification value.
-    channel_volumes: Vec<f32>,
-    // Current listener being processed.
+    output_channel_volumes: Vec<f32>,
     current_channel: usize,
     current_sample: Option<Sample>,
 }
@@ -26,31 +24,22 @@ where
     /// Wrap the input source and make it mono. Play that mono sound to each
     /// channel at the volume set by the user. The volume can be changed using
     /// [`ChannelVolume::set_volume`].
-    pub fn new(mut input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I>
+    pub fn new(input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I>
     where
         I: Source,
     {
-        let mut sample = 0.0;
-        let num_channels = input.channels();
-        input.take(num_channels as usize).sum() / num_channels as f32;
-
-        for _ in 0..num_channels {
-            if let Some(s) = input.next() {
-                sample += s / num_channels as f32;
-            }
-        }
         ChannelVolume {
             input,
-            channel_volumes,
+            output_channel_volumes: channel_volumes,
             current_channel: 0,
-            current_sample: sample,
+            current_sample: None,
         }
     }
 
     /// Sets the volume for a given channel number. Will panic if channel number
     /// is invalid.
     pub fn set_volume(&mut self, channel: usize, volume: f32) {
-        self.channel_volumes[channel] = volume;
+        self.output_channel_volumes[channel] = volume;
     }
 
     /// Returns a reference to the inner source.
@@ -80,20 +69,22 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let ret = self.current_sample * self.channel_volumes[self.current_channel];
-        self.current_channel += 1;
-        if self.current_channel >= self.channel_volumes.len() {
+        if self.current_channel >= self.output_channel_volumes.len() {
             self.current_channel = 0;
-            self.current_sample = 0.0;
-
+            self.current_sample = None;
             let num_channels = self.input.channels();
             for _ in 0..num_channels {
                 if let Some(s) = self.input.next() {
-                    self.current_sample += s / num_channels as f32;
+                    self.current_sample = Some(self.current_sample.unwrap_or(0.0) + s);
                 }
             }
+            self.current_sample.map(|s| s / num_channels as f32);
         }
-        ret
+        let result = self
+            .current_sample
+            .map(|s| s * self.output_channel_volumes[self.current_channel]);
+        self.current_channel += 1;
+        result
     }
 
     #[inline]
@@ -115,7 +106,7 @@ where
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.channel_volumes.len() as ChannelCount
+        self.output_channel_volumes.len() as ChannelCount
     }
 
     #[inline]

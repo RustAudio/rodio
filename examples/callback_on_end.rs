@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // playlist_pos into the closure. That way we can still access playlist_pos
     // after appending the EmptyCallback.
     let playlist_pos_clone = playlist_pos.clone();
-    sink.append(rodio::source::EmptyCallback::<f32>::new(Box::new(
+    sink.append(rodio::source::EmptyCallback::new(Box::new(
         move || {
             println!("empty callback is now running");
             playlist_pos_clone.fetch_add(1, Ordering::Relaxed);

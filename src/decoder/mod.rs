@@ -161,8 +161,6 @@ pub struct DecoderBuilder<R> {
     data: Option<R>,
     /// Configuration settings for the decoder.
     settings: Settings,
-    /// Whether the decoder should loop playback.
-    looped: bool,
 }
 
 impl<R> Default for DecoderBuilder<R> {
@@ -170,106 +168,6 @@ impl<R> Default for DecoderBuilder<R> {
         Self {
             data: None,
             settings: Settings::default(),
-            looped: false,
-        }
-    }
-}
-
-/// Output type from building a decoder.
-///
-/// This enum represents either a normal decoder or a looped decoder,
-/// depending on how the decoder was configured during building.
-pub enum DecoderOutput<R>
-where
-    R: Read + Seek,
-{
-    /// A normal decoder that plays once.
-    Normal(Decoder<R>),
-    /// A looped decoder that repeats playback.
-    Looped(LoopedDecoder<R>),
-}
-
-impl<R> Source for DecoderOutput<R>
-where
-    R: Read + Seek,
-{
-    /// Delegates to the underlying decoder's `current_span_len` implementation.
-    #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        match self {
-            DecoderOutput::Normal(decoder) => decoder.current_span_len(),
-            DecoderOutput::Looped(decoder) => decoder.current_span_len(),
-        }
-    }
-
-    /// Delegates to the underlying decoder's `channels` implementation.
-    #[inline]
-    fn channels(&self) -> ChannelCount {
-        match self {
-            DecoderOutput::Normal(decoder) => decoder.channels(),
-            DecoderOutput::Looped(decoder) => decoder.channels(),
-        }
-    }
-
-    /// Delegates to the underlying decoder's `sample_rate` implementation.
-    fn sample_rate(&self) -> SampleRate {
-        match self {
-            DecoderOutput::Normal(decoder) => decoder.sample_rate(),
-            DecoderOutput::Looped(decoder) => decoder.sample_rate(),
-        }
-    }
-
-    /// Delegates to the underlying decoder's `total_duration` implementation.
-    ///
-    /// Returns `None` for looped decoders since they have no fixed end point.
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        match self {
-            DecoderOutput::Normal(decoder) => decoder.total_duration(),
-            DecoderOutput::Looped(decoder) => decoder.total_duration(),
-        }
-    }
-
-    /// Delegates to the underlying decoder's `try_seek` implementation.
-    ///
-    /// For looped decoders, seeking past the end of the stream will return an error
-    /// rather than wrapping around to the beginning.
-    #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        match self {
-            DecoderOutput::Normal(decoder) => decoder.try_seek(pos),
-            DecoderOutput::Looped(decoder) => decoder.try_seek(pos),
-        }
-    }
-}
-
-impl<R> Iterator for DecoderOutput<R>
-where
-    R: Read + Seek,
-{
-    type Item = Sample;
-
-    /// Delegates to the underlying decoder's `next` implementation.
-    ///
-    /// For looped decoders, returns `None` only if seeking back to start fails
-    /// when reaching the end of the stream.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            DecoderOutput::Normal(decoder) => decoder.next(),
-            DecoderOutput::Looped(decoder) => decoder.next(),
-        }
-    }
-
-    /// Delegates to the underlying decoder's `size_hint` implementation.
-    ///
-    /// For looped decoders, the upper bound is always `None` since they loop
-    /// indefinitely.
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            DecoderOutput::Normal(decoder) => decoder.size_hint(),
-            DecoderOutput::Looped(decoder) => decoder.size_hint(),
         }
     }
 }
@@ -347,68 +245,30 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
         self
     }
 
-    /// Configures the decoder to loop playback.
-    ///
-    /// When enabled, the decoder will restart from the beginning when it reaches the end.
-    pub fn looped(mut self, looped: bool) -> Self {
-        self.looped = looped;
-        self
-    }
-
-    /// Builds the decoder with the configured settings.
-    ///
-    /// # Errors
-    ///
-    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
-    /// or is not supported.
-    pub fn build(self) -> Result<DecoderOutput<R>, DecoderError> {
+    /// Creates the decoder implementation with configured settings.
+    fn build_impl(self) -> Result<(DecoderImpl<R>, Settings), DecoderError> {
         let data = self.data.ok_or(DecoderError::UnrecognizedFormat)?;
 
         #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
         let data = match wav::WavDecoder::new(data) {
-            Ok(decoder) => {
-                return Ok(wrap_decoder(
-                    DecoderImpl::Wav(decoder),
-                    self.settings,
-                    self.looped,
-                ))
-            }
+            Ok(decoder) => return Ok((DecoderImpl::Wav(decoder), self.settings)),
             Err(data) => data,
         };
-
         #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
         let data = match flac::FlacDecoder::new(data) {
-            Ok(decoder) => {
-                return Ok(wrap_decoder(
-                    DecoderImpl::Flac(decoder),
-                    self.settings,
-                    self.looped,
-                ))
-            }
+            Ok(decoder) => return Ok((DecoderImpl::Flac(decoder), self.settings)),
             Err(data) => data,
         };
 
         #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
         let data = match vorbis::VorbisDecoder::new(data) {
-            Ok(decoder) => {
-                return Ok(wrap_decoder(
-                    DecoderImpl::Vorbis(decoder),
-                    self.settings,
-                    self.looped,
-                ))
-            }
+            Ok(decoder) => return Ok((DecoderImpl::Vorbis(decoder), self.settings)),
             Err(data) => data,
         };
 
         #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
         let data = match mp3::Mp3Decoder::new(data) {
-            Ok(decoder) => {
-                return Ok(wrap_decoder(
-                    DecoderImpl::Mp3(decoder),
-                    self.settings,
-                    self.looped,
-                ))
-            }
+            Ok(decoder) => return Ok((DecoderImpl::Mp3(decoder), self.settings)),
             Err(data) => data,
         };
 
@@ -419,34 +279,37 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
                 Default::default(),
             );
 
-            symphonia::SymphoniaDecoder::new(mss, &self.settings).map(|decoder| {
-                wrap_decoder(
-                    DecoderImpl::Symphonia(decoder, PhantomData),
-                    self.settings,
-                    self.looped,
-                )
-            })
+            symphonia::SymphoniaDecoder::new(mss, &self.settings)
+                .map(|decoder| (DecoderImpl::Symphonia(decoder, PhantomData), self.settings))
         }
 
         #[cfg(not(feature = "symphonia"))]
         Err(DecoderError::UnrecognizedFormat)
     }
-}
 
-/// Helper function to wrap a DecoderImpl in the appropriate DecoderOutput variant
-#[inline]
-fn wrap_decoder<R: Read + Seek>(
-    decoder: DecoderImpl<R>,
-    settings: Settings,
-    looped: bool,
-) -> DecoderOutput<R> {
-    if looped {
-        DecoderOutput::Looped(LoopedDecoder {
+    /// Creates a new decoder with previously configured settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+    /// or is not supported.
+    pub fn build(self) -> Result<Decoder<R>, DecoderError> {
+        let (decoder, _) = self.build_impl()?;
+        Ok(Decoder(decoder))
+    }
+
+    /// Creates a new looped decoder with previously configured settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+    /// or is not supported.
+    pub fn build_looped(self) -> Result<LoopedDecoder<R>, DecoderError> {
+        let (decoder, settings) = self.build_impl()?;
+        Ok(LoopedDecoder {
             inner: Some(decoder),
             settings,
         })
-    } else {
-        DecoderOutput::Normal(Decoder(decoder))
     }
 }
 
@@ -594,14 +457,10 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
             .map_err(|e| Self::Error::IoError(e.to_string()))?
             .len();
 
-        match Self::builder()
+        Self::builder()
             .with_data(BufReader::new(file))
             .with_byte_len(len)
-            .build()?
-        {
-            DecoderOutput::Normal(decoder) => Ok(decoder),
-            DecoderOutput::Looped(_) => unreachable!("Builder defaults to non-looped"),
-        }
+            .build()
     }
 }
 
@@ -695,10 +554,7 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
     /// or is not supported.
     pub fn new(data: R) -> Result<Self, DecoderError> {
-        match DecoderBuilder::new().with_data(data).build()? {
-            DecoderOutput::Normal(decoder) => Ok(decoder),
-            DecoderOutput::Looped(_) => unreachable!("Builder defaults to non-looped"),
-        }
+        DecoderBuilder::new().with_data(data).build()
     }
 
     /// Builds a new looped decoder with default settings.
@@ -711,10 +567,7 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
     /// or is not supported.
     pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
-        match DecoderBuilder::new().with_data(data).looped(true).build()? {
-            DecoderOutput::Looped(decoder) => Ok(decoder),
-            DecoderOutput::Normal(_) => unreachable!("Builder was set to looped"),
-        }
+        DecoderBuilder::new().with_data(data).build_looped()
     }
 
     /// Builds a new decoder with WAV format hint.
@@ -737,14 +590,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// ```
     #[cfg(any(feature = "wav", feature = "symphonia-wav"))]
     pub fn new_wav(data: R) -> Result<Self, DecoderError> {
-        match DecoderBuilder::new()
+        DecoderBuilder::new()
             .with_data(data)
             .with_hint("wav")
-            .build()?
-        {
-            DecoderOutput::Normal(decoder) => Ok(decoder),
-            DecoderOutput::Looped(_) => unreachable!(),
-        }
+            .build()
     }
 
     /// Builds a new decoder with FLAC format hint.
@@ -767,14 +616,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// ```
     #[cfg(any(feature = "flac", feature = "symphonia-flac"))]
     pub fn new_flac(data: R) -> Result<Self, DecoderError> {
-        match DecoderBuilder::new()
+        DecoderBuilder::new()
             .with_data(data)
             .with_hint("flac")
-            .build()?
-        {
-            DecoderOutput::Normal(decoder) => Ok(decoder),
-            DecoderOutput::Looped(_) => unreachable!(),
-        }
+            .build()
     }
 
     /// Builds a new decoder with Vorbis format hint.
@@ -797,14 +642,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// ```
     #[cfg(any(feature = "vorbis", feature = "symphonia-vorbis"))]
     pub fn new_vorbis(data: R) -> Result<Self, DecoderError> {
-        match DecoderBuilder::new()
+        DecoderBuilder::new()
             .with_data(data)
             .with_hint("ogg")
-            .build()?
-        {
-            DecoderOutput::Normal(decoder) => Ok(decoder),
-            DecoderOutput::Looped(_) => unreachable!(),
-        }
+            .build()
     }
 
     /// Builds a new decoder with MP3 format hint.
@@ -827,14 +668,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// ```
     #[cfg(any(feature = "minimp3", feature = "symphonia-mp3"))]
     pub fn new_mp3(data: R) -> Result<Self, DecoderError> {
-        match DecoderBuilder::new()
+        DecoderBuilder::new()
             .with_data(data)
             .with_hint("mp3")
-            .build()?
-        {
-            DecoderOutput::Normal(decoder) => Ok(decoder),
-            DecoderOutput::Looped(_) => unreachable!(),
-        }
+            .build()
     }
 
     /// Builds a new decoder with AAC format hint.
@@ -857,14 +694,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// ```
     #[cfg(feature = "symphonia-aac")]
     pub fn new_aac(data: R) -> Result<Self, DecoderError> {
-        match DecoderBuilder::new()
+        DecoderBuilder::new()
             .with_data(data)
             .with_hint("aac")
-            .build()?
-        {
-            DecoderOutput::Normal(decoder) => Ok(decoder),
-            DecoderOutput::Looped(_) => unreachable!(),
-        }
+            .build()
     }
 
     /// Builds a new decoder with MP4 container format hint.
@@ -887,14 +720,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// ```
     #[cfg(feature = "symphonia-isomp4")]
     pub fn new_mp4(data: R) -> Result<Self, DecoderError> {
-        match DecoderBuilder::new()
+        DecoderBuilder::new()
             .with_data(data)
             .with_mime_type("audio/mp4")
-            .build()?
-        {
-            DecoderOutput::Normal(decoder) => Ok(decoder),
-            DecoderOutput::Looped(_) => unreachable!(),
-        }
+            .build()
     }
 }
 

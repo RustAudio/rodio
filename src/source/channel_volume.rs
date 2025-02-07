@@ -12,7 +12,7 @@ where
     I: Source,
 {
     input: I,
-    output_channel_volumes: Vec<f32>,
+    channel_volumes: Vec<f32>,
     current_channel: usize,
     current_sample: Option<Sample>,
 }
@@ -28,10 +28,11 @@ where
     where
         I: Source,
     {
+        let channel_count = channel_volumes.len(); // See next() implementation.
         ChannelVolume {
             input,
-            output_channel_volumes: channel_volumes,
-            current_channel: 0,
+            channel_volumes,
+            current_channel: channel_count,
             current_sample: None,
         }
     }
@@ -39,7 +40,7 @@ where
     /// Sets the volume for a given channel number. Will panic if channel number
     /// is invalid.
     pub fn set_volume(&mut self, channel: usize, volume: f32) {
-        self.output_channel_volumes[channel] = volume;
+        self.channel_volumes[channel] = volume;
     }
 
     /// Returns a reference to the inner source.
@@ -69,7 +70,8 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_channel >= self.output_channel_volumes.len() {
+        // TODO Need a test for this
+        if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             self.current_sample = None;
             let num_channels = self.input.channels();
@@ -82,7 +84,7 @@ where
         }
         let result = self
             .current_sample
-            .map(|s| s * self.output_channel_volumes[self.current_channel]);
+            .map(|s| s * self.channel_volumes[self.current_channel]);
         self.current_channel += 1;
         result
     }
@@ -106,7 +108,7 @@ where
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.output_channel_volumes.len() as ChannelCount
+        self.channel_volumes.len() as ChannelCount
     }
 
     #[inline]

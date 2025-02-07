@@ -568,11 +568,18 @@ impl<R: Read + Seek> DecoderImpl<R> {
 ///
 /// This implementation:
 /// - Wraps the file in a `BufReader` for better performance
-/// - Sets `byte_len` from file metadata when available, which can improve seeking operations
+/// - Gets the file length from metadata to improve seeking operations
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The file metadata cannot be read
+/// - The audio format cannot be recognized or is not supported
 ///
 /// # Examples
 /// ```no_run
 /// use std::fs::File;
+/// use std::convert::TryFrom;
 /// use rodio::Decoder;
 ///
 /// let file = File::open("audio.mp3").unwrap();
@@ -582,12 +589,16 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
     type Error = DecoderError;
 
     fn try_from(file: std::fs::File) -> Result<Self, Self::Error> {
-        let mut builder = DecoderBuilder::new();
-        if let Some(len) = file.metadata().ok().map(|m| m.len()) {
-            builder = builder.with_byte_len(len);
-        }
+        let len = file
+            .metadata()
+            .map_err(|e| Self::Error::IoError(e.to_string()))?
+            .len();
 
-        match builder.with_data(BufReader::new(file)).build()? {
+        match Self::builder()
+            .with_data(BufReader::new(file))
+            .with_byte_len(len)
+            .build()?
+        {
             DecoderOutput::Normal(decoder) => Ok(decoder),
             DecoderOutput::Looped(_) => unreachable!("Builder defaults to non-looped"),
         }
@@ -1038,7 +1049,6 @@ pub enum DecoderError {
     UnrecognizedFormat,
 
     /// An IO error occurred while reading, writing, or seeking the stream.
-    #[cfg(feature = "symphonia")]
     IoError(String),
 
     /// The stream contained malformed data and could not be decoded or demuxed.

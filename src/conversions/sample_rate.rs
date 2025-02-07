@@ -268,9 +268,10 @@ mod test {
         }
 
         /// Check that resampling to the same rate does not change the signal.
-        fn identity(from: u16, channels: u8, input: Vec<Sample>) -> TestResult {
+        fn identity(from: u16, channels: u8, input: Vec<i16>) -> TestResult {
             if channels == 0 || channels > 128 || from == 0 { return TestResult::discard(); }
             let from = from as SampleRate;
+            let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
 
             let output =
                 SampleRateConverter::new(input.clone().into_iter(), from, from, channels as ChannelCount)
@@ -281,10 +282,11 @@ mod test {
 
         /// Check that dividing the sample rate by k (integer) is the same as
         ///   dropping a sample from each channel.
-        fn divide_sample_rate(to: u16, k: u16, input: Vec<Sample>, channels: u8) -> TestResult {
+        fn divide_sample_rate(to: u16, k: u16, input: Vec<i16>, channels: u8) -> TestResult {
             if k == 0 || channels == 0 || channels > 128 || to == 0 || to > 48000 {
                 return TestResult::discard();
             }
+            let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
 
             let to = to as SampleRate;
             let from = to * k as u32;
@@ -307,10 +309,11 @@ mod test {
 
         /// Check that, after multiplying the sample rate by k, every k-th
         ///  sample in the output matches exactly with the input.
-        fn multiply_sample_rate(from: u16, k: u8, input: Vec<Sample>, channels: u8) -> TestResult {
+        fn multiply_sample_rate(from: u16, k: u8, input: Vec<i16>, channels: u8) -> TestResult {
             if k == 0 || channels == 0 || channels > 128 || from == 0 {
                 return TestResult::discard();
             }
+            let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
 
             let from = from as SampleRate;
             let to = from * k as u32;
@@ -360,7 +363,7 @@ mod test {
         let output = SampleRateConverter::new(input.into_iter(), 2000, 3000, 2);
         assert_eq!(output.len(), 12); // Test the source's Iterator::size_hint()
 
-        let output = output.collect::<Vec<_>>();
+        let output = output.map(|x| x.trunc()).collect::<Vec<_>>();
         assert_eq!(
             output,
             [2.0, 16.0, 3.0, 17.0, 4.0, 18.0, 6.0, 20.0, 7.0, 21.0, 8.0, 22.0]
@@ -372,7 +375,7 @@ mod test {
         let input = vec![1.0, 14.0];
         let output = SampleRateConverter::new(input.into_iter(), 1000, 7000, 1);
         let size_estimation = output.len();
-        let output = output.collect::<Vec<_>>();
+        let output = output.map(|x| x.trunc()).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0]);
         assert!((size_estimation as f32 / output.len() as f32).abs() < 2.0);
     }

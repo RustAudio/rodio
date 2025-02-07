@@ -925,9 +925,9 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         match &mut self.inner {
             Some(inner) => inner.try_seek(pos),
-            None => Err(SeekError::NotSupported {
-                underlying_source: "No decoder available",
-            }),
+            None => Err(SeekError::Other(Box::new(DecoderError::IoError(
+                "Looped source ended when it failed to loop back".to_string(),
+            )))),
         }
     }
 }

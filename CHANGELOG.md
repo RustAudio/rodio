@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Sample::is_zero()` method for checking zero samples.
 - Added `DecoderBuilder` for improved configuration.
 - Using `Decoder::TryFrom` for `File` now automatically wraps in `BufReader` and sets `byte_len`.
+  `TryFrom<Cursor<T>>` and `TryFrom<BufReader>` are also supported.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.

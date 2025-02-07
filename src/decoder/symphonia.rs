@@ -9,7 +9,7 @@ use symphonia::{
         io::MediaSourceStream,
         meta::MetadataOptions,
         probe::Hint,
-        units::{self, Time},
+        units,
     },
     default::get_probe,
 };
@@ -29,7 +29,7 @@ pub(crate) struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
     current_span_offset: usize,
     format: Box<dyn FormatReader>,
-    total_duration: Option<Time>,
+    total_duration: Option<Duration>,
     buffer: SampleBuffer<Sample>,
     spec: SignalSpec,
     seek_mode: SeekMode,
@@ -113,7 +113,7 @@ impl SymphoniaDecoder {
             .codec_params
             .time_base
             .zip(stream.codec_params.n_frames)
-            .map(|(base, spans)| base.calc_time(spans));
+            .map(|(base, spans)| base.calc_time(spans).into());
 
         let mut decode_errors: usize = 0;
         let decoded = loop {
@@ -168,7 +168,7 @@ impl SymphoniaDecoder {
 impl Source for SymphoniaDecoder {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        Some(self.buffer.samples().len())
+        Some(self.buffer.len())
     }
 
     #[inline]
@@ -183,20 +183,16 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.total_duration.map(time_to_duration)
+        self.total_duration
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), source::SeekError> {
-        let seek_beyond_end = self
-            .total_duration()
-            .is_some_and(|dur| dur.saturating_sub(pos).as_millis() < 1);
-
-        let time = if seek_beyond_end {
-            let time = self.total_duration.expect("if guarantees this is Some");
-            skip_back_a_tiny_bit(time) // some decoders can only seek to just before the end
-        } else {
-            pos.as_secs_f64().into()
-        };
+        let mut target = pos;
+        if let Some(total_duration) = self.total_duration {
+            if target > total_duration {
+                target = total_duration;
+            }
+        }
 
         // make sure the next sample is for the right channel
         let to_skip = self.current_span_offset % self.channels() as usize;
@@ -206,7 +202,7 @@ impl Source for SymphoniaDecoder {
             .seek(
                 self.seek_mode,
                 SeekTo::Time {
-                    time,
+                    time: target.into(),
                     track_id: None,
                 },
             )
@@ -231,6 +227,7 @@ pub enum SeekError {
     /// Decoding failed on multiple consecutive packets
     Decoding(symphonia::core::errors::Error),
 }
+
 impl fmt::Display for SeekError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -261,6 +258,7 @@ impl fmt::Display for SeekError {
         }
     }
 }
+
 impl std::error::Error for SeekError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
@@ -299,31 +297,6 @@ impl SymphoniaDecoder {
         self.current_span_offset = samples_to_pass as usize * self.channels() as usize;
         Ok(())
     }
-}
-
-fn skip_back_a_tiny_bit(
-    Time {
-        mut seconds,
-        mut frac,
-    }: Time,
-) -> Time {
-    frac -= 0.0001;
-    if frac < 0.0 {
-        seconds = seconds.saturating_sub(1);
-        frac = 1.0 - frac;
-    }
-    Time { seconds, frac }
-}
-
-fn time_to_duration(time: Time) -> Duration {
-    Duration::new(
-        time.seconds,
-        if time.frac > 0.0 {
-            (1f64 / time.frac) as u32
-        } else {
-            0
-        },
-    )
 }
 
 impl Iterator for SymphoniaDecoder {

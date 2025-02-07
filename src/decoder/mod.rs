@@ -5,25 +5,28 @@
 //!
 //! # Examples
 //!
-//! Basic usage:
+//! Recommended way to decode files (automatically sets up seeking and duration):
 //! ```no_run
 //! use std::fs::File;
 //! use rodio::Decoder;
 //!
 //! let file = File::open("audio.mp3").unwrap();
-//! let decoder = Decoder::try_from(file).unwrap();
+//! let decoder = Decoder::try_from(file).unwrap();  // Automatically sets byte_len from metadata
 //! ```
 //!
-//! Using the builder pattern for more control:
+//! For more control over decoder settings:
 //! ```no_run
 //! use std::fs::File;
 //! use rodio::Decoder;
 //!
 //! let file = File::open("audio.mp3").unwrap();
+//! let len = file.metadata().unwrap().len();
+//!
 //! let decoder = Decoder::builder()
 //!     .with_data(file)
-//!     .with_hint("mp3")
-//!     .with_gapless(true)
+//!     .with_byte_len(len)      // Enable seeking and duration calculation
+//!     .with_seekable(true)     // Enable seeking operations
+//!     .with_hint("mp3")        // Optional format hint
 //!     .build()
 //!     .unwrap();
 //! ```
@@ -102,23 +105,35 @@ enum DecoderImpl<R: Read + Seek> {
 
 /// Audio decoder configuration settings.
 /// Support for these settings depends on the underlying decoder implementation.
+/// Currently, settings are only used by the Symphonia decoder.
 #[derive(Clone, Debug)]
 pub struct Settings {
     /// The length of the stream in bytes.
-    /// When known, this can be used to optimize operations like seeking and calculating durations.
+    /// This is required for:
+    /// - Reliable seeking operations
+    /// - Duration calculations in formats that lack timing information (e.g. MP3, Vorbis)
+    ///
+    /// Can be obtained from file metadata or by seeking to the end of the stream.
     pub(crate) byte_len: Option<u64>,
-    /// Whether to use coarse seeking. This needs `byte_len` to be set.
+
+    /// Whether to use coarse seeking.
     /// Coarse seeking is faster but less accurate: it may seek to a position slightly before or
     /// after the requested one, especially when the bitrate is variable.
     pub(crate) coarse_seek: bool,
+
     /// Whether to trim frames for gapless playback.
+    /// Note: Disabling this may affect duration calculations for some formats
+    /// as padding frames will be included.
     pub(crate) gapless: bool,
+
     /// An extension hint for the decoder about the format of the stream.
     /// When known, this can help the decoder to select the correct codec.
     pub(crate) hint: Option<String>,
+
     /// An MIME type hint for the decoder about the format of the stream.
     /// When known, this can help the decoder to select the correct demuxer.
     pub(crate) mime_type: Option<String>,
+
     /// Whether the decoder should report as seekable.
     pub(crate) is_seekable: bool,
 }
@@ -131,7 +146,7 @@ impl Default for Settings {
             gapless: true,
             hint: None,
             mime_type: None,
-            is_seekable: true,
+            is_seekable: false,
         }
     }
 }
@@ -197,7 +212,25 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     }
 
     /// Sets the byte length of the stream.
-    /// When known, this can be used to optimize operations like seeking and calculating durations.
+    /// This is required for:
+    /// - Reliable seeking operations
+    /// - Duration calculations in formats that lack timing information (e.g. MP3, Vorbis)
+    ///
+    /// The byte length should typically be obtained from file metadata:
+    /// ```no_run
+    /// use std::fs::File;
+    /// use rodio::Decoder;
+    ///
+    /// let file = File::open("audio.mp3").unwrap();
+    /// let len = file.metadata().unwrap().len();
+    /// let decoder = Decoder::builder()
+    ///     .with_data(file)
+    ///     .with_byte_len(len)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
+    ///
+    /// Alternatively, it can be obtained by seeking to the end of the stream.
     pub fn with_byte_len(mut self, byte_len: u64) -> Self {
         self.settings.byte_len = Some(byte_len);
         self
@@ -240,6 +273,27 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     }
 
     /// Configure whether the decoder should report as seekable.
+    ///
+    /// For reliable seeking behavior, `byte_len` should be set either from file metadata
+    /// or by seeking to the end of the stream. While seeking may work without byte_len
+    /// for some formats, it is not guaranteed.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use std::fs::File;
+    /// use rodio::Decoder;
+    ///
+    /// let file = File::open("audio.mp3").unwrap();
+    /// let len = file.metadata().unwrap().len();
+    ///
+    /// // Recommended: Set both byte_len and seekable
+    /// let decoder = Decoder::builder()
+    ///     .with_data(file)
+    ///     .with_byte_len(len)
+    ///     .with_seekable(true)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn with_seekable(mut self, is_seekable: bool) -> Self {
         self.settings.is_seekable = is_seekable;
         self
@@ -394,6 +448,12 @@ impl<R: Read + Seek> DecoderImpl<R> {
         }
     }
 
+    /// Returns the total duration of this audio source.
+    ///
+    /// # Symphonia Notes
+    ///
+    /// For formats that lack timing information like MP3 and Vorbis, this requires the decoder to
+    /// be initialized with the correct byte length via `Decoder::builder().with_byte_len()`.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         match self {
@@ -428,11 +488,13 @@ impl<R: Read + Seek> DecoderImpl<R> {
 }
 
 /// Converts a `File` into a `Decoder` with automatic optimizations.
-/// This is the preferred way to decode files as it enables seeking optimizations.
+/// This is the preferred way to decode files as it enables seeking optimizations
+/// and accurate duration calculations.
 ///
 /// This implementation:
 /// - Wraps the file in a `BufReader` for better performance
-/// - Gets the file length from metadata to improve seeking operations
+/// - Gets the file length from metadata to improve seeking operations and duration accuracy
+/// - Enables seeking by default
 ///
 /// # Errors
 ///
@@ -460,6 +522,7 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
         Self::builder()
             .with_data(BufReader::new(file))
             .with_byte_len(len)
+            .with_seekable(true)
             .build()
     }
 }

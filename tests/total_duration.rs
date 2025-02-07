@@ -11,7 +11,7 @@ use rstest_reuse::{self, *};
 #[rstest]
 #[cfg_attr(
     feature = "symphonia-vorbis",
-    case("ogg", Duration::from_secs_f64(69.00000003), "symphonia")
+    case("ogg", Duration::from_secs_f64(69.328979591), "symphonia")
 )]
 #[cfg_attr(
     all(feature = "minimp3", not(feature = "symphonia-mp3")),
@@ -27,19 +27,19 @@ use rstest_reuse::{self, *};
 )]
 #[cfg_attr(
     feature = "symphonia-mp3",
-    case("mp3", Duration::from_secs_f64(10.000000), "symphonia mp3")
+    case("mp3", Duration::from_secs_f64(10.187755102), "symphonia mp3")
 )]
 #[cfg_attr(
     feature = "symphonia-isomp4",
-    case("m4a", Duration::from_secs_f64(10.000000), "symphonia m4a")
+    case("m4a", Duration::from_secs_f64(10.188662131), "symphonia m4a")
 )]
 #[cfg_attr(
     feature = "symphonia-wav",
-    case("wav", Duration::from_secs_f64(10.000000), "symphonia wav")
+    case("wav", Duration::from_secs_f64(10.143469387), "symphonia wav")
 )]
 #[cfg_attr(
     feature = "symphonia-flac",
-    case("flac", Duration::from_secs_f64(10.00000), "symphonia flac")
+    case("flac", Duration::from_secs_f64(10.152380952), "symphonia flac")
 )]
 fn all_decoders(
     #[case] format: &'static str,
@@ -51,12 +51,19 @@ fn all_decoders(
 fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/music").with_extension(format);
     let file = std::fs::File::open(asset).unwrap();
-    rodio::decoder::Decoder::try_from(file).unwrap()
+    let len = file.metadata().unwrap().len();
+    rodio::Decoder::builder()
+        .with_data(file)
+        .with_byte_len(len)
+        .with_seekable(true)
+        .with_gapless(false)
+        .build()
+        .unwrap()
 }
 
 #[apply(all_decoders)]
 #[trace]
-fn seek_returns_err_if_unsupported(
+fn decoder_returns_total_duration(
     #[case] format: &'static str,
     #[case] correct_duration: Duration,
     #[case] decoder_name: &'static str,

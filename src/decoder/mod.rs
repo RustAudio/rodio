@@ -565,6 +565,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
 }
 
 /// Converts a `File` into a `Decoder` with automatic optimizations.
+/// This is the preferred way to decode files as it enables seeking optimizations.
 ///
 /// This implementation:
 /// - Wraps the file in a `BufReader` for better performance
@@ -579,7 +580,6 @@ impl<R: Read + Seek> DecoderImpl<R> {
 /// # Examples
 /// ```no_run
 /// use std::fs::File;
-/// use std::convert::TryFrom;
 /// use rodio::Decoder;
 ///
 /// let file = File::open("audio.mp3").unwrap();
@@ -602,6 +602,67 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
             DecoderOutput::Normal(decoder) => Ok(decoder),
             DecoderOutput::Looped(_) => unreachable!("Builder defaults to non-looped"),
         }
+    }
+}
+
+/// Converts a `BufReader` into a `Decoder`.
+/// When working with files, prefer `TryFrom<File>` as it will automatically set byte_len
+/// for better seeking performance.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+/// or is not supported.
+///
+/// # Examples
+/// ```no_run
+/// use std::fs::File;
+/// use std::io::BufReader;
+/// use rodio::Decoder;
+///
+/// let file = File::open("audio.mp3").unwrap();
+/// let reader = BufReader::new(file);
+/// let decoder = Decoder::try_from(reader).unwrap();
+/// ```
+impl<R> TryFrom<BufReader<R>> for Decoder<BufReader<R>>
+where
+    R: Read + Seek + Send + Sync + 'static,
+{
+    type Error = DecoderError;
+
+    fn try_from(data: BufReader<R>) -> Result<Self, Self::Error> {
+        Self::new(data)
+    }
+}
+
+/// Converts a `Cursor` into a `Decoder`.
+/// When working with files, prefer `TryFrom<File>` as it will automatically set byte_len
+/// for better seeking performance.
+///
+/// This is useful for decoding audio data that's already in memory.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+/// or is not supported.
+///
+/// # Examples
+/// ```no_run
+/// use std::io::Cursor;
+/// use rodio::Decoder;
+///
+/// let data = std::fs::read("audio.mp3").unwrap();
+/// let cursor = Cursor::new(data);
+/// let decoder = Decoder::try_from(cursor).unwrap();
+/// ```
+impl<T> TryFrom<std::io::Cursor<T>> for Decoder<std::io::Cursor<T>>
+where
+    T: AsRef<[u8]> + Send + Sync + 'static,
+{
+    type Error = DecoderError;
+
+    fn try_from(data: std::io::Cursor<T>) -> Result<Self, Self::Error> {
+        Self::new(data)
     }
 }
 

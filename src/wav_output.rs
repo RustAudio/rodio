@@ -50,7 +50,7 @@ mod test {
         assert_eq!(reference.channels(), reader.spec().channels as ChannelCount);
 
         let actual_samples: Vec<f32> = reader.samples::<f32>().map(|x| x.unwrap()).collect();
-        let expected_samples: Vec<f32> = reference.convert_samples().collect();
+        let expected_samples: Vec<f32> = reference.collect();
         assert!(
             expected_samples == actual_samples,
             "wav samples do not match the source"

@@ -23,7 +23,7 @@ fn reverb(bencher: Bencher) {
 #[divan::bench]
 fn high_pass(bencher: Bencher) {
     bencher
-        .with_inputs(|| music_wav().to_f32s())
+        .with_inputs(|| music_wav())
         .bench_values(|source| source.high_pass(200).for_each(divan::black_box_drop))
 }
 

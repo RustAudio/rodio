@@ -44,9 +44,9 @@ where
         let channels = spec.channels;
 
         let total_duration = {
-            let sample_rate = sample_rate as u64;
-            let secs = len / sample_rate;
-            let nanos = ((len % sample_rate) * 1_000_000_000) / sample_rate;
+            let data_rate = sample_rate as u64 * channels as u64;
+            let secs = len / data_rate;
+            let nanos = ((len % data_rate) * 1_000_000_000) / data_rate;
             Duration::new(secs, nanos as u32)
         };
 

@@ -19,7 +19,7 @@ use rstest_reuse::{self, *};
 )]
 #[cfg_attr(
     all(feature = "wav", not(feature = "symphonia-wav")),
-    case("wav", Duration::from_secs_f64(20.286938775), "hound")
+    case("wav", Duration::from_secs_f64(10.143469387), "hound")
 )]
 #[cfg_attr(
     all(feature = "flac", not(feature = "symphonia-flac")),

@@ -8,7 +8,7 @@ use std::time::Duration;
 #[template]
 #[rstest]
 #[cfg_attr(
-    all(feature = "symphonia-ogg", feature = "symphonia-vorbis"),
+    all(feature = "symphonia-ogg"),
     case("ogg", true, "symphonia")
 )]
 #[cfg_attr(
@@ -40,7 +40,7 @@ fn all_decoders(
 #[template]
 #[rstest]
 #[cfg_attr(
-    all(feature = "symphonia-ogg", feature = "symphonia-vorbis"),
+    all(feature = "symphonia-ogg"),
     case("ogg", "symphonia")
 )]
 #[cfg_attr(

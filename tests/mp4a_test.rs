@@ -1,4 +1,4 @@
-#![cfg(all(feature = "symphonia-aac", feature = "symphonia-isomp4"))]
+#![cfg(feature = "symphonia-isomp4")]
 
 #[test]
 fn test_mp4a_encodings() {

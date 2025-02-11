@@ -42,24 +42,18 @@ noise = ["rand"]
 wasm-bindgen = ["cpal/wasm-bindgen"]
 cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
 
-symphonia-aac = ["symphonia/aac"]
-symphonia-all = [
-    "symphonia-aac",
-    "symphonia-flac",
-    "symphonia-isomp4",
-    "symphonia-mp3",
-    "symphonia-ogg",
-    "symphonia-vorbis",
-    "symphonia-wav",
-]
-symphonia-flac = ["symphonia/flac"]
-symphonia-isomp4 = ["symphonia/isomp4"]
-symphonia-mp3 = ["symphonia/mp3"]
-symphonia-ogg = ["symphonia/ogg"]
-symphonia-vorbis = ["symphonia/vorbis"]
-symphonia-wav = ["symphonia/wav", "symphonia/pcm", "symphonia/adpcm"]
-symphonia-alac = ["symphonia/isomp4", "symphonia/alac"]
+symphonia-all = ["symphonia/all"]
+
 symphonia-aiff = ["symphonia/aiff", "symphonia/pcm"]
+symphonia-caf = ["symphonia/caf", "symphonia/pcm", "symphonia/adpcm", "symphonia/mpa", "symphonia/aac", "symphonia/alac"]
+symphonia-isomp4 = ["symphonia/isomp4", "symphonia/mpa", "symphonia/aac", "symphonia/alac"]
+symphonia-mkv = ["symphonia/mkv", "symphonia/aac", "symphonia/mpa", "symphonia/vorbis", "symphonia/pcm", "symphonia/flac", "symphonia/alac"]
+symphonia-ogg = ["symphonia/ogg", "symphonia/vorbis", "symphonia/flac", "symphonia/pcm"]
+symphonia-wav = ["symphonia/wav", "symphonia/pcm", "symphonia/adpcm"]
+symphonia-flac = ["symphonia/flac"]
+symphonia-aac = ["symphonia/aac"]
+symphonia-alac = ["symphonia/isomp4", "symphonia/alac"]
+symphonia-mp3 = ["symphonia/mp3"]
 
 [dev-dependencies]
 quickcheck = "1"
@@ -87,7 +81,7 @@ harness = false
 
 [[example]]
 name = "music_m4a"
-required-features = ["symphonia-isomp4", "symphonia-aac"]
+required-features = ["symphonia-isomp4"]
 
 [[example]]
 name = "noise_generator"

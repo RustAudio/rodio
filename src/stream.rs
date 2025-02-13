@@ -269,8 +269,8 @@ pub enum StreamError {
     DefaultStreamConfigError(cpal::DefaultStreamConfigError),
     /// Error opening stream with OS. See [cpal::BuildStreamError] for details.
     BuildStreamError(cpal::BuildStreamError),
-    /// Could not list supported stream configs for device. Maybe it
-    /// disconnected, for details see: [cpal::SupportedStreamConfigsError].
+    /// Could not list supported stream configs for the device. Maybe it
+    /// disconnected. For details see: [cpal::SupportedStreamConfigsError].
     SupportedStreamConfigsError(cpal::SupportedStreamConfigsError),
     /// Could not find any output device
     NoDevice,
@@ -324,9 +324,9 @@ impl OutputStream {
     ) -> Result<cpal::Stream, cpal::BuildStreamError> {
         let error_callback = |err| {
             #[cfg(feature = "tracing")]
-            tracing::error!("error initializing output stream: {err}");
+            tracing::error!("Playback error: {err}");
             #[cfg(not(feature = "tracing"))]
-            eprintln!("error initializing output stream: {err}");
+            eprintln!("Playback error: {err}");
         };
         let sample_format = config.sample_format;
         let config = config.into();

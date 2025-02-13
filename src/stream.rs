@@ -50,7 +50,7 @@ impl Default for OutputStreamConfig {
             channel_count: 2,
             sample_rate: HZ_44100,
             buffer_size: BufferSize::Default,
-            sample_format: SampleFormat::I8,
+            sample_format: SampleFormat::I16,
         }
     }
 }

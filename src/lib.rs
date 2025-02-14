@@ -177,13 +177,13 @@ mod wav_output;
 
 pub mod buffer;
 pub mod decoder;
+mod math;
 pub mod mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
-pub use crate::common::{ChannelCount, SampleRate};
-pub use crate::conversions::Sample;
+pub use crate::common::{ChannelCount, Sample, SampleRate};
 pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;

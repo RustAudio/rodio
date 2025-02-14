@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `LinearRamp` object.
 pub fn linear_gain_ramp<I>(
@@ -14,7 +14,6 @@ pub fn linear_gain_ramp<I>(
 ) -> LinearGainRamp<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     let duration_nanos = duration.as_nanos() as f32;
     assert!(duration_nanos > 0.0f32);
@@ -45,7 +44,6 @@ pub struct LinearGainRamp<I> {
 impl<I> LinearGainRamp<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns a reference to the innner source.
     #[inline]
@@ -69,7 +67,6 @@ where
 impl<I> Iterator for LinearGainRamp<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -95,7 +92,7 @@ where
             self.elapsed_ns += 1000000000.0 / (self.input.sample_rate() as f32);
         }
 
-        self.input.next().map(|value| value.amplify(factor))
+        self.input.next().map(|value| value * factor)
     }
 
     #[inline]
@@ -104,17 +101,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for LinearGainRamp<I>
-where
-    I: Source + ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for LinearGainRamp<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for LinearGainRamp<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
@@ -149,17 +140,18 @@ mod tests {
 
     use super::*;
     use crate::buffer::SamplesBuffer;
+    use crate::Sample;
 
     /// Create a SamplesBuffer of identical samples with value `value`.
     /// Returned buffer is one channel and has a sample rate of 1 hz.
-    fn const_source(length: u8, value: f32) -> SamplesBuffer<f32> {
+    fn const_source(length: u8, value: Sample) -> SamplesBuffer {
         let data: Vec<f32> = (1..=length).map(|_| value).collect();
         SamplesBuffer::new(1, 1, data)
     }
 
     /// Create a SamplesBuffer of repeating sample values from `values`.
-    fn cycle_source(length: u8, values: Vec<f32>) -> SamplesBuffer<f32> {
-        let data: Vec<f32> = (1..=length)
+    fn cycle_source(length: u8, values: Vec<Sample>) -> SamplesBuffer {
+        let data: Vec<Sample> = (1..=length)
             .enumerate()
             .map(|(i, _)| values[i % values.len()])
             .collect();

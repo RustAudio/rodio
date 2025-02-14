@@ -1,6 +1,5 @@
-use crate::conversions::Sample;
-
 use crate::common::{ChannelCount, SampleRate};
+use crate::{math, Sample};
 use num_rational::Ratio;
 use std::mem;
 
@@ -34,7 +33,6 @@ where
 impl<I> SampleRateConverter<I>
 where
     I: Iterator,
-    I::Item: Sample,
 {
     /// Create new sample rate converter.
     ///
@@ -120,8 +118,7 @@ where
 
 impl<I> Iterator for SampleRateConverter<I>
 where
-    I: Iterator,
-    I::Item: Sample + Clone,
+    I: Iterator<Item = Sample>,
 {
     type Item = I::Item;
 
@@ -174,7 +171,7 @@ where
             .zip(self.next_span.iter())
             .enumerate()
         {
-            let sample = Sample::lerp(*cur, *next, numerator, self.to);
+            let sample = math::lerp(cur, next, numerator, self.to);
 
             if off == 0 {
                 result = Some(sample);
@@ -239,17 +236,13 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for SampleRateConverter<I>
-where
-    I: ExactSizeIterator,
-    I::Item: Sample + Clone,
-{
-}
+impl<I> ExactSizeIterator for SampleRateConverter<I> where I: ExactSizeIterator<Item = Sample> {}
 
 #[cfg(test)]
 mod test {
     use super::SampleRateConverter;
     use crate::common::{ChannelCount, SampleRate};
+    use crate::Sample;
     use core::time::Duration;
     use quickcheck::{quickcheck, TestResult};
 
@@ -265,7 +258,7 @@ mod test {
             let from = from as SampleRate;
             let to   = to as SampleRate;
 
-            let input: Vec<u16> = Vec::new();
+            let input: Vec<Sample> = Vec::new();
             let output =
                 SampleRateConverter::new(input.into_iter(), from, to, channels as ChannelCount)
                   .collect::<Vec<_>>();
@@ -275,9 +268,10 @@ mod test {
         }
 
         /// Check that resampling to the same rate does not change the signal.
-        fn identity(from: u16, channels: u8, input: Vec<u16>) -> TestResult {
+        fn identity(from: u16, channels: u8, input: Vec<i16>) -> TestResult {
             if channels == 0 || channels > 128 || from == 0 { return TestResult::discard(); }
             let from = from as SampleRate;
+            let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
 
             let output =
                 SampleRateConverter::new(input.clone().into_iter(), from, from, channels as ChannelCount)
@@ -288,10 +282,11 @@ mod test {
 
         /// Check that dividing the sample rate by k (integer) is the same as
         ///   dropping a sample from each channel.
-        fn divide_sample_rate(to: u16, k: u16, input: Vec<u16>, channels: u8) -> TestResult {
+        fn divide_sample_rate(to: u16, k: u16, input: Vec<i16>, channels: u8) -> TestResult {
             if k == 0 || channels == 0 || channels > 128 || to == 0 || to > 48000 {
                 return TestResult::discard();
             }
+            let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
 
             let to = to as SampleRate;
             let from = to * k as u32;
@@ -314,10 +309,11 @@ mod test {
 
         /// Check that, after multiplying the sample rate by k, every k-th
         ///  sample in the output matches exactly with the input.
-        fn multiply_sample_rate(from: u16, k: u8, input: Vec<u16>, channels: u8) -> TestResult {
+        fn multiply_sample_rate(from: u16, k: u8, input: Vec<i16>, channels: u8) -> TestResult {
             if k == 0 || channels == 0 || channels > 128 || from == 0 {
                 return TestResult::discard();
             }
+            let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
 
             let from = from as SampleRate;
             let to = from * k as u32;
@@ -363,31 +359,34 @@ mod test {
 
     #[test]
     fn upsample() {
-        let input = vec![2u16, 16, 4, 18, 6, 20, 8, 22];
+        let input = vec![2.0, 16.0, 4.0, 18.0, 6.0, 20.0, 8.0, 22.0];
         let output = SampleRateConverter::new(input.into_iter(), 2000, 3000, 2);
         assert_eq!(output.len(), 12); // Test the source's Iterator::size_hint()
 
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [2, 16, 3, 17, 4, 18, 6, 20, 7, 21, 8, 22]);
+        let output = output.map(|x| x.trunc()).collect::<Vec<_>>();
+        assert_eq!(
+            output,
+            [2.0, 16.0, 3.0, 17.0, 4.0, 18.0, 6.0, 20.0, 7.0, 21.0, 8.0, 22.0]
+        );
     }
 
     #[test]
     fn upsample2() {
-        let input = vec![1u16, 14];
+        let input = vec![1.0, 14.0];
         let output = SampleRateConverter::new(input.into_iter(), 1000, 7000, 1);
         let size_estimation = output.len();
-        let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [1, 2, 4, 6, 8, 10, 12, 14]);
+        let output = output.map(|x| x.trunc()).collect::<Vec<_>>();
+        assert_eq!(output, [1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0]);
         assert!((size_estimation as f32 / output.len() as f32).abs() < 2.0);
     }
 
     #[test]
     fn downsample() {
-        let input = Vec::from_iter(0u16..17);
+        let input = Vec::from_iter((0..17).map(|x| x as Sample));
         let output = SampleRateConverter::new(input.into_iter(), 12000, 2400, 1);
         let size_estimation = output.len();
         let output = output.collect::<Vec<_>>();
-        assert_eq!(output, [0, 5, 10, 15]);
+        assert_eq!(output, [0.0, 5.0, 10.0, 15.0]);
         assert!((size_estimation as f32 / output.len() as f32).abs() < 2.0);
     }
 }

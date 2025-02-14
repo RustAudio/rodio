@@ -14,7 +14,7 @@
 //
 
 use super::SeekError;
-use crate::{Sample, Source};
+use crate::Source;
 #[cfg(feature = "experimental")]
 use atomic_float::AtomicF32;
 #[cfg(feature = "experimental")]
@@ -142,7 +142,6 @@ pub(crate) fn automatic_gain_control<I>(
 ) -> AutomaticGainControl<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     let sample_rate = input.sample_rate();
     let attack_coeff = (-1.0 / (attack_time * sample_rate as f32)).exp();
@@ -184,7 +183,6 @@ where
 impl<I> AutomaticGainControl<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn target_level(&self) -> f32 {
@@ -355,7 +353,7 @@ where
     #[inline]
     fn process_sample(&mut self, sample: I::Item) -> I::Item {
         // Convert the sample to its absolute float value for level calculations
-        let sample_value = sample.to_f32().abs();
+        let sample_value = sample.abs();
 
         // Dynamically adjust peak level using an adaptive attack coefficient
         self.update_peak_level(sample_value);
@@ -417,7 +415,7 @@ where
         tracing::debug!("AGC gain: {}", self.current_gain,);
 
         // Apply the computed gain to the input sample and return the result
-        sample.amplify(self.current_gain)
+        sample * self.current_gain
     }
 
     /// Returns a mutable reference to the inner source.
@@ -434,12 +432,11 @@ where
 impl<I> Iterator for AutomaticGainControl<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
     #[inline]
-    fn next(&mut self) -> Option<I::Item> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.input.next().map(|sample| {
             if self.is_enabled() {
                 self.process_sample(sample)
@@ -455,17 +452,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for AutomaticGainControl<I>
-where
-    I: Source + ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for AutomaticGainControl<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for AutomaticGainControl<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

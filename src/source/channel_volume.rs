@@ -10,46 +10,30 @@ use crate::{Sample, Source};
 pub struct ChannelVolume<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     input: I,
-    // Channel number is used as index for amplification value.
     channel_volumes: Vec<f32>,
-    // Current listener being processed.
     current_channel: usize,
-    current_sample: Option<I::Item>,
+    current_sample: Option<Sample>,
 }
 
 impl<I> ChannelVolume<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Wrap the input source and make it mono. Play that mono sound to each
     /// channel at the volume set by the user. The volume can be changed using
     /// [`ChannelVolume::set_volume`].
-    pub fn new(mut input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I>
+    pub fn new(input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I>
     where
         I: Source,
-        I::Item: Sample,
     {
-        let mut sample = None;
-        let num_channels = input.channels();
-
-        for _ in 0..num_channels {
-            if let Some(s) = input.next() {
-                sample = Some(
-                    sample
-                        .get_or_insert(I::Item::ZERO_VALUE)
-                        .saturating_add(s.amplify(1.0 / num_channels as f32)),
-                );
-            }
-        }
+        let channel_count = channel_volumes.len(); // See next() implementation.
         ChannelVolume {
             input,
             channel_volumes,
-            current_channel: 0,
-            current_sample: sample,
+            current_channel: channel_count,
+            current_sample: None,
         }
     }
 
@@ -81,33 +65,28 @@ where
 impl<I> Iterator for ChannelVolume<I>
 where
     I: Source,
-    I::Item: Sample,
 {
-    type Item = I::Item;
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<I::Item> {
-        let ret = self
-            .current_sample
-            .map(|sample| sample.amplify(self.channel_volumes[self.current_channel]));
-        self.current_channel += 1;
+    fn next(&mut self) -> Option<Self::Item> {
+        // TODO Need a test for this
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             self.current_sample = None;
-
             let num_channels = self.input.channels();
-
             for _ in 0..num_channels {
                 if let Some(s) = self.input.next() {
-                    self.current_sample = Some(
-                        self.current_sample
-                            .get_or_insert(I::Item::ZERO_VALUE)
-                            .saturating_add(s.amplify(1.0 / num_channels as f32)),
-                    );
+                    self.current_sample = Some(self.current_sample.unwrap_or(0.0) + s);
                 }
             }
+            self.current_sample.map(|s| s / num_channels as f32);
         }
-        ret
+        let result = self
+            .current_sample
+            .map(|s| s * self.channel_volumes[self.current_channel]);
+        self.current_channel += 1;
+        result
     }
 
     #[inline]
@@ -116,17 +95,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for ChannelVolume<I>
-where
-    I: Source + ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for ChannelVolume<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for ChannelVolume<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

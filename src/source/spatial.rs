@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::source::ChannelVolume;
-use crate::{Sample, Source};
+use crate::Source;
 
 /// A simple spatial audio source. The underlying source is transformed to Mono
 /// and then played in stereo. The left and right channel's volume are amplified
@@ -12,7 +12,6 @@ use crate::{Sample, Source};
 pub struct Spatial<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     input: ChannelVolume<I>,
 }
@@ -27,7 +26,6 @@ fn dist_sq(a: [f32; 3], b: [f32; 3]) -> f32 {
 impl<I> Spatial<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Builds a new `SpatialSink`, beginning playback on a stream.
     pub fn new(
@@ -38,7 +36,6 @@ where
     ) -> Spatial<I>
     where
         I: Source,
-        I::Item: Sample,
     {
         let mut ret = Spatial {
             input: ChannelVolume::new(input, vec![0.0, 0.0]),
@@ -75,7 +72,6 @@ where
 impl<I> Iterator for Spatial<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -90,17 +86,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for Spatial<I>
-where
-    I: Source + ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for Spatial<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for Spatial<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

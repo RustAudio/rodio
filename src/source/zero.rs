@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::time::Duration;
 
 use super::SeekError;
@@ -9,22 +8,20 @@ use crate::{Sample, Source};
 /// it where created with [`Zero::new`] or [`Zero::new_samples`] it can be never
 /// ending or finite.
 #[derive(Clone, Debug)]
-pub struct Zero<S> {
+pub struct Zero {
     channels: ChannelCount,
     sample_rate: SampleRate,
     num_samples: Option<usize>,
-    marker: PhantomData<S>,
 }
 
-impl<S> Zero<S> {
+impl Zero {
     /// Create a new source that never ends and produces total silence.
     #[inline]
-    pub fn new(channels: ChannelCount, sample_rate: SampleRate) -> Zero<S> {
+    pub fn new(channels: ChannelCount, sample_rate: SampleRate) -> Zero {
         Zero {
             channels,
             sample_rate,
             num_samples: None,
-            marker: PhantomData,
         }
     }
     /// Create a new source that never ends and produces total silence.
@@ -33,41 +30,34 @@ impl<S> Zero<S> {
         channels: ChannelCount,
         sample_rate: SampleRate,
         num_samples: usize,
-    ) -> Zero<S> {
+    ) -> Zero {
         Zero {
             channels,
             sample_rate,
             num_samples: Some(num_samples),
-            marker: PhantomData,
         }
     }
 }
 
-impl<S> Iterator for Zero<S>
-where
-    S: Sample,
-{
-    type Item = S;
+impl Iterator for Zero {
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         if let Some(num_samples) = self.num_samples {
             if num_samples > 0 {
                 self.num_samples = Some(num_samples - 1);
-                Some(S::ZERO_VALUE)
+                Some(0.0)
             } else {
                 None
             }
         } else {
-            Some(S::ZERO_VALUE)
+            Some(0.0)
         }
     }
 }
 
-impl<S> Source for Zero<S>
-where
-    S: Sample,
-{
+impl Source for Zero {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         self.num_samples

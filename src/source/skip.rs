@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 const NS_PER_SECOND: u128 = 1_000_000_000;
 
@@ -10,7 +10,6 @@ const NS_PER_SECOND: u128 = 1_000_000_000;
 pub fn skip_duration<I>(mut input: I, duration: Duration) -> SkipDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     do_skip_duration(&mut input, duration);
     SkipDuration {
@@ -23,7 +22,6 @@ where
 fn do_skip_duration<I>(input: &mut I, mut duration: Duration)
 where
     I: Source,
-    I::Item: Sample,
 {
     while duration > Duration::new(0, 0) {
         if input.current_span_len().is_none() {
@@ -61,7 +59,6 @@ where
 fn do_skip_duration_unchecked<I>(input: &mut I, duration: Duration)
 where
     I: Source,
-    I::Item: Sample,
 {
     let samples_per_channel: u128 =
         duration.as_nanos() * input.sample_rate() as u128 / NS_PER_SECOND;
@@ -74,7 +71,6 @@ where
 fn skip_samples<I>(input: &mut I, n: usize)
 where
     I: Source,
-    I::Item: Sample,
 {
     for _ in 0..n {
         if input.next().is_none() {
@@ -93,7 +89,6 @@ pub struct SkipDuration<I> {
 impl<I> SkipDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns a reference to the inner source.
     #[inline]
@@ -117,7 +112,6 @@ where
 impl<I> Iterator for SkipDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = <I as Iterator>::Item;
 
@@ -135,7 +129,6 @@ where
 impl<I> Source for SkipDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

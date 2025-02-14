@@ -4,13 +4,12 @@ use crate::source::buffered::Buffered;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `Repeat` object.
 pub fn repeat<I>(input: I) -> Repeat<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     let input = input.buffered();
     Repeat {
@@ -23,7 +22,6 @@ where
 pub struct Repeat<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     inner: Buffered<I>,
     next: Buffered<I>,
@@ -32,7 +30,6 @@ where
 impl<I> Iterator for Repeat<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = <I as Iterator>::Item;
 
@@ -56,7 +53,6 @@ where
 impl<I> Source for Repeat<I>
 where
     I: Iterator + Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
@@ -96,7 +92,6 @@ where
 impl<I> Clone for Repeat<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn clone(&self) -> Repeat<I> {

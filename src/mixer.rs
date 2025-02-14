@@ -13,10 +13,7 @@ use std::time::Duration;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
-pub fn mixer<S>(channels: ChannelCount, sample_rate: SampleRate) -> (Arc<Mixer<S>>, MixerSource<S>)
-where
-    S: Sample + Send + 'static,
-{
+pub fn mixer(channels: ChannelCount, sample_rate: SampleRate) -> (Arc<Mixer>, MixerSource) {
     let input = Arc::new(Mixer {
         has_pending: AtomicBool::new(false),
         pending_sources: Mutex::new(Vec::new()),
@@ -36,22 +33,19 @@ where
 }
 
 /// The input of the mixer.
-pub struct Mixer<S> {
+pub struct Mixer {
     has_pending: AtomicBool,
-    pending_sources: Mutex<Vec<Box<dyn Source<Item = S> + Send>>>,
+    pending_sources: Mutex<Vec<Box<dyn Source + Send>>>,
     channels: ChannelCount,
     sample_rate: SampleRate,
 }
 
-impl<S> Mixer<S>
-where
-    S: Sample + Send + 'static,
-{
+impl Mixer {
     /// Adds a new source to mix to the existing ones.
     #[inline]
     pub fn add<T>(&self, source: T)
     where
-        T: Source<Item = S> + Send + 'static,
+        T: Source + Send + 'static,
     {
         let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
         self.pending_sources
@@ -63,27 +57,24 @@ where
 }
 
 /// The output of the mixer. Implements `Source`.
-pub struct MixerSource<S> {
+pub struct MixerSource {
     // The current iterator that produces samples.
-    current_sources: Vec<Box<dyn Source<Item = S> + Send>>,
+    current_sources: Vec<Box<dyn Source + Send>>,
 
     // The pending sounds.
-    input: Arc<Mixer<S>>,
+    input: Arc<Mixer>,
 
     // The number of samples produced so far.
     sample_count: usize,
 
     // A temporary vec used in start_pending_sources.
-    still_pending: Vec<Box<dyn Source<Item = S> + Send>>,
+    still_pending: Vec<Box<dyn Source + Send>>,
 
     // A temporary vec used in sum_current_sources.
-    still_current: Vec<Box<dyn Source<Item = S> + Send>>,
+    still_current: Vec<Box<dyn Source + Send>>,
 }
 
-impl<S> Source for MixerSource<S>
-where
-    S: Sample + Send + 'static,
-{
+impl Source for MixerSource {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         None
@@ -141,14 +132,11 @@ where
     }
 }
 
-impl<S> Iterator for MixerSource<S>
-where
-    S: Sample + Send + 'static,
-{
-    type Item = S;
+impl Iterator for MixerSource {
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.input.has_pending.load(Ordering::SeqCst) {
             self.start_pending_sources();
         }
@@ -170,10 +158,7 @@ where
     }
 }
 
-impl<S> MixerSource<S>
-where
-    S: Sample + Send + 'static,
-{
+impl MixerSource {
     // Samples from the #next() function are interlaced for each of the channels.
     // We need to ensure we start playing sources so that their samples are
     // in-step with the modulo of the samples produced so far. Otherwise, the
@@ -196,12 +181,11 @@ where
         self.input.has_pending.store(has_pending, Ordering::SeqCst); // TODO: relax ordering?
     }
 
-    fn sum_current_sources(&mut self) -> S {
-        let mut sum = S::ZERO_VALUE;
-
+    fn sum_current_sources(&mut self) -> Sample {
+        let mut sum = 0.0;
         for mut source in self.current_sources.drain(..) {
             if let Some(value) = source.next() {
-                sum = sum.saturating_add(value);
+                sum += value;
                 self.still_current.push(source);
             }
         }
@@ -221,15 +205,15 @@ mod tests {
     fn basic() {
         let (tx, mut rx) = mixer::mixer(1, 48000);
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![5.0, 5.0, 5.0, 5.0]));
 
         assert_eq!(rx.channels(), 1);
         assert_eq!(rx.sample_rate(), 48000);
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(-5));
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(-5.0));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(-5.0));
         assert_eq!(rx.next(), None);
     }
 
@@ -237,19 +221,19 @@ mod tests {
     fn channels_conv() {
         let (tx, mut rx) = mixer::mixer(2, 48000);
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![5.0, 5.0, 5.0, 5.0]));
 
         assert_eq!(rx.channels(), 2);
         assert_eq!(rx.sample_rate(), 48000);
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(-5));
-        assert_eq!(rx.next(), Some(-5));
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(-5));
-        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(-5.0));
+        assert_eq!(rx.next(), Some(-5.0));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(-5.0));
+        assert_eq!(rx.next(), Some(-5.0));
         assert_eq!(rx.next(), None);
     }
 
@@ -257,18 +241,18 @@ mod tests {
     fn rate_conv() {
         let (tx, mut rx) = mixer::mixer(1, 96000);
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 5, 5]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![5.0, 5.0, 5.0, 5.0]));
 
         assert_eq!(rx.channels(), 1);
         assert_eq!(rx.sample_rate(), 96000);
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(-5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(-5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(-5.0));
         assert_eq!(rx.next(), None);
     }
 
@@ -276,24 +260,28 @@ mod tests {
     fn start_afterwards() {
         let (tx, mut rx) = mixer::mixer(1, 48000);
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
 
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![5i16, 5, 6, 6, 7, 7, 7]));
+        tx.add(SamplesBuffer::new(
+            1,
+            48000,
+            vec![5.0, 5.0, 6.0, 6.0, 7.0, 7.0, 7.0],
+        ));
 
-        assert_eq!(rx.next(), Some(15));
-        assert_eq!(rx.next(), Some(-5));
+        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(-5.0));
 
-        assert_eq!(rx.next(), Some(6));
-        assert_eq!(rx.next(), Some(6));
+        assert_eq!(rx.next(), Some(6.0));
+        assert_eq!(rx.next(), Some(6.0));
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![2i16]));
+        tx.add(SamplesBuffer::new(1, 48000, vec![2.0]));
 
-        assert_eq!(rx.next(), Some(9));
-        assert_eq!(rx.next(), Some(7));
-        assert_eq!(rx.next(), Some(7));
+        assert_eq!(rx.next(), Some(9.0));
+        assert_eq!(rx.next(), Some(7.0));
+        assert_eq!(rx.next(), Some(7.0));
 
         assert_eq!(rx.next(), None);
     }

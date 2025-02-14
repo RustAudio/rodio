@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// This is the same as [`skippable`](crate::source::skippable) see its docs
 pub fn stoppable<I>(source: I) -> Stoppable<I> {
@@ -48,7 +48,6 @@ impl<I> Stoppable<I> {
 impl<I> Iterator for Stoppable<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -70,7 +69,6 @@ where
 impl<I> Source for Stoppable<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

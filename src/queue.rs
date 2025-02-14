@@ -24,17 +24,14 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 ///   a new sound.
 /// - If you pass `false`, then the queue will report that it has finished playing.
 ///
-pub fn queue<S>(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput<S>>, SourcesQueueOutput<S>)
-where
-    S: Sample + Send + 'static,
-{
+pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
     let input = Arc::new(SourcesQueueInput {
         next_sounds: Mutex::new(Vec::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
     });
 
     let output = SourcesQueueOutput {
-        current: Box::new(Empty::<S>::new()) as Box<_>,
+        current: Box::new(Empty::new()) as Box<_>,
         signal_after_end: None,
         input: input.clone(),
     };
@@ -44,26 +41,23 @@ where
 
 // TODO: consider reimplementing this with `from_factory`
 
-type Sound<S> = Box<dyn Source<Item = S> + Send>;
+type Sound = Box<dyn Source + Send>;
 type SignalDone = Option<Sender<()>>;
 
 /// The input of the queue.
-pub struct SourcesQueueInput<S> {
-    next_sounds: Mutex<Vec<(Sound<S>, SignalDone)>>,
+pub struct SourcesQueueInput {
+    next_sounds: Mutex<Vec<(Sound, SignalDone)>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
 }
 
-impl<S> SourcesQueueInput<S>
-where
-    S: Sample + Send + 'static,
-{
+impl SourcesQueueInput {
     /// Adds a new source to the end of the queue.
     #[inline]
     pub fn append<T>(&self, source: T)
     where
-        T: Source<Item = S> + Send + 'static,
+        T: Source + Send + 'static,
     {
         self.next_sounds
             .lock()
@@ -79,7 +73,7 @@ where
     #[inline]
     pub fn append_with_signal<T>(&self, source: T) -> Receiver<()>
     where
-        T: Source<Item = S> + Send + 'static,
+        T: Source + Send + 'static,
     {
         let (tx, rx) = channel();
         self.next_sounds
@@ -106,22 +100,20 @@ where
     }
 }
 /// The output of the queue. Implements `Source`.
-pub struct SourcesQueueOutput<S> {
+pub struct SourcesQueueOutput {
     // The current iterator that produces samples.
-    current: Box<dyn Source<Item = S> + Send>,
+    current: Box<dyn Source + Send>,
 
     // Signal this sender before picking from `next`.
     signal_after_end: Option<Sender<()>>,
 
     // The next sounds.
-    input: Arc<SourcesQueueInput<S>>,
+    input: Arc<SourcesQueueInput>,
 }
 
 const THRESHOLD: usize = 512;
-impl<S> Source for SourcesQueueOutput<S>
-where
-    S: Sample + Send + 'static,
-{
+
+impl Source for SourcesQueueOutput {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         // This function is non-trivial because the boundary between two sounds in the queue should
@@ -189,14 +181,11 @@ where
     }
 }
 
-impl<S> Iterator for SourcesQueueOutput<S>
-where
-    S: Sample + Send + 'static,
-{
-    type Item = S;
+impl Iterator for SourcesQueueOutput {
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         loop {
             // Basic situation that will happen most of the time.
             if let Some(sample) = self.current.next() {
@@ -217,11 +206,8 @@ where
     }
 }
 
-impl<S> SourcesQueueOutput<S>
-where
-    S: Sample + Send + 'static,
-{
-    // Called when `current` is empty and we must jump to the next element.
+impl SourcesQueueOutput {
+    // Called when `current` is empty, and we must jump to the next element.
     // Returns `Ok` if the sound should continue playing, or an error if it should stop.
     //
     // This method is separate so that it is not inlined.
@@ -234,7 +220,7 @@ where
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.len() == 0 {
-                let silence = Box::new(Zero::<S>::new_samples(1, 44100, THRESHOLD)) as Box<_>;
+                let silence = Box::new(Zero::new_samples(1, 44100, THRESHOLD)) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
                     (silence, None)
@@ -263,42 +249,42 @@ mod tests {
     fn basic() {
         let (tx, mut rx) = queue::queue(false);
 
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        tx.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
+        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.append(SamplesBuffer::new(2, 96000, vec![5.0, 5.0, 5.0, 5.0]));
 
         assert_eq!(rx.channels(), 1);
         assert_eq!(rx.sample_rate(), 48000);
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
         assert_eq!(rx.channels(), 2);
         assert_eq!(rx.sample_rate(), 96000);
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), None);
     }
 
     #[test]
     fn immediate_end() {
-        let (_, mut rx) = queue::queue::<i16>(false);
+        let (_, mut rx) = queue::queue(false);
         assert_eq!(rx.next(), None);
     }
 
     #[test]
     fn keep_alive() {
         let (tx, mut rx) = queue::queue(true);
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
+        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
 
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
 
         for _ in 0..100000 {
-            assert_eq!(rx.next(), Some(0));
+            assert_eq!(rx.next(), Some(0.0));
         }
     }
 
@@ -308,13 +294,13 @@ mod tests {
         let (tx, mut rx) = queue::queue(true);
 
         for _ in 0..500 {
-            assert_eq!(rx.next(), Some(0));
+            assert_eq!(rx.next(), Some(0.0));
         }
 
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
     }
 }

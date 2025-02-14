@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// When the inner source is empty this decrements a `AtomicUsize`.
 #[derive(Debug, Clone)]
@@ -48,7 +48,6 @@ impl<I> Done<I> {
 impl<I: Source> Iterator for Done<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -70,7 +69,6 @@ where
 impl<I> Source for Done<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

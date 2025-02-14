@@ -5,14 +5,13 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `Buffered` object.
 #[inline]
 pub fn buffered<I>(input: I) -> Buffered<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     let total_duration = input.total_duration();
     let first_span = extract(input);
@@ -28,7 +27,6 @@ where
 pub struct Buffered<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Immutable reference to the next span of data. Cannot be `Span::Input`.
     current_span: Arc<Span<I>>,
@@ -43,7 +41,6 @@ where
 enum Span<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Data that has already been extracted from the iterator. Also contains a pointer to the
     /// next span.
@@ -60,7 +57,6 @@ where
 struct SpanData<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     data: Vec<I::Item>,
     channels: ChannelCount,
@@ -71,7 +67,6 @@ where
 impl<I> Drop for SpanData<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     fn drop(&mut self) {
         // This is necessary to prevent stack overflows deallocating long chains of the mutually
@@ -102,7 +97,6 @@ where
 fn extract<I>(mut input: I) -> Arc<Span<I>>
 where
     I: Source,
-    I::Item: Sample,
 {
     let span_len = input.current_span_len();
 
@@ -132,7 +126,6 @@ where
 impl<I> Buffered<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Advances to the next span.
     fn next_span(&mut self) {
@@ -163,7 +156,6 @@ where
 impl<I> Iterator for Buffered<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -208,7 +200,6 @@ where
 impl<I> Source for Buffered<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
@@ -255,7 +246,6 @@ where
 impl<I> Clone for Buffered<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn clone(&self) -> Buffered<I> {

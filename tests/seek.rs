@@ -119,7 +119,7 @@ fn seek_does_not_break_channel_order(
     #[case] format: &'static str,
     #[case] _decoder_name: &'static str,
 ) {
-    let mut source = get_rl(format).convert_samples();
+    let mut source = get_rl(format);
     let channels = source.channels();
     assert_eq!(channels, 2, "test needs a stereo beep file");
 
@@ -128,7 +128,7 @@ fn seek_does_not_break_channel_order(
         beep_range.start as f32 / source.channels() as f32 / source.sample_rate() as f32,
     );
 
-    let mut source = get_rl(format).convert_samples();
+    let mut source = get_rl(format);
 
     let mut channel_offset = 0;
     for offset in [1, 4, 7, 40, 41, 120, 179]
@@ -233,12 +233,12 @@ fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
 fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/music").with_extension(format);
     let file = std::fs::File::open(asset).unwrap();
-    rodio::Decoder::new(BufReader::new(file)).unwrap()
+    Decoder::new(BufReader::new(file)).unwrap()
 }
 
 fn get_rl(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/RL").with_extension(format);
     println!("opening: {}", asset.display());
     let file = std::fs::File::open(asset).unwrap();
-    rodio::Decoder::new(BufReader::new(file)).unwrap()
+    Decoder::new(BufReader::new(file)).unwrap()
 }

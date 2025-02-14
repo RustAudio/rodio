@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Builds a source that chains sources provided by an iterator.
 ///
@@ -40,12 +40,11 @@ impl<I> Iterator for FromIter<I>
 where
     I: Iterator,
     I::Item: Iterator + Source,
-    <I::Item as Iterator>::Item: Sample,
 {
     type Item = <I::Item as Iterator>::Item;
 
     #[inline]
-    fn next(&mut self) -> Option<<I::Item as Iterator>::Item> {
+    fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(src) = &mut self.current_source {
                 if let Some(value) = src.next() {
@@ -75,7 +74,6 @@ impl<I> Source for FromIter<I>
 where
     I: Iterator,
     I::Item: Iterator + Source,
-    <I::Item as Iterator>::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
@@ -157,9 +155,9 @@ mod tests {
     fn basic() {
         let mut rx = from_iter((0..2).map(|n| {
             if n == 0 {
-                SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10])
+                SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0])
             } else if n == 1 {
-                SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5])
+                SamplesBuffer::new(2, 96000, vec![5.0, 5.0, 5.0, 5.0])
             } else {
                 unreachable!()
             }
@@ -167,17 +165,17 @@ mod tests {
 
         assert_eq!(rx.channels(), 1);
         assert_eq!(rx.sample_rate(), 48000);
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
         /*assert_eq!(rx.channels(), 2);
         assert_eq!(rx.sample_rate(), 96000);*/
         // FIXME: not working
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
+        assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), None);
     }
 }

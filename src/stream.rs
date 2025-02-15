@@ -35,6 +35,17 @@ struct OutputStreamConfig {
     sample_format: SampleFormat,
 }
 
+impl Default for OutputStreamConfig {
+    fn default() -> Self {
+        Self {
+            channel_count: 2,
+            sample_rate: HZ_44100,
+            buffer_size: BufferSize::Default,
+            sample_format: SampleFormat::I8,
+        }
+    }
+}
+
 /// Convenience builder for audio output stream.
 /// It provides methods to configure several parameters of the audio output and opening default
 /// device. See examples for use-cases.
@@ -44,14 +55,18 @@ pub struct OutputStreamBuilder {
     config: OutputStreamConfig,
 }
 
-impl Default for OutputStreamConfig {
-    fn default() -> Self {
-        Self {
-            channel_count: 2,
-            sample_rate: HZ_44100,
-            buffer_size: BufferSize::Default,
-            sample_format: SampleFormat::I8,
-        }
+impl core::fmt::Debug for OutputStreamBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let device = if let Some(device) = &self.device {
+            "Some(".to_owned() + device.name().as_deref().unwrap_or("UnNamed") + ")"
+        } else {
+            "None".to_owned()
+        };
+
+        f.debug_struct("OutputStreamBuilder")
+            .field("device", &device)
+            .field("config", &self.config)
+            .finish()
     }
 }
 

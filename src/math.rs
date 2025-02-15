@@ -5,6 +5,7 @@
 ///
 /// To avoid numeric overflows pick smaller numerator.
 // TODO (refactoring) Streamline this using coefficient instead of numerator and denominator.
+#[inline]
 pub fn lerp(first: &f32, second: &f32, numerator: u32, denominator: u32) -> f32 {
     first + (second - first) * numerator as f32 / denominator as f32
 }

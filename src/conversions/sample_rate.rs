@@ -22,7 +22,7 @@ where
     /// Position of `current_sample` modulo `from`.
     current_span_pos_in_chunk: u32,
     /// The samples right after `current_sample` (one per channel), extracted from `input`.
-    next_span: Vec<I::Item>,
+    next_frame: Vec<I::Item>,
     /// The position of the next sample that the iterator should return, modulo `to`.
     /// This counter is incremented (modulo `to`) every time the iterator is called.
     next_output_span_pos_in_chunk: u32,
@@ -84,7 +84,7 @@ where
             current_span_pos_in_chunk: 0,
             next_output_span_pos_in_chunk: 0,
             current_span: first_samples,
-            next_span: next_samples,
+            next_frame: next_samples,
             output_buffer: Vec::with_capacity(num_channels as usize - 1),
         }
     }
@@ -104,11 +104,11 @@ where
     fn next_input_span(&mut self) {
         self.current_span_pos_in_chunk += 1;
 
-        mem::swap(&mut self.current_span, &mut self.next_span);
-        self.next_span.clear();
+        mem::swap(&mut self.current_span, &mut self.next_frame);
+        self.next_frame .clear();
         for _ in 0..self.channels {
             if let Some(i) = self.input.next() {
-                self.next_span.push(i);
+                self.next_frame.push(i);
             } else {
                 break;
             }
@@ -168,7 +168,7 @@ where
         for (off, (cur, next)) in self
             .current_span
             .iter()
-            .zip(self.next_span.iter())
+            .zip(self.next_frame.iter())
             .enumerate()
         {
             let sample = math::lerp(cur, next, numerator, self.to);
@@ -206,7 +206,7 @@ where
             let samples_after_chunk = samples;
             // adding the samples of the next chunk that may have already been read
             let samples_after_chunk = if self.current_span_pos_in_chunk == self.from - 1 {
-                samples_after_chunk + self.next_span.len()
+                samples_after_chunk + self.next_frame.len()
             } else {
                 samples_after_chunk
             };

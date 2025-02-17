@@ -291,7 +291,7 @@ pub enum StreamError {
     NoDevice,
     /// New cpal sample format that rodio does not yet support please open
     /// an issue if you run into this.
-    UnknownSampleFormat,
+    UnsupportedSampleFormat,
 }
 
 impl fmt::Display for StreamError {
@@ -302,7 +302,7 @@ impl fmt::Display for StreamError {
             Self::DefaultStreamConfigError(e) => e.fmt(f),
             Self::SupportedStreamConfigsError(e) => e.fmt(f),
             Self::NoDevice => write!(f, "NoDevice"),
-            Self::UnknownSampleFormat => write!(f, "UnknownSampleFormat"),
+            Self::UnsupportedSampleFormat => write!(f, "UnsupportedSampleFormat"),
         }
     }
 }
@@ -315,7 +315,7 @@ impl error::Error for StreamError {
             Self::DefaultStreamConfigError(e) => Some(e),
             Self::SupportedStreamConfigsError(e) => Some(e),
             Self::NoDevice => None,
-            Self::UnknownSampleFormat => None,
+            Self::UnsupportedSampleFormat => None,
         }
     }
 }
@@ -455,7 +455,7 @@ impl OutputStream {
                 error_callback,
                 None,
             ),
-            _ => return Err(StreamError::UnknownSampleFormat),
+            _ => return Err(StreamError::UnsupportedSampleFormat),
         }
         .map_err(StreamError::BuildStreamError)
     }

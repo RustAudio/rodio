@@ -1,14 +1,13 @@
-use std::io::{Read, Seek};
-use std::marker::Sync;
-use std::sync::Arc;
-use std::{error, fmt};
-
 use crate::common::{ChannelCount, SampleRate};
 use crate::decoder;
 use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, FrameCount, Sample, SampleFormat, StreamConfig, SupportedBufferSize};
+use std::io::{Read, Seek};
+use std::marker::Sync;
+use std::sync::Arc;
+use std::{error, fmt};
 
 const HZ_44100: SampleRate = 44_100;
 
@@ -212,7 +211,9 @@ fn clamp_supported_buffer_size(
 ) -> BufferSize {
     match buffer_size {
         SupportedBufferSize::Range { min, max } => {
-            BufferSize::Fixed(preferred_size.clamp(*min, *max))
+            let size = preferred_size.clamp(*min, *max);
+            assert!(size > 0, "selected buffer size is greater than zero");
+            BufferSize::Fixed(size)
         }
         SupportedBufferSize::Unknown => BufferSize::Default,
     }

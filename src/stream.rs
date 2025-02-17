@@ -289,6 +289,9 @@ pub enum StreamError {
     SupportedStreamConfigsError(cpal::SupportedStreamConfigsError),
     /// Could not find any output device
     NoDevice,
+    /// New cpal sample format that rodio does not yet support please open
+    /// an issue if you run into this.
+    UnknownSampleFormat,
 }
 
 impl fmt::Display for StreamError {
@@ -299,6 +302,7 @@ impl fmt::Display for StreamError {
             Self::DefaultStreamConfigError(e) => e.fmt(f),
             Self::SupportedStreamConfigsError(e) => e.fmt(f),
             Self::NoDevice => write!(f, "NoDevice"),
+            Self::UnknownSampleFormat => write!(f, "UnknownSampleFormat"),
         }
     }
 }
@@ -311,6 +315,7 @@ impl error::Error for StreamError {
             Self::DefaultStreamConfigError(e) => Some(e),
             Self::SupportedStreamConfigsError(e) => Some(e),
             Self::NoDevice => None,
+            Self::UnknownSampleFormat => None,
         }
     }
 }
@@ -321,22 +326,20 @@ impl OutputStream {
         config: &OutputStreamConfig,
     ) -> Result<OutputStream, StreamError> {
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
-        Self::init_stream(device, config, source)
-            .map_err(StreamError::BuildStreamError)
-            .and_then(|stream| {
-                stream.play().map_err(StreamError::PlayStreamError)?;
-                Ok(Self {
-                    _stream: stream,
-                    mixer: controller,
-                })
+        Self::init_stream(device, config, source).and_then(|stream| {
+            stream.play().map_err(StreamError::PlayStreamError)?;
+            Ok(Self {
+                _stream: stream,
+                mixer: controller,
             })
+        })
     }
 
     fn init_stream(
         device: &cpal::Device,
         config: &OutputStreamConfig,
         mut samples: MixerSource<f32>,
-    ) -> Result<cpal::Stream, cpal::BuildStreamError> {
+    ) -> Result<cpal::Stream, StreamError> {
         let error_callback = |err| {
             #[cfg(feature = "tracing")]
             tracing::error!("error initializing output stream: {err}");
@@ -344,7 +347,7 @@ impl OutputStream {
             eprintln!("error initializing output stream: {err}");
         };
         let sample_format = config.sample_format;
-        let config = config.into();
+        let config: cpal::StreamConfig = config.into();
         match sample_format {
             cpal::SampleFormat::F32 => device.build_output_stream::<f32, _, _>(
                 &config,
@@ -452,8 +455,9 @@ impl OutputStream {
                 error_callback,
                 None,
             ),
-            _ => Err(cpal::BuildStreamError::StreamConfigNotSupported),
+            _ => return Err(StreamError::UnknownSampleFormat),
         }
+        .map_err(StreamError::BuildStreamError)
     }
 }
 

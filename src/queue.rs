@@ -1,5 +1,7 @@
 //! Queue that plays sounds one after the other.
 
+use std::cell::Cell;
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -8,10 +10,6 @@ use crate::source::{Empty, SeekError, Source, Zero};
 use crate::Sample;
 
 use crate::common::{ChannelCount, SampleRate};
-#[cfg(feature = "crossbeam-channel")]
-use crossbeam_channel::{unbounded as channel, Receiver, Sender};
-#[cfg(not(feature = "crossbeam-channel"))]
-use std::sync::mpsc::{channel, Receiver, Sender};
 
 /// Builds a new queue. It consists of an input and an output.
 ///
@@ -24,42 +22,47 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 ///   a new sound.
 /// - If you pass `false`, then the queue will report that it has finished playing.
 ///
-pub fn queue<S>(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput<S>>, SourcesQueueOutput<S>)
+pub fn queue<S>(keep_alive_if_empty: bool) -> (Arc<QueueControls<S>>, QueueSource<S>)
 where
     S: Sample + Send + 'static,
 {
-    let input = Arc::new(SourcesQueueInput {
-        next_sounds: Mutex::new(Vec::new()),
+    let input = Arc::new(QueueControls {
+        next_sounds: Mutex::new(VecDeque::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
     });
 
-    let output = SourcesQueueOutput {
+    let output = QueueSource {
         current: Box::new(Empty::<S>::new()) as Box<_>,
-        signal_after_end: None,
         input: input.clone(),
+        starting_silence: Cell::new(false),
+        buffered: None,
+        samples_left_in_span: Cell::new(0),
+        starting_silence_channels: Cell::new(2),
+        starting_silence_sample_rate: Cell::new(4100),
     };
 
     (input, output)
 }
 
-// TODO: consider reimplementing this with `from_factory`
-
 type Sound<S> = Box<dyn Source<Item = S> + Send>;
-type SignalDone = Option<Sender<()>>;
-
 /// The input of the queue.
-pub struct SourcesQueueInput<S> {
-    next_sounds: Mutex<Vec<(Sound<S>, SignalDone)>>,
+pub struct QueueControls<S> {
+    next_sounds: Mutex<VecDeque<Sound<S>>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
 }
 
-impl<S> SourcesQueueInput<S>
+impl<S> QueueControls<S>
 where
     S: Sample + Send + 'static,
 {
     /// Adds a new source to the end of the queue.
+    ///
+    /// If silence was playing it can take up to <TODO> milliseconds before
+    /// the new sound is played.
+    ///
+    /// Sources of only one sample are skipped (though next is still called on them).
     #[inline]
     pub fn append<T>(&self, source: T)
     where
@@ -68,25 +71,7 @@ where
         self.next_sounds
             .lock()
             .unwrap()
-            .push((Box::new(source) as Box<_>, None));
-    }
-
-    /// Adds a new source to the end of the queue.
-    ///
-    /// The `Receiver` will be signalled when the sound has finished playing.
-    ///
-    /// Enable the feature flag `crossbeam-channel` in rodio to use a `crossbeam_channel::Receiver` instead.
-    #[inline]
-    pub fn append_with_signal<T>(&self, source: T) -> Receiver<()>
-    where
-        T: Source<Item = S> + Send + 'static,
-    {
-        let (tx, rx) = channel();
-        self.next_sounds
-            .lock()
-            .unwrap()
-            .push((Box::new(source) as Box<_>, Some(tx)));
-        rx
+            .push_back(Box::new(source) as Box<_>);
     }
 
     /// Sets whether the queue stays alive if there's no more sound to play.
@@ -106,67 +91,132 @@ where
     }
 }
 /// The output of the queue. Implements `Source`.
-pub struct SourcesQueueOutput<S> {
+pub struct QueueSource<S> {
     // The current iterator that produces samples.
     current: Box<dyn Source<Item = S> + Send>,
 
-    // Signal this sender before picking from `next`.
-    signal_after_end: Option<Sender<()>>,
-
     // The next sounds.
-    input: Arc<SourcesQueueInput<S>>,
+    input: Arc<QueueControls<S>>,
+
+    starting_silence: Cell<bool>,
+    starting_silence_channels: Cell<ChannelCount>,
+    starting_silence_sample_rate: Cell<SampleRate>,
+
+    samples_left_in_span: Cell<usize>,
+
+    buffered: Option<S>,
 }
 
-const THRESHOLD: usize = 512;
-impl<S> Source for SourcesQueueOutput<S>
+impl<S> Source for QueueSource<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + 'static + core::fmt::Debug,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        // This function is non-trivial because the boundary between two sounds in the queue should
-        // be a span boundary as well.
+        // This function is non-trivial because the boundary between two
+        // sounds in the queue should be a span boundary as well. Further more
+        // we can *only* return Some(0) if the queue should stop playing.
         //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
-        // we *should* return the number of samples remaining the current sound.
-        // This can be estimated with `size_hint()`.
+        // This function can be called at any time though its normally only
+        // called at the end of the span to get how long the next span will be.
         //
-        // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
-        // situation we force a span to have a maximum number of samples indicate by this
-        // constant.
+        // The current sound is free to return `None` for
+        // `current_span_len()`. That means there is only one span left and it
+        // lasts until the end of the sound. We get a lower bound on that
+        // length using `size_hint()`.
+        //
+        // If the `size_hint` is `None` as well, we are in the worst case
+        // scenario. To handle this situation we force a span to have a
+        // maximum number of samples with a constant. If the source ends before
+        // that point we need to start silence for the remainder of the forced span.
 
-        // Try the current `current_span_len`.
-        if let Some(val) = self.current.current_span_len() {
-            if val != 0 {
-                return Some(val);
-            } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
-                && self.input.next_sounds.lock().unwrap().is_empty()
-            {
-                // The next source will be a filler silence which will have the length of `THRESHOLD`
-                return Some(THRESHOLD);
+        let (span_len, size_lower_bound) = if self.buffered.is_none() {
+            if let Some(next) = self.next_non_empty_sound_params() {
+                (next.span_len, next.size_lower_bound)
+            } else if self.should_end_when_input_empty() {
+                return Some(0);
+            } else {
+                self.starting_silence.set(true);
+                return Some(self.silence_span_len());
             }
+        } else {
+            (self.current.current_span_len(), self.current.size_hint().0)
+        };
+
+        if self.samples_left_in_span.get() > 0 {
+            return Some(self.samples_left_in_span.get());
         }
 
-        // Try the size hint.
-        let (lower_bound, _) = self.current.size_hint();
-        // The iterator default implementation just returns 0.
-        // That's a problematic value, so skip it.
-        if lower_bound > 0 {
-            return Some(lower_bound);
+        let res = if let Some(len) = span_len {
+            // correct len for buffered sample
+            let len = if self.buffered.is_some() {
+                len + 1
+            } else {
+                len
+            };
+
+            if len > 0 {
+                Some(len)
+            } else if self.should_end_when_input_empty() {
+                Some(0)
+            } else {
+                // Must be first call after creation with nothing pushed yet.
+                // Call to next should be silence. A source pushed between this call
+                // and the first call to next could cause a bug here.
+                //
+                // We signal to next that we need a silence now even if a new
+                // source is available
+                self.starting_silence.set(true);
+                if let Some(params) = self.next_non_empty_sound_params() {
+                    self.starting_silence_sample_rate.set(params.sample_rate);
+                    self.starting_silence_channels.set(params.channels);
+                } else {
+                    self.starting_silence_sample_rate.set(44_100);
+                    self.starting_silence_channels.set(2);
+                };
+                Some(self.silence_span_len())
+            }
+        } else if size_lower_bound == 0 {
+            // span could end earlier we correct for that by playing silence
+            // if that happens
+            Some(self.fallback_span_length())
+        } else {
+            Some(size_lower_bound)
+        };
+
+        if let Some(len) = res {
+            self.samples_left_in_span.set(len);
         }
 
-        // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        res
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.current.channels()
+        if self.buffered.is_none() {
+            if let Some(next) = self.next_non_empty_sound_params() {
+                next.channels
+            } else {
+                self.starting_silence_channels.set(2);
+                2
+            }
+        } else {
+            self.current.channels()
+        }
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.current.sample_rate()
+        if self.buffered.is_none() {
+            if let Some(next) = self.next_non_empty_sound_params() {
+                next.sample_rate
+            } else {
+                self.starting_silence_sample_rate.set(44_100);
+                44100
+            }
+        } else {
+            self.current.sample_rate()
+        }
     }
 
     #[inline]
@@ -179,7 +229,7 @@ where
     // that it advances the queue if the position is beyond the current song.
     //
     // We would then however need to enable seeking backwards across sources too.
-    // That no longer seems in line with the queue behaviour.
+    // That no longer seems in line with the queue behavior.
     //
     // A final pain point is that we would need the total duration for the
     // next few songs.
@@ -189,132 +239,160 @@ where
     }
 }
 
-impl<S> Iterator for SourcesQueueOutput<S>
+impl<S> Iterator for QueueSource<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + 'static + std::fmt::Debug,
 {
     type Item = S;
 
     #[inline]
     fn next(&mut self) -> Option<S> {
-        loop {
-            // Basic situation that will happen most of the time.
-            if let Some(sample) = self.current.next() {
-                return Some(sample);
+        // may only return None when the queue should end
+        let res = match dbg!((self.buffered.take(), self.current.next())) {
+            (Some(sample1), Some(samples2)) => {
+                self.buffered = Some(samples2);
+                Some(sample1)
             }
+            (Some(sample1), None) => self.current_is_ending(sample1),
+            (None, Some(sample1)) => {
+                // start, populate the buffer
+                self.buffered = self.current.next();
+                Some(sample1)
+            }
+            (None, None) => self.no_buffer_no_source(),
+        };
 
-            // Since `self.current` has finished, we need to pick the next sound.
-            // In order to avoid inlining this expensive operation, the code is in another function.
-            if self.go_next().is_err() {
-                return None;
-            }
+        if let Some(samples_left) = self.samples_left_in_span.get().checked_sub(1) {
+            self.samples_left_in_span.set(dbg!(samples_left));
         }
+
+        res
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.current.size_hint().0, None)
+        (0, None)
     }
 }
 
-impl<S> SourcesQueueOutput<S>
+impl<S> QueueSource<S>
 where
-    S: Sample + Send + 'static,
+    S: Sample + Send + 'static + core::fmt::Debug,
 {
-    // Called when `current` is empty and we must jump to the next element.
-    // Returns `Ok` if the sound should continue playing, or an error if it should stop.
-    //
-    // This method is separate so that it is not inlined.
-    fn go_next(&mut self) -> Result<(), ()> {
-        if let Some(signal_after_end) = self.signal_after_end.take() {
-            let _ = signal_after_end.send(());
+    fn fallback_span_length(&self) -> usize {
+        // ~ 5 milliseconds at 44100
+        200 * self.channels() as usize
+    }
+
+    fn finish_span_with_silence(&self, samples: usize) -> Sound<S> {
+        let silence =
+            Zero::<S>::new_samples(self.current.channels(), self.current.sample_rate(), samples);
+        Box::new(silence)
+    }
+
+    fn silence_span_len(&self) -> usize {
+        // ~ 5 milliseconds at 44100
+        200 * self.channels() as usize
+    }
+
+    fn silence(&self) -> Sound<S> {
+        let samples = self.silence_span_len();
+        // silence matches span params to make sure resampling
+        // gives not popping. It also makes the queue code simpler
+        let silence =
+            Zero::<S>::new_samples(self.current.channels(), self.current.sample_rate(), samples);
+        Box::new(silence)
+    }
+
+    fn should_end_when_input_empty(&self) -> bool {
+        !self.input.keep_alive_if_empty.load(Ordering::Acquire)
+    }
+
+    fn next_sound(&self) -> Option<Sound<S>> {
+        self.input.next_sounds.lock().unwrap().pop_front()
+    }
+
+    fn no_buffer_no_source(&mut self) -> Option<S> {
+        // Prevents a race condition where a call `current_span_len`
+        // precedes the call to `next`
+        if dbg!(self.starting_silence.get()) {
+            self.current = self.silence();
+            self.starting_silence.set(true);
+            return self.current.next();
         }
 
-        let (next, signal_after_end) = {
-            let mut next = self.input.next_sounds.lock().unwrap();
-
-            if next.len() == 0 {
-                let silence = Box::new(Zero::<S>::new_samples(1, 44100, THRESHOLD)) as Box<_>;
-                if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
-                    // Play a short silence in order to avoid spinlocking.
-                    (silence, None)
+        loop {
+            if let Some(mut sound) = self.next_sound() {
+                if let Some((sample1, sample2)) = sound.next().zip(sound.next()) {
+                    self.current = sound;
+                    self.buffered = Some(sample2);
+                    self.current_span_len();
+                    return Some(sample1);
                 } else {
-                    return Err(());
+                    continue;
                 }
+            } else if self.should_end_when_input_empty() {
+                return None;
             } else {
-                next.remove(0)
+                self.current = self.silence();
+                return self.current.next();
             }
-        };
+        }
+    }
 
-        self.current = next;
-        self.signal_after_end = signal_after_end;
-        Ok(())
+    fn current_is_ending(&mut self, sample1: S) -> Option<S> {
+        // note sources are free to stop (return None) mid frame and
+        // mid span, we must handle that here
+
+        // check if the span we reported is ended after returning the
+        // buffered source. If not we need to provide a silence to guarantee
+        // the span ends when we promised
+        if self.samples_left_in_span.get() > 1 {
+            dbg!(&self.samples_left_in_span);
+            self.current = self.finish_span_with_silence(self.samples_left_in_span.get() - 1);
+            return Some(sample1);
+        }
+
+        loop {
+            if let Some(mut sound) = self.next_sound() {
+                if let Some(sample2) = sound.next() {
+                    self.current = sound;
+                    // updates samples_left_in_span
+                    self.buffered = Some(sample2);
+                    self.current_span_len();
+                    return Some(sample1);
+                } else {
+                    continue;
+                }
+            } else if self.should_end_when_input_empty() {
+                return Some(sample1);
+            } else {
+                self.current = self.silence();
+                self.current_span_len();
+                self.buffered = self.current.next();
+                return Some(sample1);
+            }
+        }
+    }
+
+    fn next_non_empty_sound_params(&self) -> Option<NonEmptySourceParams> {
+        let next_sounds = self.input.next_sounds.lock().unwrap();
+        next_sounds
+            .iter()
+            .find(|s| s.current_span_len().is_none_or(|l| l > 0))
+            .map(|s| NonEmptySourceParams {
+                size_lower_bound: s.size_hint().0,
+                span_len: s.current_span_len(),
+                channels: s.channels(),
+                sample_rate: s.sample_rate(),
+            })
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::buffer::SamplesBuffer;
-    use crate::queue;
-    use crate::source::Source;
-
-    #[test]
-    #[ignore] // FIXME: samples rate and channel not updated immediately after transition
-    fn basic() {
-        let (tx, mut rx) = queue::queue(false);
-
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        tx.append(SamplesBuffer::new(2, 96000, vec![5i16, 5, 5, 5]));
-
-        assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.sample_rate(), 48000);
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.sample_rate(), 96000);
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), Some(5));
-        assert_eq!(rx.next(), None);
-    }
-
-    #[test]
-    fn immediate_end() {
-        let (_, mut rx) = queue::queue::<i16>(false);
-        assert_eq!(rx.next(), None);
-    }
-
-    #[test]
-    fn keep_alive() {
-        let (tx, mut rx) = queue::queue(true);
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-
-        for _ in 0..100000 {
-            assert_eq!(rx.next(), Some(0));
-        }
-    }
-
-    #[test]
-    #[ignore] // TODO: not yet implemented
-    fn no_delay_when_added() {
-        let (tx, mut rx) = queue::queue(true);
-
-        for _ in 0..500 {
-            assert_eq!(rx.next(), Some(0));
-        }
-
-        tx.append(SamplesBuffer::new(1, 48000, vec![10i16, -10, 10, -10]));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-        assert_eq!(rx.next(), Some(10));
-        assert_eq!(rx.next(), Some(-10));
-    }
+#[derive(Debug)]
+struct NonEmptySourceParams {
+    size_lower_bound: usize,
+    span_len: Option<usize>,
+    channels: ChannelCount,
+    sample_rate: SampleRate,
 }

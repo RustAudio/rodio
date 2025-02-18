@@ -3,6 +3,7 @@
 use core::fmt;
 use core::time::Duration;
 
+use crate::channel_bitmask::{self, add_channel_mask, ChannelBitmask, ChannelBitmaskAdapter};
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
 use dasp_sample::FromSample;
@@ -174,6 +175,18 @@ where
     ///
     /// `None` indicates at the same time "infinite" or "unknown".
     fn total_duration(&self) -> Option<Duration>;
+
+    /// A default implemenation of `channel_bitmask` if not otherwise provided. This uses a
+    /// very simple heuristic to either return `FRONT_CENTER` or `STEREO` in the case the source
+    /// is one or two channels, respectiely. Otherwise returns `UNDEFINED`.
+    #[inline]
+    fn channel_bitmask(&self) -> ChannelBitmask {
+        match self.channels() {
+            1 => channel_bitmask::FRONT_CENTER,
+            2 => channel_bitmask::STEREO,
+            _ => channel_bitmask::UNDEFINED,
+        }
+    }
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
     #[inline]
@@ -466,6 +479,19 @@ where
         D: Sample,
     {
         SamplesConverter::new(self)
+    }
+
+    /// Returns a source that implements the [`ChannelBitmask`] trait and reports
+    /// the given `channel_bitmask`.
+    ///
+    /// # Panics
+    ///
+    /// If the `channel_bitmask.count_ones()` is not equal to `self.channels()`.
+    fn add_channel_mask(self, channel_bitmask: ChannelBitmask) -> ChannelBitmaskAdapter<Self>
+    where
+        Self: Sized,
+    {
+        add_channel_mask(self, channel_bitmask)
     }
 
     /// Makes the sound pausable.

@@ -14,7 +14,6 @@ use crate::Source;
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
 use crate::common::{ChannelCount, SampleRate};
-#[cfg(feature = "symphonia")]
 use ::symphonia::core::io::{MediaSource, MediaSourceStream};
 
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]

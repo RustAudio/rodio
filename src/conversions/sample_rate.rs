@@ -105,7 +105,7 @@ where
         self.current_span_pos_in_chunk += 1;
 
         mem::swap(&mut self.current_span, &mut self.next_frame);
-        self.next_frame .clear();
+        self.next_frame.clear();
         for _ in 0..self.channels {
             if let Some(i) = self.input.next() {
                 self.next_frame.push(i);

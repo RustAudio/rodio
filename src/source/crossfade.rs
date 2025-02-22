@@ -68,8 +68,9 @@ mod tests {
         );
         let result = mixed.collect::<Vec<_>>();
         assert_eq!(result.len(), 5);
-        assert!(result.iter()
+        assert!(result
+            .iter()
             .zip(vec![1.0, 2.0 * 0.8, 3.0 * 0.6, 4.0 * 0.4, 5.0 * 0.2])
-            .all(|(a, b)| (a - b).abs() < 1e-6));        
+            .all(|(a, b)| (a - b).abs() < 1e-6));
     }
 }

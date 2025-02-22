@@ -158,13 +158,13 @@ pub use cpal::{
 };
 
 mod common;
+mod math;
 mod sink;
 mod spatial_sink;
 #[cfg(feature = "playback")]
 mod stream;
 #[cfg(feature = "wav")]
 mod wav_output;
-mod math;
 
 pub mod buffer;
 pub mod conversions;
@@ -173,7 +173,6 @@ pub mod mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;
-
 
 pub use crate::common::{ChannelCount, Sample, SampleRate};
 pub use crate::decoder::Decoder;

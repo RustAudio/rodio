@@ -28,7 +28,6 @@ pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
 pub use self::position::TrackPosition;
 pub use self::repeat::Repeat;
-pub use self::samples_converter::SamplesConverter;
 pub use self::sawtooth::SawtoothWave;
 pub use self::signal_generator::{Function, SignalGenerator};
 pub use self::sine::SineWave;
@@ -64,7 +63,6 @@ mod pausable;
 mod periodic;
 mod position;
 mod repeat;
-mod samples_converter;
 mod sawtooth;
 mod signal_generator;
 mod sine;
@@ -450,17 +448,6 @@ pub trait Source: Iterator<Item = Sample> {
     {
         let echo = self.clone().amplify(amplitude).delay(duration);
         self.mix(echo)
-    }
-
-    /// Converts the samples of this source to another type.
-    #[inline]
-    fn convert_samples(self) -> SamplesConverter<Self>
-    where
-        Self: Sized,
-    {
-        // FIXME (#678) How would we adapt sample types now? Using SampleTypeConverter iterator?
-        todo!();
-        // SamplesConverter::new(self)
     }
 
     /// Makes the sound pausable.

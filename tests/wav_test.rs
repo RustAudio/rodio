@@ -1,7 +1,4 @@
 #[cfg(feature = "wav")]
-use rodio::Sample;
-
-#[cfg(feature = "wav")]
 #[test]
 fn test_wav_encodings() {
     use std::io::BufReader;

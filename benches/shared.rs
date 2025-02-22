@@ -2,7 +2,7 @@ use std::io::Cursor;
 use std::time::Duration;
 use std::vec;
 
-use rodio::{decoder::DecoderSample, ChannelCount, Sample, SampleRate, Source};
+use rodio::{ChannelCount, Sample, SampleRate, Source};
 
 pub struct TestSource {
     samples: vec::IntoIter<Sample>,
@@ -48,32 +48,6 @@ impl Source for TestSource {
         Some(self.total_duration)
     }
 }
-
-// impl TestSource<i16> {
-//     #[allow(unused, reason = "not everything from shared is used in all libs")]
-//     pub fn to_f32s(self) -> TestSource<f32> {
-//         let TestSource {
-//             samples,
-//             channels,
-//             sample_rate,
-//             total_duration,
-//         } = self;
-//         let samples = samples.collect::<Vec<_>>().into_iter();
-//         TestSource {
-//             samples,
-//             channels,
-//             sample_rate,
-//             total_duration,
-//         }
-//     }
-// }
-//
-// impl TestSource<f32> {
-//     #[allow(unused, reason = "not everything from shared is used in all libs")]
-//     pub fn to_f32s(self) -> TestSource<f32> {
-//         self
-//     }
-// }
 
 pub fn music_wav() -> TestSource {
     let data = include_bytes!("../assets/music.wav");

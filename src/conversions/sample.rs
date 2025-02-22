@@ -1,4 +1,4 @@
-use dasp_sample::{FromSample, Sample as DaspSample};
+use dasp_sample::{FromSample, ToSample};
 use std::marker::PhantomData;
 
 /// Converts the samples data type to `O`.
@@ -34,13 +34,13 @@ impl<I, O> SampleTypeConverter<I, O> {
 impl<I, O> Iterator for SampleTypeConverter<I, O>
 where
     I: Iterator,
-    O: FromSample<I::Item> + DaspSample,
+    I::Item: ToSample<O>,
 {
     type Item = O;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.input.next().map(|s| DaspSample::from_sample(s))
+        self.input.next().map(|s| s.to_sample_())
     }
 
     #[inline]
@@ -52,6 +52,6 @@ where
 impl<I, O> ExactSizeIterator for SampleTypeConverter<I, O>
 where
     I: ExactSizeIterator,
-    O: FromSample<I::Item> + DaspSample,
+    O: FromSample<I::Item>,
 {
 }

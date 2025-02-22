@@ -1,8 +1,6 @@
 #![cfg(all(feature = "symphonia-aac", feature = "symphonia-isomp4"))]
 use std::io::BufReader;
 
-use rodio::Sample;
-
 #[test]
 fn test_mp4a_encodings() {
     // mp4a codec downloaded from YouTube

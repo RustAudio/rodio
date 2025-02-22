@@ -1,5 +1,4 @@
 use divan::Bencher;
-use rodio::decoder::DecoderSample;
 use rodio::source::UniformSourceIterator;
 
 mod shared;

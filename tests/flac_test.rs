@@ -1,5 +1,3 @@
-#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
-use rodio::Sample;
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
 use rodio::Source;
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]

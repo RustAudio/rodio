@@ -10,9 +10,6 @@
 //! - Add the source to the output stream using [`OutputStream::mixer()`](OutputStream::mixer)
 //!   on the output stream handle.
 //!
-//! The output stream expects the sources to produce [`f32`]s. In case the output sample format
-//! is different use [`.convert_samples()`](Source::convert_samples) to adapt them.
-//!
 //! Here is a complete example of how you would play an audio file:
 //!
 //! ```no_run
@@ -30,7 +27,7 @@
 //! // Decode that sound file into a source
 //! let source = Decoder::new(file).unwrap();
 //! // Play the sound directly on the device
-//! stream_handle.mixer().add(source.convert_samples());
+//! stream_handle.mixer().add(source);
 //!
 //! // The sound plays in a separate audio thread,
 //! // so we need to keep the main thread alive while it's playing.

@@ -25,7 +25,7 @@
 //! // Decode that sound file into a source
 //! let source = Decoder::new(file).unwrap();
 //! // Play the sound directly on the device 2x faster
-//! stream_handle.mixer().add(source.convert_samples().speed(2.0));
+//! stream_handle.mixer().add(source.speed(2.0));
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //! Here is how you would do it using the sink:

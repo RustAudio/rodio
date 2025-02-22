@@ -35,6 +35,17 @@ struct OutputStreamConfig {
     sample_format: SampleFormat,
 }
 
+impl Default for OutputStreamConfig {
+    fn default() -> Self {
+        Self {
+            channel_count: 2,
+            sample_rate: HZ_44100,
+            buffer_size: BufferSize::Default,
+            sample_format: SampleFormat::F32,
+        }
+    }
+}
+
 /// Convenience builder for audio output stream.
 /// It provides methods to configure several parameters of the audio output and opening default
 /// device. See examples for use-cases.
@@ -44,14 +55,18 @@ pub struct OutputStreamBuilder {
     config: OutputStreamConfig,
 }
 
-impl Default for OutputStreamConfig {
-    fn default() -> Self {
-        Self {
-            channel_count: 2,
-            sample_rate: HZ_44100,
-            buffer_size: BufferSize::Default,
-            sample_format: SampleFormat::I16,
-        }
+impl core::fmt::Debug for OutputStreamBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let device = if let Some(device) = &self.device {
+            "Some(".to_owned() + device.name().as_deref().unwrap_or("UnNamed") + ")"
+        } else {
+            "None".to_owned()
+        };
+
+        f.debug_struct("OutputStreamBuilder")
+            .field("device", &device)
+            .field("config", &self.config)
+            .finish()
     }
 }
 
@@ -274,6 +289,9 @@ pub enum StreamError {
     SupportedStreamConfigsError(cpal::SupportedStreamConfigsError),
     /// Could not find any output device
     NoDevice,
+    /// New cpal sample format that rodio does not yet support please open
+    /// an issue if you run into this.
+    UnsupportedSampleFormat,
 }
 
 impl fmt::Display for StreamError {
@@ -284,6 +302,7 @@ impl fmt::Display for StreamError {
             Self::DefaultStreamConfigError(e) => e.fmt(f),
             Self::SupportedStreamConfigsError(e) => e.fmt(f),
             Self::NoDevice => write!(f, "NoDevice"),
+            Self::UnsupportedSampleFormat => write!(f, "UnsupportedSampleFormat"),
         }
     }
 }
@@ -296,6 +315,7 @@ impl error::Error for StreamError {
             Self::DefaultStreamConfigError(e) => Some(e),
             Self::SupportedStreamConfigsError(e) => Some(e),
             Self::NoDevice => None,
+            Self::UnsupportedSampleFormat => None,
         }
     }
 }
@@ -306,22 +326,20 @@ impl OutputStream {
         config: &OutputStreamConfig,
     ) -> Result<OutputStream, StreamError> {
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
-        Self::init_stream(device, config, source)
-            .map_err(StreamError::BuildStreamError)
-            .and_then(|stream| {
-                stream.play().map_err(StreamError::PlayStreamError)?;
-                Ok(Self {
-                    _stream: stream,
-                    mixer: controller,
-                })
+        Self::init_stream(device, config, source).and_then(|stream| {
+            stream.play().map_err(StreamError::PlayStreamError)?;
+            Ok(Self {
+                _stream: stream,
+                mixer: controller,
             })
+        })
     }
 
     fn init_stream(
         device: &cpal::Device,
         config: &OutputStreamConfig,
         mut samples: MixerSource,
-    ) -> Result<cpal::Stream, cpal::BuildStreamError> {
+    ) -> Result<cpal::Stream, StreamError> {
         let error_callback = |err| {
             #[cfg(feature = "tracing")]
             tracing::error!("Playback error: {err}");
@@ -329,7 +347,7 @@ impl OutputStream {
             eprintln!("Playback error: {err}");
         };
         let sample_format = config.sample_format;
-        let config = config.into();
+        let config: cpal::StreamConfig = config.into();
         match sample_format {
             cpal::SampleFormat::F32 => device.build_output_stream::<f32, _, _>(
                 &config,
@@ -437,8 +455,9 @@ impl OutputStream {
                 error_callback,
                 None,
             ),
-            _ => Err(cpal::BuildStreamError::StreamConfigNotSupported),
+            _ => return Err(StreamError::UnsupportedSampleFormat),
         }
+        .map_err(StreamError::BuildStreamError)
     }
 }
 

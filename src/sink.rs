@@ -376,7 +376,7 @@ mod tests {
         // TODO (review) How did this test passed before? I might have broken something but
         //      silence source should come first as next source is only polled while previous ends.
         //      Respective test in Queue seem to be ignored (see queue::test::no_delay_when_added()
-        //      at src/queue.rs:293). `convert_samples()` call made it pass?
+        //      at src/queue.rs:293).
         let mut source = source.skip_while(|x| *x == 0.0);
 
         let v = vec![10.0, -10.0, 20.0, -20.0, 30.0, -30.0];

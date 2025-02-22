@@ -124,12 +124,7 @@ where
                 let bits = self.bits_per_sample;
                 let real_val = match bits {
                     8 => (raw_val as i8).to_sample(),
-                    16 => {
-                        let raw_val = raw_val as i16;
-                        #[cfg(not(feature = "integer-decoder"))] // perf
-                        let raw_val = raw_val.to_sample();
-                        raw_val
-                    }
+                    16 => (raw_val as i16).to_sample(),
                     24 => I24::new(raw_val).unwrap_or(Sample::EQUILIBRIUM).to_sample(),
                     32 => raw_val.to_sample(),
                     _ => {

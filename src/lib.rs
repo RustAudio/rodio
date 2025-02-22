@@ -139,12 +139,6 @@
 //!
 //! The "playback" feature adds support for playing audio. This feature requires the "cpal" crate.
 //!
-//! ### Feature "integer-decoder"
-//!
-//! The "integer-decoder" changes the output format of the decoders to use `i16` instead of `f32`.
-//! This is useful if you want to decode audio on an exotic, low-spec or old device that does not
-//! have hardware support for floating-point operations.
-//!
 //! ## How it works under the hood
 //!
 //! Rodio spawns a background thread that is dedicated to reading from the sources and sending
@@ -164,21 +158,22 @@ pub use cpal::{
 };
 
 mod common;
-mod conversions;
 mod sink;
 mod spatial_sink;
 #[cfg(feature = "playback")]
 mod stream;
 #[cfg(feature = "wav")]
 mod wav_output;
+mod math;
 
 pub mod buffer;
+pub mod conversions;
 pub mod decoder;
-mod math;
 pub mod mixer;
 pub mod queue;
 pub mod source;
 pub mod static_buffer;
+
 
 pub use crate::common::{ChannelCount, Sample, SampleRate};
 pub use crate::decoder::Decoder;

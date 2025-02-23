@@ -31,9 +31,6 @@ mod vorbis;
 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
 mod wav;
 
-/// Output format of the decoders.
-pub type DecoderSample = Sample;
-
 /// Source of audio samples from decoding a file.
 ///
 /// Supports MP3, WAV, Vorbis and Flac.
@@ -71,7 +68,7 @@ where
 
 impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
-    fn next(&mut self) -> Option<DecoderSample> {
+    fn next(&mut self) -> Option<Sample> {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.next(),
@@ -399,7 +396,7 @@ impl<R> Iterator for Decoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -445,7 +442,7 @@ impl<R> Iterator for LoopedDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {

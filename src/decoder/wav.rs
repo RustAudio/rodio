@@ -2,14 +2,15 @@ use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
 use crate::source::SeekError;
-use crate::Source;
+use crate::{Sample, Source};
 
 use crate::common::{ChannelCount, SampleRate};
 
-use dasp_sample::{Sample, I24};
+use dasp_sample::Sample as _;
+use dasp_sample::I24;
 use hound::{SampleFormat, WavReader};
 
-use super::DecoderSample;
+
 
 /// Decoder for the WAV format.
 pub struct WavDecoder<R>
@@ -76,7 +77,7 @@ impl<R> Iterator for SamplesIterator<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -196,7 +197,7 @@ impl<R> Iterator for WavDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {

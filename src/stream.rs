@@ -322,7 +322,10 @@ impl OutputStream {
             assert!(sz > 0, "fixed buffer size is greater than zero");
         }
         assert!(config.sample_rate > 0, "sample rate is greater than zero");
-        assert!(config.channel_count > 0, "channel number is greater than zero");
+        assert!(
+            config.channel_count > 0,
+            "channel number is greater than zero"
+        );
     }
 
     fn open(

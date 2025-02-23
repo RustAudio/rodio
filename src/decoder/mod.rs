@@ -9,7 +9,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use crate::source::SeekError;
-use crate::Source;
+use crate::{Sample, Source};
 
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
@@ -31,12 +31,8 @@ mod vorbis;
 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
 mod wav;
 
-#[cfg(feature = "integer-decoder")]
 /// Output format of the decoders.
-pub type DecoderSample = i16;
-#[cfg(not(feature = "integer-decoder"))]
-/// Output format of the decoders.
-pub type DecoderSample = f32;
+pub type DecoderSample = Sample;
 
 /// Source of audio samples from decoding a file.
 ///

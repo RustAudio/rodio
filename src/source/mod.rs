@@ -28,7 +28,6 @@ pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
 pub use self::position::TrackPosition;
 pub use self::repeat::Repeat;
-pub use self::samples_converter::SamplesConverter;
 pub use self::sawtooth::SawtoothWave;
 pub use self::signal_generator::{Function, SignalGenerator};
 pub use self::sine::SineWave;
@@ -64,7 +63,6 @@ mod pausable;
 mod periodic;
 mod position;
 mod repeat;
-mod samples_converter;
 mod sawtooth;
 mod signal_generator;
 mod sine;
@@ -152,10 +150,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
-pub trait Source: Iterator
-where
-    Self::Item: Sample,
-{
+pub trait Source: Iterator<Item = Sample> {
     /// Returns the number of samples before the current span ends. `None` means "infinite" or
     /// "until the sound ends".
     /// Should never return 0 unless there's no more data.
@@ -189,9 +184,7 @@ where
     fn mix<S>(self, other: S) -> Mix<Self, S>
     where
         Self: Sized,
-        Self::Item: FromSample<S::Item>,
         S: Source,
-        S::Item: Sample,
     {
         mix::mix(self, other)
     }
@@ -354,7 +347,6 @@ where
     where
         Self: Sized,
         Self::Item: FromSample<S::Item>,
-        <S as Iterator>::Item: Sample,
     {
         crossfade::crossfade(self, other, duration)
     }
@@ -456,16 +448,6 @@ where
     {
         let echo = self.clone().amplify(amplitude).delay(duration);
         self.mix(echo)
-    }
-
-    /// Converts the samples of this source to another type.
-    #[inline]
-    fn convert_samples<D>(self) -> SamplesConverter<Self, D>
-    where
-        Self: Sized,
-        D: Sample,
-    {
-        SamplesConverter::new(self)
     }
 
     /// Makes the sound pausable.
@@ -691,10 +673,10 @@ macro_rules! source_pointer_impl {
     };
 }
 
-source_pointer_impl!(<S> Source for Box<dyn Source<Item = S>> where S: Sample,);
+source_pointer_impl!(Source for Box<dyn Source>);
 
-source_pointer_impl!(<S> Source for Box<dyn Source<Item = S> + Send> where S: Sample,);
+source_pointer_impl!(Source for Box<dyn Source + Send>);
 
-source_pointer_impl!(<S> Source for Box<dyn Source<Item = S> + Send + Sync> where S: Sample,);
+source_pointer_impl!(Source for Box<dyn Source + Send + Sync>);
 
-source_pointer_impl!(<'a, S, C> Source for &'a mut C where S: Sample, C: Source<Item = S>,);
+source_pointer_impl!(<'a, Src> Source for &'a mut Src where Src: Source,);

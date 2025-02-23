@@ -1,9 +1,6 @@
-use std::time::Duration;
-
-use dasp_sample::FromSample;
-
 use crate::source::{FadeIn, Mix, TakeDuration};
-use crate::{Sample, Source};
+use crate::Source;
+use std::time::Duration;
 
 /// Mixes one sound fading out with another sound fading in for the given
 /// duration.
@@ -18,8 +15,6 @@ pub fn crossfade<I1, I2>(
 where
     I1: Source,
     I2: Source,
-    I1::Item: FromSample<I2::Item> + Sample,
-    I2::Item: Sample,
 {
     let mut input_fadeout = input_fadeout.take_duration(duration);
     input_fadeout.set_filter_fadeout();
@@ -38,15 +33,17 @@ pub type Crossfade<I1, I2> = Mix<TakeDuration<I1>, FadeIn<TakeDuration<I2>>>;
 mod tests {
     use super::*;
     use crate::buffer::SamplesBuffer;
-    fn dummysource(length: u8) -> SamplesBuffer<f32> {
+    use crate::source::Zero;
+
+    fn dummy_source(length: u8) -> SamplesBuffer {
         let data: Vec<f32> = (1..=length).map(f32::from).collect();
         SamplesBuffer::new(1, 1, data)
     }
 
     #[test]
     fn test_crossfade_with_self() {
-        let source1 = dummysource(10);
-        let source2 = dummysource(10);
+        let source1 = dummy_source(10);
+        let source2 = dummy_source(10);
         let mut mixed = crossfade(
             source1,
             source2,
@@ -62,18 +59,18 @@ mod tests {
 
     #[test]
     fn test_crossfade() {
-        let source1 = dummysource(10);
-        let source2 = dummysource(10).amplify(0.0);
-        let mut mixed = crossfade(
+        let source1 = dummy_source(10);
+        let source2 = Zero::new(1, 1);
+        let mixed = crossfade(
             source1,
             source2,
             Duration::from_secs(5) + Duration::from_nanos(1),
         );
-        assert_eq!(mixed.next(), Some(1.0 * 1.0));
-        assert_eq!(mixed.next(), Some(2.0 * 0.8));
-        assert_eq!(mixed.next(), Some(3.0 * 0.6));
-        assert_eq!(mixed.next(), Some(4.0 * 0.4));
-        assert_eq!(mixed.next(), Some(5.0 * 0.2));
-        assert_eq!(mixed.next(), None);
+        let result = mixed.collect::<Vec<_>>();
+        assert_eq!(result.len(), 5);
+        assert!(result
+            .iter()
+            .zip(vec![1.0, 2.0 * 0.8, 3.0 * 0.6, 4.0 * 0.4, 5.0 * 0.2])
+            .all(|(a, b)| (a - b).abs() < 1e-6));
     }
 }

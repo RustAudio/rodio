@@ -42,7 +42,7 @@ impl WhiteNoise {
     pub fn new(sample_rate: SampleRate) -> Self {
         Self {
             sample_rate,
-            rng: SmallRng::from_entropy(),
+            rng: SmallRng::from_os_rng(),
         }
     }
 }

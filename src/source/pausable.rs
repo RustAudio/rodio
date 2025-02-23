@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Builds a `Pausable` object.
 pub fn pausable<I>(source: I, paused: bool) -> Pausable<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     let paused_channels = if paused {
         Some(source.channels())
@@ -38,7 +37,6 @@ pub struct Pausable<I> {
 impl<I> Pausable<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Sets whether the filter applies.
     ///
@@ -74,7 +72,6 @@ where
 impl<I> Iterator for Pausable<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -82,12 +79,12 @@ where
     fn next(&mut self) -> Option<I::Item> {
         if self.remaining_paused_samples > 0 {
             self.remaining_paused_samples -= 1;
-            return Some(I::Item::ZERO_VALUE);
+            return Some(0.0);
         }
 
         if let Some(paused_channels) = self.paused_channels {
             self.remaining_paused_samples = paused_channels - 1;
-            return Some(I::Item::ZERO_VALUE);
+            return Some(0.0);
         }
 
         self.input.next()
@@ -102,7 +99,6 @@ where
 impl<I> Source for Pausable<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

@@ -8,7 +8,6 @@ use crate::{Sample, Source};
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     TakeDuration {
         current_span_len: input.current_span_len(),
@@ -26,20 +25,12 @@ enum DurationFilter {
     FadeOut,
 }
 impl DurationFilter {
-    fn apply<I: Iterator>(
-        &self,
-        sample: <I as Iterator>::Item,
-        parent: &TakeDuration<I>,
-    ) -> <I as Iterator>::Item
-    where
-        I::Item: Sample,
-    {
-        use self::DurationFilter::*;
+    fn apply<I: Iterator>(&self, sample: Sample, parent: &TakeDuration<I>) -> Sample {
         match self {
-            FadeOut => {
+            DurationFilter::FadeOut => {
                 let remaining = parent.remaining_duration.as_millis() as f32;
                 let total = parent.requested_duration.as_millis() as f32;
-                sample.amplify(remaining / total)
+                sample * remaining / total
             }
         }
     }
@@ -63,7 +54,6 @@ pub struct TakeDuration<I> {
 impl<I> TakeDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns the duration elapsed for each sample extracted.
     #[inline]
@@ -106,7 +96,6 @@ where
 impl<I> Iterator for TakeDuration<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = <I as Iterator>::Item;
 
@@ -143,7 +132,6 @@ where
 impl<I> Source for TakeDuration<I>
 where
     I: Iterator + Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

@@ -27,9 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `Sink::try_new` renamed to `connect_new` and does not return error anymore.
             `Sink::new_idle` was renamed to `new`.
 - Breaking: In the `Source` trait, the method `current_frame_len()` was renamed to `current_span_len()`.
-- Breaking: `Decoder` now outputs `f32` samples by default instead of `i16`.
-  Enable the `integer-decoder` to revert to `i16` samples.
-- The term 'frame' was renamed to 'span' in the crate and documentation.
+- Breaking: `Decoder` now outputs `f32` samples.
+- Breaking: The term 'frame' was renamed to 'span' in the crate and documentation.
+- Breaking: Sources now use `f32` samples. To convert to and from other types of samples use functions from
+  `dasp_sample` crate. For example `DaspSample::from_sample(sample)`. Remove `integer-decoder` feature.
+
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to

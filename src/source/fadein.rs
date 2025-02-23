@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use super::{linear_ramp::linear_gain_ramp, LinearGainRamp, SeekError};
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `FadeIn` object.
 pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     FadeIn {
         input: linear_gain_ramp(input, duration, 0.0f32, 1.0f32, false),
@@ -24,7 +23,6 @@ pub struct FadeIn<I> {
 impl<I> FadeIn<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns a reference to the inner source.
     #[inline]
@@ -48,7 +46,6 @@ where
 impl<I> Iterator for FadeIn<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -63,17 +60,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for FadeIn<I>
-where
-    I: Source + ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for FadeIn<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for FadeIn<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

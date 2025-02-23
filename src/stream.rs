@@ -16,13 +16,13 @@ const HZ_44100: SampleRate = 44_100;
 /// Use `mixer()` method to control output.
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
-    mixer: Arc<Mixer<f32>>,
+    mixer: Arc<Mixer>,
     _stream: cpal::Stream,
 }
 
 impl OutputStream {
     /// Access the output stream's mixer.
-    pub fn mixer(&self) -> Arc<Mixer<f32>> {
+    pub fn mixer(&self) -> Arc<Mixer> {
         self.mixer.clone()
     }
 }
@@ -41,7 +41,7 @@ impl Default for OutputStreamConfig {
             channel_count: 2,
             sample_rate: HZ_44100,
             buffer_size: BufferSize::Default,
-            sample_format: SampleFormat::I8,
+            sample_format: SampleFormat::F32,
         }
     }
 }
@@ -220,7 +220,7 @@ fn clamp_supported_buffer_size(
 
 /// A convenience function. Plays a sound once.
 /// Returns a `Sink` that can be used to control the sound.
-pub fn play<R>(mixer: &Mixer<f32>, input: R) -> Result<Sink, PlayError>
+pub fn play<R>(mixer: &Mixer, input: R) -> Result<Sink, PlayError>
 where
     R: Read + Seek + Send + Sync + 'static,
 {
@@ -284,8 +284,8 @@ pub enum StreamError {
     DefaultStreamConfigError(cpal::DefaultStreamConfigError),
     /// Error opening stream with OS. See [cpal::BuildStreamError] for details.
     BuildStreamError(cpal::BuildStreamError),
-    /// Could not list supported stream configs for device. Maybe it
-    /// disconnected, for details see: [cpal::SupportedStreamConfigsError].
+    /// Could not list supported stream configs for the device. Maybe it
+    /// disconnected. For details see: [cpal::SupportedStreamConfigsError].
     SupportedStreamConfigsError(cpal::SupportedStreamConfigsError),
     /// Could not find any output device
     NoDevice,
@@ -338,13 +338,13 @@ impl OutputStream {
     fn init_stream(
         device: &cpal::Device,
         config: &OutputStreamConfig,
-        mut samples: MixerSource<f32>,
+        mut samples: MixerSource,
     ) -> Result<cpal::Stream, StreamError> {
         let error_callback = |err| {
             #[cfg(feature = "tracing")]
-            tracing::error!("error initializing output stream: {err}");
+            tracing::error!("Playback error: {err}");
             #[cfg(not(feature = "tracing"))]
-            eprintln!("error initializing output stream: {err}");
+            eprintln!("Playback error: {err}");
         };
         let sample_format = config.sample_format;
         let config: cpal::StreamConfig = config.into();

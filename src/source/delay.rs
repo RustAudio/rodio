@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 fn remaining_samples(
     until_playback: Duration,
@@ -18,7 +18,6 @@ fn remaining_samples(
 pub fn delay<I>(input: I, duration: Duration) -> Delay<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     Delay {
         remaining_samples: remaining_samples(duration, input.sample_rate(), input.channels()),
@@ -38,7 +37,6 @@ pub struct Delay<I> {
 impl<I> Delay<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns a reference to the inner source.
     #[inline]
@@ -62,7 +60,6 @@ where
 impl<I> Iterator for Delay<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = <I as Iterator>::Item;
 
@@ -70,7 +67,7 @@ where
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
         if self.remaining_samples >= 1 {
             self.remaining_samples -= 1;
-            Some(Sample::ZERO_VALUE)
+            Some(0.0)
         } else {
             self.input.next()
         }
@@ -89,7 +86,6 @@ where
 impl<I> Source for Delay<I>
 where
     I: Iterator + Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

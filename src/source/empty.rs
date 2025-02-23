@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::time::Duration;
 
 use super::SeekError;
@@ -7,37 +6,34 @@ use crate::{Sample, Source};
 
 /// An empty source.
 #[derive(Debug, Copy, Clone)]
-pub struct Empty<S>(PhantomData<S>);
+pub struct Empty();
 
-impl<S> Default for Empty<S> {
+impl Default for Empty {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S> Empty<S> {
+impl Empty {
     /// An empty source that immediately ends without ever returning a sample to
     /// play
     #[inline]
-    pub fn new() -> Empty<S> {
-        Empty(PhantomData)
+    pub fn new() -> Empty {
+        Empty()
     }
 }
 
-impl<S> Iterator for Empty<S> {
-    type Item = S;
+impl Iterator for Empty {
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         None
     }
 }
 
-impl<S> Source for Empty<S>
-where
-    S: Sample,
-{
+impl Source for Empty {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         None

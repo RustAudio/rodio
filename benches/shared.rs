@@ -2,17 +2,17 @@ use std::io::Cursor;
 use std::time::Duration;
 use std::vec;
 
-use rodio::{decoder::DecoderSample, ChannelCount, Sample, SampleRate, Source};
+use rodio::{ChannelCount, Sample, SampleRate, Source};
 
-pub struct TestSource<T> {
-    samples: vec::IntoIter<T>,
+pub struct TestSource {
+    samples: vec::IntoIter<Sample>,
     channels: u16,
     sample_rate: u32,
     total_duration: Duration,
 }
 
-impl<T> Iterator for TestSource<T> {
-    type Item = T;
+impl Iterator for TestSource {
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -20,14 +20,14 @@ impl<T> Iterator for TestSource<T> {
     }
 }
 
-impl<T> ExactSizeIterator for TestSource<T> {
+impl ExactSizeIterator for TestSource {
     #[inline]
     fn len(&self) -> usize {
         self.samples.len()
     }
 }
 
-impl<T: Sample> Source for TestSource<T> {
+impl Source for TestSource {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         None // forever
@@ -49,33 +49,7 @@ impl<T: Sample> Source for TestSource<T> {
     }
 }
 
-impl TestSource<i16> {
-    #[allow(unused, reason = "not everything from shared is used in all libs")]
-    pub fn to_f32s(self) -> TestSource<f32> {
-        let TestSource {
-            samples,
-            channels,
-            sample_rate,
-            total_duration,
-        } = self;
-        let samples = samples.map(|s| s.to_f32()).collect::<Vec<_>>().into_iter();
-        TestSource {
-            samples,
-            channels,
-            sample_rate,
-            total_duration,
-        }
-    }
-}
-
-impl TestSource<f32> {
-    #[allow(unused, reason = "not everything from shared is used in all libs")]
-    pub fn to_f32s(self) -> TestSource<f32> {
-        self
-    }
-}
-
-pub fn music_wav() -> TestSource<DecoderSample> {
+pub fn music_wav() -> TestSource {
     let data = include_bytes!("../assets/music.wav");
     let cursor = Cursor::new(data);
 

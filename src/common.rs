@@ -1,4 +1,4 @@
-/// Stream sample rate (samples per second per channel).
+/// Stream sample rate (a frame rate or samples per second per channel).
 pub type SampleRate = u32;
 
 /// Number of channels in a stream.

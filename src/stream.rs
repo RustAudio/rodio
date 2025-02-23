@@ -1,14 +1,13 @@
-use std::io::{Read, Seek};
-use std::marker::Sync;
-use std::sync::Arc;
-use std::{error, fmt};
-
 use crate::common::{ChannelCount, SampleRate};
 use crate::decoder;
 use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, FrameCount, Sample, SampleFormat, StreamConfig, SupportedBufferSize};
+use std::io::{Read, Seek};
+use std::marker::Sync;
+use std::sync::Arc;
+use std::{error, fmt};
 
 const HZ_44100: SampleRate = 44_100;
 
@@ -212,7 +211,9 @@ fn clamp_supported_buffer_size(
 ) -> BufferSize {
     match buffer_size {
         SupportedBufferSize::Range { min, max } => {
-            BufferSize::Fixed(preferred_size.clamp(*min, *max))
+            let size = preferred_size.clamp(*min, *max);
+            assert!(size > 0, "selected buffer size is greater than zero");
+            BufferSize::Fixed(size)
         }
         SupportedBufferSize::Unknown => BufferSize::Default,
     }
@@ -321,10 +322,22 @@ impl error::Error for StreamError {
 }
 
 impl OutputStream {
+    fn validate_config(config: &OutputStreamConfig) {
+        if let BufferSize::Fixed(sz) = config.buffer_size {
+            assert!(sz > 0, "fixed buffer size is greater than zero");
+        }
+        assert!(config.sample_rate > 0, "sample rate is greater than zero");
+        assert!(
+            config.channel_count > 0,
+            "channel number is greater than zero"
+        );
+    }
+
     fn open(
         device: &cpal::Device,
         config: &OutputStreamConfig,
     ) -> Result<OutputStream, StreamError> {
+        Self::validate_config(config);
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
         Self::init_stream(device, config, source).and_then(|stream| {
             stream.play().map_err(StreamError::PlayStreamError)?;

@@ -317,10 +317,19 @@ impl error::Error for StreamError {
 }
 
 impl OutputStream {
+    fn validate_config(config: &OutputStreamConfig) {
+        if let BufferSize::Fixed(sz) = config.buffer_size {
+            assert!(sz > 0, "fixed buffer size is greater than zero");
+        }
+        assert!(config.sample_rate > 0, "sample rate is greater than zero");
+        assert!(config.channel_count > 0, "channel number is greater than zero");
+    }
+
     fn open(
         device: &cpal::Device,
         config: &OutputStreamConfig,
     ) -> Result<OutputStream, StreamError> {
+        Self::validate_config(config);
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
         Self::init_stream(device, config, source)
             .map_err(StreamError::BuildStreamError)

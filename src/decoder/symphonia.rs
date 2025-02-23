@@ -15,7 +15,7 @@ use symphonia::{
 };
 
 use super::DecoderError;
-use crate::common::{ChannelCount, SampleRate, Sample};
+use crate::common::{ChannelCount, Sample, SampleRate};
 use crate::{source, Source};
 
 // Decoder errors are not considered fatal.

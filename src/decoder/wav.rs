@@ -10,8 +10,6 @@ use dasp_sample::Sample as _;
 use dasp_sample::I24;
 use hound::{SampleFormat, WavReader};
 
-
-
 /// Decoder for the WAV format.
 pub struct WavDecoder<R>
 where

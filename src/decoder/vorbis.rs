@@ -4,11 +4,9 @@ use std::time::Duration;
 use crate::source::SeekError;
 use crate::Source;
 
-use crate::common::{ChannelCount, SampleRate, Sample};
+use crate::common::{ChannelCount, Sample, SampleRate};
 use lewton::inside_ogg::OggStreamReader;
 use lewton::samples::InterleavedSamples;
-
-
 
 /// Decoder for an OGG file that contains Vorbis sound format.
 pub struct VorbisDecoder<R>
@@ -34,11 +32,10 @@ where
         Ok(Self::from_stream_reader(stream_reader))
     }
     pub fn from_stream_reader(mut stream_reader: OggStreamReader<R>) -> Self {
-        let mut data =
-            match stream_reader.read_dec_packet_generic::<InterleavedSamples<Sample>>() {
-                Ok(Some(d)) => d.samples,
-                _ => Vec::new(),
-            };
+        let mut data = match stream_reader.read_dec_packet_generic::<InterleavedSamples<Sample>>() {
+            Ok(Some(d)) => d.samples,
+            _ => Vec::new(),
+        };
 
         // The first packet is always empty, therefore
         // we need to read the second frame to get some data

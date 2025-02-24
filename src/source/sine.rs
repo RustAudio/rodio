@@ -40,7 +40,7 @@ impl Iterator for SineWave {
 impl Source for SineWave {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        None
+        false
     }
 
     #[inline]

@@ -40,7 +40,7 @@ impl Iterator for SquareWave {
 impl Source for SquareWave {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        None
+        false
     }
 
     #[inline]

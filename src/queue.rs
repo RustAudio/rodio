@@ -128,27 +128,29 @@ impl Source for SourcesQueueOutput {
         // constant.
 
         // Try the current `current_span_len`.
-        if let Some(val) = self.current.parameters_changed() {
-            if val != 0 {
-                return Some(val);
-            } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
-                && self.input.next_sounds.lock().unwrap().is_empty()
-            {
-                // The next source will be a filler silence which will have the length of `THRESHOLD`
-                return Some(THRESHOLD);
-            }
-        }
 
-        // Try the size hint.
-        let (lower_bound, _) = self.current.size_hint();
-        // The iterator default implementation just returns 0.
-        // That's a problematic value, so skip it.
-        if lower_bound > 0 {
-            return Some(lower_bound);
-        }
-
-        // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        todo!()
+        // if let Some(val) = self.current.parameters_changed() {
+        //     if val != 0 {
+        //         return Some(val);
+        //     } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
+        //         && self.input.next_sounds.lock().unwrap().is_empty()
+        //     {
+        //         // The next source will be a filler silence which will have the length of `THRESHOLD`
+        //         return Some(THRESHOLD);
+        //     }
+        // }
+        //
+        // // Try the size hint.
+        // let (lower_bound, _) = self.current.size_hint();
+        // // The iterator default implementation just returns 0.
+        // // That's a problematic value, so skip it.
+        // if lower_bound > 0 {
+        //     return Some(lower_bound);
+        // }
+        //
+        // // Otherwise we use the constant value.
+        // Some(THRESHOLD)
     }
 
     #[inline]

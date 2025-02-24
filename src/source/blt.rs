@@ -116,9 +116,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        let last_in_span = self.input.parameters_changed() == Some(1);
-
-        if self.applier.is_none() {
+        if self.input.parameters_changed() {
             self.applier = Some(self.formula.to_applier(self.input.sample_rate()));
         }
 
@@ -126,17 +124,14 @@ where
         let result = self
             .applier
             .as_ref()
-            .unwrap()
+            .expect("just set above") // TODO we can do without the Option now we have
+                                      // `parameters_changed`
             .apply(sample, self.x_n1, self.x_n2, self.y_n1, self.y_n2);
 
         self.y_n2 = self.y_n1;
         self.x_n2 = self.x_n1;
         self.y_n1 = result;
         self.x_n1 = sample;
-
-        if last_in_span {
-            self.applier = None;
-        }
 
         Some(result)
     }

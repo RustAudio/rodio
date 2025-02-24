@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use crate::source::buffered::Buffered;
 
+use super::peekable::Peekable;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
@@ -13,7 +14,7 @@ where
 {
     let input = input.buffered();
     Repeat {
-        inner: input.clone(),
+        inner: Peekable::new(input.clone()),
         next: input,
     }
 }
@@ -23,7 +24,7 @@ pub struct Repeat<I>
 where
     I: Source,
 {
-    inner: Buffered<I>,
+    inner: Peekable<Buffered<I>>,
     next: Buffered<I>,
 }
 
@@ -36,11 +37,11 @@ where
     #[inline]
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
         if let Some(value) = self.inner.next() {
-            return Some(value);
+            Some(value)
+        } else {
+            self.inner = Peekable::new(self.next.clone());
+            self.inner.next()
         }
-
-        self.inner = self.next.clone();
-        self.inner.next()
     }
 
     #[inline]
@@ -56,25 +57,28 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        match self.inner.parameters_changed() {
-            Some(0) => self.next.parameters_changed(),
-            a => a,
+        if self.inner.peek().is_none() {
+            true // back to beginning of source source
+        } else {
+            self.inner.parameters_changed()
         }
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        match self.inner.parameters_changed() {
-            Some(0) => self.next.channels(),
-            _ => self.inner.channels(),
+        if self.inner.peek().is_none() {
+            self.next.channels()
+        } else {
+            self.inner.channels()
         }
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        match self.inner.parameters_changed() {
-            Some(0) => self.next.sample_rate(),
-            _ => self.inner.sample_rate(),
+        if self.inner.peek().is_none() {
+            self.next.sample_rate()
+        } else {
+            self.inner.sample_rate()
         }
     }
 

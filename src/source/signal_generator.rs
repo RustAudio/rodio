@@ -138,7 +138,7 @@ impl Iterator for SignalGenerator {
 impl Source for SignalGenerator {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        None
+        false
     }
 
     #[inline]

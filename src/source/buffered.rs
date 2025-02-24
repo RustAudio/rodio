@@ -1,4 +1,3 @@
-use std::cmp;
 use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -98,18 +97,24 @@ fn extract<I>(mut input: I) -> Arc<Span<I>>
 where
     I: Source,
 {
-    let span_len = input.parameters_changed();
-
-    if span_len == Some(0) {
+    if input.parameters_changed() {
         return Arc::new(Span::End);
     }
 
     let channels = input.channels();
     let rate = input.sample_rate();
-    let data: Vec<I::Item> = input
-        .by_ref()
-        .take(cmp::min(span_len.unwrap_or(32768), 32768))
-        .collect();
+
+    let mut data = Vec::new();
+    loop {
+        let Some(element) = input.next() else { break };
+        data.push(element);
+        if input.parameters_changed() {
+            break;
+        }
+        if data.len() > 32768 {
+            break;
+        }
+    }
 
     if data.is_empty() {
         return Arc::new(Span::End);
@@ -193,9 +198,7 @@ where
     }
 }
 
-// TODO: uncomment when `size_hint` is fixed
-/*impl<I> ExactSizeIterator for Amplify<I> where I: Source + ExactSizeIterator, I::Item: Sample {
-}*/
+// TODO: implement exactsize iterator when size_hint is done
 
 impl<I> Source for Buffered<I>
 where
@@ -204,8 +207,8 @@ where
     #[inline]
     fn parameters_changed(&self) -> bool {
         match &*self.current_span {
-            Span::Data(SpanData { data, .. }) => Some(data.len() - self.position_in_span),
-            Span::End => Some(0),
+            Span::Data(_) => false,
+            Span::End => true,
             Span::Input(_) => unreachable!(),
         }
     }

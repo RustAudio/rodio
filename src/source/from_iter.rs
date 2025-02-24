@@ -87,28 +87,30 @@ where
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
         // situation we force a span to have a maximum number of samples indicate by this
         // constant.
-        const THRESHOLD: usize = 10240;
-
-        // Try the current `current_span_len`.
-        if let Some(src) = &self.current_source {
-            if let Some(val) = src.parameters_changed() {
-                if val != 0 {
-                    return Some(val);
-                }
-            }
-        }
-
-        // Try the size hint.
-        if let Some(src) = &self.current_source {
-            if let Some(val) = src.size_hint().1 {
-                if val < THRESHOLD && val != 0 {
-                    return Some(val);
-                }
-            }
-        }
-
-        // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        
+        todo!()
+        // const THRESHOLD: usize = 10240;
+        //
+        // // Try the current `current_span_len`.
+        // if let Some(src) = &self.current_source {
+        //     if let Some(val) = src.parameters_changed() {
+        //         if val != 0 {
+        //             return Some(val);
+        //         }
+        //     }
+        // }
+        //
+        // // Try the size hint.
+        // if let Some(src) = &self.current_source {
+        //     if let Some(val) = src.size_hint().1 {
+        //         if val < THRESHOLD && val != 0 {
+        //             return Some(val);
+        //         }
+        //     }
+        // }
+        //
+        // // Otherwise we use the constant value.
+        // Some(THRESHOLD)
     }
 
     #[inline]

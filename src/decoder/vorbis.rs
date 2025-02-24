@@ -64,7 +64,8 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        Some(self.current_data.len())
+        todo!()
+        //Some(self.current_data.len())
     }
 
     #[inline]

@@ -58,7 +58,7 @@ impl Iterator for Chirp {
 
 impl Source for Chirp {
     fn parameters_changed(&self) -> bool {
-        None
+        false
     }
 
     fn channels(&self) -> ChannelCount {

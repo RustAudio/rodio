@@ -89,9 +89,7 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        self.input
-            .parameters_changed()
-            .map(|val| val + self.remaining_samples)
+        self.input.parameters_changed()
     }
 
     #[inline]

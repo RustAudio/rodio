@@ -40,7 +40,7 @@ impl Iterator for TriangleWave {
 impl Source for TriangleWave {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        None
+        false
     }
 
     #[inline]

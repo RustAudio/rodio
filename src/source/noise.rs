@@ -60,7 +60,7 @@ impl Iterator for WhiteNoise {
 
 impl Source for WhiteNoise {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         None
     }
 
@@ -136,7 +136,7 @@ impl Iterator for PinkNoise {
 }
 
 impl Source for PinkNoise {
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         None
     }
 

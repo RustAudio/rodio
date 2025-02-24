@@ -81,7 +81,7 @@ pub struct MixerSource {
 
 impl Source for MixerSource {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         None
     }
 

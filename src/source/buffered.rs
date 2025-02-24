@@ -98,7 +98,7 @@ fn extract<I>(mut input: I) -> Arc<Span<I>>
 where
     I: Source,
 {
-    let span_len = input.current_span_len();
+    let span_len = input.parameters_changed();
 
     if span_len == Some(0) {
         return Arc::new(Span::End);
@@ -202,7 +202,7 @@ where
     I: Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         match &*self.current_span {
             Span::Data(SpanData { data, .. }) => Some(data.len() - self.position_in_span),
             Span::End => Some(0),

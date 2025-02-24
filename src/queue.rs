@@ -115,11 +115,11 @@ const THRESHOLD: usize = 512;
 
 impl Source for SourcesQueueOutput {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         // This function is non-trivial because the boundary between two sounds in the queue should
         // be a span boundary as well.
         //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
+        // The current sound is free to return `None` for `parameters_changed()`, in which case
         // we *should* return the number of samples remaining the current sound.
         // This can be estimated with `size_hint()`.
         //
@@ -128,7 +128,7 @@ impl Source for SourcesQueueOutput {
         // constant.
 
         // Try the current `current_span_len`.
-        if let Some(val) = self.current.current_span_len() {
+        if let Some(val) = self.current.parameters_changed() {
             if val != 0 {
                 return Some(val);
             } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)

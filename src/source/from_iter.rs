@@ -76,11 +76,11 @@ where
     I::Item: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         // This function is non-trivial because the boundary between the current source and the
         // next must be a span boundary as well.
         //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
+        // The current sound is free to return `None` for `parameters_changed()`, in which case
         // we *should* return the number of samples remaining the current sound.
         // This can be estimated with `size_hint()`.
         //
@@ -91,7 +91,7 @@ where
 
         // Try the current `current_span_len`.
         if let Some(src) = &self.current_source {
-            if let Some(val) = src.current_span_len() {
+            if let Some(val) = src.parameters_changed() {
                 if val != 0 {
                     return Some(val);
                 }

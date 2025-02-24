@@ -102,18 +102,18 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-            DecoderImpl::Wav(source) => source.current_span_len(),
+            DecoderImpl::Wav(source) => source.parameters_changed(),
             #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-            DecoderImpl::Vorbis(source) => source.current_span_len(),
+            DecoderImpl::Vorbis(source) => source.parameters_changed(),
             #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-            DecoderImpl::Flac(source) => source.current_span_len(),
+            DecoderImpl::Flac(source) => source.parameters_changed(),
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-            DecoderImpl::Mp3(source) => source.current_span_len(),
+            DecoderImpl::Mp3(source) => source.parameters_changed(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.current_span_len(),
+            DecoderImpl::Symphonia(source) => source.parameters_changed(),
             DecoderImpl::None(_) => Some(0),
         }
     }
@@ -414,8 +414,8 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.0.current_span_len()
+    fn parameters_changed(&self) -> bool {
+        self.0.parameters_changed()
     }
 
     #[inline]
@@ -512,8 +512,8 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.0.current_span_len()
+    fn parameters_changed(&self) -> bool {
+        self.0.parameters_changed()
     }
 
     #[inline]

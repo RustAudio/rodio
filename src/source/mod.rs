@@ -146,7 +146,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// stay the same for long periods of time and avoids calling `channels()` and
 /// `sample_rate` too frequently.
 ///
-/// In order to properly handle this situation, the `current_span_len()` method should return
+/// In order to properly handle this situation, the `parameters_changed()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
@@ -157,7 +157,7 @@ pub trait Source: Iterator<Item = Sample> {
     ///
     /// After the engine has finished reading the specified number of samples, it will check
     /// whether the value of `channels()` and/or `sample_rate()` have changed.
-    fn current_span_len(&self) -> Option<usize>;
+    fn parameters_changed(&self) -> bool;
 
     /// Returns the number of channels. Channels are always interleaved.
     fn channels(&self) -> ChannelCount;
@@ -646,8 +646,8 @@ macro_rules! source_pointer_impl {
     ($($sig:tt)+) => {
         impl $($sig)+ {
             #[inline]
-            fn current_span_len(&self) -> Option<usize> {
-                (**self).current_span_len()
+            fn parameters_changed(&self) -> bool {
+                (**self).parameters_changed()
             }
 
             #[inline]

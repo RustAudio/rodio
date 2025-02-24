@@ -63,7 +63,7 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         Some(self.current_data.len())
     }
 

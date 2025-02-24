@@ -57,7 +57,7 @@ impl Iterator for Chirp {
 }
 
 impl Source for Chirp {
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         None
     }
 

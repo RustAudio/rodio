@@ -6,6 +6,8 @@ use core::time::Duration;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
 use dasp_sample::FromSample;
+use take_samples::TakeSamples;
+use take_span::TakeSpan;
 
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
@@ -37,7 +39,7 @@ pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::square::SquareWave;
 pub use self::stoppable::Stoppable;
-pub use self::take::TakeDuration;
+pub use self::take_duration::TakeDuration;
 pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
@@ -60,6 +62,7 @@ mod from_iter;
 mod linear_ramp;
 mod mix;
 mod pausable;
+mod peekable;
 mod periodic;
 mod position;
 mod repeat;
@@ -72,7 +75,9 @@ mod spatial;
 mod speed;
 mod square;
 mod stoppable;
-mod take;
+mod take_duration;
+mod take_samples;
+mod take_span;
 mod triangle;
 mod uniform;
 mod zero;
@@ -151,12 +156,9 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// channels can potentially change.
 ///
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends. `None` means "infinite" or
-    /// "until the sound ends".
-    /// Should never return 0 unless there's no more data.
-    ///
-    /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// Whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// This is true before the next call to `Source::next`. After the first
+    /// `Source::next` call this will be false again.
     fn parameters_changed(&self) -> bool;
 
     /// Returns the number of channels. Channels are always interleaved.
@@ -207,7 +209,27 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        take::take_duration(self, duration)
+        take_duration::take_duration(self, duration)
+    }
+
+    /// Takes a samples until the current span ends, which is when any of
+    /// the source parameters_change.
+    #[inline]
+    fn take_span(self) -> TakeSpan<Self>
+    where
+        Self: Sized,
+    {
+        TakeSpan::new(self)
+    }
+
+    /// Takes n samples. N might be slightly adjusted to make sure
+    /// this source ends on a frame boundary
+    #[inline]
+    fn take_samples(self, n: usize) -> TakeSamples<Self>
+    where
+        Self: Sized,
+    {
+        TakeSamples::new(self, n)
     }
 
     /// Delays the sound by a certain duration.

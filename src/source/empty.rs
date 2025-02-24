@@ -36,7 +36,7 @@ impl Iterator for Empty {
 impl Source for Empty {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        None
+        false
     }
 
     #[inline]

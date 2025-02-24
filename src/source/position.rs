@@ -13,7 +13,6 @@ pub fn track_position<I>(source: I) -> TrackPosition<I> {
         offset_duration: 0.0,
         current_span_sample_rate: 0,
         current_span_channels: 0,
-        current_span_len: None,
     }
 }
 
@@ -25,7 +24,6 @@ pub struct TrackPosition<I> {
     offset_duration: f64,
     current_span_sample_rate: SampleRate,
     current_span_channels: ChannelCount,
-    current_span_len: Option<usize>,
 }
 
 impl<I> TrackPosition<I> {
@@ -59,7 +57,7 @@ where
     /// returned by [`get_pos`](TrackPosition::get_pos).
     ///
     /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
-    /// together with [`Source::try_seek()`] as the the latter does take all
+    /// together with [`Source::try_seek()`] as the latter does take all
     /// speedup's and delay's into account. Its recommended therefore to apply
     /// track_position after speedup's and delay's.
     #[inline]
@@ -69,13 +67,6 @@ where
             / self.input.channels() as f64
             + self.offset_duration;
         Duration::from_secs_f64(seconds)
-    }
-
-    #[inline]
-    fn set_current_span(&mut self) {
-        self.current_span_len = self.parameters_changed();
-        self.current_span_sample_rate = self.sample_rate();
-        self.current_span_channels = self.channels();
     }
 }
 
@@ -87,25 +78,21 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        // This should only be executed once at the first call to next.
-        if self.current_span_len.is_none() {
-            self.set_current_span();
-        }
-
         let item = self.input.next();
         if item.is_some() {
             self.samples_counted += 1;
 
             // At the end of a span add the duration of this span to
             // offset_duration and start collecting samples again.
-            if Some(self.samples_counted) == self.parameters_changed() {
+            if self.parameters_changed() {
                 self.offset_duration += self.samples_counted as f64
                     / self.current_span_sample_rate as f64
                     / self.current_span_channels as f64;
 
                 // Reset.
                 self.samples_counted = 0;
-                self.set_current_span();
+                self.current_span_sample_rate = self.sample_rate();
+                self.current_span_channels = self.channels();
             };
         };
         item

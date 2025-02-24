@@ -81,13 +81,7 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        let f1 = self.input1.parameters_changed();
-        let f2 = self.input2.parameters_changed();
-
-        match (f1, f2) {
-            (Some(f1), Some(f2)) => Some(cmp::min(f1, f2)),
-            _ => None,
-        }
+        self.input1.parameters_changed() || self.input2.parameters_changed()
     }
 
     #[inline]

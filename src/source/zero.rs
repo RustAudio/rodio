@@ -60,7 +60,7 @@ impl Iterator for Zero {
 impl Source for Zero {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        self.num_samples
+        false
     }
 
     #[inline]

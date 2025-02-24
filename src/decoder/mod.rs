@@ -114,7 +114,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.parameters_changed(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source) => source.parameters_changed(),
-            DecoderImpl::None(_) => Some(0),
+            DecoderImpl::None(_) => false,
         }
     }
 

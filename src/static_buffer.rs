@@ -64,7 +64,7 @@ impl StaticSamplesBuffer {
 impl Source for StaticSamplesBuffer {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        None
+        false
     }
 
     #[inline]

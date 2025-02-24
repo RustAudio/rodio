@@ -10,7 +10,6 @@ where
     I: Source,
 {
     TakeDuration {
-        current_span_len: input.parameters_changed(),
         duration_per_sample: TakeDuration::get_duration_per_sample(&input),
         input,
         remaining_duration: duration,
@@ -45,9 +44,7 @@ pub struct TakeDuration<I> {
     remaining_duration: Duration,
     requested_duration: Duration,
     filter: Option<DurationFilter>,
-    // Remaining samples in current span.
-    current_span_len: Option<usize>,
-    // Only updated when the current span len is exhausted.
+    // Only updated when the current span is exhausted.
     duration_per_sample: Duration,
 }
 
@@ -81,7 +78,7 @@ where
         self.input
     }
 
-    /// Make the truncated source end with a FadeOut. The fadeout covers the
+    /// Make the truncated source end with a FadeOut. The fade-out covers the
     /// entire length of the take source.
     pub fn set_filter_fadeout(&mut self) {
         self.filter = Some(DurationFilter::FadeOut);
@@ -99,15 +96,10 @@ where
 {
     type Item = <I as Iterator>::Item;
 
+    // TODO guarantee end on frame boundary
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if let Some(span_len) = self.current_span_len.take() {
-            if span_len > 0 {
-                self.current_span_len = Some(span_len - 1);
-            } else {
-                self.current_span_len = self.input.parameters_changed();
-                // Sample rate might have changed
-                self.duration_per_sample = Self::get_duration_per_sample(&self.input);
-            }
+        if self.input.parameters_changed() {
+            self.duration_per_sample = Self::get_duration_per_sample(&self.input);
         }
 
         if self.remaining_duration <= self.duration_per_sample {
@@ -119,15 +111,14 @@ where
             };
 
             self.remaining_duration -= self.duration_per_sample;
-
             Some(sample)
         } else {
             None
         }
     }
-
-    // TODO: size_hint
 }
+
+// TODO: size_hint
 
 impl<I> Source for TakeDuration<I>
 where
@@ -135,16 +126,7 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        let remaining_nanos = self.remaining_duration.as_secs() * NANOS_PER_SEC
-            + self.remaining_duration.subsec_nanos() as u64;
-        let nanos_per_sample = self.duration_per_sample.as_secs() * NANOS_PER_SEC
-            + self.duration_per_sample.subsec_nanos() as u64;
-        let remaining_samples = (remaining_nanos / nanos_per_sample) as usize;
-
-        self.input
-            .parameters_changed()
-            .filter(|value| *value < remaining_samples)
-            .or(Some(remaining_samples))
+        self.input.parameters_changed()
     }
 
     #[inline]

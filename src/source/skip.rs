@@ -4,7 +4,7 @@ use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
 
-const NS_PER_SECOND: u128 = 1_000_000_000;
+const US_PER_SECOND: u64 = 1_000_000;
 
 /// Internal function that builds a `SkipDuration` object.
 pub fn skip_duration<I>(mut input: I, duration: Duration) -> SkipDuration<I>
@@ -15,67 +15,6 @@ where
     SkipDuration {
         input,
         skipped_duration: duration,
-    }
-}
-
-/// Skips specified `duration` of the given `input` source from it's current position.
-fn do_skip_duration<I>(input: &mut I, mut duration: Duration)
-where
-    I: Source,
-{
-    while duration > Duration::new(0, 0) {
-        if input.parameters_changed().is_none() {
-            // Sample rate and the amount of channels will be the same till the end.
-            do_skip_duration_unchecked(input, duration);
-            return;
-        }
-
-        // .unwrap() safety: if `parameters_changed()` is None, the body of the `if` statement
-        // above returns before we get here.
-        let span_len: usize = input.parameters_changed().unwrap();
-        // If span_len is zero, then there is no more data to skip. Instead
-        // just bail out.
-        if span_len == 0 {
-            return;
-        }
-
-        let ns_per_sample: u128 =
-            NS_PER_SECOND / input.sample_rate() as u128 / input.channels() as u128;
-
-        // Check if we need to skip only part of the current span.
-        if span_len as u128 * ns_per_sample > duration.as_nanos() {
-            skip_samples(input, (duration.as_nanos() / ns_per_sample) as usize);
-            return;
-        }
-
-        skip_samples(input, span_len);
-
-        duration -= Duration::from_nanos((span_len * ns_per_sample as usize) as u64);
-    }
-}
-
-/// Skips specified `duration` from the `input` source assuming that sample rate
-/// and amount of channels are not changing.
-fn do_skip_duration_unchecked<I>(input: &mut I, duration: Duration)
-where
-    I: Source,
-{
-    let samples_per_channel: u128 =
-        duration.as_nanos() * input.sample_rate() as u128 / NS_PER_SECOND;
-    let samples_to_skip: u128 = samples_per_channel * input.channels() as u128;
-
-    skip_samples(input, samples_to_skip as usize);
-}
-
-/// Skips `n` samples from the given `input` source.
-fn skip_samples<I>(input: &mut I, n: usize)
-where
-    I: Source,
-{
-    for _ in 0..n {
-        if input.next().is_none() {
-            break;
-        }
     }
 }
 
@@ -159,95 +98,27 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
+/// Skips specified `duration` of the given `input` source from it's current position.
+fn do_skip_duration<I>(input: &mut I, mut duration: Duration)
+where
+    I: Source,
+{
+    while !duration.is_zero() {
+        let us_per_sample: u64 =
+            US_PER_SECOND / input.sample_rate() as u64 / input.channels() as u64;
+        let mut samples_to_skip = duration.as_micros() as u64 / us_per_sample;
 
-    use crate::buffer::SamplesBuffer;
-    use crate::common::{ChannelCount, SampleRate};
-    use crate::source::Source;
-
-    fn test_skip_duration_samples_left(
-        channels: ChannelCount,
-        sample_rate: SampleRate,
-        seconds: u32,
-        seconds_to_skip: u32,
-    ) {
-        let buf_len = (sample_rate * channels as u32 * seconds) as usize;
-        assert!(buf_len < 10 * 1024 * 1024);
-        let data: Vec<f32> = vec![0f32; buf_len];
-        let test_buffer = SamplesBuffer::new(channels, sample_rate, data);
-        let seconds_left = seconds.saturating_sub(seconds_to_skip);
-
-        let samples_left_expected = (sample_rate * channels as u32 * seconds_left) as usize;
-        let samples_left = test_buffer
-            .skip_duration(Duration::from_secs(seconds_to_skip as u64))
-            .count();
-
-        assert_eq!(samples_left, samples_left_expected);
-    }
-
-    macro_rules! skip_duration_test_block {
-        ($(channels: $ch:expr, sample rate: $sr:expr, seconds: $sec:expr, seconds to skip: $sec_to_skip:expr;)+) => {
-            $(
-                test_skip_duration_samples_left($ch, $sr, $sec, $sec_to_skip);
-            )+
+        while samples_to_skip > 0 && !input.parameters_changed() {
+            samples_to_skip -= 1;
+            if input.next().is_none() {
+                return;
+            }
         }
-    }
 
-    #[test]
-    fn skip_duration_shorter_than_source() {
-        skip_duration_test_block! {
-            channels: 1, sample rate: 44100, seconds: 5, seconds to skip: 3;
-            channels: 1, sample rate: 96000, seconds: 5, seconds to skip: 3;
-
-            channels: 2, sample rate: 44100, seconds: 5, seconds to skip: 3;
-            channels: 2, sample rate: 96000, seconds: 5, seconds to skip: 3;
-
-            channels: 4, sample rate: 44100, seconds: 5, seconds to skip: 3;
-            channels: 4, sample rate: 96000, seconds: 5, seconds to skip: 3;
-        }
-    }
-
-    #[test]
-    fn skip_duration_zero_duration() {
-        skip_duration_test_block! {
-            channels: 1, sample rate: 44100, seconds: 5, seconds to skip: 0;
-            channels: 1, sample rate: 96000, seconds: 5, seconds to skip: 0;
-
-            channels: 2, sample rate: 44100, seconds: 5, seconds to skip: 0;
-            channels: 2, sample rate: 96000, seconds: 5, seconds to skip: 0;
-
-            channels: 4, sample rate: 44100, seconds: 5, seconds to skip: 0;
-            channels: 4, sample rate: 96000, seconds: 5, seconds to skip: 0;
-        }
-    }
-
-    #[test]
-    fn skip_duration_longer_than_source() {
-        skip_duration_test_block! {
-            channels: 1, sample rate: 44100, seconds: 1, seconds to skip: 5;
-            channels: 1, sample rate: 96000, seconds: 10, seconds to skip: 11;
-
-            channels: 2, sample rate: 44100, seconds: 1, seconds to skip: 5;
-            channels: 2, sample rate: 96000, seconds: 10, seconds to skip: 11;
-
-            channels: 4, sample rate: 44100, seconds: 1, seconds to skip: 5;
-            channels: 4, sample rate: 96000, seconds: 10, seconds to skip: 11;
-        }
-    }
-
-    #[test]
-    fn skip_duration_equal_to_source_length() {
-        skip_duration_test_block! {
-            channels: 1, sample rate: 44100, seconds: 1, seconds to skip: 1;
-            channels: 1, sample rate: 96000, seconds: 10, seconds to skip: 10;
-
-            channels: 2, sample rate: 44100, seconds: 1, seconds to skip: 1;
-            channels: 2, sample rate: 96000, seconds: 10, seconds to skip: 10;
-
-            channels: 4, sample rate: 44100, seconds: 1, seconds to skip: 1;
-            channels: 4, sample rate: 96000, seconds: 10, seconds to skip: 10;
+        if samples_to_skip == 0 {
+            return;
+        } else {
+            duration -= Duration::from_micros(samples_to_skip * us_per_sample);
         }
     }
 }

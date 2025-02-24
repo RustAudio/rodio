@@ -116,7 +116,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<f32> {
-        let last_in_span = self.input.current_span_len() == Some(1);
+        let last_in_span = self.input.parameters_changed() == Some(1);
 
         if self.applier.is_none() {
             self.applier = Some(self.formula.to_applier(self.input.sample_rate()));
@@ -154,8 +154,8 @@ where
     I: Source<Item = f32>,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.input.current_span_len()
+    fn parameters_changed(&self) -> bool {
+        self.input.parameters_changed()
     }
 
     #[inline]

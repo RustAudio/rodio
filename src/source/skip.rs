@@ -24,15 +24,15 @@ where
     I: Source,
 {
     while duration > Duration::new(0, 0) {
-        if input.current_span_len().is_none() {
+        if input.parameters_changed().is_none() {
             // Sample rate and the amount of channels will be the same till the end.
             do_skip_duration_unchecked(input, duration);
             return;
         }
 
-        // .unwrap() safety: if `current_span_len()` is None, the body of the `if` statement
+        // .unwrap() safety: if `parameters_changed()` is None, the body of the `if` statement
         // above returns before we get here.
-        let span_len: usize = input.current_span_len().unwrap();
+        let span_len: usize = input.parameters_changed().unwrap();
         // If span_len is zero, then there is no more data to skip. Instead
         // just bail out.
         if span_len == 0 {
@@ -131,8 +131,8 @@ where
     I: Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.input.current_span_len()
+    fn parameters_changed(&self) -> bool {
+        self.input.parameters_changed()
     }
 
     #[inline]

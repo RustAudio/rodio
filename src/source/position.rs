@@ -73,7 +73,7 @@ where
 
     #[inline]
     fn set_current_span(&mut self) {
-        self.current_span_len = self.current_span_len();
+        self.current_span_len = self.parameters_changed();
         self.current_span_sample_rate = self.sample_rate();
         self.current_span_channels = self.channels();
     }
@@ -98,7 +98,7 @@ where
 
             // At the end of a span add the duration of this span to
             // offset_duration and start collecting samples again.
-            if Some(self.samples_counted) == self.current_span_len() {
+            if Some(self.samples_counted) == self.parameters_changed() {
                 self.offset_duration += self.samples_counted as f64
                     / self.current_span_sample_rate as f64
                     / self.current_span_channels as f64;
@@ -122,8 +122,8 @@ where
     I: Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.input.current_span_len()
+    fn parameters_changed(&self) -> bool {
+        self.input.parameters_changed()
     }
 
     #[inline]

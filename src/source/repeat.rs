@@ -55,16 +55,16 @@ where
     I: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        match self.inner.current_span_len() {
-            Some(0) => self.next.current_span_len(),
+    fn parameters_changed(&self) -> bool {
+        match self.inner.parameters_changed() {
+            Some(0) => self.next.parameters_changed(),
             a => a,
         }
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        match self.inner.current_span_len() {
+        match self.inner.parameters_changed() {
             Some(0) => self.next.channels(),
             _ => self.inner.channels(),
         }
@@ -72,7 +72,7 @@ where
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        match self.inner.current_span_len() {
+        match self.inner.parameters_changed() {
             Some(0) => self.next.sample_rate(),
             _ => self.inner.sample_rate(),
         }

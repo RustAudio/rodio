@@ -67,8 +67,8 @@ where
     I: Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.inner().current_span_len()
+    fn parameters_changed(&self) -> bool {
+        self.inner().parameters_changed()
     }
 
     #[inline]

@@ -10,7 +10,7 @@ where
     I: Source,
 {
     TakeDuration {
-        current_span_len: input.current_span_len(),
+        current_span_len: input.parameters_changed(),
         duration_per_sample: TakeDuration::get_duration_per_sample(&input),
         input,
         remaining_duration: duration,
@@ -104,7 +104,7 @@ where
             if span_len > 0 {
                 self.current_span_len = Some(span_len - 1);
             } else {
-                self.current_span_len = self.input.current_span_len();
+                self.current_span_len = self.input.parameters_changed();
                 // Sample rate might have changed
                 self.duration_per_sample = Self::get_duration_per_sample(&self.input);
             }
@@ -134,7 +134,7 @@ where
     I: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         let remaining_nanos = self.remaining_duration.as_secs() * NANOS_PER_SEC
             + self.remaining_duration.subsec_nanos() as u64;
         let nanos_per_sample = self.duration_per_sample.as_secs() * NANOS_PER_SEC
@@ -142,7 +142,7 @@ where
         let remaining_samples = (remaining_nanos / nanos_per_sample) as usize;
 
         self.input
-            .current_span_len()
+            .parameters_changed()
             .filter(|value| *value < remaining_samples)
             .or(Some(remaining_samples))
     }

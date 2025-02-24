@@ -52,7 +52,7 @@ where
         target_sample_rate: SampleRate,
     ) -> ChannelCountConverter<SampleRateConverter<Take<I>>> {
         // Limit the span length to something reasonable
-        let span_len = input.current_span_len().map(|x| x.min(32768));
+        let span_len = input.parameters_changed().map(|x| x.min(32768));
 
         let from_channels = input.channels();
         let from_sample_rate = input.sample_rate();
@@ -100,7 +100,7 @@ where
     I: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         None
     }
 

@@ -39,7 +39,7 @@ impl Iterator for SineWave {
 
 impl Source for SineWave {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         None
     }
 

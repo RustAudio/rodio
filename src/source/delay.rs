@@ -88,9 +88,9 @@ where
     I: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         self.input
-            .current_span_len()
+            .parameters_changed()
             .map(|val| val + self.remaining_samples)
     }
 

@@ -55,7 +55,7 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         Some(self.current_span.data.len())
     }
 
@@ -96,7 +96,7 @@ where
     type Item = DecoderSample;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let current_span_len = self.current_span_len()?;
+        let current_span_len = self.parameters_changed()?;
         if self.current_span_offset == current_span_len {
             if let Ok(span) = self.decoder.next_frame() {
                 // if let Ok(span) = self.decoder.decode_frame() {

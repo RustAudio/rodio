@@ -10,6 +10,30 @@ pub fn lerp(first: &f32, second: &f32, numerator: u32, denominator: u32) -> f32 
     first + (second - first) * numerator as f32 / denominator as f32
 }
 
+/// will hopefully get stabilized, this is slightly different to the future
+/// std's version since it does some casting already. When the std's version gets
+/// stable remove this trait.
+pub(crate) trait PrevMultipleOf {
+    fn prev_multiple_of(self, n: u16) -> Self;
+}
+
+macro_rules! impl_prev_multiple_of {
+    ($type:ty) => {
+        impl PrevMultipleOf for $type {
+            fn prev_multiple_of(self, n: u16) -> $type {
+                if self.next_multiple_of(n as $type) > self {
+                    self.next_multiple_of(n as $type) - n as $type
+                } else {
+                    self.next_multiple_of(n as $type)
+                }
+            }
+        }
+    };
+}
+
+impl_prev_multiple_of! {usize}
+impl_prev_multiple_of! {u64}
+
 #[cfg(test)]
 mod test {
     use super::*;

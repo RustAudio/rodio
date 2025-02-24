@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::PrevMultipleOf;
 use crate::Source;
 
 /// A source that truncates the given source to a certain duration.
@@ -82,15 +83,5 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
-    }
-}
-
-trait PrevMultipleOf {
-    fn prev_multiple_of(self, n: u16) -> usize;
-}
-
-impl PrevMultipleOf for usize {
-    fn prev_multiple_of(self, n: u16) -> usize {
-        self.next_multiple_of(n as usize).saturating_sub(n as usize)
     }
 }

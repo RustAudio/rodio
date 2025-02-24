@@ -87,7 +87,7 @@ where
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
         // situation we force a span to have a maximum number of samples indicate by this
         // constant.
-        
+
         todo!()
         // const THRESHOLD: usize = 10240;
         //

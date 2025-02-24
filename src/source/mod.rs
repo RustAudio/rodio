@@ -33,7 +33,7 @@ pub use self::repeat::Repeat;
 pub use self::sawtooth::SawtoothWave;
 pub use self::signal_generator::{Function, SignalGenerator};
 pub use self::sine::SineWave;
-pub use self::skip::SkipDuration;
+pub use self::skip_duration::SkipDuration;
 pub use self::skippable::Skippable;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
@@ -69,7 +69,7 @@ mod repeat;
 mod sawtooth;
 mod signal_generator;
 mod sine;
-mod skip;
+mod skip_duration;
 mod skippable;
 mod spatial;
 mod speed;
@@ -252,7 +252,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        skip::skip_duration(self, duration)
+        SkipDuration::new(self, duration)
     }
 
     /// Amplifies the sound by the given value.

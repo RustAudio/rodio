@@ -74,6 +74,21 @@ where
     pub fn clear_filter(&mut self) {
         self.fadeout = false;
     }
+
+    fn next_samples_per_second(&mut self) -> u64 {
+        self.input.sample_rate() as u64 * self.input.channels() as u64
+    }
+
+    fn next_samples_to_take(&mut self) -> u64 {
+        let samples_to_take = (self.remaining_ns as u128 * self.samples_per_second as u128
+            / NS_PER_SECOND as u128) as u64;
+        let samples_to_take = samples_to_take.prev_multiple_of(self.input.channels());
+        samples_to_take
+    }
+
+    fn duration_taken(&mut self) -> u64 {
+        self.samples_taken * NS_PER_SECOND / self.samples_per_second
+    }
 }
 
 impl<I> Iterator for TakeDuration<I>
@@ -85,13 +100,9 @@ where
     // implementation is adapted of skip_duration
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
         if self.input.parameters_changed() {
-            self.remaining_ns -= self.samples_taken * NS_PER_SECOND / self.samples_per_second;
-
-            self.samples_per_second =
-                self.input.sample_rate() as u64 * self.input.channels() as u64;
-            self.samples_to_take = (self.remaining_ns as u128 * self.samples_per_second as u128
-                / NS_PER_SECOND as u128) as u64;
-            self.samples_to_take = self.samples_to_take.prev_multiple_of(self.input.channels());
+            self.remaining_ns -= self.duration_taken();
+            self.samples_per_second = self.next_samples_per_second();
+            self.samples_to_take = self.next_samples_to_take();
             self.samples_taken = 0;
         }
 

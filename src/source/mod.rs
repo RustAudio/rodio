@@ -6,6 +6,8 @@ use core::time::Duration;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
 use dasp_sample::FromSample;
+use take_samples::TakeSamples;
+use take_span::TakeSpan;
 
 pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
@@ -31,13 +33,13 @@ pub use self::repeat::Repeat;
 pub use self::sawtooth::SawtoothWave;
 pub use self::signal_generator::{Function, SignalGenerator};
 pub use self::sine::SineWave;
-pub use self::skip::SkipDuration;
+pub use self::skip_duration::SkipDuration;
 pub use self::skippable::Skippable;
 pub use self::spatial::Spatial;
 pub use self::speed::Speed;
 pub use self::square::SquareWave;
 pub use self::stoppable::Stoppable;
-pub use self::take::TakeDuration;
+pub use self::take_duration::TakeDuration;
 pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
@@ -60,19 +62,22 @@ mod from_iter;
 mod linear_ramp;
 mod mix;
 mod pausable;
+mod peekable;
 mod periodic;
 mod position;
 mod repeat;
 mod sawtooth;
 mod signal_generator;
 mod sine;
-mod skip;
+mod skip_duration;
 mod skippable;
 mod spatial;
 mod speed;
 mod square;
 mod stoppable;
-mod take;
+mod take_duration;
+mod take_samples;
+mod take_span;
 mod triangle;
 mod uniform;
 mod zero;
@@ -146,18 +151,15 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// stay the same for long periods of time and avoids calling `channels()` and
 /// `sample_rate` too frequently.
 ///
-/// In order to properly handle this situation, the `current_span_len()` method should return
+/// In order to properly handle this situation, the `parameters_changed()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends. `None` means "infinite" or
-    /// "until the sound ends".
-    /// Should never return 0 unless there's no more data.
-    ///
-    /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `sample_rate()` have changed.
-    fn current_span_len(&self) -> Option<usize>;
+    /// Whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// This is true before the next call to `Source::next`. After the first
+    /// `Source::next` call this will be false again.
+    fn parameters_changed(&self) -> bool;
 
     /// Returns the number of channels. Channels are always interleaved.
     fn channels(&self) -> ChannelCount;
@@ -207,7 +209,27 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        take::take_duration(self, duration)
+        TakeDuration::new(self, duration)
+    }
+
+    /// Takes a samples until the current span ends, which is when any of
+    /// the source parameters_change.
+    #[inline]
+    fn take_span(self) -> TakeSpan<Self>
+    where
+        Self: Sized,
+    {
+        TakeSpan::new(self)
+    }
+
+    /// Takes n samples. N might be slightly adjusted to make sure
+    /// this source ends on a frame boundary
+    #[inline]
+    fn take_samples(self, n: usize) -> TakeSamples<Self>
+    where
+        Self: Sized,
+    {
+        TakeSamples::new(self, n)
     }
 
     /// Delays the sound by a certain duration.
@@ -230,7 +252,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        skip::skip_duration(self, duration)
+        SkipDuration::new(self, duration)
     }
 
     /// Amplifies the sound by the given value.
@@ -646,8 +668,8 @@ macro_rules! source_pointer_impl {
     ($($sig:tt)+) => {
         impl $($sig)+ {
             #[inline]
-            fn current_span_len(&self) -> Option<usize> {
-                (**self).current_span_len()
+            fn parameters_changed(&self) -> bool {
+                (**self).parameters_changed()
             }
 
             #[inline]

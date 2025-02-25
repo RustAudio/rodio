@@ -29,8 +29,8 @@ impl ExactSizeIterator for TestSource {
 
 impl Source for TestSource {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None // forever
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]

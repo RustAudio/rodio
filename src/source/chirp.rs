@@ -57,8 +57,8 @@ impl Iterator for Chirp {
 }
 
 impl Source for Chirp {
-    fn current_span_len(&self) -> Option<usize> {
-        None
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     fn channels(&self) -> ChannelCount {

@@ -39,8 +39,8 @@ impl Iterator for SquareWave {
 
 impl Source for SquareWave {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]

@@ -4,32 +4,18 @@ use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
 
-/// This is the same as [`skippable`](crate::source::skippable) see its docs
-pub fn stoppable<I>(source: I) -> Stoppable<I> {
-    Stoppable {
-        input: source,
-        stopped: false,
-    }
-}
-
-/// This is the same as [`Skippable`](crate::source::Skippable) see its docs
+/// A source that truncates the given source to a certain duration.
 #[derive(Clone, Debug)]
-pub struct Stoppable<I> {
+pub struct TakeSpan<I> {
     input: I,
-    stopped: bool,
 }
 
-impl<I> Stoppable<I> {
-    /// Stops the sound.
-    #[inline]
-    pub fn stop(&mut self) {
-        self.stopped = true;
-    }
-
-    /// Returns a reference to the inner source.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
+impl<I> TakeSpan<I>
+where
+    I: Source,
+{
+    pub fn new(input: I) -> Self {
+        Self { input }
     }
 
     /// Returns a mutable reference to the inner source.
@@ -45,34 +31,31 @@ impl<I> Stoppable<I> {
     }
 }
 
-impl<I> Iterator for Stoppable<I>
+impl<I> Iterator for TakeSpan<I>
 where
     I: Source,
 {
-    type Item = I::Item;
+    type Item = <I as Iterator>::Item;
 
-    #[inline]
-    fn next(&mut self) -> Option<I::Item> {
-        if self.stopped {
+    fn next(&mut self) -> Option<<I as Iterator>::Item> {
+        if self.input.parameters_changed() {
             None
         } else {
-            self.input.next()
+            let sample = self.input.next()?;
+            Some(sample)
         }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.input.size_hint()
     }
 }
 
-impl<I> Source for Stoppable<I>
+// TODO: size_hint
+
+impl<I> Source for TakeSpan<I>
 where
-    I: Source,
+    I: Iterator + Source,
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        self.input.parameters_changed()
+        false
     }
 
     #[inline]

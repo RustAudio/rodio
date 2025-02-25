@@ -76,39 +76,41 @@ where
     I::Item: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         // This function is non-trivial because the boundary between the current source and the
         // next must be a span boundary as well.
         //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
+        // The current sound is free to return `None` for `parameters_changed()`, in which case
         // we *should* return the number of samples remaining the current sound.
         // This can be estimated with `size_hint()`.
         //
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
         // situation we force a span to have a maximum number of samples indicate by this
         // constant.
-        const THRESHOLD: usize = 10240;
 
-        // Try the current `current_span_len`.
-        if let Some(src) = &self.current_source {
-            if let Some(val) = src.current_span_len() {
-                if val != 0 {
-                    return Some(val);
-                }
-            }
-        }
-
-        // Try the size hint.
-        if let Some(src) = &self.current_source {
-            if let Some(val) = src.size_hint().1 {
-                if val < THRESHOLD && val != 0 {
-                    return Some(val);
-                }
-            }
-        }
-
-        // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        todo!()
+        // const THRESHOLD: usize = 10240;
+        //
+        // // Try the current `current_span_len`.
+        // if let Some(src) = &self.current_source {
+        //     if let Some(val) = src.parameters_changed() {
+        //         if val != 0 {
+        //             return Some(val);
+        //         }
+        //     }
+        // }
+        //
+        // // Try the size hint.
+        // if let Some(src) = &self.current_source {
+        //     if let Some(val) = src.size_hint().1 {
+        //         if val < THRESHOLD && val != 0 {
+        //             return Some(val);
+        //         }
+        //     }
+        // }
+        //
+        // // Otherwise we use the constant value.
+        // Some(THRESHOLD)
     }
 
     #[inline]

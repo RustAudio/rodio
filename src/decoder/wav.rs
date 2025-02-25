@@ -147,8 +147,9 @@ where
     R: Read + Seek,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None
+    fn parameters_changed(&self) -> bool {
+        todo!()
+        // None
     }
 
     #[inline]

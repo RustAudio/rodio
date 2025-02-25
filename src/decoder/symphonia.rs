@@ -158,8 +158,9 @@ impl SymphoniaDecoder {
 
 impl Source for SymphoniaDecoder {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        Some(self.buffer.samples().len())
+    fn parameters_changed(&self) -> bool {
+        todo!()
+        // Some(self.buffer.samples().len())
     }
 
     #[inline]

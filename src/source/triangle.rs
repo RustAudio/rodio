@@ -39,8 +39,8 @@ impl Iterator for TriangleWave {
 
 impl Source for TriangleWave {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]

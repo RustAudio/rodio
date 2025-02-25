@@ -209,7 +209,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        take_duration::take_duration(self, duration)
+        TakeDuration::new(self, duration)
     }
 
     /// Takes a samples until the current span ends, which is when any of

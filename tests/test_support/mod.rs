@@ -1,4 +1,4 @@
-// #![allow(dead_code)]
+#![allow(dead_code)]
 /// in separate folder so its not ran as integration test
 /// should probably be moved to its own crate (rodio-test-support)
 /// that would fix the unused code warnings.

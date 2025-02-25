@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::PrevMultipleOf;
+use crate::math::{PrevMultipleOf, NS_PER_SECOND};
 use crate::Source;
 
 /// A source that skips specified duration of the given source from it's current position.
@@ -107,8 +107,6 @@ fn do_skip_duration<I>(input: &mut I, duration: Duration)
 where
     I: Source,
 {
-    const NS_PER_SECOND: u64 = 1_000_000_000;
-
     // `u64::MAX` can store 584 days of nanosecond precision time. To not be off by
     // a single sample (that would be regression) we first multiply the time by
     // `samples_per second`. Which for a 96kHz 10 channel audio stream is

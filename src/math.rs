@@ -10,6 +10,8 @@ pub fn lerp(first: &f32, second: &f32, numerator: u32, denominator: u32) -> f32 
     first + (second - first) * numerator as f32 / denominator as f32
 }
 
+pub(crate) const NS_PER_SECOND: u64 = 1_000_000_000;
+
 /// will hopefully get stabilized, this is slightly different to the future
 /// std's version since it does some casting already. When the std's version gets
 /// stable remove this trait.

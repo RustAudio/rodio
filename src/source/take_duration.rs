@@ -2,62 +2,48 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
-
-/// Internal function that builds a `TakeDuration` object.
-pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
-where
-    I: Source,
-{
-    TakeDuration {
-        duration_per_sample: TakeDuration::get_duration_per_sample(&input),
-        input,
-        remaining_duration: duration,
-        requested_duration: duration,
-        filter: None,
-    }
-}
-
-/// A filter that can be applied to a `TakeDuration`.
-#[derive(Clone, Debug)]
-enum DurationFilter {
-    FadeOut,
-}
-impl DurationFilter {
-    fn apply<I: Iterator>(&self, sample: Sample, parent: &TakeDuration<I>) -> Sample {
-        match self {
-            DurationFilter::FadeOut => {
-                let remaining = parent.remaining_duration.as_millis() as f32;
-                let total = parent.requested_duration.as_millis() as f32;
-                sample * remaining / total
-            }
-        }
-    }
-}
-
-const NANOS_PER_SEC: u64 = 1_000_000_000;
+use crate::math::{PrevMultipleOf, NS_PER_SECOND};
+use crate::Source;
 
 /// A source that truncates the given source to a certain duration.
 #[derive(Clone, Debug)]
 pub struct TakeDuration<I> {
     input: I,
-    remaining_duration: Duration,
     requested_duration: Duration,
-    filter: Option<DurationFilter>,
-    // Only updated when the current span is exhausted.
-    duration_per_sample: Duration,
+    remaining_ns: u64,
+    samples_per_second: u64,
+    samples_to_take: u64,
+    samples_taken: u64,
+    fadeout: bool,
 }
 
 impl<I> TakeDuration<I>
 where
     I: Source,
 {
-    /// Returns the duration elapsed for each sample extracted.
-    #[inline]
-    fn get_duration_per_sample(input: &I) -> Duration {
-        let ns = NANOS_PER_SEC / (input.sample_rate() as u64 * input.channels() as u64);
-        // \|/ the maximum value of `ns` is one billion, so this can't fail
-        Duration::new(0, ns as u32)
+    pub(crate) fn new(input: I, duration: Duration) -> TakeDuration<I>
+    where
+        I: Source,
+    {
+        let remaining_ns: u64 = duration
+            .as_nanos()
+            .try_into()
+            .expect("can not take more then 584 days of audio");
+
+        let samples_per_second = input.sample_rate() as u64 * input.channels() as u64;
+        let samples_to_take =
+            (remaining_ns as u128 * samples_per_second as u128 / NS_PER_SECOND as u128) as u64;
+        let samples_to_take = samples_to_take.prev_multiple_of(input.channels());
+
+        Self {
+            input,
+            remaining_ns,
+            fadeout: false,
+            samples_per_second,
+            samples_to_take,
+            samples_taken: 0,
+            requested_duration: duration,
+        }
     }
 
     /// Returns a reference to the inner source.
@@ -81,12 +67,12 @@ where
     /// Make the truncated source end with a FadeOut. The fade-out covers the
     /// entire length of the take source.
     pub fn set_filter_fadeout(&mut self) {
-        self.filter = Some(DurationFilter::FadeOut);
+        self.fadeout = true;
     }
 
     /// Remove any filter set.
     pub fn clear_filter(&mut self) {
-        self.filter = None;
+        self.fadeout = false;
     }
 }
 
@@ -96,24 +82,33 @@ where
 {
     type Item = <I as Iterator>::Item;
 
-    // TODO guarantee end on frame boundary
+    // implementation is adapted of skip_duration
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
         if self.input.parameters_changed() {
-            self.duration_per_sample = Self::get_duration_per_sample(&self.input);
+            self.remaining_ns -= self.samples_taken * NS_PER_SECOND / self.samples_per_second;
+
+            self.samples_per_second =
+                self.input.sample_rate() as u64 * self.input.channels() as u64;
+            self.samples_to_take = (self.remaining_ns as u128 * self.samples_per_second as u128
+                / NS_PER_SECOND as u128) as u64;
+            self.samples_to_take = self.samples_to_take.prev_multiple_of(self.input.channels());
+            self.samples_taken = 0;
         }
 
-        if self.remaining_duration <= self.duration_per_sample {
-            None
-        } else if let Some(sample) = self.input.next() {
-            let sample = match &self.filter {
-                Some(filter) => filter.apply(sample, self),
-                None => sample,
-            };
+        if self.samples_taken >= self.samples_to_take {
+            return None;
+        }
 
-            self.remaining_duration -= self.duration_per_sample;
-            Some(sample)
+        let Some(sample) = self.input.next() else {
+            return None;
+        };
+
+        self.samples_taken += 1;
+        if self.fadeout {
+            let total = self.requested_duration.as_nanos() as u64;
+            Some(sample * self.remaining_ns as f32 / total as f32)
         } else {
-            None
+            Some(sample)
         }
     }
 }

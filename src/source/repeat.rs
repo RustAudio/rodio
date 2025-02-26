@@ -7,18 +7,6 @@ use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
 
-/// Internal function that builds a `Repeat` object.
-pub fn repeat<I>(input: I) -> Repeat<I>
-where
-    I: Source,
-{
-    let input = input.buffered();
-    Repeat {
-        inner: PeekableSource::new(input.clone()),
-        next: input,
-    }
-}
-
 /// A source that repeats the given source.
 pub struct Repeat<I>
 where
@@ -28,10 +16,17 @@ where
     next: Buffered<I>,
 }
 
-impl<I> Iterator for Repeat<I>
-where
-    I: Source,
-{
+impl<I: Source> Repeat<I> {
+    pub(crate) fn new(input: I) -> Repeat<I> {
+        let input = input.buffered();
+        Repeat {
+            inner: PeekableSource::new(input.clone()),
+            next: input,
+        }
+    }
+}
+
+impl<I: Source> Iterator for Repeat<I> {
     type Item = <I as Iterator>::Item;
 
     #[inline]

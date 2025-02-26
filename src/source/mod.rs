@@ -159,7 +159,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 pub trait Source: Iterator<Item = Sample> {
     /// Whether the value of `channels()` and/or `sample_rate()` have changed.
     /// This is true before the next call to `Source::next`. After that
-    /// `Source::next` call this will be false again. 
+    /// `Source::next` call this will be false again.
     ///
     /// The value before the first call to next is not defined.
     fn parameters_changed(&self) -> bool;
@@ -203,7 +203,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        repeat::repeat(self)
+        Repeat::new(self)
     }
 
     /// Takes a certain duration of this source and then stops.

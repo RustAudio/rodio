@@ -36,7 +36,7 @@ use std::time::Duration;
 pub type GeneratorFunction = fn(f32) -> f32;
 
 /// Waveform functions.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Function {
     /// A sinusoidal waveform.
     Sine,

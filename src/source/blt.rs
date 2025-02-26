@@ -6,67 +6,55 @@ use std::time::Duration;
 use super::SeekError;
 
 // Implemented following http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
-
-/// Internal function that builds a `BltFilter` object.
-pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
-where
-    I: Source<Item = f32>,
-{
-    low_pass_with_q(input, freq, 0.5)
-}
-
-pub fn high_pass<I>(input: I, freq: u32) -> BltFilter<I>
-where
-    I: Source<Item = f32>,
-{
-    high_pass_with_q(input, freq, 0.5)
-}
-
-/// Same as low_pass but allows the q value (bandwidth) to be changed
-pub fn low_pass_with_q<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
-where
-    I: Source<Item = f32>,
-{
-    BltFilter {
-        input,
-        formula: BltFormula::LowPass { freq, q },
-        applier: None,
-        x_n1: 0.0,
-        x_n2: 0.0,
-        y_n1: 0.0,
-        y_n2: 0.0,
-    }
-}
-
-/// Same as high_pass but allows the q value (bandwidth) to be changed
-pub fn high_pass_with_q<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
-where
-    I: Source<Item = f32>,
-{
-    BltFilter {
-        input,
-        formula: BltFormula::HighPass { freq, q },
-        applier: None,
-        x_n1: 0.0,
-        x_n2: 0.0,
-        y_n1: 0.0,
-        y_n2: 0.0,
-    }
-}
-
 /// This applies an audio filter, it can be a high or low pass filter.
 #[derive(Clone, Debug)]
 pub struct BltFilter<I> {
     input: I,
     formula: BltFormula,
-    applier: Option<BltApplier>,
+    applier: BltApplier,
     x_n1: f32,
     x_n2: f32,
     y_n1: f32,
     y_n2: f32,
 }
 
-impl<I> BltFilter<I> {
+impl<I: Source<Item = f32>> BltFilter<I> {
+    pub(crate) fn low_pass(input: I, freq: u32) -> BltFilter<I> {
+        Self::low_pass_with_q(input, freq, 0.5)
+    }
+
+    pub(crate) fn high_pass(input: I, freq: u32) -> BltFilter<I> {
+        Self::high_pass_with_q(input, freq, 0.5)
+    }
+
+    pub(crate) fn low_pass_with_q(input: I, freq: u32, q: f32) -> BltFilter<I> {
+        let formula = BltFormula::LowPass { freq, q };
+        let applier = formula.to_applier(input.sample_rate());
+        BltFilter {
+            input,
+            formula,
+            applier,
+            x_n1: 0.0,
+            x_n2: 0.0,
+            y_n1: 0.0,
+            y_n2: 0.0,
+        }
+    }
+
+    pub(crate) fn high_pass_with_q(input: I, freq: u32, q: f32) -> BltFilter<I> {
+        let formula = BltFormula::HighPass { freq, q };
+        let applier = formula.to_applier(input.sample_rate());
+        BltFilter {
+            input,
+            formula,
+            applier,
+            x_n1: 0.0,
+            x_n2: 0.0,
+            y_n1: 0.0,
+            y_n2: 0.0,
+        }
+    }
+
     /// Modifies this filter so that it becomes a low-pass filter.
     pub fn to_low_pass(&mut self, freq: u32) {
         self.to_low_pass_with_q(freq, 0.5);
@@ -80,13 +68,13 @@ impl<I> BltFilter<I> {
     /// Same as to_low_pass but allows the q value (bandwidth) to be changed
     pub fn to_low_pass_with_q(&mut self, freq: u32, q: f32) {
         self.formula = BltFormula::LowPass { freq, q };
-        self.applier = None;
+        self.applier = self.formula.to_applier(self.input.sample_rate());
     }
 
     /// Same as to_high_pass but allows the q value (bandwidth) to be changed
     pub fn to_high_pass_with_q(&mut self, freq: u32, q: f32) {
         self.formula = BltFormula::HighPass { freq, q };
-        self.applier = None;
+        self.applier = self.formula.to_applier(self.input.sample_rate());
     }
 
     /// Returns a reference to the inner source.
@@ -117,15 +105,12 @@ where
     #[inline]
     fn next(&mut self) -> Option<f32> {
         if self.input.parameters_changed() {
-            self.applier = Some(self.formula.to_applier(self.input.sample_rate()));
+            self.applier = self.formula.to_applier(self.input.sample_rate());
         }
 
         let sample = self.input.next()?;
         let result = self
             .applier
-            .as_ref()
-            .expect("just set above") // TODO we can do without the Option now we have
-                                      // `parameters_changed`
             .apply(sample, self.x_n1, self.x_n2, self.y_n1, self.y_n2);
 
         self.y_n2 = self.y_n1;

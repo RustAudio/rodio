@@ -527,7 +527,7 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::low_pass(self, freq)
+        BltFilter::low_pass(self, freq)
     }
 
     /// Applies a high-pass filter to the source.
@@ -537,7 +537,7 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::high_pass(self, freq)
+        BltFilter::high_pass(self, freq)
     }
 
     /// Applies a low-pass filter to the source while allowing the q (bandwidth) to be changed.
@@ -547,7 +547,7 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::low_pass_with_q(self, freq, q)
+        BltFilter::low_pass_with_q(self, freq, q)
     }
 
     /// Applies a high-pass filter to the source while allowing the q (bandwidth) to be changed.
@@ -557,7 +557,7 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::high_pass_with_q(self, freq, q)
+        BltFilter::high_pass_with_q(self, freq, q)
     }
 
     // There is no `can_seek()` method as it is impossible to use correctly. Between

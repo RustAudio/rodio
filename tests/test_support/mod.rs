@@ -1,14 +1,58 @@
 #![allow(dead_code)]
+use std::iter;
 /// in separate folder so its not ran as integration test
 /// should probably be moved to its own crate (rodio-test-support)
 /// that would fix the unused code warnings.
 use std::time::Duration;
 
-use rodio::{ChannelCount, SampleRate, Source};
+use rodio::source::{self, Function, SignalGenerator};
+use rodio::{ChannelCount, Sample, SampleRate, Source};
+
+#[derive(Debug, Clone)]
+pub enum SampleSource {
+    SignalGen {
+        function: Function,
+        samples: Vec<f32>,
+        frequency: f32,
+        numb_samples: usize,
+    },
+    Silence {
+        numb_samples: usize,
+    },
+    List(Vec<f32>),
+}
+
+impl SampleSource {
+    fn get(
+        &mut self,
+        pos: usize,
+        sample_rate: SampleRate,
+        channels: ChannelCount,
+    ) -> Option<Sample> {
+        match self {
+            SampleSource::SignalGen {
+                function,
+                samples,
+                frequency,
+                numb_samples,
+            } if samples.len() != *numb_samples => {
+                *samples = SignalGenerator::new(sample_rate, *frequency, function.clone())
+                    .take(*numb_samples)
+                    .flat_map(|sample| iter::repeat_n(sample, channels.into()))
+                    .collect();
+                samples.get(pos).copied()
+            }
+            SampleSource::SignalGen { samples, .. } => samples.get(pos).copied(),
+            SampleSource::Silence { numb_samples } if pos < *numb_samples => Some(0.0),
+            SampleSource::Silence { .. } => None,
+            SampleSource::List(list) => list.get(pos).copied(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct TestSpan {
-    pub data: Vec<f32>,
+    pub sample_source: SampleSource,
     pub sample_rate: SampleRate,
     pub channels: ChannelCount,
 }
@@ -16,7 +60,31 @@ pub struct TestSpan {
 impl TestSpan {
     pub fn silence(numb_samples: usize) -> Self {
         Self {
-            data: vec![0f32; numb_samples],
+            sample_source: SampleSource::Silence { numb_samples },
+            sample_rate: 1,
+            channels: 1,
+        }
+    }
+    pub fn sine(frequency: f32, numb_samples: usize) -> Self {
+        Self {
+            sample_source: SampleSource::SignalGen {
+                frequency,
+                numb_samples,
+                samples: Vec::new(),
+                function: Function::Sine,
+            },
+            sample_rate: 1,
+            channels: 1,
+        }
+    }
+    pub fn square(frequency: f32, numb_samples: usize) -> Self {
+        Self {
+            sample_source: SampleSource::SignalGen {
+                frequency,
+                numb_samples,
+                samples: Vec::new(),
+                function: Function::Square,
+            },
             sample_rate: 1,
             channels: 1,
         }
@@ -24,7 +92,7 @@ impl TestSpan {
     pub fn from_samples<'a>(samples: impl IntoIterator<Item = &'a f32>) -> Self {
         let samples = samples.into_iter().copied().collect::<Vec<f32>>();
         Self {
-            data: samples,
+            sample_source: SampleSource::List(samples),
             sample_rate: 1,
             channels: 1,
         }
@@ -37,8 +105,15 @@ impl TestSpan {
         self.channels = channel_count;
         self
     }
+    fn get(&mut self, pos: usize) -> Option<Sample> {
+        self.sample_source.get(pos, self.sample_rate, self.channels)
+    }
     pub fn len(&self) -> usize {
-        self.data.len()
+        match &self.sample_source {
+            SampleSource::SignalGen { numb_samples, .. } => *numb_samples,
+            SampleSource::Silence { numb_samples } => *numb_samples,
+            SampleSource::List(list) => list.len(),
+        }
     }
 }
 
@@ -76,13 +151,13 @@ impl Iterator for TestSource {
 
     fn next(&mut self) -> Option<Self::Item> {
         let current_span = self.spans.get_mut(self.current_span)?;
-        let sample = current_span.data.get(self.pos_in_span).copied()?;
+        let sample = current_span.get(self.pos_in_span)?;
         self.pos_in_span += 1;
 
         // if span is out of samples
         //  - next set parameters_changed now
         //  - switch to the next span
-        if self.pos_in_span == current_span.data.len() {
+        if self.pos_in_span == current_span.len() {
             self.pos_in_span = 0;
             self.current_span += 1;
             self.parameters_changed = true;
@@ -113,19 +188,18 @@ impl rodio::Source for TestSource {
     fn total_duration(&self) -> Option<Duration> {
         self.total_duration
     }
-    fn try_seek(&mut self, _pos: Duration) -> Result<(), rodio::source::SeekError> {
+    fn try_seek(&mut self, _pos: Duration) -> Result<(), source::SeekError> {
         todo!();
         // let duration_per_sample = Duration::from_secs(1) / self.sample_rate;
         // let offset = pos.div_duration_f64(duration_per_sample).floor() as usize;
         // self.pos = offset;
 
-        Ok(())
+        // Ok(())
     }
 }
 
 // test for your tests of course. Leave these in, they guard regression when we
 // expand the functionally which we probably will.
-#[test]
 fn parameters_change_correct() {
     let mut source = TestSource::new()
         .with_span(TestSpan::silence(10))
@@ -160,4 +234,20 @@ fn sample_rate_changes() {
     assert_eq!(source.sample_rate(), 10);
     assert_eq!(source.by_ref().take(10).count(), 10);
     assert_eq!(source.sample_rate(), 20);
+}
+
+#[test]
+fn sine_is_avg_zero() {
+    let sine = TestSource::new().with_span(TestSpan::sine(400.0, 500).with_sample_rate(10_000));
+
+    let avg = sine.clone().sum::<f32>() / sine.spans[0].len() as f32;
+    assert!(avg < 0.00001f32);
+}
+
+#[test]
+fn sine_abs_avg_not_zero() {
+    let sine = TestSource::new().with_span(TestSpan::sine(400.0, 500).with_sample_rate(10_000));
+
+    let avg = sine.clone().map(f32::abs).sum::<f32>() / sine.spans[0].len() as f32;
+    assert!(avg > 0.5);
 }

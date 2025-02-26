@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: The term 'frame' was renamed to 'span' in the crate and documentation.
 - Breaking: Sources now use `f32` samples. To convert to and from other types of samples use functions from
   `dasp_sample` crate. For example `DaspSample::from_sample(sample)`. Remove `integer-decoder` feature.
+- Breaking: Sources wrapping an existing source had a public factory method
+  which is now removed. Something like: `source::amplify(unamplified, 1.2)` must now be
+  written as `unamplified.amplify(1.2)`.
+- `SignalGenerator`'s `Function` is now Copy.
 
 
 ### Fixed

@@ -92,8 +92,8 @@ impl TestSpan {
             channels: 1,
         }
     }
-    pub fn from_samples<'a>(samples: impl IntoIterator<Item = &'a f32>) -> TestSpanBuilder {
-        let samples = samples.into_iter().copied().collect::<Vec<f32>>();
+    pub fn from_samples<'a>(samples: impl IntoIterator<Item = Sample>) -> TestSpanBuilder {
+        let samples = samples.into_iter().collect::<Vec<Sample>>();
         TestSpanBuilder {
             sample_source: SampleSource::List(samples),
             sample_rate: 1,
@@ -252,8 +252,13 @@ impl Iterator for TestSource {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.spans.iter().map(TestSpan::len).sum();
-        dbg!(len);
+        let len = self
+            .spans
+            .iter()
+            .skip(self.current_span)
+            .map(TestSpan::len)
+            .sum::<usize>()
+            - self.pos_in_span;
         (len, Some(len))
     }
 }
@@ -271,7 +276,8 @@ impl rodio::Source for TestSource {
             .unwrap_or_else(|| {
                 self.spans
                     .last()
-                    .expect("TestSource must have at least one span").channels
+                    .expect("TestSource must have at least one span")
+                    .channels
             })
     }
     fn sample_rate(&self) -> rodio::SampleRate {
@@ -281,7 +287,8 @@ impl rodio::Source for TestSource {
             .unwrap_or_else(|| {
                 self.spans
                     .last()
-                    .expect("TestSource must have at least one span").sample_rate
+                    .expect("TestSource must have at least one span")
+                    .sample_rate
             })
     }
     fn total_duration(&self) -> Option<Duration> {
@@ -299,6 +306,7 @@ impl rodio::Source for TestSource {
 
 // test for your tests of course. Leave these in, they guard regression when we
 // expand the functionally which we probably will.
+#[test]
 fn parameters_change_correct() {
     let mut source = TestSource::new()
         .with_span(TestSpan::silence().with_sample_count(10))
@@ -373,4 +381,26 @@ fn sine_abs_avg_not_zero() {
 
     let avg = sine.clone().map(f32::abs).sum::<f32>() / sine.spans[0].len() as f32;
     assert!(avg > 0.5);
+}
+
+#[test]
+fn size_hint() {
+    let mut source = TestSource::new()
+        .with_span(
+            TestSpan::silence()
+                .with_sample_rate(10)
+                .with_sample_count(10),
+        )
+        .with_span(
+            TestSpan::silence()
+                .with_sample_rate(20)
+                .with_sample_count(10),
+        );
+
+    assert_eq!(source.len(), 20);
+    assert_eq!(source.by_ref().take(10).count(), 10);
+    assert_eq!(source.len(), 10);
+    assert_eq!(source.by_ref().take(10).count(), 10);
+    assert_eq!(source.len(), 0);
+    assert!(source.next().is_none())
 }

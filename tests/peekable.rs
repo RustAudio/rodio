@@ -6,11 +6,11 @@ use test_support::{TestSource, TestSpan};
 fn peeked_matches_next() {
     let source = TestSource::new()
         .with_span(
-            TestSpan::from_samples(&(0..10).map(|n| n as f32).collect::<Vec<_>>())
+            TestSpan::from_samples((0..10).map(|n| n as f32))
                 .with_sample_count(10),
         )
         .with_span(
-            TestSpan::from_samples(&(10..20).map(|n| n as f32).collect::<Vec<_>>())
+            TestSpan::from_samples((10..20).map(|n| n as f32))
                 .with_sample_count(10),
         );
 

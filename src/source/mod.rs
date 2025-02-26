@@ -179,7 +179,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        buffered::buffered(self)
+        Buffered::new(self)
     }
 
     /// Mixes this source with another one.

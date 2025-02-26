@@ -158,8 +158,10 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 ///
 pub trait Source: Iterator<Item = Sample> {
     /// Whether the value of `channels()` and/or `sample_rate()` have changed.
-    /// This is true before the next call to `Source::next`. After the first
-    /// `Source::next` call this will be false again.
+    /// This is true before the next call to `Source::next`. After that
+    /// `Source::next` call this will be false again. 
+    ///
+    /// The value before the first call to next is not defined.
     fn parameters_changed(&self) -> bool;
 
     /// Returns the number of channels. Channels are always interleaved.

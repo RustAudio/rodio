@@ -516,7 +516,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        position::track_position(self)
+        TrackPosition::new(self)
     }
 
     /// Applies a low-pass filter to the source.

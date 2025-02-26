@@ -11,9 +11,10 @@ use test_support::{TestSource, TestSpan};
 #[rstest]
 fn ends_on_frame_boundary(#[values(1.483, 2.999)] seconds_to_skip: f32) {
     let source = TestSource::new().with_span(
-        TestSpan::silence(30)
+        TestSpan::silence()
             .with_channel_count(10)
-            .with_sample_rate(1),
+            .with_sample_rate(1)
+            .with_exact_duration(Duration::from_secs(3)),
     );
     let got = source
         .clone()
@@ -24,21 +25,25 @@ fn ends_on_frame_boundary(#[values(1.483, 2.999)] seconds_to_skip: f32) {
 
 #[rstest]
 fn param_changes_during_skip(#[values(6, 11)] seconds_to_skip: u64) {
-    let source = TestSource::new() // each span is 5 seconds
+    let span_duration = Duration::from_secs(5);
+    let source = TestSource::new()
         .with_span(
-            TestSpan::silence(5 * 10 * 1)
+            TestSpan::silence()
                 .with_sample_rate(10)
-                .with_channel_count(1),
+                .with_channel_count(1)
+                .with_exact_duration(span_duration),
         )
         .with_span(
-            TestSpan::silence(5 * 20 * 2)
+            TestSpan::silence()
                 .with_sample_rate(20)
-                .with_channel_count(2),
+                .with_channel_count(2)
+                .with_exact_duration(span_duration),
         )
         .with_span(
-            TestSpan::silence(5 * 5 * 3)
+            TestSpan::silence()
                 .with_sample_rate(5)
-                .with_channel_count(3),
+                .with_channel_count(3)
+                .with_exact_duration(span_duration),
         );
 
     let took = source

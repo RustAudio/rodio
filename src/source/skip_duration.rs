@@ -119,6 +119,9 @@ where
     let mut ns_per_frame: u64 = 0;
 
     while duration > ns_per_frame {
+        assert!(input.sample_rate() > 0);
+        assert!(input.channels() > 0);
+
         ns_per_frame = NS_PER_SECOND / input.sample_rate() as u64;
 
         let samples_per_second = input.sample_rate() as u64 * input.channels() as u64;

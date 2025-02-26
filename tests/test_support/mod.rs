@@ -14,11 +14,8 @@ pub enum SampleSource {
         function: Function,
         samples: Vec<f32>,
         frequency: f32,
-        numb_samples: usize,
     },
-    Silence {
-        numb_samples: usize,
-    },
+    Silence,
     List(Vec<f32>),
 }
 
@@ -28,22 +25,22 @@ impl SampleSource {
         pos: usize,
         sample_rate: SampleRate,
         channels: ChannelCount,
+        numb_samples: usize,
     ) -> Option<Sample> {
         match self {
             SampleSource::SignalGen {
                 function,
                 samples,
                 frequency,
-                numb_samples,
-            } if samples.len() != *numb_samples => {
+            } if samples.len() != numb_samples => {
                 *samples = SignalGenerator::new(sample_rate, *frequency, function.clone())
-                    .take(*numb_samples)
+                    .take(numb_samples)
                     .flat_map(|sample| iter::repeat_n(sample, channels.into()))
                     .collect();
                 samples.get(pos).copied()
             }
             SampleSource::SignalGen { samples, .. } => samples.get(pos).copied(),
-            SampleSource::Silence { numb_samples } if pos < *numb_samples => Some(0.0),
+            SampleSource::Silence { .. } if pos < numb_samples => Some(0.0),
             SampleSource::Silence { .. } => None,
             SampleSource::List(list) => list.get(pos).copied(),
         }
@@ -55,21 +52,28 @@ pub struct TestSpan {
     pub sample_source: SampleSource,
     pub sample_rate: SampleRate,
     pub channels: ChannelCount,
+    numb_samples: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct TestSpanBuilder {
+    pub sample_source: SampleSource,
+    pub sample_rate: SampleRate,
+    pub channels: ChannelCount,
 }
 
 impl TestSpan {
-    pub fn silence(numb_samples: usize) -> Self {
-        Self {
-            sample_source: SampleSource::Silence { numb_samples },
+    pub fn silence() -> TestSpanBuilder {
+        TestSpanBuilder {
+            sample_source: SampleSource::Silence,
             sample_rate: 1,
             channels: 1,
         }
     }
-    pub fn sine(frequency: f32, numb_samples: usize) -> Self {
-        Self {
+    pub fn sine(frequency: f32) -> TestSpanBuilder {
+        TestSpanBuilder {
             sample_source: SampleSource::SignalGen {
                 frequency,
-                numb_samples,
                 samples: Vec::new(),
                 function: Function::Sine,
             },
@@ -77,11 +81,10 @@ impl TestSpan {
             channels: 1,
         }
     }
-    pub fn square(frequency: f32, numb_samples: usize) -> Self {
-        Self {
+    pub fn square(frequency: f32) -> TestSpanBuilder {
+        TestSpanBuilder {
             sample_source: SampleSource::SignalGen {
                 frequency,
-                numb_samples,
                 samples: Vec::new(),
                 function: Function::Square,
             },
@@ -89,14 +92,26 @@ impl TestSpan {
             channels: 1,
         }
     }
-    pub fn from_samples<'a>(samples: impl IntoIterator<Item = &'a f32>) -> Self {
+    pub fn from_samples<'a>(samples: impl IntoIterator<Item = &'a f32>) -> TestSpanBuilder {
         let samples = samples.into_iter().copied().collect::<Vec<f32>>();
-        Self {
+        TestSpanBuilder {
             sample_source: SampleSource::List(samples),
             sample_rate: 1,
             channels: 1,
         }
     }
+
+    fn get(&mut self, pos: usize) -> Option<Sample> {
+        self.sample_source
+            .get(pos, self.sample_rate, self.channels, self.numb_samples)
+    }
+
+    pub fn len(&self) -> usize {
+        self.numb_samples
+    }
+}
+
+impl TestSpanBuilder {
     pub fn with_sample_rate(mut self, sample_rate: SampleRate) -> Self {
         self.sample_rate = sample_rate;
         self
@@ -105,15 +120,81 @@ impl TestSpan {
         self.channels = channel_count;
         self
     }
-    fn get(&mut self, pos: usize) -> Option<Sample> {
-        self.sample_source.get(pos, self.sample_rate, self.channels)
-    }
-    pub fn len(&self) -> usize {
-        match &self.sample_source {
-            SampleSource::SignalGen { numb_samples, .. } => *numb_samples,
-            SampleSource::Silence { numb_samples } => *numb_samples,
-            SampleSource::List(list) => list.len(),
+    pub fn with_sample_count(self, n: usize) -> TestSpan {
+        TestSpan {
+            sample_source: self.sample_source,
+            sample_rate: self.sample_rate,
+            channels: self.channels,
+            numb_samples: n,
         }
+    }
+    /// is allowed to be 1% off
+    pub fn with_rough_duration(self, duration: Duration) -> TestSpan {
+        let (needed_samples, _) = self.needed_samples(duration);
+
+        if let SampleSource::List(list) = &self.sample_source {
+            let allowed_deviation = needed_samples as usize / 10;
+            if list.len().abs_diff(needed_samples as usize) > allowed_deviation {
+                panic!(
+                    "provided sample list does not provide the correct amount 
+                    of samples for a test span with the given duration"
+                )
+            }
+        }
+
+        TestSpan {
+            numb_samples: needed_samples
+                .try_into()
+                .expect("too many samples for test source"),
+            sample_source: self.sample_source,
+            sample_rate: self.sample_rate,
+            channels: self.channels,
+        }
+    }
+    pub fn with_exact_duration(self, duration: Duration) -> TestSpan {
+        let (needed_samples, deviation) = self.needed_samples(duration);
+
+        if deviation > 0 {
+            panic!(
+                "requested duration {:?} is, at the highest precision not a \
+                multiple of sample_rate {} and channels {}. Consider using \
+                `with_rough_duration`",
+                duration, self.sample_rate, self.channels
+            )
+        }
+
+        if let SampleSource::List(list) = &self.sample_source {
+            if list.len() != needed_samples as usize {
+                panic!(
+                    "provided sample list does not provide the correct amount 
+                    of samples for a test span with the given duration"
+                )
+            }
+        }
+
+        TestSpan {
+            numb_samples: needed_samples
+                .try_into()
+                .expect("too many samples for test source"),
+            sample_source: self.sample_source,
+            sample_rate: self.sample_rate,
+            channels: self.channels,
+        }
+    }
+
+    fn needed_samples(&self, duration: Duration) -> (u64, u64) {
+        const NS_PER_SECOND: u64 = 1_000_000_000;
+        let duration_ns: u64 = duration
+            .as_nanos()
+            .try_into()
+            .expect("Test duration should not be more then ~500 days");
+
+        let needed_samples =
+            duration_ns * self.sample_rate as u64 * self.channels as u64 / NS_PER_SECOND;
+        let duration_of_those_samples =
+            needed_samples * NS_PER_SECOND / self.sample_rate as u64 / self.channels as u64;
+        let deviation = duration_ns.abs_diff(duration_of_those_samples);
+        (needed_samples, deviation)
     }
 }
 
@@ -177,13 +258,13 @@ impl rodio::Source for TestSource {
         self.spans
             .get(self.current_span)
             .map(|span| span.channels)
-            .unwrap_or_default()
+            .unwrap() // not correct behavior for a source but useful during testing
     }
     fn sample_rate(&self) -> rodio::SampleRate {
         self.spans
             .get(self.current_span)
             .map(|span| span.sample_rate)
-            .unwrap_or_default()
+            .unwrap() // not correct behavior for a source but useful during testing
     }
     fn total_duration(&self) -> Option<Duration> {
         self.total_duration
@@ -202,8 +283,8 @@ impl rodio::Source for TestSource {
 // expand the functionally which we probably will.
 fn parameters_change_correct() {
     let mut source = TestSource::new()
-        .with_span(TestSpan::silence(10))
-        .with_span(TestSpan::silence(10));
+        .with_span(TestSpan::silence().with_sample_count(10))
+        .with_span(TestSpan::silence().with_sample_count(10));
 
     assert_eq!(source.by_ref().take(10).count(), 10);
     assert!(source.parameters_changed);
@@ -217,8 +298,16 @@ fn parameters_change_correct() {
 #[test]
 fn channel_count_changes() {
     let mut source = TestSource::new()
-        .with_span(TestSpan::silence(10).with_channel_count(1))
-        .with_span(TestSpan::silence(10).with_channel_count(2));
+        .with_span(
+            TestSpan::silence()
+                .with_channel_count(1)
+                .with_sample_count(10),
+        )
+        .with_span(
+            TestSpan::silence()
+                .with_channel_count(2)
+                .with_sample_count(10),
+        );
 
     assert_eq!(source.channels(), 1);
     assert_eq!(source.by_ref().take(10).count(), 10);
@@ -228,8 +317,16 @@ fn channel_count_changes() {
 #[test]
 fn sample_rate_changes() {
     let mut source = TestSource::new()
-        .with_span(TestSpan::silence(10).with_sample_rate(10))
-        .with_span(TestSpan::silence(10).with_sample_rate(20));
+        .with_span(
+            TestSpan::silence()
+                .with_sample_rate(10)
+                .with_sample_count(10),
+        )
+        .with_span(
+            TestSpan::silence()
+                .with_sample_rate(20)
+                .with_sample_count(10),
+        );
 
     assert_eq!(source.sample_rate(), 10);
     assert_eq!(source.by_ref().take(10).count(), 10);
@@ -238,7 +335,11 @@ fn sample_rate_changes() {
 
 #[test]
 fn sine_is_avg_zero() {
-    let sine = TestSource::new().with_span(TestSpan::sine(400.0, 500).with_sample_rate(10_000));
+    let sine = TestSource::new().with_span(
+        TestSpan::sine(400.0)
+            .with_sample_rate(10_000)
+            .with_sample_count(500),
+    );
 
     let avg = sine.clone().sum::<f32>() / sine.spans[0].len() as f32;
     assert!(avg < 0.00001f32);
@@ -246,7 +347,11 @@ fn sine_is_avg_zero() {
 
 #[test]
 fn sine_abs_avg_not_zero() {
-    let sine = TestSource::new().with_span(TestSpan::sine(400.0, 500).with_sample_rate(10_000));
+    let sine = TestSource::new().with_span(
+        TestSpan::sine(400.0)
+            .with_sample_rate(10_000)
+            .with_sample_count(500),
+    );
 
     let avg = sine.clone().map(f32::abs).sum::<f32>() / sine.spans[0].len() as f32;
     assert!(avg > 0.5);

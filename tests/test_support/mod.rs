@@ -121,6 +121,16 @@ impl TestSpanBuilder {
         self
     }
     pub fn with_sample_count(self, n: usize) -> TestSpan {
+        if let SampleSource::List(list) = &self.sample_source {
+            assert!(
+                list.len() == n,
+                "The list providing samples is a different length \
+                ({}) as the required sample count {}",
+                list.len(),
+                n
+            );
+        }
+
         TestSpan {
             sample_source: self.sample_source,
             sample_rate: self.sample_rate,
@@ -134,12 +144,11 @@ impl TestSpanBuilder {
 
         if let SampleSource::List(list) = &self.sample_source {
             let allowed_deviation = needed_samples as usize / 10;
-            if list.len().abs_diff(needed_samples as usize) > allowed_deviation {
-                panic!(
-                    "provided sample list does not provide the correct amount 
+            assert!(
+                list.len().abs_diff(needed_samples as usize) > allowed_deviation,
+                "provided sample list does not provide the correct amount 
                     of samples for a test span with the given duration"
-                )
-            }
+            )
         }
 
         TestSpan {
@@ -154,22 +163,21 @@ impl TestSpanBuilder {
     pub fn with_exact_duration(self, duration: Duration) -> TestSpan {
         let (needed_samples, deviation) = self.needed_samples(duration);
 
-        if deviation > 0 {
-            panic!(
-                "requested duration {:?} is, at the highest precision not a \
+        assert_eq!(
+            deviation, 0,
+            "requested duration {:?} is, at the highest precision not a \
                 multiple of sample_rate {} and channels {}. Consider using \
                 `with_rough_duration`",
-                duration, self.sample_rate, self.channels
-            )
-        }
+            duration, self.sample_rate, self.channels
+        );
 
         if let SampleSource::List(list) = &self.sample_source {
-            if list.len() != needed_samples as usize {
-                panic!(
-                    "provided sample list does not provide the correct amount 
+            assert_eq!(
+                list.len(),
+                needed_samples as usize,
+                "provided sample list does not provide the correct amount 
                     of samples for a test span with the given duration"
-                )
-            }
+            )
         }
 
         TestSpan {
@@ -203,7 +211,6 @@ pub struct TestSource {
     pub spans: Vec<TestSpan>,
     current_span: usize,
     pos_in_span: usize,
-    total_duration: Option<Duration>,
     parameters_changed: bool,
 }
 
@@ -213,16 +220,11 @@ impl TestSource {
             spans: Vec::new(),
             current_span: 0,
             pos_in_span: 0,
-            total_duration: None,
             parameters_changed: false,
         }
     }
     pub fn with_span(mut self, span: TestSpan) -> Self {
         self.spans.push(span);
-        self
-    }
-    pub fn with_total_duration(mut self, duration: Duration) -> Self {
-        self.total_duration = Some(duration);
         self
     }
 }
@@ -248,7 +250,15 @@ impl Iterator for TestSource {
 
         Some(sample)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.spans.iter().map(TestSpan::len).sum();
+        dbg!(len);
+        (len, Some(len))
+    }
 }
+
+impl ExactSizeIterator for TestSource {}
 
 impl rodio::Source for TestSource {
     fn parameters_changed(&self) -> bool {
@@ -258,16 +268,24 @@ impl rodio::Source for TestSource {
         self.spans
             .get(self.current_span)
             .map(|span| span.channels)
-            .unwrap() // not correct behavior for a source but useful during testing
+            .unwrap_or_else(|| {
+                self.spans
+                    .last()
+                    .expect("TestSource must have at least one span").channels
+            })
     }
     fn sample_rate(&self) -> rodio::SampleRate {
         self.spans
             .get(self.current_span)
             .map(|span| span.sample_rate)
-            .unwrap() // not correct behavior for a source but useful during testing
+            .unwrap_or_else(|| {
+                self.spans
+                    .last()
+                    .expect("TestSource must have at least one span").sample_rate
+            })
     }
     fn total_duration(&self) -> Option<Duration> {
-        self.total_duration
+        None
     }
     fn try_seek(&mut self, _pos: Duration) -> Result<(), source::SeekError> {
         todo!();
@@ -287,10 +305,10 @@ fn parameters_change_correct() {
         .with_span(TestSpan::silence().with_sample_count(10));
 
     assert_eq!(source.by_ref().take(10).count(), 10);
-    assert!(source.parameters_changed);
+    assert!(source.parameters_changed());
 
     assert!(source.next().is_some());
-    assert!(!source.parameters_changed);
+    assert!(!source.parameters_changed());
 
     assert_eq!(source.count(), 9);
 }

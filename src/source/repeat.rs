@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::source::buffered::Buffered;
 
-use super::peekable::Peekable;
+use super::peekable::PeekableSource;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
@@ -14,7 +14,7 @@ where
 {
     let input = input.buffered();
     Repeat {
-        inner: Peekable::new(input.clone()),
+        inner: PeekableSource::new(input.clone()),
         next: input,
     }
 }
@@ -24,7 +24,7 @@ pub struct Repeat<I>
 where
     I: Source,
 {
-    inner: Peekable<Buffered<I>>,
+    inner: PeekableSource<Buffered<I>>,
     next: Buffered<I>,
 }
 
@@ -39,7 +39,7 @@ where
         if let Some(value) = self.inner.next() {
             Some(value)
         } else {
-            self.inner = Peekable::new(self.next.clone());
+            self.inner = PeekableSource::new(self.next.clone());
             self.inner.next()
         }
     }

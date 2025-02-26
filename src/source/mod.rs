@@ -6,6 +6,7 @@ use core::time::Duration;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
 use dasp_sample::FromSample;
+use peekable::PeekableSource;
 use take_samples::TakeSamples;
 use take_span::TakeSpan;
 
@@ -517,6 +518,22 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
     {
         TrackPosition::new(self)
+    }
+
+    /// This is the [`Source`] equivalent of
+    /// [`Iterator::peek`](std::iter::Iterator::peekable). Creates an iterator
+    /// which can use the [`peek`](PeekableSource::peek) method to look at the next
+    /// element of the iterator without consuming it. See their documentation
+    /// for more information.
+
+    /// # Note
+    /// The underlying source is advanced by one sample when you call this
+    /// function. Any side effects of the next method will occur.
+    fn peekable_source(self) -> PeekableSource<Self>
+    where
+        Self: Sized,
+    {
+        PeekableSource::new(self)
     }
 
     /// Applies a low-pass filter to the source.

@@ -13,7 +13,7 @@ fn main() {
 #[divan::bench]
 fn long(bencher: Bencher) {
     bencher.with_inputs(|| music_wav()).bench_values(|source| {
-        let mut take_dur = source
+        let effects_applied = source
             .high_pass(300)
             .amplify(1.2)
             .speed(0.9)
@@ -25,9 +25,8 @@ fn long(bencher: Bencher) {
             )
             .delay(Duration::from_secs_f32(0.5))
             .fade_in(Duration::from_secs_f32(2.0))
-            .take_duration(Duration::from_secs(10));
-        take_dur.set_filter_fadeout();
-        let effects_applied = take_dur
+            .take_duration(Duration::from_secs(10))
+            .with_fadeout(true)
             .buffered()
             .reverb(Duration::from_secs_f32(0.05), 0.3)
             .skippable();

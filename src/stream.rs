@@ -52,7 +52,7 @@ impl Default for OutputStreamConfig {
 pub struct OutputStreamBuilder {
     device: Option<cpal::Device>,
     config: OutputStreamConfig,
-    error_callback: fn(cpal::StreamError),
+    error_callback: Box<dyn FnMut(cpal::StreamError) + Send + 'static>,
 }
 
 impl Default for OutputStreamBuilder {
@@ -60,7 +60,7 @@ impl Default for OutputStreamBuilder {
         Self {
             device: None,
             config: OutputStreamConfig::default(),
-            error_callback: default_error_callback,
+            error_callback: Box::new(default_error_callback),
         }
     }
 }
@@ -148,13 +148,16 @@ impl OutputStreamBuilder {
     }
 
     /// Set a callback that will be called when an error occurs with the stream
-    pub fn with_error_callback(mut self, callback: fn(cpal::StreamError)) -> Self {
-        self.error_callback = callback;
+    pub fn with_error_callback<E>(mut self, callback: E) -> Self
+    where
+        E: FnMut(cpal::StreamError) + Send + 'static,
+    {
+        self.error_callback = Box::new(callback);
         self
     }
 
     /// Open output stream using parameters configured so far.
-    pub fn open_stream(&mut self) -> Result<OutputStream, StreamError> {
+    pub fn open_stream(self) -> Result<OutputStream, StreamError> {
         let device = self.device.as_ref().expect("output device specified");
 
         OutputStream::open(device, &self.config, self.error_callback)
@@ -164,7 +167,7 @@ impl OutputStreamBuilder {
     /// Failing that attempt to open stream with other available configurations
     /// supported by the device.
     /// If all attempts fail returns initial error.
-    pub fn open_stream_or_fallback(&mut self) -> Result<OutputStream, StreamError> {
+    pub fn open_stream_or_fallback(self) -> Result<OutputStream, StreamError> {
         let device = self.device.as_ref().expect("output device specified");
 
         OutputStream::open(device, &self.config, self.error_callback).or_else(|err| {
@@ -187,7 +190,7 @@ impl OutputStreamBuilder {
     /// If all attempts fail return the initial error.
     pub fn open_default_stream() -> Result<OutputStream, StreamError> {
         Self::from_default_device()
-            .and_then(|mut x| x.open_stream())
+            .and_then(|x| x.open_stream())
             .or_else(|original_err| {
                 let mut devices = match cpal::default_host().output_devices() {
                     Ok(devices) => devices,
@@ -202,7 +205,7 @@ impl OutputStreamBuilder {
                 devices
                     .find_map(|d| {
                         Self::from_device(d)
-                            .and_then(|mut x| x.open_stream_or_fallback())
+                            .and_then(|x| x.open_stream_or_fallback())
                             .ok()
                     })
                     .ok_or(original_err)
@@ -320,11 +323,14 @@ impl error::Error for StreamError {
 }
 
 impl OutputStream {
-    fn open(
+    fn open<E>(
         device: &cpal::Device,
         config: &OutputStreamConfig,
-        error_callback: fn(cpal::StreamError),
-    ) -> Result<OutputStream, StreamError> {
+        error_callback: E,
+    ) -> Result<OutputStream, StreamError>
+    where
+        E: FnMut(cpal::StreamError) + Send + 'static,
+    {
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
         Self::init_stream(device, config, source, error_callback)
             .map_err(StreamError::BuildStreamError)
@@ -337,12 +343,15 @@ impl OutputStream {
             })
     }
 
-    fn init_stream(
+    fn init_stream<E>(
         device: &cpal::Device,
         config: &OutputStreamConfig,
         mut samples: MixerSource<f32>,
-        error_callback: fn(cpal::StreamError),
-    ) -> Result<cpal::Stream, cpal::BuildStreamError> {
+        error_callback: E,
+    ) -> Result<cpal::Stream, cpal::BuildStreamError>
+    where
+        E: FnMut(cpal::StreamError) + Send + 'static,
+    {
         let sample_format = config.sample_format;
         let config = config.into();
 

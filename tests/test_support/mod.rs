@@ -17,12 +17,14 @@ pub enum SampleSource {
     },
     Silence,
     List(Vec<f32>),
+    SampleIndex,
 }
 
 impl SampleSource {
     fn get(
         &mut self,
         pos: usize,
+        pos_in_source: usize,
         sample_rate: SampleRate,
         channels: ChannelCount,
         numb_samples: usize,
@@ -39,6 +41,8 @@ impl SampleSource {
                     .collect();
                 samples.get(pos).copied()
             }
+            SampleSource::SampleIndex if pos < numb_samples => Some(pos_in_source as f32),
+            SampleSource::SampleIndex => None,
             SampleSource::SignalGen { samples, .. } => samples.get(pos).copied(),
             SampleSource::Silence { .. } if pos < numb_samples => Some(0.0),
             SampleSource::Silence { .. } => None,
@@ -66,6 +70,13 @@ impl TestSpan {
     pub fn silence() -> TestSpanBuilder {
         TestSpanBuilder {
             sample_source: SampleSource::Silence,
+            sample_rate: 1,
+            channels: 1,
+        }
+    }
+    pub fn sample_indexes() -> TestSpanBuilder {
+        TestSpanBuilder {
+            sample_source: SampleSource::SampleIndex,
             sample_rate: 1,
             channels: 1,
         }
@@ -101,9 +112,14 @@ impl TestSpan {
         }
     }
 
-    fn get(&mut self, pos: usize) -> Option<Sample> {
-        self.sample_source
-            .get(pos, self.sample_rate, self.channels, self.numb_samples)
+    fn get(&mut self, pos: usize, pos_in_source: usize) -> Option<Sample> {
+        self.sample_source.get(
+            pos,
+            pos_in_source,
+            self.sample_rate,
+            self.channels,
+            self.numb_samples,
+        )
     }
 
     pub fn len(&self) -> usize {
@@ -211,6 +227,7 @@ pub struct TestSource {
     pub spans: Vec<TestSpan>,
     current_span: usize,
     pos_in_span: usize,
+    pos_in_source: usize,
     parameters_changed: bool,
 }
 
@@ -221,6 +238,7 @@ impl TestSource {
             current_span: 0,
             pos_in_span: 0,
             parameters_changed: false,
+            pos_in_source: 0,
         }
     }
     pub fn with_span(mut self, span: TestSpan) -> Self {
@@ -234,7 +252,8 @@ impl Iterator for TestSource {
 
     fn next(&mut self) -> Option<Self::Item> {
         let current_span = self.spans.get_mut(self.current_span)?;
-        let sample = current_span.get(self.pos_in_span)?;
+        let sample = current_span.get(self.pos_in_span, self.pos_in_source)?;
+        self.pos_in_source += 1;
         self.pos_in_span += 1;
 
         // if span is out of samples

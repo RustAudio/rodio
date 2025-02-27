@@ -7,6 +7,7 @@ use crate::Source;
 /// A source that truncates the given source to a certain duration.
 #[derive(Clone, Debug)]
 pub struct TakeSpan<I> {
+    first: bool,
     input: I,
 }
 
@@ -15,7 +16,7 @@ where
     I: Source,
 {
     pub fn new(input: I) -> Self {
-        Self { input }
+        Self { first: true, input }
     }
 
     /// Returns a mutable reference to the inner source.
@@ -31,16 +32,14 @@ where
     }
 }
 
-impl<I> Iterator for TakeSpan<I>
-where
-    I: Source,
-{
+impl<I: Source> Iterator for TakeSpan<I> {
     type Item = <I as Iterator>::Item;
 
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if self.input.parameters_changed() {
+        if self.input.parameters_changed() && !self.first {
             None
         } else {
+            self.first = false;
             let sample = self.input.next()?;
             Some(sample)
         }

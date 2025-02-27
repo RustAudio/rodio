@@ -81,7 +81,7 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        self.input1.parameters_changed() || self.input2.parameters_changed()
+        false
     }
 
     #[inline]

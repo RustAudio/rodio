@@ -53,7 +53,6 @@ impl<I: Source> Buffered<I> {
                 Span::End => next_span_ptr.clone(),
                 Span::Input(input) => {
                     let input = input.lock().unwrap().take().unwrap();
-                    dbg!();
                     extract(input)
                 }
             };
@@ -78,7 +77,7 @@ where
         let current_sample;
         let advance_span;
 
-        match dbg!(&*self.current_span) {
+        match &*self.current_span {
             Span::Data(SpanData { data, .. }) => {
                 current_sample = Some(data[self.position_in_span]);
                 self.position_in_span += 1;
@@ -94,7 +93,6 @@ where
         };
 
         if advance_span {
-            dbg!();
             self.parameters_changed = true;
             self.next_span();
         } else {
@@ -239,7 +237,6 @@ where
     loop {
         let Some(sample) = input.next() else { break };
         data.push(sample);
-        dbg!(sample);
         if input.parameters_changed() {
             break;
         }
@@ -248,7 +245,7 @@ where
         }
     }
 
-    if dbg!(data.is_empty()) {
+    if data.is_empty() {
         return Arc::new(Span::End);
     }
 

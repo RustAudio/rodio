@@ -44,7 +44,7 @@ where
         let s1 = self.input1.next();
         let s2 = self.input2.next();
 
-        match dbg!((s1, s2)) {
+        match (s1, s2) {
             (Some(s1), Some(s2)) => Some(s1 + s2),
             (Some(s1), None) => Some(s1),
             (None, Some(s2)) => Some(s2),

@@ -148,8 +148,7 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        todo!()
-        // None
+        false // wav never changes sample rate or channel count
     }
 
     #[inline]

@@ -7,13 +7,13 @@ mod test_support;
 fn param_changes_during_skip() {
     let source = TestSource::new()
         .with_span(
-            TestSpan::sample_indexes()
+            TestSpan::sample_counter()
                 .with_sample_rate(10)
                 .with_channel_count(1)
                 .with_sample_count(10),
         )
         .with_span(
-            TestSpan::sample_indexes()
+            TestSpan::sample_counter()
                 .with_sample_rate(20)
                 .with_channel_count(2)
                 .with_sample_count(10),

@@ -143,7 +143,7 @@ mod tests {
     use crate::Sample;
 
     /// Create a SamplesBuffer of identical samples with value `value`.
-    /// Returned buffer is one channel and has a sample rate of 1 hz.
+    /// Returned buffer is one channel and has a sample rate of 1 Hz.
     fn const_source(length: u8, value: Sample) -> SamplesBuffer {
         let data: Vec<f32> = (1..=length).map(|_| value).collect();
         SamplesBuffer::new(1, 1, data)

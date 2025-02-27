@@ -64,10 +64,17 @@ where
         self.input
     }
 
+    /// Optionally the truncated source end with a FadeOut. The fade-out
+    /// covers the entire length of the take source.
+    pub fn fadeout(&mut self, enabled: bool) {
+        self.fadeout = enabled;
+    }
+
     /// Make the truncated source end with a FadeOut. The fade-out covers the
     /// entire length of the take source.
-    pub fn set_filter_fadeout(&mut self) {
-        self.fadeout = true;
+    pub fn with_fadeout(mut self, enabled: bool) -> Self {
+        self.fadeout = enabled;
+        self
     }
 
     /// Remove any filter set.
@@ -98,6 +105,14 @@ where
     type Item = <I as Iterator>::Item;
 
     // implementation is adapted of skip_duration
+    //
+    // if tuples are frames you could define fadeout as this:
+    //    [(1.0, 1.0), (1.0, 1.0), (1.0, 1.0)]
+    // -> [(1.0, 1.0), (0.5, 0.5), (0.0, 0.0)]
+    // instead because its simpler, faster and what previous rodio versions did we do:
+    //    [(1.0, 1.0), (1.0, 1.0), (1.0, 1.0)]
+    // -> [(1.0, .83), (.66, 0.5), (.33, .16)]
+    // at normal sample_rates you do not hear a difference
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
         if self.input.parameters_changed() {
             self.remaining_ns -= self.duration_taken();
@@ -114,13 +129,15 @@ where
             return None;
         };
 
-        self.samples_taken += 1;
-        if self.fadeout {
+        let ret = if self.fadeout {
             let total = self.requested_duration.as_nanos() as u64;
-            Some(sample * self.remaining_ns as f32 / total as f32)
+            let remaining = self.remaining_ns - self.duration_taken();
+            Some(sample * remaining as f32 / total as f32)
         } else {
             Some(sample)
-        }
+        };
+        self.samples_taken += 1;
+        ret
     }
 }
 

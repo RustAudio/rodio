@@ -18,6 +18,7 @@ pub enum SampleSource {
     Silence,
     List(Vec<f32>),
     SampleIndex,
+    Ones,
 }
 
 impl SampleSource {
@@ -29,6 +30,10 @@ impl SampleSource {
         channels: ChannelCount,
         numb_samples: usize,
     ) -> Option<Sample> {
+        if pos >= numb_samples {
+            return None;
+        }
+
         match self {
             SampleSource::SignalGen {
                 function,
@@ -41,12 +46,11 @@ impl SampleSource {
                     .collect();
                 samples.get(pos).copied()
             }
-            SampleSource::SampleIndex if pos < numb_samples => Some(pos_in_source as f32),
-            SampleSource::SampleIndex => None,
             SampleSource::SignalGen { samples, .. } => samples.get(pos).copied(),
-            SampleSource::Silence { .. } if pos < numb_samples => Some(0.0),
-            SampleSource::Silence { .. } => None,
             SampleSource::List(list) => list.get(pos).copied(),
+            SampleSource::SampleIndex => Some(pos_in_source as f32),
+            SampleSource::Silence { .. } => Some(0.0),
+            SampleSource::Ones => Some(1.0),
         }
     }
 }
@@ -74,7 +78,14 @@ impl TestSpan {
             channels: 1,
         }
     }
-    pub fn sample_indexes() -> TestSpanBuilder {
+    pub fn ones() -> TestSpanBuilder {
+        TestSpanBuilder {
+            sample_source: SampleSource::Ones,
+            sample_rate: 1,
+            channels: 1,
+        }
+    }
+    pub fn sample_counter() -> TestSpanBuilder {
         TestSpanBuilder {
             sample_source: SampleSource::SampleIndex,
             sample_rate: 1,

@@ -16,8 +16,7 @@ where
     I1: Source,
     I2: Source,
 {
-    let mut input_fadeout = input_fadeout.take_duration(duration);
-    input_fadeout.set_filter_fadeout();
+    let input_fadeout = input_fadeout.take_duration(duration).with_fadeout(true);
     let input_fadein = input_fadein.take_duration(duration).fade_in(duration);
     input_fadeout.mix(input_fadein)
 }

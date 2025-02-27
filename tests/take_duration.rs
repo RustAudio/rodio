@@ -19,6 +19,9 @@ fn ends_on_frame_boundary(#[values(1.483, 2.999)] seconds_to_skip: f32) {
     let got = source
         .clone()
         .take_duration(Duration::from_secs_f32(seconds_to_skip))
+        // fadeout enables extra logic, run it too to check for bounds/overflow issues
+        .with_fadeout(true) 
+                            
         .count();
     assert!(got % source.channels() as usize == 0)
 }
@@ -49,6 +52,7 @@ fn param_changes_during_skip(#[values(6, 11)] seconds_to_skip: u64) {
     let took = source
         .clone()
         .take_duration(Duration::from_secs(seconds_to_skip))
+        .with_fadeout(true)
         .count();
 
     let spans = source.spans;
@@ -66,6 +70,33 @@ fn param_changes_during_skip(#[values(6, 11)] seconds_to_skip: u64) {
         took == expected,
         "expected {expected} samples, took only: {took}"
     );
+}
+
+#[test]
+fn fadeout() {
+    let span_duration = Duration::from_secs(5);
+    let source = TestSource::new()
+        .with_span(
+            TestSpan::ones()
+                .with_sample_rate(5)
+                .with_channel_count(1)
+                .with_exact_duration(span_duration),
+        )
+        .with_span(
+            TestSpan::ones()
+                .with_sample_rate(5)
+                .with_channel_count(2)
+                .with_exact_duration(span_duration),
+        );
+
+    let fade_out = source
+        .take_duration(span_duration.mul_f32(1.5))
+        .with_fadeout(true)
+        .collect::<Vec<_>>();
+    dbg!(&fade_out);
+    assert_eq!(fade_out.first(), Some(&1.0));
+    // fade_out ends the step before zero
+    assert!(fade_out.last().unwrap() > &0.0);
 }
 
 #[rstest]
@@ -86,6 +117,7 @@ fn samples_taken(
 
     let samples = test_buffer
         .take_duration(Duration::from_secs(seconds_to_take as u64))
+        .with_fadeout(true)
         .count();
 
     let seconds_we_can_take = seconds_to_take.min(seconds);

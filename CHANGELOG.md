@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minimal builds without `cpal` audio output are now supported.
   See `README.md` for instructions. (#349)
 - Added `Sample::is_zero()` method for checking zero samples.
+- Added `TakeDuration::with_fadeout` similar to `TakeDuration::fadeout` but returns `Self`
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: Sources wrapping an existing source had a public factory method
   which is now removed. Something like: `source::amplify(unamplified, 1.2)` must now be
   written as `unamplified.amplify(1.2)`.
+- Breaking: `TakeDuration::set_filter_fadeout()` has been removed. Use `TakeDuration.fadeout(true)`.
 - `SignalGenerator`'s `Function` is now Copy.
 
 

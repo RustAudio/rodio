@@ -6,7 +6,8 @@
 //!
 //! ```
 //! use rodio::static_buffer::StaticSamplesBuffer;
-//! let _ = StaticSamplesBuffer::new(1, 44100, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+//! use rodio::ChannelCount;
+//! let _ = StaticSamplesBuffer::new(ChannelCount::new(1).unwrap(), 44100, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 //! ```
 //!
 
@@ -41,12 +42,11 @@ impl StaticSamplesBuffer {
         sample_rate: SampleRate,
         data: &'static [Sample],
     ) -> StaticSamplesBuffer {
-        assert!(channels != 0);
         assert!(sample_rate != 0);
 
         let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
             / sample_rate as u64
-            / channels as u64;
+            / channels.get() as u64;
         let duration = Duration::new(
             duration_ns / 1_000_000_000,
             (duration_ns % 1_000_000_000) as u32,
@@ -106,29 +106,24 @@ impl Iterator for StaticSamplesBuffer {
 
 #[cfg(test)]
 mod tests {
+    use crate::math::ch;
     use crate::source::Source;
     use crate::static_buffer::StaticSamplesBuffer;
 
     #[test]
     fn basic() {
-        let _ = StaticSamplesBuffer::new(1, 44100, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn panic_if_zero_channels() {
-        StaticSamplesBuffer::new(0, 44100, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let _ = StaticSamplesBuffer::new(ch!(1), 44100, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     #[should_panic]
     fn panic_if_zero_sample_rate() {
-        StaticSamplesBuffer::new(1, 0, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        StaticSamplesBuffer::new(ch!(1), 0, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     fn duration_basic() {
-        let buf = StaticSamplesBuffer::new(2, 2, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let buf = StaticSamplesBuffer::new(ch!(2), 2, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
         let dur = buf.total_duration().unwrap();
         assert_eq!(dur.as_secs(), 1);
         assert_eq!(dur.subsec_nanos(), 500_000_000);
@@ -136,7 +131,7 @@ mod tests {
 
     #[test]
     fn iteration() {
-        let mut buf = StaticSamplesBuffer::new(1, 44100, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let mut buf = StaticSamplesBuffer::new(ch!(1), 44100, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         assert_eq!(buf.next(), Some(1.0));
         assert_eq!(buf.next(), Some(2.0));
         assert_eq!(buf.next(), Some(3.0));

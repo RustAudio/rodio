@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::{Sample, Source};
 
 /// An empty source.
@@ -41,7 +42,7 @@ impl Source for Empty {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        1
+        ch!(1)
     }
 
     #[inline]

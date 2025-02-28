@@ -1,6 +1,7 @@
 //! Chirp/sweep source.
 
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::Source;
 use std::{f32::consts::TAU, time::Duration};
 
@@ -62,7 +63,7 @@ impl Source for Chirp {
     }
 
     fn channels(&self) -> ChannelCount {
-        1
+        ch!(1)
     }
 
     fn sample_rate(&self) -> SampleRate {

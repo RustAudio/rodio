@@ -76,6 +76,16 @@ pub fn linear_to_db(linear: f32) -> f32 {
     linear.log2() * std::f32::consts::LOG10_2 * 20.0
 }
 
+/// short macro to generate a `ChannelCount` for tests
+/// this panics during compile if the passed in literal is zero
+macro_rules! ch {
+    ($n:literal) => {
+        const { core::num::NonZeroU16::new($n).unwrap() }
+    };
+}
+
+pub(crate) use ch;
+
 #[cfg(test)]
 mod test {
     use super::*;

@@ -54,7 +54,6 @@ where
         to: SampleRate,
         num_channels: ChannelCount,
     ) -> SampleRateConverter<I> {
-        assert!(num_channels >= 1);
         assert!(from >= 1);
         assert!(to >= 1);
 
@@ -64,11 +63,11 @@ where
         } else {
             let first = input
                 .by_ref()
-                .take(num_channels as usize)
+                .take(num_channels.get() as usize)
                 .collect::<Vec<_>>();
             let next = input
                 .by_ref()
-                .take(num_channels as usize)
+                .take(num_channels.get() as usize)
                 .collect::<Vec<_>>();
             (first, next)
         };
@@ -85,7 +84,7 @@ where
             next_output_span_pos_in_chunk: 0,
             current_span: first_samples,
             next_frame: next_samples,
-            output_buffer: Vec::with_capacity(num_channels as usize - 1),
+            output_buffer: Vec::with_capacity(num_channels.get() as usize - 1),
         }
     }
 
@@ -106,7 +105,7 @@ where
 
         mem::swap(&mut self.current_span, &mut self.next_frame);
         self.next_frame.clear();
-        for _ in 0..self.channels {
+        for _ in 0..self.channels.get() {
             if let Some(i) = self.input.next() {
                 self.next_frame.push(i);
             } else {
@@ -213,7 +212,7 @@ where
             // removing the samples of the current chunk that have not yet been read
             let samples_after_chunk = samples_after_chunk.saturating_sub(
                 self.from.saturating_sub(self.current_span_pos_in_chunk + 2) as usize
-                    * usize::from(self.channels),
+                    * usize::from(self.channels.get()),
             );
             // calculating the number of samples after the transformation
             // TODO: this is wrong here \|/
@@ -222,7 +221,7 @@ where
             // `samples_current_chunk` will contain the number of samples remaining to be output
             // for the chunk currently being processed
             let samples_current_chunk = (self.to - self.next_output_span_pos_in_chunk) as usize
-                * usize::from(self.channels);
+                * usize::from(self.channels.get());
 
             samples_current_chunk + samples_after_chunk + self.output_buffer.len()
         };
@@ -242,14 +241,15 @@ impl<I> ExactSizeIterator for SampleRateConverter<I> where I: ExactSizeIterator<
 mod test {
     use super::SampleRateConverter;
     use crate::common::{ChannelCount, SampleRate};
+    use crate::math::ch;
     use crate::Sample;
     use core::time::Duration;
     use quickcheck::{quickcheck, TestResult};
 
     quickcheck! {
         /// Check that resampling an empty input produces no output.
-        fn empty(from: u16, to: u16, channels: u8) -> TestResult {
-            if channels == 0 || channels > 128
+        fn empty(from: u16, to: u16, channels: ChannelCount) -> TestResult {
+            if channels.get() > 128
                 || from == 0
                 || to == 0
             {
@@ -260,7 +260,7 @@ mod test {
 
             let input: Vec<Sample> = Vec::new();
             let output =
-                SampleRateConverter::new(input.into_iter(), from, to, channels as ChannelCount)
+                SampleRateConverter::new(input.into_iter(), from, to, channels)
                   .collect::<Vec<_>>();
 
             assert_eq!(output, []);
@@ -268,13 +268,13 @@ mod test {
         }
 
         /// Check that resampling to the same rate does not change the signal.
-        fn identity(from: u16, channels: u8, input: Vec<i16>) -> TestResult {
-            if channels == 0 || channels > 128 || from == 0 { return TestResult::discard(); }
+        fn identity(from: u16, channels: ChannelCount, input: Vec<i16>) -> TestResult {
+            if channels.get() > 128 || from == 0 { return TestResult::discard(); }
             let from = from as SampleRate;
             let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
 
             let output =
-                SampleRateConverter::new(input.clone().into_iter(), from, from, channels as ChannelCount)
+                SampleRateConverter::new(input.clone().into_iter(), from, from, channels)
                   .collect::<Vec<_>>();
 
             TestResult::from_bool(input == output)
@@ -282,8 +282,8 @@ mod test {
 
         /// Check that dividing the sample rate by k (integer) is the same as
         ///   dropping a sample from each channel.
-        fn divide_sample_rate(to: u16, k: u16, input: Vec<i16>, channels: u8) -> TestResult {
-            if k == 0 || channels == 0 || channels > 128 || to == 0 || to > 48000 {
+        fn divide_sample_rate(to: u16, k: u16, input: Vec<i16>, channels: ChannelCount) -> TestResult {
+            if k == 0 || channels.get() > 128 || to == 0 || to > 48000 {
                 return TestResult::discard();
             }
             let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
@@ -293,24 +293,24 @@ mod test {
 
             // Truncate the input, so it contains an integer number of spans.
             let input = {
-                let ns = channels as usize;
+                let ns = channels.get() as usize;
                 let mut i = input;
                 i.truncate(ns * (i.len() / ns));
                 i
             };
 
             let output =
-                SampleRateConverter::new(input.clone().into_iter(), from, to, channels as ChannelCount)
+                SampleRateConverter::new(input.clone().into_iter(), from, to, channels)
                   .collect::<Vec<_>>();
 
-            TestResult::from_bool(input.chunks_exact(channels.into())
+            TestResult::from_bool(input.chunks_exact(channels.get().into())
                          .step_by(k as usize).collect::<Vec<_>>().concat() == output)
         }
 
         /// Check that, after multiplying the sample rate by k, every k-th
         ///  sample in the output matches exactly with the input.
-        fn multiply_sample_rate(from: u16, k: u8, input: Vec<i16>, channels: u8) -> TestResult {
-            if k == 0 || channels == 0 || channels > 128 || from == 0 {
+        fn multiply_sample_rate(from: u16, k: u8, input: Vec<i16>, channels: ChannelCount) -> TestResult {
+            if k == 0 || channels.get() > 128 || from == 0 {
                 return TestResult::discard();
             }
             let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
@@ -320,24 +320,24 @@ mod test {
 
             // Truncate the input, so it contains an integer number of spans.
             let input = {
-                let ns = channels as usize;
+                let ns = channels.get() as usize;
                 let mut i = input;
                 i.truncate(ns * (i.len() / ns));
                 i
             };
 
             let output =
-                SampleRateConverter::new(input.clone().into_iter(), from, to, channels as ChannelCount)
+                SampleRateConverter::new(input.clone().into_iter(), from, to, channels)
                   .collect::<Vec<_>>();
 
             TestResult::from_bool(input ==
-                       output.chunks_exact(channels.into())
+                       output.chunks_exact(channels.get().into())
                          .step_by(k as usize).collect::<Vec<_>>().concat())
         }
 
         #[ignore]
         /// Check that resampling does not change the audio duration,
-        ///  except by a negligible amount (± 1ms).  Reproduces #316.
+        ///  except by a negligible amount (± 1ms). Reproduces #316.
         /// Ignored, pending a bug fix.
         fn preserve_durations(d: Duration, freq: f32, to: SampleRate) -> TestResult {
             if to == 0 { return TestResult::discard(); }
@@ -348,7 +348,7 @@ mod test {
             let from = source.sample_rate();
 
             let resampled =
-                SampleRateConverter::new(source, from, to, 1);
+                SampleRateConverter::new(source, from, to, ch!(1));
             let duration =
                 Duration::from_secs_f32(resampled.count() as f32 / to as f32);
 
@@ -360,7 +360,7 @@ mod test {
     #[test]
     fn upsample() {
         let input = vec![2.0, 16.0, 4.0, 18.0, 6.0, 20.0, 8.0, 22.0];
-        let output = SampleRateConverter::new(input.into_iter(), 2000, 3000, 2);
+        let output = SampleRateConverter::new(input.into_iter(), 2000, 3000, ch!(2));
         assert_eq!(output.len(), 12); // Test the source's Iterator::size_hint()
 
         let output = output.map(|x| x.trunc()).collect::<Vec<_>>();
@@ -373,7 +373,7 @@ mod test {
     #[test]
     fn upsample2() {
         let input = vec![1.0, 14.0];
-        let output = SampleRateConverter::new(input.into_iter(), 1000, 7000, 1);
+        let output = SampleRateConverter::new(input.into_iter(), 1000, 7000, ch!(1));
         let size_estimation = output.len();
         let output = output.map(|x| x.trunc()).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0]);
@@ -383,7 +383,7 @@ mod test {
     #[test]
     fn downsample() {
         let input = Vec::from_iter((0..17).map(|x| x as Sample));
-        let output = SampleRateConverter::new(input.into_iter(), 12000, 2400, 1);
+        let output = SampleRateConverter::new(input.into_iter(), 12000, 2400, ch!(1));
         let size_estimation = output.len();
         let output = output.collect::<Vec<_>>();
         assert_eq!(output, [0.0, 5.0, 10.0, 15.0]);

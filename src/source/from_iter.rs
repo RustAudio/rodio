@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::Source;
 
 /// Builds a source that chains sources provided by an iterator.
@@ -117,7 +118,7 @@ where
             src.channels()
         } else {
             // Dummy value that only happens if the iterator was empty.
-            2
+            ch!(2)
         }
     }
 
@@ -149,21 +150,22 @@ where
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
+    use crate::math::ch;
     use crate::source::{from_iter, Source};
 
     #[test]
     fn basic() {
         let mut rx = from_iter((0..2).map(|n| {
             if n == 0 {
-                SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0])
+                SamplesBuffer::new(ch!(1), 48000, vec![10.0, -10.0, 10.0, -10.0])
             } else if n == 1 {
-                SamplesBuffer::new(2, 96000, vec![5.0, 5.0, 5.0, 5.0])
+                SamplesBuffer::new(ch!(2), 96000, vec![5.0, 5.0, 5.0, 5.0])
             } else {
                 unreachable!()
             }
         }));
 
-        assert_eq!(rx.channels(), 1);
+        assert_eq!(rx.channels(), ch!(1));
         assert_eq!(rx.sample_rate(), 48000);
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));

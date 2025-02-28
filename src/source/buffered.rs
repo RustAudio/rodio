@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::Source;
 
 /// Internal function that builds a `Buffered` object.
@@ -214,7 +215,7 @@ where
     fn channels(&self) -> ChannelCount {
         match *self.current_span {
             Span::Data(SpanData { channels, .. }) => channels,
-            Span::End => 1,
+            Span::End => ch!(1),
             Span::Input(_) => unreachable!(),
         }
     }

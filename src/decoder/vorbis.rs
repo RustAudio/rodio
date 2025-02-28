@@ -69,7 +69,8 @@ where
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.stream_reader.ident_hdr.audio_channels as ChannelCount
+        ChannelCount::new(self.stream_reader.ident_hdr.audio_channels.into())
+            .expect("audio should have at least one channel")
     }
 
     #[inline]

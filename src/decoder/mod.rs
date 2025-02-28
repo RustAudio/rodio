@@ -56,6 +56,7 @@ use std::{
 #[allow(unused_imports)]
 use std::io::SeekFrom;
 
+use crate::math::ch;
 use crate::{
     common::{ChannelCount, SampleRate},
     source::{SeekError, Source},

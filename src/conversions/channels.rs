@@ -92,13 +92,14 @@ where
         let (min, max) = self.input.size_hint();
 
         let consumed = std::cmp::min(self.from, self.next_output_sample_pos) as usize;
-        let calculate = |size| {
-            (size + consumed) / self.from as usize * self.to as usize
-                - self.next_output_sample_pos as usize
-        };
 
-        let min = calculate(min);
-        let max = max.map(calculate);
+        let min = ((min + consumed) / self.from as usize * self.to as usize)
+            .saturating_sub(self.next_output_sample_pos as usize);
+
+        let max = max.map(|max| {
+            ((max + consumed) / self.from as usize * self.to as usize)
+                .saturating_sub(self.next_output_sample_pos as usize)
+        });
 
         (min, max)
     }

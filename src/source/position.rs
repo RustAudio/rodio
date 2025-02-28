@@ -71,12 +71,10 @@ where
     /// track_position after speedup's and delay's.
     #[inline]
     pub fn get_pos(&self) -> Duration {
-        dbg!(self);
         let seconds = self.samples_counted as f64
             / self.input.sample_rate() as f64
             / self.input.channels().get() as f64
             + self.offset_duration;
-        dbg!(seconds);
         Duration::from_secs_f64(seconds)
     }
 }
@@ -96,7 +94,6 @@ where
             // At the end of a span add the duration of this span to
             // offset_duration and start collecting samples again.
             if self.parameters_changed() {
-                dbg!(&self);
                 self.offset_duration += self.samples_counted as f64
                     / self.current_span_sample_rate as f64
                     / self.current_span_channels.get() as f64;

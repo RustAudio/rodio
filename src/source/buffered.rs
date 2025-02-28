@@ -125,7 +125,7 @@ where
     fn sample_rate(&self) -> SampleRate {
         match *self.current_span {
             Span::Data(SpanData { rate, .. }) => rate,
-            Span::End => dbg!(0),
+            Span::End => 1,
             Span::Input(_) => unreachable!(),
         }
     }

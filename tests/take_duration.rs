@@ -93,7 +93,6 @@ fn fadeout() {
         .take_duration(span_duration.mul_f32(1.5))
         .with_fadeout(true)
         .collect::<Vec<_>>();
-    dbg!(&fade_out);
     assert_eq!(fade_out.first(), Some(&1.0));
     // fade_out ends the step before zero
     assert!(fade_out.last().unwrap() > &0.0);

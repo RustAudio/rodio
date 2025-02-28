@@ -125,14 +125,16 @@ fn seek_does_not_break_channel_order(
 
     let beep_range = second_channel_beep_range(&mut source);
     let beep_start = Duration::from_secs_f32(
-        beep_range.start as f32 / source.channels().get() as f32 / source.sample_rate() as f32,
+        beep_range.start as f32
+            / source.channels().get() as f32
+            / source.sample_rate().get() as f32,
     );
 
     let mut source = get_rl(format);
 
     let mut channel_offset = 0;
     for offset in [1, 4, 7, 40, 41, 120, 179]
-        .map(|offset| offset as f32 / (source.sample_rate() as f32))
+        .map(|offset| offset as f32 / (source.sample_rate().get() as f32))
         .map(Duration::from_secs_f32)
     {
         source.next(); // WINDOW is even, make the amount of calls to next
@@ -218,7 +220,7 @@ fn is_silent(samples: &[f32], channels: usize, channel: usize) -> bool {
 }
 
 fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
-    let rate = decoder.sample_rate() as f64;
+    let rate = decoder.sample_rate().get() as f64;
     let n_channels = decoder.channels().get() as f64;
     let n_samples = decoder.into_iter().count() as f64;
     Duration::from_secs_f64(n_samples / rate / n_channels)

@@ -60,7 +60,8 @@ where
             current_block_channel_len: 1,
             current_block_off: 0,
             bits_per_sample: spec.bits_per_sample,
-            sample_rate,
+            sample_rate: SampleRate::new(sample_rate)
+                .expect("flac data should never have a zero sample rate"),
             channels: ChannelCount::new(
                 spec.channels
                     .try_into()

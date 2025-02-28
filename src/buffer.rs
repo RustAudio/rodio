@@ -6,8 +6,8 @@
 //!
 //! ```
 //! use rodio::buffer::SamplesBuffer;
-//! use rodio::ChannelCount;
-//! let _ = SamplesBuffer::new(ChannelCount::new(1).unwrap(), 44100, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+//! use core::num::NonZero;
+//! let _ = SamplesBuffer::new(NonZero::new(1).unwrap(), NonZero::new(44100).unwrap(), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 //! ```
 //!
 
@@ -40,11 +40,9 @@ impl SamplesBuffer {
     where
         D: Into<Vec<Sample>>,
     {
-        assert!(sample_rate >= 1);
-
         let data: Arc<[f32]> = data.into().into();
         let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
-            / sample_rate as u64
+            / sample_rate.get() as u64
             / channels.get() as u64;
         let duration = Duration::new(
             duration_ns / 1_000_000_000,
@@ -90,7 +88,8 @@ impl Source for SamplesBuffer {
         // sample directly.
 
         let curr_channel = self.pos % self.channels().get() as usize;
-        let new_pos = pos.as_secs_f32() * self.sample_rate() as f32 * self.channels().get() as f32;
+        let new_pos =
+            pos.as_secs_f32() * self.sample_rate().get() as f32 * self.channels().get() as f32;
         // saturate pos at the end of the source
         let new_pos = new_pos as usize;
         let new_pos = new_pos.min(self.data.len());
@@ -123,23 +122,17 @@ impl Iterator for SamplesBuffer {
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
-    use crate::math::ch;
+    use crate::math::nz;
     use crate::source::Source;
 
     #[test]
     fn basic() {
-        let _ = SamplesBuffer::new(ch!(1), 44100, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn panic_if_zero_sample_rate() {
-        SamplesBuffer::new(ch!(1), 0, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let _ = SamplesBuffer::new(nz!(1), nz!(44100), vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     fn duration_basic() {
-        let buf = SamplesBuffer::new(ch!(2), 2, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let buf = SamplesBuffer::new(nz!(2), nz!(2), vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
         let dur = buf.total_duration().unwrap();
         assert_eq!(dur.as_secs(), 1);
         assert_eq!(dur.subsec_nanos(), 500_000_000);
@@ -147,7 +140,7 @@ mod tests {
 
     #[test]
     fn iteration() {
-        let mut buf = SamplesBuffer::new(ch!(1), 44100, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let mut buf = SamplesBuffer::new(nz!(1), nz!(44100), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         assert_eq!(buf.next(), Some(1.0));
         assert_eq!(buf.next(), Some(2.0));
         assert_eq!(buf.next(), Some(3.0));
@@ -166,8 +159,8 @@ mod tests {
 
         #[test]
         fn channel_order_stays_correct() {
-            const SAMPLE_RATE: SampleRate = 100;
-            const CHANNELS: ChannelCount = ch!(2);
+            const SAMPLE_RATE: SampleRate = nz!(100);
+            const CHANNELS: ChannelCount = nz!(2);
             let mut buf = SamplesBuffer::new(
                 CHANNELS,
                 SAMPLE_RATE,
@@ -176,7 +169,7 @@ mod tests {
             buf.try_seek(Duration::from_secs(5)).unwrap();
             assert_eq!(
                 buf.next(),
-                Some(5.0 * SAMPLE_RATE as f32 * CHANNELS.get() as f32)
+                Some(5.0 * SAMPLE_RATE.get() as f32 * CHANNELS.get() as f32)
             );
 
             assert!(buf.next().is_some_and(|s| s.trunc() as i32 % 2 == 1));

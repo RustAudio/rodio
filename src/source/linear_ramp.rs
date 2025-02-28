@@ -89,7 +89,7 @@ where
         }
 
         if self.sample_idx % (self.channels().get() as u64) == 0 {
-            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate() as f32);
+            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate().get() as f32);
         }
 
         self.input.next().map(|value| value * factor)
@@ -140,14 +140,14 @@ mod tests {
 
     use super::*;
     use crate::buffer::SamplesBuffer;
-    use crate::math::ch;
+    use crate::math::nz;
     use crate::Sample;
 
     /// Create a SamplesBuffer of identical samples with value `value`.
     /// Returned buffer is one channel and has a sample rate of 1 hz.
     fn const_source(length: u8, value: Sample) -> SamplesBuffer {
         let data: Vec<f32> = (1..=length).map(|_| value).collect();
-        SamplesBuffer::new(ch!(1), 1, data)
+        SamplesBuffer::new(nz!(1), nz!(1), data)
     }
 
     /// Create a SamplesBuffer of repeating sample values from `values`.
@@ -157,7 +157,7 @@ mod tests {
             .map(|(i, _)| values[i % values.len()])
             .collect();
 
-        SamplesBuffer::new(ch!(1), 1, data)
+        SamplesBuffer::new(nz!(1), nz!(1), data)
     }
 
     #[test]

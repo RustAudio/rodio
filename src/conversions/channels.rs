@@ -108,19 +108,19 @@ impl<I> ExactSizeIterator for ChannelCountConverter<I> where I: ExactSizeIterato
 mod test {
     use super::ChannelCountConverter;
     use crate::common::ChannelCount;
-    use crate::math::ch;
+    use crate::math::nz;
     use crate::Sample;
 
     #[test]
     fn remove_channels() {
         let input = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         let output =
-            ChannelCountConverter::new(input.into_iter(), ch!(3), ch!(2)).collect::<Vec<_>>();
+            ChannelCountConverter::new(input.into_iter(), nz!(3), nz!(2)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 2.0, 4.0, 5.0]);
 
         let input = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let output =
-            ChannelCountConverter::new(input.into_iter(), ch!(4), ch!(1)).collect::<Vec<_>>();
+            ChannelCountConverter::new(input.into_iter(), nz!(4), nz!(1)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 5.0]);
     }
 
@@ -128,17 +128,17 @@ mod test {
     fn add_channels() {
         let input = vec![1.0, 2.0, 3.0, 4.0];
         let output =
-            ChannelCountConverter::new(input.into_iter(), ch!(1), ch!(2)).collect::<Vec<_>>();
+            ChannelCountConverter::new(input.into_iter(), nz!(1), nz!(2)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]);
 
         let input = vec![1.0, 2.0];
         let output =
-            ChannelCountConverter::new(input.into_iter(), ch!(1), ch!(4)).collect::<Vec<_>>();
+            ChannelCountConverter::new(input.into_iter(), nz!(1), nz!(4)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 1.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0]);
 
         let input = vec![1.0, 2.0, 3.0, 4.0];
         let output =
-            ChannelCountConverter::new(input.into_iter(), ch!(2), ch!(4)).collect::<Vec<_>>();
+            ChannelCountConverter::new(input.into_iter(), nz!(2), nz!(4)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 2.0, 0.0, 0.0, 3.0, 4.0, 0.0, 0.0]);
     }
 
@@ -155,24 +155,24 @@ mod test {
             assert_eq!(converter.size_hint(), (0, Some(0)));
         }
 
-        test(&[1.0, 2.0, 3.0], ch!(1), ch!(2));
-        test(&[1.0, 2.0, 3.0, 4.0], ch!(2), ch!(4));
-        test(&[1.0, 2.0, 3.0, 4.0], ch!(4), ch!(2));
-        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], ch!(3), ch!(8));
-        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], ch!(4), ch!(1));
+        test(&[1.0, 2.0, 3.0], nz!(1), nz!(2));
+        test(&[1.0, 2.0, 3.0, 4.0], nz!(2), nz!(4));
+        test(&[1.0, 2.0, 3.0, 4.0], nz!(4), nz!(2));
+        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], nz!(3), nz!(8));
+        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], nz!(4), nz!(1));
     }
 
     #[test]
     fn len_more() {
         let input = vec![1.0, 2.0, 3.0, 4.0];
-        let output = ChannelCountConverter::new(input.into_iter(), ch!(2), ch!(3));
+        let output = ChannelCountConverter::new(input.into_iter(), nz!(2), nz!(3));
         assert_eq!(output.len(), 6);
     }
 
     #[test]
     fn len_less() {
         let input = vec![1.0, 2.0, 3.0, 4.0];
-        let output = ChannelCountConverter::new(input.into_iter(), ch!(2), ch!(1));
+        let output = ChannelCountConverter::new(input.into_iter(), nz!(2), nz!(1));
         assert_eq!(output.len(), 2);
     }
 }

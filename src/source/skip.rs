@@ -40,7 +40,7 @@ where
         }
 
         let ns_per_sample: u128 =
-            NS_PER_SECOND / input.sample_rate() as u128 / input.channels().get() as u128;
+            NS_PER_SECOND / input.sample_rate().get() as u128 / input.channels().get() as u128;
 
         // Check if we need to skip only part of the current span.
         if span_len as u128 * ns_per_sample > duration.as_nanos() {
@@ -61,7 +61,7 @@ where
     I: Source,
 {
     let samples_per_channel: u128 =
-        duration.as_nanos() * input.sample_rate() as u128 / NS_PER_SECOND;
+        duration.as_nanos() * input.sample_rate().get() as u128 / NS_PER_SECOND;
     let samples_to_skip: u128 = samples_per_channel * input.channels().get() as u128;
 
     skip_samples(input, samples_to_skip as usize);
@@ -165,7 +165,7 @@ mod tests {
 
     use crate::buffer::SamplesBuffer;
     use crate::common::{ChannelCount, SampleRate};
-    use crate::math::ch;
+    use crate::math::nz;
     use crate::source::Source;
 
     fn test_skip_duration_samples_left(
@@ -174,13 +174,14 @@ mod tests {
         seconds: u32,
         seconds_to_skip: u32,
     ) {
-        let buf_len = (sample_rate * channels.get() as u32 * seconds) as usize;
+        let buf_len = (sample_rate.get() * channels.get() as u32 * seconds) as usize;
         assert!(buf_len < 10 * 1024 * 1024);
         let data: Vec<f32> = vec![0f32; buf_len];
         let test_buffer = SamplesBuffer::new(channels, sample_rate, data);
         let seconds_left = seconds.saturating_sub(seconds_to_skip);
 
-        let samples_left_expected = (sample_rate * channels.get() as u32 * seconds_left) as usize;
+        let samples_left_expected =
+            (sample_rate.get() * channels.get() as u32 * seconds_left) as usize;
         let samples_left = test_buffer
             .skip_duration(Duration::from_secs(seconds_to_skip as u64))
             .count();
@@ -191,7 +192,7 @@ mod tests {
     macro_rules! skip_duration_test_block {
         ($(channels: $ch:expr, sample rate: $sr:expr, seconds: $sec:expr, seconds to skip: $sec_to_skip:expr;)+) => {
             $(
-                test_skip_duration_samples_left(ch!($ch), $sr, $sec, $sec_to_skip);
+                test_skip_duration_samples_left(nz!($ch), nz!($sr), $sec, $sec_to_skip);
             )+
         }
     }

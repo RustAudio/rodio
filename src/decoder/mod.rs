@@ -57,6 +57,7 @@ use std::{
 use std::io::SeekFrom;
 
 use crate::math::ch;
+use crate::math::nz;
 use crate::{
     common::{ChannelCount, SampleRate},
     source::{SeekError, Source},

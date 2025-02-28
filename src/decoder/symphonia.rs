@@ -177,7 +177,7 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.spec.rate
+        SampleRate::new(self.spec.rate).expect("audio should always have a non zero SampleRate")
     }
 
     #[inline]

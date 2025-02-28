@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::ch;
+use crate::math::nz;
 use crate::{Sample, Source};
 
 /// An empty source that executes a callback function
@@ -39,12 +39,12 @@ impl Source for EmptyCallback {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        ch!(1)
+        nz!(1)
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        48000
+        nz!(48000)
     }
 
     #[inline]

@@ -1,3 +1,4 @@
+use std::num::NonZero;
 use std::time::Duration;
 
 use divan::Bencher;
@@ -32,8 +33,11 @@ fn long(bencher: Bencher) {
             .buffered()
             .reverb(Duration::from_secs_f32(0.05), 0.3)
             .skippable();
-        let resampled =
-            UniformSourceIterator::new(effects_applied, ChannelCount::new(2).unwrap(), 40_000);
+        let resampled = UniformSourceIterator::new(
+            effects_applied,
+            ChannelCount::new(2).unwrap(),
+            NonZero::new(40_000).unwrap(),
+        );
         resampled.for_each(divan::black_box_drop)
     })
 }

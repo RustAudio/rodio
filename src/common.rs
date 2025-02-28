@@ -1,7 +1,7 @@
 use std::num::NonZero;
 
 /// Stream sample rate (a frame rate or samples per second per channel).
-pub type SampleRate = u32;
+pub type SampleRate = NonZero<u32>;
 
 /// Number of channels in a stream. Can never be Zero
 pub type ChannelCount = NonZero<u16>;

@@ -1,7 +1,7 @@
 //! Chirp/sweep source.
 
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::ch;
+use crate::math::nz;
 use crate::Source;
 use std::{f32::consts::TAU, time::Duration};
 
@@ -38,7 +38,7 @@ impl Chirp {
             sample_rate,
             start_frequency,
             end_frequency,
-            total_samples: (duration.as_secs_f64() * (sample_rate as f64)) as u64,
+            total_samples: (duration.as_secs_f64() * (sample_rate.get() as f64)) as u64,
             elapsed_samples: 0,
         }
     }
@@ -52,7 +52,7 @@ impl Iterator for Chirp {
         let ratio = self.elapsed_samples as f32 / self.total_samples as f32;
         self.elapsed_samples += 1;
         let freq = self.start_frequency * (1.0 - ratio) + self.end_frequency * ratio;
-        let t = (i as f32 / self.sample_rate() as f32) * TAU * freq;
+        let t = (i as f32 / self.sample_rate().get() as f32) * TAU * freq;
         Some(t.sin())
     }
 }
@@ -63,7 +63,7 @@ impl Source for Chirp {
     }
 
     fn channels(&self) -> ChannelCount {
-        ch!(1)
+        nz!(1)
     }
 
     fn sample_rate(&self) -> SampleRate {
@@ -71,7 +71,7 @@ impl Source for Chirp {
     }
 
     fn total_duration(&self) -> Option<Duration> {
-        let secs: f64 = self.total_samples as f64 / self.sample_rate as f64;
+        let secs: f64 = self.total_samples as f64 / self.sample_rate.get() as f64;
         Some(Duration::new(1, 0).mul_f64(secs))
     }
 }

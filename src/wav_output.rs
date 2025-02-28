@@ -11,7 +11,7 @@ pub fn output_to_wav(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let format = WavSpec {
         channels: source.channels().get(),
-        sample_rate: source.sample_rate(),
+        sample_rate: source.sample_rate().get(),
         bits_per_sample: 32,
         sample_format: SampleFormat::Float,
     };
@@ -45,7 +45,7 @@ mod test {
         let mut reader =
             hound::WavReader::new(BufReader::new(file)).expect("wav file can be read back");
         let reference = make_source();
-        assert_eq!(reference.sample_rate(), reader.spec().sample_rate);
+        assert_eq!(reference.sample_rate().get(), reader.spec().sample_rate);
         assert_eq!(reference.channels().get(), reader.spec().channels);
 
         let actual_samples: Vec<f32> = reader.samples::<f32>().map(|x| x.unwrap()).collect();

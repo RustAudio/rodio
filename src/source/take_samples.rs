@@ -45,7 +45,7 @@ where
     type Item = <I as Iterator>::Item;
 
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if self.taken >= self.target.prev_multiple_of(self.input.channels()) {
+        if self.taken >= self.target.prev_multiple_of(self.input.channels().get()) {
             None
         } else {
             self.taken += 1;

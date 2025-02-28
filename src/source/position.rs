@@ -27,7 +27,6 @@ impl<I> std::fmt::Debug for TrackPosition<I> {
 impl<I: Source> TrackPosition<I> {
     pub(crate) fn new(source: I) -> TrackPosition<I> {
         assert!(source.sample_rate() > 0);
-        assert!(source.channels() > 0);
         TrackPosition {
             samples_counted: 0,
             offset_duration: 0.0,
@@ -75,7 +74,7 @@ where
         dbg!(self);
         let seconds = self.samples_counted as f64
             / self.input.sample_rate() as f64
-            / self.input.channels() as f64
+            / self.input.channels().get() as f64
             + self.offset_duration;
         dbg!(seconds);
         Duration::from_secs_f64(seconds)
@@ -100,7 +99,7 @@ where
                 dbg!(&self);
                 self.offset_duration += self.samples_counted as f64
                     / self.current_span_sample_rate as f64
-                    / self.current_span_channels as f64;
+                    / self.current_span_channels.get() as f64;
 
                 // Reset.
                 self.samples_counted = 0;

@@ -165,6 +165,7 @@ pub trait Source: Iterator<Item = Sample> {
     fn parameters_changed(&self) -> bool;
 
     /// Returns the number of channels. Channels are always interleaved.
+    /// Should never be Zero
     fn channels(&self) -> ChannelCount;
 
     /// Returns the rate at which the source should be played. In number of samples per second.

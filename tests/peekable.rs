@@ -59,9 +59,9 @@ fn channel_count_changes() {
     let mut peekable = source.peekable_source();
     peekable.peek();
 
-    assert_eq!(peekable.channels(), 1);
+    assert_eq!(peekable.channels().get(), 1);
     assert_eq!(peekable.by_ref().take(10).count(), 10);
-    assert_eq!(peekable.channels(), 2);
+    assert_eq!(peekable.channels().get(), 2);
 }
 
 #[test]

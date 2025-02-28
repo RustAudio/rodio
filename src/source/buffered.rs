@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::PrevMultipleOf;
+use crate::math::{ch, PrevMultipleOf};
 use crate::Source;
 
 /// Iterator that at the same time extracts data from the iterator and
@@ -116,7 +116,7 @@ where
     fn channels(&self) -> ChannelCount {
         match *self.current_span {
             Span::Data(SpanData { channels, .. }) => channels,
-            Span::End => 0,
+            Span::End => ch!(1),
             Span::Input(_) => unreachable!(),
         }
     }
@@ -125,7 +125,7 @@ where
     fn sample_rate(&self) -> SampleRate {
         match *self.current_span {
             Span::Data(SpanData { rate, .. }) => rate,
-            Span::End => 0,
+            Span::End => dbg!(0),
             Span::Input(_) => unreachable!(),
         }
     }
@@ -235,12 +235,14 @@ where
 
     let mut data = Vec::new();
     loop {
-        let Some(sample) = input.next() else { break };
+        let Some(sample) = input.next() else {
+            break;
+        };
         data.push(sample);
         if input.parameters_changed() {
             break;
         }
-        if data.len() > 32768.prev_multiple_of(channels) {
+        if data.len() > 32768.prev_multiple_of(channels.into()) {
             break;
         }
     }

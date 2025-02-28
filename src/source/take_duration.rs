@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::{PrevMultipleOf, NS_PER_SECOND};
+use crate::math::{PrevMultipleOfNonZero, NS_PER_SECOND};
 use crate::Source;
 
 /// A source that truncates the given source to a certain duration.
@@ -30,7 +30,7 @@ where
             .try_into()
             .expect("can not take more then 584 days of audio");
 
-        let samples_per_second = input.sample_rate() as u64 * input.channels() as u64;
+        let samples_per_second = input.sample_rate() as u64 * input.channels().get() as u64;
         let samples_to_take =
             (remaining_ns as u128 * samples_per_second as u128 / NS_PER_SECOND as u128) as u64;
         let samples_to_take = samples_to_take.prev_multiple_of(input.channels());
@@ -83,7 +83,7 @@ where
     }
 
     fn next_samples_per_second(&mut self) -> u64 {
-        self.input.sample_rate() as u64 * self.input.channels() as u64
+        self.input.sample_rate() as u64 * self.input.channels().get() as u64
     }
 
     fn next_samples_to_take(&mut self) -> u64 {

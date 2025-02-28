@@ -173,7 +173,7 @@ impl MixerSource {
         let mut pending = self.input.0.pending_sources.lock().unwrap(); // TODO: relax ordering?
 
         for source in pending.drain(..) {
-            let in_step = self.sample_count % source.channels() as usize == 0;
+            let in_step = self.sample_count % source.channels().get() as usize == 0;
 
             if in_step {
                 self.current_sources.push(source);
@@ -207,17 +207,18 @@ impl MixerSource {
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
+    use crate::math::ch;
     use crate::mixer;
     use crate::source::Source;
 
     #[test]
     fn basic() {
-        let (tx, mut rx) = mixer::mixer(1, 48000);
+        let (tx, mut rx) = mixer::mixer(ch!(1), 48000);
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
-        tx.add(SamplesBuffer::new(1, 48000, vec![5.0, 5.0, 5.0, 5.0]));
+        tx.add(SamplesBuffer::new(ch!(1), 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.add(SamplesBuffer::new(ch!(1), 48000, vec![5.0, 5.0, 5.0, 5.0]));
 
-        assert_eq!(rx.channels(), 1);
+        assert_eq!(rx.channels(), ch!(1));
         assert_eq!(rx.sample_rate(), 48000);
         assert_eq!(rx.next(), Some(15.0));
         assert_eq!(rx.next(), Some(-5.0));
@@ -228,12 +229,12 @@ mod tests {
 
     #[test]
     fn channels_conv() {
-        let (tx, mut rx) = mixer::mixer(2, 48000);
+        let (tx, mut rx) = mixer::mixer(ch!(2), 48000);
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
-        tx.add(SamplesBuffer::new(1, 48000, vec![5.0, 5.0, 5.0, 5.0]));
+        tx.add(SamplesBuffer::new(ch!(1), 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.add(SamplesBuffer::new(ch!(1), 48000, vec![5.0, 5.0, 5.0, 5.0]));
 
-        assert_eq!(rx.channels(), 2);
+        assert_eq!(rx.channels(), ch!(2));
         assert_eq!(rx.sample_rate(), 48000);
         assert_eq!(rx.next(), Some(15.0));
         assert_eq!(rx.next(), Some(15.0));
@@ -248,12 +249,12 @@ mod tests {
 
     #[test]
     fn rate_conv() {
-        let (tx, mut rx) = mixer::mixer(1, 96000);
+        let (tx, mut rx) = mixer::mixer(ch!(1), 96000);
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
-        tx.add(SamplesBuffer::new(1, 48000, vec![5.0, 5.0, 5.0, 5.0]));
+        tx.add(SamplesBuffer::new(ch!(1), 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.add(SamplesBuffer::new(ch!(1), 48000, vec![5.0, 5.0, 5.0, 5.0]));
 
-        assert_eq!(rx.channels(), 1);
+        assert_eq!(rx.channels(), ch!(1));
         assert_eq!(rx.sample_rate(), 96000);
         assert_eq!(rx.next(), Some(15.0));
         assert_eq!(rx.next(), Some(5.0));
@@ -267,15 +268,15 @@ mod tests {
 
     #[test]
     fn start_afterwards() {
-        let (tx, mut rx) = mixer::mixer(1, 48000);
+        let (tx, mut rx) = mixer::mixer(ch!(1), 48000);
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.add(SamplesBuffer::new(ch!(1), 48000, vec![10.0, -10.0, 10.0, -10.0]));
 
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));
 
         tx.add(SamplesBuffer::new(
-            1,
+            ch!(1),
             48000,
             vec![5.0, 5.0, 6.0, 6.0, 7.0, 7.0, 7.0],
         ));
@@ -286,7 +287,7 @@ mod tests {
         assert_eq!(rx.next(), Some(6.0));
         assert_eq!(rx.next(), Some(6.0));
 
-        tx.add(SamplesBuffer::new(1, 48000, vec![2.0]));
+        tx.add(SamplesBuffer::new(ch!(1), 48000, vec![2.0]));
 
         assert_eq!(rx.next(), Some(9.0));
         assert_eq!(rx.next(), Some(7.0));

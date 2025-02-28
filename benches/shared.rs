@@ -6,7 +6,7 @@ use rodio::{ChannelCount, Sample, SampleRate, Source};
 
 pub struct TestSource {
     samples: vec::IntoIter<Sample>,
-    channels: u16,
+    channels: ChannelCount,
     sample_rate: u32,
     total_duration: Duration,
 }

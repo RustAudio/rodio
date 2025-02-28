@@ -42,7 +42,7 @@ impl SampleSource {
             } if samples.len() != numb_samples => {
                 *samples = SignalGenerator::new(sample_rate, *frequency, function.clone())
                     .take(numb_samples)
-                    .flat_map(|sample| iter::repeat_n(sample, channels.into()))
+                    .flat_map(|sample| iter::repeat_n(sample, channels.get().into()))
                     .collect();
                 samples.get(pos).copied()
             }
@@ -67,7 +67,7 @@ pub struct TestSpan {
 pub struct TestSpanBuilder {
     pub sample_source: SampleSource,
     pub sample_rate: SampleRate,
-    pub channels: ChannelCount,
+    pub channels: u16,
 }
 
 impl TestSpan {
@@ -143,7 +143,9 @@ impl TestSpanBuilder {
         self.sample_rate = sample_rate;
         self
     }
-    pub fn with_channel_count(mut self, channel_count: ChannelCount) -> Self {
+    /// # Panics
+    /// if channel_count is zero
+    pub fn with_channel_count(mut self, channel_count: u16) -> Self {
         self.channels = channel_count;
         self
     }
@@ -161,7 +163,7 @@ impl TestSpanBuilder {
         TestSpan {
             sample_source: self.sample_source,
             sample_rate: self.sample_rate,
-            channels: self.channels,
+            channels: ChannelCount::new(self.channels).expect("Channel count must be > 0"),
             numb_samples: n,
         }
     }
@@ -184,7 +186,7 @@ impl TestSpanBuilder {
                 .expect("too many samples for test source"),
             sample_source: self.sample_source,
             sample_rate: self.sample_rate,
-            channels: self.channels,
+            channels: ChannelCount::new(self.channels).expect("Channel count must be > 0"),
         }
     }
     pub fn with_exact_duration(self, duration: Duration) -> TestSpan {
@@ -213,7 +215,7 @@ impl TestSpanBuilder {
                 .expect("too many samples for test source"),
             sample_source: self.sample_source,
             sample_rate: self.sample_rate,
-            channels: self.channels,
+            channels: ChannelCount::new(self.channels).expect("Channel count must be > 0"),
         }
     }
 
@@ -365,9 +367,9 @@ fn channel_count_changes() {
                 .with_sample_count(10),
         );
 
-    assert_eq!(source.channels(), 1);
+    assert_eq!(source.channels().get(), 1);
     assert_eq!(source.by_ref().take(10).count(), 10);
-    assert_eq!(source.channels(), 2);
+    assert_eq!(source.channels().get(), 2);
 }
 
 #[test]

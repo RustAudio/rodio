@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::{PrevMultipleOf, NS_PER_SECOND};
+use crate::math::{PrevMultipleOfNonZero, NS_PER_SECOND};
 use crate::Source;
 
 /// A source that skips specified duration of the given source from it's current position.
@@ -120,11 +120,10 @@ where
 
     while duration > ns_per_frame {
         assert!(input.sample_rate() > 0);
-        assert!(input.channels() > 0);
 
         ns_per_frame = NS_PER_SECOND / input.sample_rate() as u64;
 
-        let samples_per_second = input.sample_rate() as u64 * input.channels() as u64;
+        let samples_per_second = input.sample_rate() as u64 * input.channels().get() as u64;
         let samples_to_skip =
             (duration as u128 * samples_per_second as u128 / NS_PER_SECOND as u128) as u64;
         let samples_to_skip = samples_to_skip.prev_multiple_of(input.channels());

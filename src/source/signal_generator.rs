@@ -13,6 +13,7 @@
 //! ```
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::Source;
 use std::f32::consts::TAU;
 use std::time::Duration;
@@ -143,7 +144,7 @@ impl Source for SignalGenerator {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        1
+        ch!(1)
     }
 
     #[inline]

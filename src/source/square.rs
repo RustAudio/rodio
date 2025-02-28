@@ -1,4 +1,5 @@
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
 use std::time::Duration;
@@ -45,7 +46,7 @@ impl Source for SquareWave {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        1
+        ch!(1)
     }
 
     #[inline]

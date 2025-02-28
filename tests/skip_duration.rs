@@ -20,7 +20,7 @@ fn ends_on_frame_boundary(#[values(1.483, 2.999)] seconds_to_skip: f32) {
         .clone()
         .skip_duration(Duration::from_secs_f32(seconds_to_skip))
         .count();
-    assert!(leftover % source.channels() as usize == 0)
+    assert!(leftover % source.channels().get() as usize == 0)
 }
 
 #[rstest]
@@ -53,8 +53,8 @@ fn param_changes_during_skip(#[values(6, 11)] seconds_to_skip: u64) {
 
     let spans = source.spans;
     let expected_leftover = match seconds_to_skip {
-        6 => 4 * spans[1].sample_rate as usize * spans[1].channels as usize + spans[2].len(),
-        11 => 4 * spans[2].sample_rate as usize * spans[2].channels as usize,
+        6 => 4 * spans[1].sample_rate as usize * spans[1].channels.get() as usize + spans[2].len(),
+        11 => 4 * spans[2].sample_rate as usize * spans[2].channels.get() as usize,
         _ => unreachable!(),
     };
 
@@ -63,7 +63,7 @@ fn param_changes_during_skip(#[values(6, 11)] seconds_to_skip: u64) {
 
 #[rstest]
 fn samples_left(
-    #[values(1, 2, 4)] channels: ChannelCount,
+    #[values(1, 2, 4)] channels: u16,
     #[values(100_000)] sample_rate: SampleRate,
     #[values(0, 5)] seconds: u32,
     #[values(0, 3, 5)] seconds_to_skip: u32,
@@ -72,13 +72,15 @@ fn samples_left(
         "channels: {channels}, sample_rate: {sample_rate}, \
         seconds: {seconds}, seconds_to_skip: {seconds_to_skip}"
     );
-    let buf_len = (sample_rate * channels as u32 * seconds) as usize;
+    let channels = ChannelCount::new(channels).unwrap();
+
+    let buf_len = (sample_rate * channels.get() as u32 * seconds) as usize;
     assert!(buf_len < 10 * 1024 * 1024);
     let data: Vec<f32> = vec![0f32; buf_len];
     let test_buffer = SamplesBuffer::new(channels, sample_rate, data);
     let seconds_left = seconds.saturating_sub(seconds_to_skip);
 
-    let samples_left_expected = (sample_rate * channels as u32 * seconds_left) as usize;
+    let samples_left_expected = (sample_rate * channels.get() as u32 * seconds_left) as usize;
     let samples_left = test_buffer
         .skip_duration(Duration::from_secs(seconds_to_skip as u64))
         .count();

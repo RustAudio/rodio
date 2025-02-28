@@ -366,6 +366,7 @@ mod tests {
     use std::sync::atomic::Ordering;
 
     use crate::buffer::SamplesBuffer;
+    use crate::math::ch;
     use crate::{Sink, Source};
 
     #[test]
@@ -382,8 +383,8 @@ mod tests {
         let v = vec![10.0, -10.0, 20.0, -20.0, 30.0, -30.0];
 
         // Low rate to ensure immediate control.
-        sink.append(SamplesBuffer::new(1, 1, v.clone()));
-        let mut reference_src = SamplesBuffer::new(1, 1, v);
+        sink.append(SamplesBuffer::new(ch!(1), 1, v.clone()));
+        let mut reference_src = SamplesBuffer::new(ch!(1), 1, v);
 
         assert_eq!(source.next(), reference_src.next());
         assert_eq!(source.next(), reference_src.next());
@@ -410,8 +411,8 @@ mod tests {
 
         let v = vec![10.0, -10.0, 20.0, -20.0, 30.0, -30.0];
 
-        sink.append(SamplesBuffer::new(1, 1, v.clone()));
-        let mut src = SamplesBuffer::new(1, 1, v.clone());
+        sink.append(SamplesBuffer::new(ch!(1), 1, v.clone()));
+        let mut src = SamplesBuffer::new(ch!(1), 1, v.clone());
 
         assert_eq!(queue_rx.next(), src.next());
         assert_eq!(queue_rx.next(), src.next());
@@ -421,8 +422,8 @@ mod tests {
         assert!(sink.controls.stopped.load(Ordering::SeqCst));
         assert_eq!(queue_rx.next(), Some(0.0));
 
-        src = SamplesBuffer::new(1, 1, v.clone());
-        sink.append(SamplesBuffer::new(1, 1, v));
+        src = SamplesBuffer::new(ch!(1), 1, v.clone());
+        sink.append(SamplesBuffer::new(ch!(1), 1, v));
 
         assert!(!sink.controls.stopped.load(Ordering::SeqCst));
         // Flush silence
@@ -439,8 +440,8 @@ mod tests {
         let v = vec![10.0, -10.0, 20.0, -20.0, 30.0, -30.0];
 
         // High rate to avoid immediate control.
-        sink.append(SamplesBuffer::new(2, 44100, v.clone()));
-        let src = SamplesBuffer::new(2, 44100, v.clone());
+        sink.append(SamplesBuffer::new(ch!(2), 44100, v.clone()));
+        let src = SamplesBuffer::new(ch!(2), 44100, v.clone());
 
         let mut src = src.amplify(0.5);
         sink.set_volume(0.5);

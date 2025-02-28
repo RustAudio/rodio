@@ -12,21 +12,46 @@ pub fn lerp(first: &f32, second: &f32, numerator: u32, denominator: u32) -> f32 
 
 pub(crate) const NS_PER_SECOND: u64 = 1_000_000_000;
 
+/// short macro to generate a `ChannelCount` for tests
+/// this panics during compile if the passed in literal is zero
+macro_rules! ch {
+    ($n:literal) => {
+        const { core::num::NonZeroU16::new($n).unwrap() }
+    };
+}
+
+pub(crate) use ch;
+
 /// will hopefully get stabilized, this is slightly different to the future
 /// std's version since it does some casting already. When the std's version gets
 /// stable remove this trait.
 pub(crate) trait PrevMultipleOf {
     fn prev_multiple_of(self, n: u16) -> Self;
 }
+pub(crate) trait PrevMultipleOfNonZero {
+    fn prev_multiple_of(self, n: core::num::NonZero<u16>) -> Self;
+}
 
 macro_rules! impl_prev_multiple_of {
     ($type:ty) => {
         impl PrevMultipleOf for $type {
+            /// # Panics
+            /// Like std's `next_multiple_of` this panics if n is zero
             fn prev_multiple_of(self, n: u16) -> $type {
                 if self.next_multiple_of(n as $type) > self {
                     self.next_multiple_of(n as $type) - n as $type
                 } else {
                     self.next_multiple_of(n as $type)
+                }
+            }
+        }
+        impl PrevMultipleOfNonZero for $type {
+            /// Never panics thanks to n being NonZero
+            fn prev_multiple_of(self, n: core::num::NonZero<u16>) -> $type {
+                if self.next_multiple_of(n.get() as $type) > self {
+                    self.next_multiple_of(n.get() as $type) - n.get() as $type
+                } else {
+                    self.next_multiple_of(n.get() as $type)
                 }
             }
         }

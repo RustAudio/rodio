@@ -1,3 +1,4 @@
+use std::num::NonZero;
 use std::time::Duration;
 
 use rodio::buffer::SamplesBuffer;
@@ -6,7 +7,7 @@ use rodio::Source;
 
 fn dummy_source(length: u8) -> SamplesBuffer {
     let data: Vec<f32> = (1..=length).map(f32::from).collect();
-    SamplesBuffer::new(1, 1, data)
+    SamplesBuffer::new(NonZero::new(1).unwrap(), 1, data)
 }
 
 #[test]
@@ -26,7 +27,7 @@ fn test_crossfade_with_self() {
 #[test]
 fn test_crossfade() {
     let source1 = dummy_source(10);
-    let source2 = Zero::new(1, 1);
+    let source2 = Zero::new(NonZero::new(1).unwrap(), 1);
     let mixed =
         source1.take_crossfade_with(source2, Duration::from_secs(5) + Duration::from_nanos(1));
     let result = mixed.collect::<Vec<_>>();

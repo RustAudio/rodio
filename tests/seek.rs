@@ -1,4 +1,4 @@
-use rodio::{ChannelCount, Decoder, Source};
+use rodio::{Decoder, Source};
 use rstest::rstest;
 use rstest_reuse::{self, *};
 use std::io::{BufReader, Read, Seek};
@@ -121,11 +121,11 @@ fn seek_does_not_break_channel_order(
 ) {
     let mut source = get_rl(format);
     let channels = source.channels();
-    assert_eq!(channels, 2, "test needs a stereo beep file");
+    assert_eq!(channels.get(), 2, "test needs a stereo beep file");
 
     let beep_range = second_channel_beep_range(&mut source);
     let beep_start = Duration::from_secs_f32(
-        beep_range.start as f32 / source.channels() as f32 / source.sample_rate() as f32,
+        beep_range.start as f32 / source.channels().get() as f32 / source.sample_rate() as f32,
     );
 
     let mut source = get_rl(format);
@@ -144,7 +144,7 @@ fn seek_does_not_break_channel_order(
         let samples: Vec<_> = source.by_ref().take(100).collect();
         let channel0 = 0 + channel_offset;
         assert!(
-            is_silent(&samples, source.channels(), channel0),
+            is_silent(&samples, source.channels().get() as usize, channel0),
             "channel0 should be silent,
     channel0 starts at idx: {channel0}
     seek: {beep_start:?} + {offset:?}
@@ -152,7 +152,7 @@ fn seek_does_not_break_channel_order(
         );
         let channel1 = (1 + channel_offset) % 2;
         assert!(
-            !is_silent(&samples, source.channels(), channel1),
+            !is_silent(&samples, source.channels().get() as usize, channel1),
             "channel1 should not be silent,
     channel1; starts at idx: {channel1}
     seek: {beep_start:?} + {offset:?}
@@ -165,7 +165,7 @@ fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Rang
 where
     R: Iterator<Item = f32>,
 {
-    let channels = source.channels() as usize;
+    let channels = source.channels().get() as usize;
     let samples: Vec<f32> = source.by_ref().collect();
 
     const WINDOW: usize = 50;
@@ -202,21 +202,15 @@ where
         .next_multiple_of(channels);
 
     let samples = &samples[beep_starts..beep_starts + 100];
-    assert!(
-        is_silent(samples, channels as ChannelCount, 0),
-        "{samples:?}"
-    );
-    assert!(
-        !is_silent(samples, channels as ChannelCount, 1),
-        "{samples:?}"
-    );
+    assert!(is_silent(samples, channels, 0), "{samples:?}");
+    assert!(!is_silent(samples, channels, 1), "{samples:?}");
 
     beep_starts..beep_ends
 }
 
-fn is_silent(samples: &[f32], channels: ChannelCount, channel: usize) -> bool {
+fn is_silent(samples: &[f32], channels: usize, channel: usize) -> bool {
     assert_eq!(samples.len(), 100);
-    let channel = samples.iter().skip(channel).step_by(channels as usize);
+    let channel = samples.iter().skip(channel).step_by(channels);
     let volume = channel.map(|s| s.abs()).sum::<f32>() / samples.len() as f32 * channels as f32;
 
     const BASICALLY_ZERO: f32 = 0.0001;
@@ -225,7 +219,7 @@ fn is_silent(samples: &[f32], channels: ChannelCount, channel: usize) -> bool {
 
 fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
     let rate = decoder.sample_rate() as f64;
-    let n_channels = decoder.channels() as f64;
+    let n_channels = decoder.channels().get() as f64;
     let n_samples = decoder.into_iter().count() as f64;
     Duration::from_secs_f64(n_samples / rate / n_channels)
 }

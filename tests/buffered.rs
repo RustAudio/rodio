@@ -33,9 +33,9 @@ fn channel_count_changes() {
         )
         .buffered();
 
-    assert_eq!(source.channels(), 1);
+    assert_eq!(source.channels().get(), 1);
     assert_eq!(source.by_ref().take(10).count(), 10);
-    assert_eq!(source.channels(), 2);
+    assert_eq!(source.channels().get(), 2);
 }
 
 #[test]

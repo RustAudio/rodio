@@ -12,7 +12,8 @@ where
     // TODO: handle the fact that the samples rate can change
     // TODO: generally, just wrong
     let update_ms = period.as_secs() as u32 * 1_000 + period.subsec_millis();
-    let update_frequency = (update_ms * source.sample_rate()) / 1000 * source.channels() as u32;
+    let update_frequency =
+        (update_ms * source.sample_rate()) / 1000 * source.channels().get() as u32;
 
     PeriodicAccess {
         input: source,
@@ -131,12 +132,13 @@ mod tests {
     use std::time::Duration;
 
     use crate::buffer::SamplesBuffer;
+    use crate::math::ch;
     use crate::source::Source;
 
     #[test]
     fn stereo_access() {
         // Stereo, 1Hz audio buffer
-        let inner = SamplesBuffer::new(2, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
+        let inner = SamplesBuffer::new(ch!(2), 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
 
         let cnt = RefCell::new(0);
 
@@ -164,7 +166,7 @@ mod tests {
     #[test]
     fn fast_access_overflow() {
         // 1hz is lower than 0.5 samples per 5ms
-        let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
+        let inner = SamplesBuffer::new(ch!(1), 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
         let mut source = inner.periodic_access(Duration::from_millis(5), |_src| {});
 
         source.next();

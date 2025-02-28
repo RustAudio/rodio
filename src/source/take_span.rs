@@ -46,8 +46,6 @@ impl<I: Source> Iterator for TakeSpan<I> {
     }
 }
 
-// TODO: size_hint
-
 impl<I> Source for TakeSpan<I>
 where
     I: Iterator + Source,

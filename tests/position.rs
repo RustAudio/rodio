@@ -1,3 +1,4 @@
+use std::num::NonZero;
 use std::time::Duration;
 
 use rodio::buffer::SamplesBuffer;
@@ -53,7 +54,11 @@ fn frame_changes(
 
 #[test]
 fn basic_and_seek() {
-    let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
+    let inner = SamplesBuffer::new(
+        NonZero::new(1).unwrap(),
+        1,
+        vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0],
+    );
     let mut source = inner.track_position();
 
     assert_eq!(source.get_pos().as_secs_f32(), 0.0);
@@ -69,7 +74,11 @@ fn basic_and_seek() {
 
 #[test]
 fn basic_and_seek_in_presence_of_speedup() {
-    let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
+    let inner = SamplesBuffer::new(
+        NonZero::new(1).unwrap(),
+        1,
+        vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0],
+    );
     let mut source = inner.speed(2.0).track_position();
 
     assert_eq!(source.get_pos().as_secs_f32(), 0.0);

@@ -6,7 +6,6 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, FrameCount, Sample, SampleFormat, StreamConfig, SupportedBufferSize};
 use std::io::{Read, Seek};
 use std::marker::Sync;
-use std::sync::Arc;
 use std::{error, fmt};
 
 const HZ_44100: SampleRate = 44_100;
@@ -15,14 +14,14 @@ const HZ_44100: SampleRate = 44_100;
 /// Use `mixer()` method to control output.
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
-    mixer: Arc<Mixer>,
+    mixer: Mixer,
     _stream: cpal::Stream,
 }
 
 impl OutputStream {
     /// Access the output stream's mixer.
-    pub fn mixer(&self) -> Arc<Mixer> {
-        self.mixer.clone()
+    pub fn mixer(&self) -> &Mixer {
+        &self.mixer
     }
 }
 

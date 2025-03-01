@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::nz;
 use crate::Source;
 
 /// Internal function that builds a `Buffered` object.
@@ -214,7 +215,7 @@ where
     fn channels(&self) -> ChannelCount {
         match *self.current_span {
             Span::Data(SpanData { channels, .. }) => channels,
-            Span::End => 1,
+            Span::End => nz!(1),
             Span::Input(_) => unreachable!(),
         }
     }
@@ -223,7 +224,7 @@ where
     fn sample_rate(&self) -> SampleRate {
         match *self.current_span {
             Span::Data(SpanData { rate, .. }) => rate,
-            Span::End => 44100,
+            Span::End => nz!(44100),
             Span::Input(_) => unreachable!(),
         }
     }

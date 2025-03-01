@@ -164,12 +164,19 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.spec.channels.count() as ChannelCount
+        ChannelCount::new(
+            self.spec
+                .channels
+                .count()
+                .try_into()
+                .expect("rodio only support up to u16::MAX channels (65_535)"),
+        )
+        .expect("audio should always have at least one channel")
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.spec.rate
+        SampleRate::new(self.spec.rate).expect("audio should always have a non zero SampleRate")
     }
 
     #[inline]
@@ -192,7 +199,7 @@ impl Source for SymphoniaDecoder {
         };
 
         // make sure the next sample is for the right channel
-        let to_skip = self.current_span_offset % self.channels() as usize;
+        let to_skip = self.current_span_offset % self.channels().get() as usize;
 
         let seek_res = self
             .format
@@ -289,7 +296,7 @@ impl SymphoniaDecoder {
         let decoded = decoded.map_err(SeekError::Decoding)?;
         decoded.spec().clone_into(&mut self.spec);
         self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
-        self.current_span_offset = samples_to_pass as usize * self.channels() as usize;
+        self.current_span_offset = samples_to_pass as usize * self.channels().get() as usize;
         Ok(())
     }
 }

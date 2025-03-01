@@ -143,7 +143,7 @@ pub(crate) fn automatic_gain_control<I>(
 where
     I: Source,
 {
-    let sample_rate = input.sample_rate();
+    let sample_rate = input.sample_rate().get();
     let attack_coeff = (-1.0 / (attack_time * sample_rate as f32)).exp();
     let release_coeff = (-1.0 / (release_time * sample_rate as f32)).exp();
 

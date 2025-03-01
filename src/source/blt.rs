@@ -119,7 +119,7 @@ where
         let last_in_span = self.input.current_span_len() == Some(1);
 
         if self.applier.is_none() {
-            self.applier = Some(self.formula.to_applier(self.input.sample_rate()));
+            self.applier = Some(self.formula.to_applier(self.input.sample_rate().get()));
         }
 
         let sample = self.input.next()?;

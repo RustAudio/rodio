@@ -1,5 +1,6 @@
 use crate::common::{ChannelCount, SampleRate};
 use crate::decoder;
+use crate::math::nz;
 use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -8,7 +9,7 @@ use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::{error, fmt};
 
-const HZ_44100: SampleRate = 44_100;
+const HZ_44100: SampleRate = nz!(44_100);
 
 /// `cpal::Stream` container.
 /// Use `mixer()` method to control output.
@@ -36,7 +37,7 @@ struct OutputStreamConfig {
 impl Default for OutputStreamConfig {
     fn default() -> Self {
         Self {
-            channel_count: 2,
+            channel_count: nz!(2),
             sample_rate: HZ_44100,
             buffer_size: BufferSize::Default,
             sample_format: SampleFormat::F32,
@@ -97,7 +98,6 @@ impl OutputStreamBuilder {
 
     /// Sets number of output stream's channels.
     pub fn with_channels(mut self, channel_count: ChannelCount) -> OutputStreamBuilder {
-        assert!(channel_count > 0);
         self.config.channel_count = channel_count;
         self
     }
@@ -122,15 +122,17 @@ impl OutputStreamBuilder {
         self
     }
 
-    /// Set available parameters from a CPAL supported config. You can ge list of
+    /// Set available parameters from a CPAL supported config. You can get list of
     /// such configurations for an output device using [crate::stream::supported_output_configs()]
     pub fn with_supported_config(
         mut self,
         config: &cpal::SupportedStreamConfig,
     ) -> OutputStreamBuilder {
         self.config = OutputStreamConfig {
-            channel_count: config.channels() as ChannelCount,
-            sample_rate: config.sample_rate().0 as SampleRate,
+            channel_count: ChannelCount::new(config.channels())
+                .expect("cpal should never return a zero channel output"),
+            sample_rate: SampleRate::new(config.sample_rate().0)
+                .expect("cpal should never return a zero sample rate output"),
             // In case of supported range limit buffer size to avoid unexpectedly long playback delays.
             buffer_size: clamp_supported_buffer_size(config.buffer_size(), 1024),
             sample_format: config.sample_format(),
@@ -141,8 +143,10 @@ impl OutputStreamBuilder {
     /// Set all output stream parameters at once from CPAL stream config.
     pub fn with_config(mut self, config: &cpal::StreamConfig) -> OutputStreamBuilder {
         self.config = OutputStreamConfig {
-            channel_count: config.channels as ChannelCount,
-            sample_rate: config.sample_rate.0 as SampleRate,
+            channel_count: ChannelCount::new(config.channels)
+                .expect("cpal should never return a zero channel output"),
+            sample_rate: SampleRate::new(config.sample_rate.0)
+                .expect("cpal should never return a zero sample rate output"),
             buffer_size: config.buffer_size,
             ..self.config
         };
@@ -233,8 +237,8 @@ where
 impl From<&OutputStreamConfig> for StreamConfig {
     fn from(config: &OutputStreamConfig) -> Self {
         cpal::StreamConfig {
-            channels: config.channel_count as cpal::ChannelCount,
-            sample_rate: cpal::SampleRate(config.sample_rate),
+            channels: config.channel_count.get() as cpal::ChannelCount,
+            sample_rate: cpal::SampleRate(config.sample_rate.get()),
             buffer_size: config.buffer_size,
         }
     }
@@ -325,11 +329,6 @@ impl OutputStream {
         if let BufferSize::Fixed(sz) = config.buffer_size {
             assert!(sz > 0, "fixed buffer size is greater than zero");
         }
-        assert!(config.sample_rate > 0, "sample rate is greater than zero");
-        assert!(
-            config.channel_count > 0,
-            "channel number is greater than zero"
-        );
     }
 
     fn open(
@@ -487,7 +486,7 @@ fn supported_output_configs(
         let max_rate = sf.max_sample_rate();
         let min_rate = sf.min_sample_rate();
         let mut formats = vec![sf.with_max_sample_rate()];
-        let preferred_rate = cpal::SampleRate(HZ_44100);
+        let preferred_rate = cpal::SampleRate(HZ_44100.get());
         if preferred_rate < max_rate && preferred_rate > min_rate {
             formats.push(sf.with_sample_rate(preferred_rate))
         }

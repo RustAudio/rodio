@@ -10,7 +10,7 @@ fn remaining_samples(
     channels: ChannelCount,
 ) -> usize {
     let ns = until_playback.as_secs() * 1_000_000_000 + until_playback.subsec_nanos() as u64;
-    let samples = ns * channels as u64 * sample_rate as u64 / 1_000_000_000;
+    let samples = ns * channels.get() as u64 * sample_rate.get() as u64 / 1_000_000_000;
     samples as usize
 }
 

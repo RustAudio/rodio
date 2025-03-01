@@ -160,6 +160,7 @@ pub trait Source: Iterator<Item = Sample> {
     fn current_span_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
+    /// Should never be Zero
     fn channels(&self) -> ChannelCount;
 
     /// Returns the rate at which the source should be played. In number of samples per second.

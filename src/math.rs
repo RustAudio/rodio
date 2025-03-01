@@ -10,6 +10,17 @@ pub fn lerp(first: &f32, second: &f32, numerator: u32, denominator: u32) -> f32 
     first + (second - first) * numerator as f32 / denominator as f32
 }
 
+/// short macro to generate a `NonZero`. It panics during compile if the
+/// passed in literal is zero. Used for `ChannelCount` and `Samplerate`
+/// constants
+macro_rules! nz {
+    ($n:literal) => {
+        const { core::num::NonZero::new($n).unwrap() }
+    };
+}
+
+pub(crate) use nz;
+
 #[cfg(test)]
 mod test {
     use super::*;

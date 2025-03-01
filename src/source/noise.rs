@@ -145,7 +145,7 @@ impl Source for PinkNoise {
     }
 
     fn sample_rate(&self) -> SampleRate {
-        self.white_noise.sample_rate()
+        self.white_noise.sample_rate().get()
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {

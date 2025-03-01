@@ -33,11 +33,12 @@ pub type Crossfade<I1, I2> = Mix<TakeDuration<I1>, FadeIn<TakeDuration<I2>>>;
 mod tests {
     use super::*;
     use crate::buffer::SamplesBuffer;
+    use crate::math::nz;
     use crate::source::Zero;
 
     fn dummy_source(length: u8) -> SamplesBuffer {
         let data: Vec<f32> = (1..=length).map(f32::from).collect();
-        SamplesBuffer::new(1, 1, data)
+        SamplesBuffer::new(nz!(1), nz!(1), data)
     }
 
     #[test]
@@ -60,7 +61,7 @@ mod tests {
     #[test]
     fn test_crossfade() {
         let source1 = dummy_source(10);
-        let source2 = Zero::new(1, 1);
+        let source2 = Zero::new(nz!(1), nz!(1));
         let mixed = crossfade(
             source1,
             source2,

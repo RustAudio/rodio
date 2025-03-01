@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::nz;
 use crate::Source;
 
 /// Internal function that builds a `TrackPosition` object. See trait docs for
@@ -11,8 +12,8 @@ pub fn track_position<I>(source: I) -> TrackPosition<I> {
         input: source,
         samples_counted: 0,
         offset_duration: 0.0,
-        current_span_sample_rate: 0,
-        current_span_channels: 0,
+        current_span_sample_rate: nz!(1),
+        current_span_channels: nz!(1),
         current_span_len: None,
     }
 }
@@ -65,8 +66,8 @@ where
     #[inline]
     pub fn get_pos(&self) -> Duration {
         let seconds = self.samples_counted as f64
-            / self.input.sample_rate() as f64
-            / self.input.channels() as f64
+            / self.input.sample_rate().get() as f64
+            / self.input.channels().get() as f64
             + self.offset_duration;
         Duration::from_secs_f64(seconds)
     }
@@ -100,8 +101,8 @@ where
             // offset_duration and start collecting samples again.
             if Some(self.samples_counted) == self.current_span_len() {
                 self.offset_duration += self.samples_counted as f64
-                    / self.current_span_sample_rate as f64
-                    / self.current_span_channels as f64;
+                    / self.current_span_sample_rate.get() as f64
+                    / self.current_span_channels.get() as f64;
 
                 // Reset.
                 self.samples_counted = 0;
@@ -160,11 +161,12 @@ mod tests {
     use std::time::Duration;
 
     use crate::buffer::SamplesBuffer;
+    use crate::math::nz;
     use crate::source::Source;
 
     #[test]
     fn test_position() {
-        let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
+        let inner = SamplesBuffer::new(nz!(1), nz!(1), vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
         let mut source = inner.track_position();
 
         assert_eq!(source.get_pos().as_secs_f32(), 0.0);
@@ -180,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_position_in_presence_of_speedup() {
-        let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
+        let inner = SamplesBuffer::new(nz!(1), nz!(1), vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
         let mut source = inner.speed(2.0).track_position();
 
         assert_eq!(source.get_pos().as_secs_f32(), 0.0);

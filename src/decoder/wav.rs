@@ -41,6 +41,7 @@ where
 
         let sample_rate = spec.sample_rate;
         let channels = spec.channels;
+        assert!(channels > 0);
 
         let total_duration = {
             let data_rate = sample_rate as u64 * channels as u64;
@@ -52,8 +53,9 @@ where
         Ok(WavDecoder {
             reader,
             total_duration,
-            sample_rate: sample_rate as SampleRate,
-            channels: channels as ChannelCount,
+            sample_rate: SampleRate::new(sample_rate)
+                .expect("wav should have a sample rate higher then zero"),
+            channels: ChannelCount::new(channels).expect("wav should have a least one channel"),
         })
     }
 
@@ -170,18 +172,18 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let file_len = self.reader.reader.duration();
 
-        let new_pos = pos.as_secs_f32() * self.sample_rate() as f32;
+        let new_pos = pos.as_secs_f32() * self.sample_rate().get() as f32;
         let new_pos = new_pos as u32;
         let new_pos = new_pos.min(file_len); // saturate pos at the end of the source
 
         // make sure the next sample is for the right channel
-        let to_skip = self.reader.samples_read % self.channels() as u32;
+        let to_skip = self.reader.samples_read % self.channels().get() as u32;
 
         self.reader
             .reader
             .seek(new_pos)
             .map_err(SeekError::HoundDecoder)?;
-        self.reader.samples_read = new_pos * self.channels() as u32;
+        self.reader.samples_read = new_pos * self.channels().get() as u32;
 
         for _ in 0..to_skip {
             self.next();

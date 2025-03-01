@@ -275,7 +275,6 @@ impl Iterator for TestSource {
         if self.pos_in_span == current_span.len() {
             self.pos_in_span = 0;
             self.current_span += 1;
-            self.parameters_changed = true;
         } else {
             self.parameters_changed = false;
         }

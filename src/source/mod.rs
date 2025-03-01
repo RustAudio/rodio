@@ -6,44 +6,44 @@ use core::time::Duration;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
 use dasp_sample::FromSample;
-use peekable::PeekableSource;
-use take_samples::TakeSamples;
-use take_span::TakeSpan;
 
-pub use self::agc::AutomaticGainControl;
-pub use self::amplify::Amplify;
-pub use self::blt::BltFilter;
-pub use self::buffered::Buffered;
-pub use self::channel_volume::ChannelVolume;
-pub use self::chirp::{chirp, Chirp};
-pub use self::crossfade::Crossfade;
-pub use self::delay::Delay;
-pub use self::done::Done;
-pub use self::empty::Empty;
-pub use self::empty_callback::EmptyCallback;
-pub use self::fadein::FadeIn;
-pub use self::fadeout::FadeOut;
-pub use self::from_factory::{from_factory, FromFactoryIter};
-pub use self::from_iter::{from_iter, FromIter};
-pub use self::linear_ramp::LinearGainRamp;
-pub use self::mix::Mix;
-pub use self::pausable::Pausable;
-pub use self::periodic::PeriodicAccess;
-pub use self::position::TrackPosition;
-pub use self::repeat::Repeat;
-pub use self::sawtooth::SawtoothWave;
-pub use self::signal_generator::{Function, SignalGenerator};
-pub use self::sine::SineWave;
-pub use self::skip_duration::SkipDuration;
-pub use self::skippable::Skippable;
-pub use self::spatial::Spatial;
-pub use self::speed::Speed;
-pub use self::square::SquareWave;
-pub use self::stoppable::Stoppable;
-pub use self::take_duration::TakeDuration;
-pub use self::triangle::TriangleWave;
-pub use self::uniform::UniformSourceIterator;
-pub use self::zero::Zero;
+pub use agc::AutomaticGainControl;
+pub use amplify::Amplify;
+pub use blt::BltFilter;
+pub use buffered::Buffered;
+pub use channel_volume::ChannelVolume;
+pub use chirp::{chirp, Chirp};
+pub use crossfade::Crossfade;
+pub use delay::Delay;
+pub use done::Done;
+pub use empty::Empty;
+pub use empty_callback::EmptyCallback;
+pub use fadein::FadeIn;
+pub use fadeout::FadeOut;
+pub use from_factory::{from_factory, FromFactoryIter};
+pub use from_iter::{from_iter, FromIter};
+pub use linear_ramp::LinearGainRamp;
+pub use mix::Mix;
+pub use pausable::Pausable;
+pub use peekable::PeekableSource;
+pub use periodic::PeriodicAccess;
+pub use position::TrackPosition;
+pub use repeat::Repeat;
+pub use sawtooth::SawtoothWave;
+pub use signal_generator::{Function, SignalGenerator};
+pub use sine::SineWave;
+pub use skip_duration::SkipDuration;
+pub use skippable::Skippable;
+pub use spatial::Spatial;
+pub use speed::Speed;
+pub use square::SquareWave;
+pub use stoppable::Stoppable;
+pub use take_duration::TakeDuration;
+pub use take_samples::TakeSamples;
+pub use take_span::TakeSpan;
+pub use triangle::TriangleWave;
+pub use uniform::UniformSourceIterator;
+pub use zero::Zero;
 
 mod agc;
 mod amplify;
@@ -375,6 +375,14 @@ pub trait Source: Iterator<Item = Sample> {
         Self::Item: FromSample<S::Item>,
     {
         crossfade::crossfade(self, other, duration)
+    }
+
+    /// Erases the type of self by placing it on the heap
+    fn type_erased(self) -> Box<dyn Source + Send + 'static>
+    where
+        Self: Sized + Send + 'static,
+    {
+        Box::new(self)
     }
 
     /// Fades in the sound.

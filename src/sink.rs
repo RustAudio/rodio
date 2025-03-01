@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
 #[cfg(feature = "crossbeam-channel")]
@@ -9,15 +9,16 @@ use dasp_sample::FromSample;
 use std::sync::mpsc::{Receiver, Sender};
 
 use crate::mixer::Mixer;
+use crate::queue::{Queue, QueueSource};
 use crate::source::SeekError;
-use crate::{queue, source::Done, Source};
+use crate::{queue, source::Done, source::EmptyCallback, Source};
 
 /// Handle to a device that outputs sounds.
 ///
 /// Dropping the `Sink` stops all its sounds. You can use `detach` if you want the sounds to continue
 /// playing.
 pub struct Sink {
-    queue_tx: Arc<queue::SourcesQueueInput>,
+    queue: queue::Queue,
     sleep_until_end: Mutex<Option<Receiver<()>>>,
 
     controls: Arc<Controls>,
@@ -77,11 +78,11 @@ impl Sink {
 
     /// Builds a new `Sink`.
     #[inline]
-    pub fn new() -> (Sink, queue::SourcesQueueOutput) {
-        let (queue_tx, queue_rx) = queue::queue(true);
+    pub fn new() -> (Sink, QueueSource) {
+        let (queue, source) = Queue::new(true);
 
         let sink = Sink {
-            queue_tx,
+            queue,
             sleep_until_end: Mutex::new(None),
             controls: Arc::new(Controls {
                 pause: AtomicBool::new(false),
@@ -95,7 +96,7 @@ impl Sink {
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
         };
-        (sink, queue_rx)
+        (sink, source)
     }
 
     /// Appends a sound to the queue of sounds to play.
@@ -156,7 +157,15 @@ impl Sink {
             });
         self.sound_count.fetch_add(1, Ordering::Relaxed);
         let source = Done::new(source, self.sound_count.clone());
-        *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
+        self.queue.append(source);
+
+        let (tx, rx) = mpsc::channel();
+        let callback_source = EmptyCallback::new(Box::new(move || {
+            let _ = tx.send(());
+        }));
+        let callback_source = Box::new(callback_source) as Box<dyn Source + Send>;
+        self.queue.append(callback_source);
+        *self.sleep_until_end.lock().unwrap() = Some(rx);
     }
 
     /// Gets the volume of the sound.
@@ -353,7 +362,7 @@ impl Sink {
 impl Drop for Sink {
     #[inline]
     fn drop(&mut self) {
-        self.queue_tx.set_keep_alive_if_empty(false);
+        self.queue.keep_alive_if_empty(false);
 
         if !self.detached {
             self.controls.stopped.store(true, Ordering::Relaxed);

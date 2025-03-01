@@ -67,6 +67,7 @@ approx = "0.5.1"
 dasp_sample = "0.11.0"
 divan = "0.1.14"
 spectrum-analyzer = "1.6.0"
+itertools = "0.14.0"
 
 [[bench]]
 name = "effects"

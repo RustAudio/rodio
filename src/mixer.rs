@@ -13,13 +13,13 @@ use std::time::Duration;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
-pub fn mixer(channels: ChannelCount, sample_rate: SampleRate) -> (Arc<Mixer>, MixerSource) {
-    let input = Arc::new(Mixer {
+pub fn mixer(channels: ChannelCount, sample_rate: SampleRate) -> (Mixer, MixerSource) {
+    let input = Mixer(Arc::new(Inner {
         has_pending: AtomicBool::new(false),
         pending_sources: Mutex::new(Vec::new()),
         channels,
         sample_rate,
-    });
+    }));
 
     let output = MixerSource {
         current_sources: Vec::with_capacity(16),
@@ -33,7 +33,10 @@ pub fn mixer(channels: ChannelCount, sample_rate: SampleRate) -> (Arc<Mixer>, Mi
 }
 
 /// The input of the mixer.
-pub struct Mixer {
+#[derive(Clone)]
+pub struct Mixer(Arc<Inner>);
+
+struct Inner {
     has_pending: AtomicBool,
     pending_sources: Mutex<Vec<Box<dyn Source + Send>>>,
     channels: ChannelCount,
@@ -47,12 +50,14 @@ impl Mixer {
     where
         T: Source + Send + 'static,
     {
-        let uniform_source = UniformSourceIterator::new(source, self.channels, self.sample_rate);
-        self.pending_sources
+        let uniform_source =
+            UniformSourceIterator::new(source, self.0.channels, self.0.sample_rate);
+        self.0
+            .pending_sources
             .lock()
             .unwrap()
             .push(Box::new(uniform_source) as Box<_>);
-        self.has_pending.store(true, Ordering::SeqCst); // TODO: can we relax this ordering?
+        self.0.has_pending.store(true, Ordering::SeqCst); // TODO: can we relax this ordering?
     }
 }
 
@@ -62,7 +67,7 @@ pub struct MixerSource {
     current_sources: Vec<Box<dyn Source + Send>>,
 
     // The pending sounds.
-    input: Arc<Mixer>,
+    input: Mixer,
 
     // The number of samples produced so far.
     sample_count: usize,
@@ -82,12 +87,12 @@ impl Source for MixerSource {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.input.channels
+        self.input.0.channels
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.input.sample_rate
+        self.input.0.sample_rate
     }
 
     #[inline]
@@ -137,7 +142,7 @@ impl Iterator for MixerSource {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.input.has_pending.load(Ordering::SeqCst) {
+        if self.input.0.has_pending.load(Ordering::SeqCst) {
             self.start_pending_sources();
         }
 
@@ -164,7 +169,7 @@ impl MixerSource {
     // in-step with the modulo of the samples produced so far. Otherwise, the
     // sound will play on the wrong channels, e.g. left / right will be reversed.
     fn start_pending_sources(&mut self) {
-        let mut pending = self.input.pending_sources.lock().unwrap(); // TODO: relax ordering?
+        let mut pending = self.input.0.pending_sources.lock().unwrap(); // TODO: relax ordering?
 
         for source in pending.drain(..) {
             let in_step = self.sample_count % source.channels() as usize == 0;
@@ -178,7 +183,10 @@ impl MixerSource {
         std::mem::swap(&mut self.still_pending, &mut pending);
 
         let has_pending = !pending.is_empty();
-        self.input.has_pending.store(has_pending, Ordering::SeqCst); // TODO: relax ordering?
+        self.input
+            .0
+            .has_pending
+            .store(has_pending, Ordering::SeqCst); // TODO: relax ordering?
     }
 
     fn sum_current_sources(&mut self) -> Sample {

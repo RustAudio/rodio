@@ -48,6 +48,7 @@ mod agc;
 mod amplify;
 mod blt;
 mod buffered;
+mod buffered2;
 mod channel_volume;
 mod chirp;
 mod crossfade;
@@ -174,7 +175,8 @@ pub trait Source: Iterator<Item = Sample> {
     /// `None` indicates at the same time "infinite" or "unknown".
     fn total_duration(&self) -> Option<Duration>;
 
-    /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
+    /// Stores the source in a buffer in addition to returning it. This iterator can
+    /// be cloned. Note that this incurs significant additional latency.
     #[inline]
     fn buffered(self) -> Buffered<Self>
     where

@@ -52,7 +52,7 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        if self.inner.peek().is_none() {
+        if self.inner.peek_next().is_none() {
             true // back to beginning of source source
         } else {
             self.inner.parameters_changed()
@@ -61,7 +61,7 @@ where
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        if self.inner.peek().is_none() {
+        if self.inner.peek_next().is_none() {
             self.next.channels()
         } else {
             self.inner.channels()
@@ -70,7 +70,7 @@ where
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        if self.inner.peek().is_none() {
+        if self.inner.peek_next().is_none() {
             self.next.sample_rate()
         } else {
             self.inner.sample_rate()

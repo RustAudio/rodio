@@ -4,6 +4,10 @@ use crate::{ChannelCount, Sample, SampleRate};
 
 use super::Source;
 
+/// A source with a `peek()` method that returns the next sample without
+/// advancing the source. This `struct` is created by the
+/// [`peekable_source`](Source::peekable_source) method on [Source]. See its
+/// documentation for more.
 pub struct PeekableSource<I> {
     next: Option<Sample>,
     channels: ChannelCount,
@@ -47,8 +51,14 @@ impl<I: Source> PeekableSource<I> {
 
     /// Look at the next sample. This does not advance the source.
     /// Can be used to determine if the current sample was the last.
-    pub fn peek(&self) -> Option<Sample> {
+    pub fn peek_next(&self) -> Option<Sample> {
         self.next
+    }
+
+    /// Do the parameters change after the next sample? This does not advance 
+    /// the source.
+    pub fn peek_parameters_changed(&self) -> bool {
+        self.parameters_changed_after_next
     }
 }
 

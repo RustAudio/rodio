@@ -61,7 +61,7 @@ impl Iterator for WhiteNoise {
 impl Source for WhiteNoise {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        None
+        false
     }
 
     #[inline]

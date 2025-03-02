@@ -89,7 +89,7 @@ const THRESHOLD: usize = 512;
 impl Source for QueueSource {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        self.current.peek().is_none() || self.current.parameters_changed()
+        self.current.peek_next().is_none() || self.current.parameters_changed()
     }
 
     #[inline]

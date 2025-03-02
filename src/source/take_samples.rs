@@ -5,7 +5,9 @@ use crate::common::{ChannelCount, SampleRate};
 use crate::math::PrevMultipleOf;
 use crate::Source;
 
-/// A source that truncates the given source to a certain duration.
+/// A source that truncates the given source to a certain duration. This
+/// `struct` is created by the [`take_samples`](Source::take_samples) method
+/// on [Source]. See its documentation for more.
 #[derive(Clone, Debug)]
 pub struct TakeSamples<I> {
     input: I,
@@ -17,7 +19,7 @@ impl<I> TakeSamples<I>
 where
     I: Source,
 {
-    pub fn new(input: I, n: usize) -> Self {
+    pub(crate) fn new(input: I, n: usize) -> Self {
         Self {
             input,
             taken: 0,

@@ -17,7 +17,7 @@ fn peeked_matches_next() {
     let mut peekable = source.peekable_source();
 
     for _ in 0..peekable.len() {
-        let peeked = peekable.peek();
+        let peeked = peekable.peek_next();
         let next = peekable.next();
         assert!(
             peeked == next,
@@ -32,13 +32,14 @@ fn parameters_change_correct() {
         .with_span(TestSpan::silence().with_sample_count(10))
         .with_span(TestSpan::silence().with_sample_count(10));
     let mut peekable = source.peekable_source();
-    peekable.peek();
+    peekable.peek_next();
 
     assert_eq!(peekable.by_ref().take(10).count(), 10);
-    assert!(peekable.parameters_changed());
+    assert!(!peekable.parameters_changed());
+    // end of first span
 
     assert!(peekable.next().is_some());
-    assert!(!peekable.parameters_changed());
+    assert!(peekable.parameters_changed());
 
     assert_eq!(peekable.count(), 9);
 }
@@ -57,7 +58,7 @@ fn channel_count_changes() {
                 .with_sample_count(10),
         );
     let mut peekable = source.peekable_source();
-    peekable.peek();
+    peekable.peek_next();
 
     assert_eq!(peekable.channels().get(), 1);
     assert_eq!(peekable.by_ref().take(10).count(), 10);
@@ -78,7 +79,7 @@ fn sample_rate_changes() {
                 .with_sample_count(10),
         );
     let mut peekable = source.peekable_source();
-    peekable.peek();
+    peekable.peek_next();
 
     assert_eq!(peekable.sample_rate(), 10);
     assert_eq!(peekable.by_ref().take(10).count(), 10);

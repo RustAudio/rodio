@@ -40,7 +40,6 @@ pub use square::SquareWave;
 pub use stoppable::Stoppable;
 pub use take_duration::TakeDuration;
 pub use take_samples::TakeSamples;
-pub use take_span::TakeSpan;
 pub use triangle::TriangleWave;
 pub use uniform::UniformSourceIterator;
 pub use zero::Zero;
@@ -78,7 +77,6 @@ mod square;
 mod stoppable;
 mod take_duration;
 mod take_samples;
-mod take_span;
 mod triangle;
 mod uniform;
 mod zero;
@@ -214,16 +212,6 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
     {
         TakeDuration::new(self, duration)
-    }
-
-    /// Takes a samples until the current span ends, which is when any of
-    /// the source parameters_change.
-    #[inline]
-    fn take_span(self) -> TakeSpan<Self>
-    where
-        Self: Sized,
-    {
-        TakeSpan::new(self)
     }
 
     /// Takes n samples. N might be slightly adjusted to make sure

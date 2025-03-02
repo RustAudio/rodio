@@ -4,7 +4,7 @@ use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use super::SeekError;
+use super::{PeekableSource, SeekError};
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::{ch, PrevMultipleOf};
 use crate::Source;
@@ -16,9 +16,7 @@ where
     I: Source,
 {
     /// Immutable reference to the next span of data. Cannot be `Span::Input`.
-    current_span: Arc<Span<I>>,
-
-    parameters_changed: bool,
+    current_span: Arc<Span<PeekableSource<I>>>,
 
     /// The position in number of samples of this iterator inside `current_span`.
     position_in_span: usize,
@@ -30,13 +28,12 @@ where
 impl<I: Source> Buffered<I> {
     pub(crate) fn new(input: I) -> Buffered<I> {
         let total_duration = input.total_duration();
-        let first_span = extract(input);
+        let first_span = extract(input.peekable_source());
 
         Buffered {
             current_span: first_span,
             position_in_span: 0,
             total_duration,
-            parameters_changed: false,
         }
     }
 
@@ -74,6 +71,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
+        dbg!();
         let current_sample;
         let advance_span;
 
@@ -81,6 +79,7 @@ where
             Span::Data(SpanData { data, .. }) => {
                 current_sample = Some(data[self.position_in_span]);
                 self.position_in_span += 1;
+                dbg!(self.position_in_span);
                 advance_span = self.position_in_span >= data.len();
             }
 
@@ -93,10 +92,8 @@ where
         };
 
         if advance_span {
-            self.parameters_changed = true;
+            dbg!();
             self.next_span();
-        } else {
-            self.parameters_changed = false;
         }
 
         current_sample
@@ -109,7 +106,7 @@ where
 {
     #[inline]
     fn parameters_changed(&self) -> bool {
-        self.parameters_changed
+        dbg!(self.position_in_span) == 1
     }
 
     #[inline]
@@ -155,7 +152,6 @@ where
             current_span: self.current_span.clone(),
             position_in_span: self.position_in_span,
             total_duration: self.total_duration,
-            parameters_changed: self.parameters_changed,
         }
     }
 }
@@ -226,7 +222,7 @@ where
 }
 
 /// Builds a span from the input iterator.
-fn extract<I>(mut input: I) -> Arc<Span<I>>
+fn extract<I>(mut input: PeekableSource<I>) -> Arc<Span<PeekableSource<I>>>
 where
     I: Source,
 {
@@ -239,7 +235,7 @@ where
             break;
         };
         data.push(sample);
-        if input.parameters_changed() {
+        if input.peek_parameters_changed() {
             break;
         }
         if data.len() > 32768.prev_multiple_of(channels.into()) {

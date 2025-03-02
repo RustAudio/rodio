@@ -9,13 +9,17 @@ fn parameters_change_correct() {
         .with_span(TestSpan::silence().with_sample_count(10))
         .buffered();
 
-    assert_eq!(source.by_ref().take(10).count(), 10);
+    assert!(source.next().is_some());
     assert!(source.parameters_changed());
+    assert_eq!(source.by_ref().take(9).count(), 9);
+    // span ends
 
+    assert!(source.next().is_some());
+    assert!(source.parameters_changed());
     assert!(source.next().is_some());
     assert!(!source.parameters_changed());
 
-    assert_eq!(source.count(), 9);
+    assert_eq!(source.count(), 8);
 }
 
 #[test]
@@ -33,8 +37,12 @@ fn channel_count_changes() {
         )
         .buffered();
 
+    assert!(source.next().is_some());
     assert_eq!(source.channels().get(), 1);
-    assert_eq!(source.by_ref().take(10).count(), 10);
+    assert_eq!(source.by_ref().take(9).count(), 9);
+
+    // next span starts
+    assert!(source.next().is_some());
     assert_eq!(source.channels().get(), 2);
 }
 
@@ -53,8 +61,12 @@ fn buffered_sample_rate_changes() {
         )
         .buffered();
 
+    assert!(source.next().is_some());
     assert_eq!(source.sample_rate(), 10);
-    assert_eq!(source.by_ref().take(10).count(), 10);
+    assert_eq!(source.by_ref().take(9).count(), 9);
+
+    // next span starts
+    assert!(source.next().is_some());
     assert_eq!(source.sample_rate(), 20);
 }
 

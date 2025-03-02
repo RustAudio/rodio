@@ -1,13 +1,12 @@
 use std::time::Duration;
 
 use super::take_samples::TakeSamples;
-use super::take_span::TakeSpan;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::conversions::{ChannelCountConverter, SampleRateConverter};
 use crate::Source;
 
-type Converted<I> = ChannelCountConverter<SampleRateConverter<TakeSamples<TakeSpan<I>>>>;
+type Converted<I> = ChannelCountConverter<SampleRateConverter<TakeSamples<I>>>;
 
 /// An iterator that reads from a `Source` and converts the samples to a
 /// specific type, sample-rate and channels count.
@@ -57,7 +56,7 @@ where
         let from_channels = input.channels();
         let from_sample_rate = input.sample_rate();
 
-        let input = input.take_span().take_samples(32768);
+        let input = input.take_samples(32768);
         let input =
             SampleRateConverter::new(input, from_sample_rate, target_sample_rate, from_channels);
         ChannelCountConverter::new(input, from_channels, target_channels)
@@ -80,7 +79,6 @@ where
             .inner
             .take()
             .unwrap()
-            .into_inner()
             .into_inner()
             .into_inner()
             .into_inner();

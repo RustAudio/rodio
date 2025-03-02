@@ -275,8 +275,6 @@ impl Iterator for TestSource {
         if self.pos_in_span == current_span.len() {
             self.pos_in_span = 0;
             self.current_span += 1;
-        } else {
-            self.parameters_changed = false;
         }
 
         Some(sample)
@@ -298,7 +296,7 @@ impl ExactSizeIterator for TestSource {}
 
 impl rodio::Source for TestSource {
     fn parameters_changed(&self) -> bool {
-        self.parameters_changed
+        self.pos_in_span == 1
     }
     fn channels(&self) -> rodio::ChannelCount {
         self.spans
@@ -343,12 +341,14 @@ fn parameters_change_correct() {
         .with_span(TestSpan::silence().with_sample_count(10))
         .with_span(TestSpan::silence().with_sample_count(10));
 
-    assert_eq!(source.by_ref().take(10).count(), 10);
+    assert!(source.next().is_some());
     assert!(source.parameters_changed());
+    assert_eq!(source.by_ref().take(9).count(), 9);
+    assert!(!source.parameters_changed());
+    // end first span
 
     assert!(source.next().is_some());
-    assert!(!source.parameters_changed());
-
+    assert!(source.parameters_changed());
     assert_eq!(source.count(), 9);
 }
 

@@ -14,7 +14,7 @@ struct ParameterChange {
 
 struct Shared<I> {
     input: Mutex<I>,
-    parameter_changes: AppendOnlyVec<ParameterChange>,
+    parameters: AppendOnlyVec<ParameterChange>,
     samples_in_memory: AppendOnlyVec<Sample>,
 }
 
@@ -30,10 +30,10 @@ struct Buffered<I> {
 
 impl<I> Buffered<I> {
     fn next_parameter_change_at(&self) -> usize {
-        if self.parameter_changes_index > self.shared.parameter_changes.len() {
+        if self.parameter_changes_index > self.shared.parameters.len() {
             usize::MAX
         } else {
-            self.shared.parameter_changes[self.parameter_changes_index].index
+            self.shared.parameters[self.parameter_changes_index].index
         }
     }
 }
@@ -46,9 +46,20 @@ impl<I: Source> Iterator for Buffered<I> {
             if self.shared.samples_in_memory.len() < self.samples_index {
                 let sample = self.shared.samples_in_memory[self.samples_index];
 
+                if self.samples_index == self.next_parameter_change_at {
+                    let new_params = &self.shared.parameters[self.parameter_changes_index];
+                    self.sample_rate = new_params.sample_rate;
+                    self.channel_count = new_params.channel_count;
+                }
+
                 // sample after sample where flag a parameter_change
                 if self.samples_index > self.next_parameter_change_at {
-                    self.next_parameter_change_at = self.next_parameter_change_at();
+                    self.next_parameter_change_at =
+                        if self.parameter_changes_index > self.shared.parameters.len() {
+                            usize::MAX
+                        } else {
+                            self.shared.parameters[self.parameter_changes_index].index
+                        };
                 }
 
                 self.samples_index += 1;
@@ -60,7 +71,7 @@ impl<I: Source> Iterator for Buffered<I> {
                     self.samples_index,
                     input,
                     &self.shared.samples_in_memory,
-                    &self.shared.parameter_changes,
+                    &self.shared.parameters,
                 ),
                 Err(TryLockError::WouldBlock) => {
                     let _wait_for_other_to_finish_read_chunk = self.shared.input.lock();

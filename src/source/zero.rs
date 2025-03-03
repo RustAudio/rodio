@@ -59,8 +59,8 @@ impl Iterator for Zero {
 
 impl Source for Zero {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.num_samples
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]

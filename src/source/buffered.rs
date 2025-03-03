@@ -1,35 +1,22 @@
-use std::cmp;
+/// A iterator that stores extracted data in memory while allowing
+/// concurrent reading in real time.
 use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use super::SeekError;
+use super::{PeekableSource, SeekError};
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::{ch, PrevMultipleOf};
 use crate::Source;
 
-/// Internal function that builds a `Buffered` object.
-#[inline]
-pub fn buffered<I>(input: I) -> Buffered<I>
-where
-    I: Source,
-{
-    let total_duration = input.total_duration();
-    let first_span = extract(input);
-
-    Buffered {
-        current_span: first_span,
-        position_in_span: 0,
-        total_duration,
-    }
-}
-
-/// Iterator that at the same time extracts data from the iterator and stores it in a buffer.
+/// Iterator that at the same time extracts data from the iterator and
+/// stores it in a buffer.
 pub struct Buffered<I>
 where
     I: Source,
 {
     /// Immutable reference to the next span of data. Cannot be `Span::Input`.
-    current_span: Arc<Span<I>>,
+    current_span: Arc<Span<PeekableSource<I>>>,
 
     /// The position in number of samples of this iterator inside `current_span`.
     position_in_span: usize,
@@ -38,12 +25,143 @@ where
     total_duration: Option<Duration>,
 }
 
+impl<I: Source> Buffered<I> {
+    pub(crate) fn new(input: I) -> Buffered<I> {
+        let total_duration = input.total_duration();
+        let first_span = extract(input.peekable_source());
+
+        Buffered {
+            current_span: first_span,
+            position_in_span: 0,
+            total_duration,
+        }
+    }
+
+    /// Advances to the next span.
+    fn next_span(&mut self) {
+        let next_span = {
+            let mut next_span_ptr = match &*self.current_span {
+                Span::Data(SpanData { next, .. }) => next.lock().unwrap(),
+                _ => unreachable!(),
+            };
+
+            let next_span = match &**next_span_ptr {
+                Span::Data(_) => next_span_ptr.clone(),
+                Span::End => next_span_ptr.clone(),
+                Span::Input(input) => {
+                    let input = input.lock().unwrap().take().unwrap();
+                    extract(input)
+                }
+            };
+
+            *next_span_ptr = next_span.clone();
+            next_span
+        };
+
+        self.current_span = next_span;
+        self.position_in_span = 0;
+    }
+}
+
+impl<I> Iterator for Buffered<I>
+where
+    I: Source,
+{
+    type Item = I::Item;
+
+    #[inline]
+    fn next(&mut self) -> Option<I::Item> {
+        dbg!();
+        let current_sample;
+        let advance_span;
+
+        match &*self.current_span {
+            Span::Data(SpanData { data, .. }) => {
+                current_sample = Some(data[self.position_in_span]);
+                self.position_in_span += 1;
+                dbg!(self.position_in_span);
+                advance_span = self.position_in_span >= data.len();
+            }
+
+            Span::End => {
+                current_sample = None;
+                advance_span = false;
+            }
+
+            Span::Input(_) => unreachable!(),
+        };
+
+        if advance_span {
+            dbg!();
+            self.next_span();
+        }
+
+        current_sample
+    }
+}
+
+impl<I> Source for Buffered<I>
+where
+    I: Source,
+{
+    #[inline]
+    fn parameters_changed(&self) -> bool {
+        dbg!(self.position_in_span) == 1
+    }
+
+    #[inline]
+    fn channels(&self) -> ChannelCount {
+        match *self.current_span {
+            Span::Data(SpanData { channels, .. }) => channels,
+            Span::End => ch!(1),
+            Span::Input(_) => unreachable!(),
+        }
+    }
+
+    #[inline]
+    fn sample_rate(&self) -> SampleRate {
+        match *self.current_span {
+            Span::Data(SpanData { rate, .. }) => rate,
+            Span::End => 1,
+            Span::Input(_) => unreachable!(),
+        }
+    }
+
+    #[inline]
+    fn total_duration(&self) -> Option<Duration> {
+        self.total_duration
+    }
+
+    /// Can not support seek, in the end state we lose the underlying source
+    /// which makes seeking back impossible.
+    #[inline]
+    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
+    }
+}
+
+impl<I> Clone for Buffered<I>
+where
+    I: Source,
+{
+    #[inline]
+    fn clone(&self) -> Buffered<I> {
+        Buffered {
+            current_span: self.current_span.clone(),
+            position_in_span: self.position_in_span,
+            total_duration: self.total_duration,
+        }
+    }
+}
+
 enum Span<I>
 where
     I: Source,
 {
-    /// Data that has already been extracted from the iterator. Also contains a pointer to the
-    /// next span.
+    /// Data that has already been extracted from the iterator.
+    /// Also contains a pointer to the next span.
     Data(SpanData<I>),
 
     /// No more data.
@@ -52,6 +170,16 @@ where
     /// Unextracted data. The `Option` should never be `None` and is only here for easier data
     /// processing.
     Input(Mutex<Option<I>>),
+}
+
+impl<I: Source> std::fmt::Debug for Span<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Span::Data(_) => f.write_str("Span::Data"),
+            Span::End => f.write_str("Span::End"),
+            Span::Input(_) => f.write_str("Span::Input"),
+        }
+    }
 }
 
 struct SpanData<I>
@@ -94,22 +222,26 @@ where
 }
 
 /// Builds a span from the input iterator.
-fn extract<I>(mut input: I) -> Arc<Span<I>>
+fn extract<I>(mut input: PeekableSource<I>) -> Arc<Span<PeekableSource<I>>>
 where
     I: Source,
 {
-    let span_len = input.current_span_len();
-
-    if span_len == Some(0) {
-        return Arc::new(Span::End);
-    }
-
     let channels = input.channels();
     let rate = input.sample_rate();
-    let data: Vec<I::Item> = input
-        .by_ref()
-        .take(cmp::min(span_len.unwrap_or(32768), 32768))
-        .collect();
+
+    let mut data = Vec::new();
+    loop {
+        let Some(sample) = input.next() else {
+            break;
+        };
+        data.push(sample);
+        if input.peek_parameters_changed() {
+            break;
+        }
+        if data.len() > 32768.prev_multiple_of(channels.into()) {
+            break;
+        }
+    }
 
     if data.is_empty() {
         return Arc::new(Span::End);
@@ -121,138 +253,4 @@ where
         rate,
         next: Mutex::new(Arc::new(Span::Input(Mutex::new(Some(input))))),
     }))
-}
-
-impl<I> Buffered<I>
-where
-    I: Source,
-{
-    /// Advances to the next span.
-    fn next_span(&mut self) {
-        let next_span = {
-            let mut next_span_ptr = match &*self.current_span {
-                Span::Data(SpanData { next, .. }) => next.lock().unwrap(),
-                _ => unreachable!(),
-            };
-
-            let next_span = match &**next_span_ptr {
-                Span::Data(_) => next_span_ptr.clone(),
-                Span::End => next_span_ptr.clone(),
-                Span::Input(input) => {
-                    let input = input.lock().unwrap().take().unwrap();
-                    extract(input)
-                }
-            };
-
-            *next_span_ptr = next_span.clone();
-            next_span
-        };
-
-        self.current_span = next_span;
-        self.position_in_span = 0;
-    }
-}
-
-impl<I> Iterator for Buffered<I>
-where
-    I: Source,
-{
-    type Item = I::Item;
-
-    #[inline]
-    fn next(&mut self) -> Option<I::Item> {
-        let current_sample;
-        let advance_span;
-
-        match &*self.current_span {
-            Span::Data(SpanData { data, .. }) => {
-                current_sample = Some(data[self.position_in_span]);
-                self.position_in_span += 1;
-                advance_span = self.position_in_span >= data.len();
-            }
-
-            Span::End => {
-                current_sample = None;
-                advance_span = false;
-            }
-
-            Span::Input(_) => unreachable!(),
-        };
-
-        if advance_span {
-            self.next_span();
-        }
-
-        current_sample
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        // TODO:
-        (0, None)
-    }
-}
-
-// TODO: uncomment when `size_hint` is fixed
-/*impl<I> ExactSizeIterator for Amplify<I> where I: Source + ExactSizeIterator, I::Item: Sample {
-}*/
-
-impl<I> Source for Buffered<I>
-where
-    I: Source,
-{
-    #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        match &*self.current_span {
-            Span::Data(SpanData { data, .. }) => Some(data.len() - self.position_in_span),
-            Span::End => Some(0),
-            Span::Input(_) => unreachable!(),
-        }
-    }
-
-    #[inline]
-    fn channels(&self) -> ChannelCount {
-        match *self.current_span {
-            Span::Data(SpanData { channels, .. }) => channels,
-            Span::End => 1,
-            Span::Input(_) => unreachable!(),
-        }
-    }
-
-    #[inline]
-    fn sample_rate(&self) -> SampleRate {
-        match *self.current_span {
-            Span::Data(SpanData { rate, .. }) => rate,
-            Span::End => 44100,
-            Span::Input(_) => unreachable!(),
-        }
-    }
-
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        self.total_duration
-    }
-
-    /// Can not support seek, in the end state we lose the underlying source
-    /// which makes seeking back impossible.
-    #[inline]
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
-            underlying_source: std::any::type_name::<Self>(),
-        })
-    }
-}
-
-impl<I> Clone for Buffered<I>
-where
-    I: Source,
-{
-    #[inline]
-    fn clone(&self) -> Buffered<I> {
-        Buffered {
-            current_span: self.current_span.clone(),
-            position_in_span: self.position_in_span,
-            total_duration: self.total_duration,
-        }
-    }
 }

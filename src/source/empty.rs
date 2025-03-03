@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::{Sample, Source};
 
 /// An empty source.
@@ -35,13 +36,13 @@ impl Iterator for Empty {
 
 impl Source for Empty {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        1
+        ch!(1)
     }
 
     #[inline]

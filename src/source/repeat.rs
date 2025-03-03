@@ -2,45 +2,41 @@ use std::time::Duration;
 
 use crate::source::buffered::Buffered;
 
+use super::peekable::PeekableSource;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
-
-/// Internal function that builds a `Repeat` object.
-pub fn repeat<I>(input: I) -> Repeat<I>
-where
-    I: Source,
-{
-    let input = input.buffered();
-    Repeat {
-        inner: input.clone(),
-        next: input,
-    }
-}
 
 /// A source that repeats the given source.
 pub struct Repeat<I>
 where
     I: Source,
 {
-    inner: Buffered<I>,
+    inner: PeekableSource<Buffered<I>>,
     next: Buffered<I>,
 }
 
-impl<I> Iterator for Repeat<I>
-where
-    I: Source,
-{
+impl<I: Source> Repeat<I> {
+    pub(crate) fn new(input: I) -> Repeat<I> {
+        let input = input.buffered();
+        Repeat {
+            inner: PeekableSource::new(input.clone()),
+            next: input,
+        }
+    }
+}
+
+impl<I: Source> Iterator for Repeat<I> {
     type Item = <I as Iterator>::Item;
 
     #[inline]
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
         if let Some(value) = self.inner.next() {
-            return Some(value);
+            Some(value)
+        } else {
+            self.inner = PeekableSource::new(self.next.clone());
+            self.inner.next()
         }
-
-        self.inner = self.next.clone();
-        self.inner.next()
     }
 
     #[inline]
@@ -55,26 +51,29 @@ where
     I: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        match self.inner.current_span_len() {
-            Some(0) => self.next.current_span_len(),
-            a => a,
+    fn parameters_changed(&self) -> bool {
+        if self.inner.peek_next().is_none() {
+            true // back to beginning of source source
+        } else {
+            self.inner.parameters_changed()
         }
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        match self.inner.current_span_len() {
-            Some(0) => self.next.channels(),
-            _ => self.inner.channels(),
+        if self.inner.peek_next().is_none() {
+            self.next.channels()
+        } else {
+            self.inner.channels()
         }
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        match self.inner.current_span_len() {
-            Some(0) => self.next.sample_rate(),
-            _ => self.inner.sample_rate(),
+        if self.inner.peek_next().is_none() {
+            self.next.sample_rate()
+        } else {
+            self.inner.sample_rate()
         }
     }
 

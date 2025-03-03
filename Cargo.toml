@@ -24,6 +24,7 @@ tracing = { version = "0.1.40", optional = true }
 
 atomic_float = { version = "1.1.0", optional = true }
 num-rational = "0.4.2"
+append-only-vec = "0.1.7"
 
 [features]
 default = ["playback", "flac", "vorbis", "wav", "mp3"]
@@ -66,6 +67,8 @@ rstest_reuse = "0.6.0"
 approx = "0.5.1"
 dasp_sample = "0.11.0"
 divan = "0.1.14"
+spectrum-analyzer = "1.6.0"
+itertools = "0.14.0"
 
 [[bench]]
 name = "effects"

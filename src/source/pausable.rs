@@ -31,7 +31,7 @@ where
 pub struct Pausable<I> {
     input: I,
     paused_channels: Option<ChannelCount>,
-    remaining_paused_samples: ChannelCount,
+    remaining_paused_samples: u16,
 }
 
 impl<I> Pausable<I>
@@ -83,7 +83,7 @@ where
         }
 
         if let Some(paused_channels) = self.paused_channels {
-            self.remaining_paused_samples = paused_channels - 1;
+            self.remaining_paused_samples = paused_channels.get() - 1;
             return Some(0.0);
         }
 
@@ -101,8 +101,8 @@ where
     I: Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.input.current_span_len()
+    fn parameters_changed(&self) -> bool {
+        self.input.parameters_changed()
     }
 
     #[inline]

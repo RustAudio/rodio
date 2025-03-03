@@ -6,7 +6,7 @@ use rodio::{ChannelCount, Sample, SampleRate, Source};
 
 pub struct TestSource {
     samples: vec::IntoIter<Sample>,
-    channels: u16,
+    channels: ChannelCount,
     sample_rate: u32,
     total_duration: Duration,
 }
@@ -29,8 +29,8 @@ impl ExactSizeIterator for TestSource {
 
 impl Source for TestSource {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None // forever
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]

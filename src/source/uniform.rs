@@ -1,10 +1,12 @@
-use std::cmp;
 use std::time::Duration;
 
+use super::take_samples::TakeSamples;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::conversions::{ChannelCountConverter, SampleRateConverter};
 use crate::Source;
+
+type Converted<I> = ChannelCountConverter<SampleRateConverter<TakeSamples<I>>>;
 
 /// An iterator that reads from a `Source` and converts the samples to a
 /// specific type, sample-rate and channels count.
@@ -16,7 +18,7 @@ pub struct UniformSourceIterator<I>
 where
     I: Source,
 {
-    inner: Option<ChannelCountConverter<SampleRateConverter<Take<I>>>>,
+    inner: Option<Converted<I>>,
     target_channels: ChannelCount,
     target_sample_rate: SampleRate,
     total_duration: Option<Duration>,
@@ -50,17 +52,11 @@ where
         input: I,
         target_channels: ChannelCount,
         target_sample_rate: SampleRate,
-    ) -> ChannelCountConverter<SampleRateConverter<Take<I>>> {
-        // Limit the span length to something reasonable
-        let span_len = input.current_span_len().map(|x| x.min(32768));
-
+    ) -> Converted<I> {
         let from_channels = input.channels();
         let from_sample_rate = input.sample_rate();
 
-        let input = Take {
-            iter: input,
-            n: span_len,
-        };
+        let input = input.take_samples(32768);
         let input =
             SampleRateConverter::new(input, from_sample_rate, target_sample_rate, from_channels);
         ChannelCountConverter::new(input, from_channels, target_channels)
@@ -79,7 +75,13 @@ where
             return Some(value);
         }
 
-        let input = self.inner.take().unwrap().into_inner().into_inner().iter;
+        let input = self
+            .inner
+            .take()
+            .unwrap()
+            .into_inner()
+            .into_inner()
+            .into_inner();
 
         let mut input =
             UniformSourceIterator::bootstrap(input, self.target_channels, self.target_sample_rate);
@@ -100,8 +102,8 @@ where
     I: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]
@@ -128,57 +130,3 @@ where
         }
     }
 }
-
-#[derive(Clone, Debug)]
-struct Take<I> {
-    iter: I,
-    n: Option<usize>,
-}
-
-impl<I> Take<I> {
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.iter
-    }
-}
-
-impl<I> Iterator for Take<I>
-where
-    I: Iterator,
-{
-    type Item = <I as Iterator>::Item;
-
-    #[inline]
-    fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if let Some(n) = &mut self.n {
-            if *n != 0 {
-                *n -= 1;
-                self.iter.next()
-            } else {
-                None
-            }
-        } else {
-            self.iter.next()
-        }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        if let Some(n) = self.n {
-            let (lower, upper) = self.iter.size_hint();
-
-            let lower = cmp::min(lower, n);
-
-            let upper = match upper {
-                Some(x) if x < n => Some(x),
-                _ => Some(n),
-            };
-
-            (lower, upper)
-        } else {
-            self.iter.size_hint()
-        }
-    }
-}
-
-impl<I> ExactSizeIterator for Take<I> where I: ExactSizeIterator {}

@@ -7,45 +7,48 @@ use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
 use dasp_sample::FromSample;
 
-pub use self::agc::AutomaticGainControl;
-pub use self::amplify::Amplify;
-pub use self::blt::BltFilter;
-pub use self::buffered::Buffered;
-pub use self::channel_volume::ChannelVolume;
-pub use self::chirp::{chirp, Chirp};
-pub use self::crossfade::Crossfade;
-pub use self::delay::Delay;
-pub use self::done::Done;
-pub use self::empty::Empty;
-pub use self::empty_callback::EmptyCallback;
-pub use self::fadein::FadeIn;
-pub use self::fadeout::FadeOut;
-pub use self::from_factory::{from_factory, FromFactoryIter};
-pub use self::from_iter::{from_iter, FromIter};
-pub use self::linear_ramp::LinearGainRamp;
-pub use self::mix::Mix;
-pub use self::pausable::Pausable;
-pub use self::periodic::PeriodicAccess;
-pub use self::position::TrackPosition;
-pub use self::repeat::Repeat;
-pub use self::sawtooth::SawtoothWave;
-pub use self::signal_generator::{Function, SignalGenerator};
-pub use self::sine::SineWave;
-pub use self::skip::SkipDuration;
-pub use self::skippable::Skippable;
-pub use self::spatial::Spatial;
-pub use self::speed::Speed;
-pub use self::square::SquareWave;
-pub use self::stoppable::Stoppable;
-pub use self::take::TakeDuration;
-pub use self::triangle::TriangleWave;
-pub use self::uniform::UniformSourceIterator;
-pub use self::zero::Zero;
+pub use agc::AutomaticGainControl;
+pub use amplify::Amplify;
+pub use blt::BltFilter;
+pub use buffered::Buffered;
+pub use channel_volume::ChannelVolume;
+pub use chirp::{chirp, Chirp};
+pub use crossfade::Crossfade;
+pub use delay::Delay;
+pub use done::Done;
+pub use empty::Empty;
+pub use empty_callback::EmptyCallback;
+pub use fadein::FadeIn;
+pub use fadeout::FadeOut;
+pub use from_factory::{from_factory, FromFactoryIter};
+pub use from_iter::{from_iter, FromIter};
+pub use linear_ramp::LinearGainRamp;
+pub use mix::Mix;
+pub use pausable::Pausable;
+pub use peekable::PeekableSource;
+pub use periodic::PeriodicAccess;
+pub use position::TrackPosition;
+pub use repeat::Repeat;
+pub use sawtooth::SawtoothWave;
+pub use signal_generator::{Function, SignalGenerator};
+pub use sine::SineWave;
+pub use skip_duration::SkipDuration;
+pub use skippable::Skippable;
+pub use spatial::Spatial;
+pub use speed::Speed;
+pub use square::SquareWave;
+pub use stoppable::Stoppable;
+pub use take_duration::TakeDuration;
+pub use take_samples::TakeSamples;
+pub use triangle::TriangleWave;
+pub use uniform::UniformSourceIterator;
+pub use zero::Zero;
 
 mod agc;
 mod amplify;
 mod blt;
 mod buffered;
+mod buffered2;
 mod channel_volume;
 mod chirp;
 mod crossfade;
@@ -60,19 +63,21 @@ mod from_iter;
 mod linear_ramp;
 mod mix;
 mod pausable;
+mod peekable;
 mod periodic;
 mod position;
 mod repeat;
 mod sawtooth;
 mod signal_generator;
 mod sine;
-mod skip;
+mod skip_duration;
 mod skippable;
 mod spatial;
 mod speed;
 mod square;
 mod stoppable;
-mod take;
+mod take_duration;
+mod take_samples;
 mod triangle;
 mod uniform;
 mod zero;
@@ -146,20 +151,20 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// stay the same for long periods of time and avoids calling `channels()` and
 /// `sample_rate` too frequently.
 ///
-/// In order to properly handle this situation, the `current_span_len()` method should return
+/// In order to properly handle this situation, the `parameters_changed()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends. `None` means "infinite" or
-    /// "until the sound ends".
-    /// Should never return 0 unless there's no more data.
+    /// Whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// This is true before the next call to `Source::next`. After that
+    /// `Source::next` call this will be false again.
     ///
-    /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `sample_rate()` have changed.
-    fn current_span_len(&self) -> Option<usize>;
+    /// The value before the first call to next is not defined.
+    fn parameters_changed(&self) -> bool;
 
     /// Returns the number of channels. Channels are always interleaved.
+    /// Should never be Zero
     fn channels(&self) -> ChannelCount;
 
     /// Returns the rate at which the source should be played. In number of samples per second.
@@ -170,13 +175,14 @@ pub trait Source: Iterator<Item = Sample> {
     /// `None` indicates at the same time "infinite" or "unknown".
     fn total_duration(&self) -> Option<Duration>;
 
-    /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
+    /// Stores the source in a buffer in addition to returning it. This iterator can
+    /// be cloned. Note that this incurs significant additional latency.
     #[inline]
     fn buffered(self) -> Buffered<Self>
     where
         Self: Sized,
     {
-        buffered::buffered(self)
+        Buffered::new(self)
     }
 
     /// Mixes this source with another one.
@@ -198,7 +204,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        repeat::repeat(self)
+        Repeat::new(self)
     }
 
     /// Takes a certain duration of this source and then stops.
@@ -207,7 +213,17 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        take::take_duration(self, duration)
+        TakeDuration::new(self, duration)
+    }
+
+    /// Takes n samples. N might be slightly adjusted to make sure
+    /// this source ends on a frame boundary
+    #[inline]
+    fn take_samples(self, n: usize) -> TakeSamples<Self>
+    where
+        Self: Sized,
+    {
+        TakeSamples::new(self, n)
     }
 
     /// Delays the sound by a certain duration.
@@ -230,7 +246,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        skip::skip_duration(self, duration)
+        SkipDuration::new(self, duration)
     }
 
     /// Amplifies the sound by the given value.
@@ -349,6 +365,14 @@ pub trait Source: Iterator<Item = Sample> {
         Self::Item: FromSample<S::Item>,
     {
         crossfade::crossfade(self, other, duration)
+    }
+
+    /// Erases the type of self by placing it on the heap
+    fn type_erased(self) -> Box<dyn Source + Send + 'static>
+    where
+        Self: Sized + Send + 'static,
+    {
+        Box::new(self)
     }
 
     /// Fades in the sound.
@@ -494,7 +518,23 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        position::track_position(self)
+        TrackPosition::new(self)
+    }
+
+    /// This is the [`Source`] equivalent of
+    /// [`Iterator::peek`](std::iter::Iterator::peekable). Creates an iterator
+    /// which can use the [`peek`](PeekableSource::peek) method to look at the next
+    /// element of the iterator without consuming it. See their documentation
+    /// for more information.
+
+    /// # Note
+    /// The underlying source is advanced by one sample when you call this
+    /// function. Any side effects of the next method will occur.
+    fn peekable_source(self) -> PeekableSource<Self>
+    where
+        Self: Sized,
+    {
+        PeekableSource::new(self)
     }
 
     /// Applies a low-pass filter to the source.
@@ -505,7 +545,7 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::low_pass(self, freq)
+        BltFilter::low_pass(self, freq)
     }
 
     /// Applies a high-pass filter to the source.
@@ -515,7 +555,7 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::high_pass(self, freq)
+        BltFilter::high_pass(self, freq)
     }
 
     /// Applies a low-pass filter to the source while allowing the q (bandwidth) to be changed.
@@ -525,7 +565,7 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::low_pass_with_q(self, freq, q)
+        BltFilter::low_pass_with_q(self, freq, q)
     }
 
     /// Applies a high-pass filter to the source while allowing the q (bandwidth) to be changed.
@@ -535,7 +575,7 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
         Self: Source<Item = f32>,
     {
-        blt::high_pass_with_q(self, freq, q)
+        BltFilter::high_pass_with_q(self, freq, q)
     }
 
     // There is no `can_seek()` method as it is impossible to use correctly. Between
@@ -646,8 +686,8 @@ macro_rules! source_pointer_impl {
     ($($sig:tt)+) => {
         impl $($sig)+ {
             #[inline]
-            fn current_span_len(&self) -> Option<usize> {
-                (**self).current_span_len()
+            fn parameters_changed(&self) -> bool {
+                (**self).parameters_changed()
             }
 
             #[inline]

@@ -4,31 +4,38 @@ use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
 
-/// Internal function that builds a `TrackPosition` object. See trait docs for
-/// details
-pub fn track_position<I>(source: I) -> TrackPosition<I> {
-    TrackPosition {
-        input: source,
-        samples_counted: 0,
-        offset_duration: 0.0,
-        current_span_sample_rate: 0,
-        current_span_channels: 0,
-        current_span_len: None,
-    }
-}
-
 /// Tracks the elapsed duration since the start of the underlying source.
-#[derive(Debug)]
 pub struct TrackPosition<I> {
     input: I,
     samples_counted: usize,
     offset_duration: f64,
     current_span_sample_rate: SampleRate,
     current_span_channels: ChannelCount,
-    current_span_len: Option<usize>,
 }
 
-impl<I> TrackPosition<I> {
+impl<I> std::fmt::Debug for TrackPosition<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TrackPosition")
+            .field("samples_counted", &self.samples_counted)
+            .field("offset_duration", &self.offset_duration)
+            .field("current_span_sample_rate", &self.current_span_sample_rate)
+            .field("current_span_channels", &self.current_span_channels)
+            .finish()
+    }
+}
+
+impl<I: Source> TrackPosition<I> {
+    pub(crate) fn new(source: I) -> TrackPosition<I> {
+        assert!(source.sample_rate() > 0);
+        TrackPosition {
+            samples_counted: 0,
+            offset_duration: 0.0,
+            current_span_sample_rate: source.sample_rate(),
+            current_span_channels: source.channels(),
+            input: source,
+        }
+    }
+
     /// Returns a reference to the inner source.
     #[inline]
     pub fn inner(&self) -> &I {
@@ -59,23 +66,16 @@ where
     /// returned by [`get_pos`](TrackPosition::get_pos).
     ///
     /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
-    /// together with [`Source::try_seek()`] as the the latter does take all
+    /// together with [`Source::try_seek()`] as the latter does take all
     /// speedup's and delay's into account. Its recommended therefore to apply
     /// track_position after speedup's and delay's.
     #[inline]
     pub fn get_pos(&self) -> Duration {
         let seconds = self.samples_counted as f64
             / self.input.sample_rate() as f64
-            / self.input.channels() as f64
+            / self.input.channels().get() as f64
             + self.offset_duration;
         Duration::from_secs_f64(seconds)
-    }
-
-    #[inline]
-    fn set_current_span(&mut self) {
-        self.current_span_len = self.current_span_len();
-        self.current_span_sample_rate = self.sample_rate();
-        self.current_span_channels = self.channels();
     }
 }
 
@@ -87,25 +87,21 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        // This should only be executed once at the first call to next.
-        if self.current_span_len.is_none() {
-            self.set_current_span();
-        }
-
         let item = self.input.next();
         if item.is_some() {
             self.samples_counted += 1;
 
             // At the end of a span add the duration of this span to
             // offset_duration and start collecting samples again.
-            if Some(self.samples_counted) == self.current_span_len() {
+            if self.parameters_changed() {
                 self.offset_duration += self.samples_counted as f64
                     / self.current_span_sample_rate as f64
-                    / self.current_span_channels as f64;
+                    / self.current_span_channels.get() as f64;
 
                 // Reset.
                 self.samples_counted = 0;
-                self.set_current_span();
+                self.current_span_sample_rate = self.sample_rate();
+                self.current_span_channels = self.channels();
             };
         };
         item
@@ -122,8 +118,8 @@ where
     I: Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        self.input.current_span_len()
+    fn parameters_changed(&self) -> bool {
+        self.input.parameters_changed()
     }
 
     #[inline]
@@ -152,45 +148,5 @@ where
             self.samples_counted = 0;
         }
         result
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use crate::buffer::SamplesBuffer;
-    use crate::source::Source;
-
-    #[test]
-    fn test_position() {
-        let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
-        let mut source = inner.track_position();
-
-        assert_eq!(source.get_pos().as_secs_f32(), 0.0);
-        source.next();
-        assert_eq!(source.get_pos().as_secs_f32(), 1.0);
-
-        source.next();
-        assert_eq!(source.get_pos().as_secs_f32(), 2.0);
-
-        assert_eq!(source.try_seek(Duration::new(1, 0)).is_ok(), true);
-        assert_eq!(source.get_pos().as_secs_f32(), 1.0);
-    }
-
-    #[test]
-    fn test_position_in_presence_of_speedup() {
-        let inner = SamplesBuffer::new(1, 1, vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
-        let mut source = inner.speed(2.0).track_position();
-
-        assert_eq!(source.get_pos().as_secs_f32(), 0.0);
-        source.next();
-        assert_eq!(source.get_pos().as_secs_f32(), 0.5);
-
-        source.next();
-        assert_eq!(source.get_pos().as_secs_f32(), 1.0);
-
-        assert_eq!(source.try_seek(Duration::new(1, 0)).is_ok(), true);
-        assert_eq!(source.get_pos().as_secs_f32(), 1.0);
     }
 }

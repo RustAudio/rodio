@@ -80,14 +80,8 @@ where
     I2: Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        let f1 = self.input1.current_span_len();
-        let f2 = self.input2.current_span_len();
-
-        match (f1, f2) {
-            (Some(f1), Some(f2)) => Some(cmp::min(f1, f2)),
-            _ => None,
-        }
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]

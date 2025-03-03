@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::Source;
 
 /// Builds a source that chains sources provided by an iterator.
@@ -76,39 +77,41 @@ where
     I::Item: Iterator + Source,
 {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
+    fn parameters_changed(&self) -> bool {
         // This function is non-trivial because the boundary between the current source and the
         // next must be a span boundary as well.
         //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
+        // The current sound is free to return `None` for `parameters_changed()`, in which case
         // we *should* return the number of samples remaining the current sound.
         // This can be estimated with `size_hint()`.
         //
         // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
         // situation we force a span to have a maximum number of samples indicate by this
         // constant.
-        const THRESHOLD: usize = 10240;
 
-        // Try the current `current_span_len`.
-        if let Some(src) = &self.current_source {
-            if let Some(val) = src.current_span_len() {
-                if val != 0 {
-                    return Some(val);
-                }
-            }
-        }
-
-        // Try the size hint.
-        if let Some(src) = &self.current_source {
-            if let Some(val) = src.size_hint().1 {
-                if val < THRESHOLD && val != 0 {
-                    return Some(val);
-                }
-            }
-        }
-
-        // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        todo!()
+        // const THRESHOLD: usize = 10240;
+        //
+        // // Try the current `current_span_len`.
+        // if let Some(src) = &self.current_source {
+        //     if let Some(val) = src.parameters_changed() {
+        //         if val != 0 {
+        //             return Some(val);
+        //         }
+        //     }
+        // }
+        //
+        // // Try the size hint.
+        // if let Some(src) = &self.current_source {
+        //     if let Some(val) = src.size_hint().1 {
+        //         if val < THRESHOLD && val != 0 {
+        //             return Some(val);
+        //         }
+        //     }
+        // }
+        //
+        // // Otherwise we use the constant value.
+        // Some(THRESHOLD)
     }
 
     #[inline]
@@ -117,7 +120,7 @@ where
             src.channels()
         } else {
             // Dummy value that only happens if the iterator was empty.
-            2
+            ch!(2)
         }
     }
 
@@ -149,21 +152,22 @@ where
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
+    use crate::math::ch;
     use crate::source::{from_iter, Source};
 
     #[test]
     fn basic() {
         let mut rx = from_iter((0..2).map(|n| {
             if n == 0 {
-                SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0])
+                SamplesBuffer::new(ch!(1), 48000, vec![10.0, -10.0, 10.0, -10.0])
             } else if n == 1 {
-                SamplesBuffer::new(2, 96000, vec![5.0, 5.0, 5.0, 5.0])
+                SamplesBuffer::new(ch!(2), 96000, vec![5.0, 5.0, 5.0, 5.0])
             } else {
                 unreachable!()
             }
         }));
 
-        assert_eq!(rx.channels(), 1);
+        assert_eq!(rx.channels(), ch!(1));
         assert_eq!(rx.sample_rate(), 48000);
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));

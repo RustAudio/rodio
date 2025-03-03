@@ -13,6 +13,7 @@
 //! ```
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::Source;
 use std::f32::consts::TAU;
 use std::time::Duration;
@@ -36,7 +37,7 @@ use std::time::Duration;
 pub type GeneratorFunction = fn(f32) -> f32;
 
 /// Waveform functions.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Function {
     /// A sinusoidal waveform.
     Sine,
@@ -137,13 +138,13 @@ impl Iterator for SignalGenerator {
 
 impl Source for SignalGenerator {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        1
+        ch!(1)
     }
 
     #[inline]

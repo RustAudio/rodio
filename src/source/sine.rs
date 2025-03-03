@@ -1,4 +1,5 @@
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::ch;
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
 use std::time::Duration;
@@ -39,13 +40,13 @@ impl Iterator for SineWave {
 
 impl Source for SineWave {
     #[inline]
-    fn current_span_len(&self) -> Option<usize> {
-        None
+    fn parameters_changed(&self) -> bool {
+        false
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        1
+        ch!(1)
     }
 
     #[inline]

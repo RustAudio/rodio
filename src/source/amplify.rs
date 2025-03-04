@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `Amplify` object.
 pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     Amplify { input, factor }
 }
@@ -49,13 +48,12 @@ impl<I> Amplify<I> {
 impl<I> Iterator for Amplify<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
     #[inline]
-    fn next(&mut self) -> Option<I::Item> {
-        self.input.next().map(|value| value.amplify(self.factor))
+    fn next(&mut self) -> Option<Self::Item> {
+        self.input.next().map(|value| value * self.factor)
     }
 
     #[inline]
@@ -64,17 +62,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for Amplify<I>
-where
-    I: Source + ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for Amplify<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for Amplify<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

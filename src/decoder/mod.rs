@@ -9,7 +9,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use crate::source::SeekError;
-use crate::Source;
+use crate::{Sample, Source};
 
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
@@ -30,13 +30,6 @@ pub mod symphonia;
 mod vorbis;
 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
 mod wav;
-
-#[cfg(feature = "integer-decoder")]
-/// Output format of the decoders.
-pub type DecoderSample = i16;
-#[cfg(not(feature = "integer-decoder"))]
-/// Output format of the decoders.
-pub type DecoderSample = f32;
 
 /// Source of audio samples from decoding a file.
 ///
@@ -75,7 +68,7 @@ where
 
 impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
-    fn next(&mut self) -> Option<DecoderSample> {
+    fn next(&mut self) -> Option<Sample> {
         match self {
             #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
             DecoderImpl::Wav(source) => source.next(),
@@ -403,7 +396,7 @@ impl<R> Iterator for Decoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -449,7 +442,7 @@ impl<R> Iterator for LoopedDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {

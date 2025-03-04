@@ -6,7 +6,7 @@
 //!
 //! ```
 //! use rodio::buffer::SamplesBuffer;
-//! let _ = SamplesBuffer::new(1, 44100, vec![1i16, 2, 3, 4, 5, 6]);
+//! let _ = SamplesBuffer::new(1, 44100, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 //! ```
 //!
 
@@ -17,18 +17,15 @@ use std::time::Duration;
 
 /// A buffer of samples treated as a source.
 #[derive(Debug, Clone)]
-pub struct SamplesBuffer<S> {
-    data: Vec<S>,
+pub struct SamplesBuffer {
+    data: Vec<Sample>,
     pos: usize,
     channels: ChannelCount,
     sample_rate: SampleRate,
     duration: Duration,
 }
 
-impl<S> SamplesBuffer<S>
-where
-    S: Sample,
-{
+impl SamplesBuffer {
     /// Builds a new `SamplesBuffer`.
     ///
     /// # Panic
@@ -38,9 +35,9 @@ where
     /// - Panics if the length of the buffer is larger than approximately 16 billion elements.
     ///   This is because the calculation of the duration would overflow.
     ///
-    pub fn new<D>(channels: ChannelCount, sample_rate: SampleRate, data: D) -> SamplesBuffer<S>
+    pub fn new<D>(channels: ChannelCount, sample_rate: SampleRate, data: D) -> SamplesBuffer
     where
-        D: Into<Vec<S>>,
+        D: Into<Vec<Sample>>,
     {
         assert!(channels >= 1);
         assert!(sample_rate >= 1);
@@ -64,10 +61,7 @@ where
     }
 }
 
-impl<S> Source for SamplesBuffer<S>
-where
-    S: Sample,
-{
+impl Source for SamplesBuffer {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         None
@@ -88,13 +82,13 @@ where
         Some(self.duration)
     }
 
-    // this is fast because all the samples are in memory already
-    // and due to the constant sample_rate we can jump to the right
-    // sample directly
-    //
     /// This jumps in memory till the sample for `pos`.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        // This is fast because all the samples are in memory already
+        // and due to the constant sample_rate we can jump to the right
+        // sample directly.
+
         let curr_channel = self.pos % self.channels() as usize;
         let new_pos = pos.as_secs_f32() * self.sample_rate() as f32 * self.channels() as f32;
         // saturate pos at the end of the source
@@ -110,14 +104,11 @@ where
     }
 }
 
-impl<S> Iterator for SamplesBuffer<S>
-where
-    S: Sample,
-{
-    type Item = S;
+impl Iterator for SamplesBuffer {
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         let sample = self.data.get(self.pos)?;
         self.pos += 1;
         Some(*sample)
@@ -136,24 +127,24 @@ mod tests {
 
     #[test]
     fn basic() {
-        let _ = SamplesBuffer::new(1, 44100, vec![0i16, 0, 0, 0, 0, 0]);
+        let _ = SamplesBuffer::new(1, 44100, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     #[should_panic]
     fn panic_if_zero_channels() {
-        SamplesBuffer::new(0, 44100, vec![0i16, 0, 0, 0, 0, 0]);
+        SamplesBuffer::new(0, 44100, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     #[should_panic]
     fn panic_if_zero_sample_rate() {
-        SamplesBuffer::new(1, 0, vec![0i16, 0, 0, 0, 0, 0]);
+        SamplesBuffer::new(1, 0, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     fn duration_basic() {
-        let buf = SamplesBuffer::new(2, 2, vec![0i16, 0, 0, 0, 0, 0]);
+        let buf = SamplesBuffer::new(2, 2, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
         let dur = buf.total_duration().unwrap();
         assert_eq!(dur.as_secs(), 1);
         assert_eq!(dur.subsec_nanos(), 500_000_000);
@@ -161,13 +152,13 @@ mod tests {
 
     #[test]
     fn iteration() {
-        let mut buf = SamplesBuffer::new(1, 44100, vec![1i16, 2, 3, 4, 5, 6]);
-        assert_eq!(buf.next(), Some(1));
-        assert_eq!(buf.next(), Some(2));
-        assert_eq!(buf.next(), Some(3));
-        assert_eq!(buf.next(), Some(4));
-        assert_eq!(buf.next(), Some(5));
-        assert_eq!(buf.next(), Some(6));
+        let mut buf = SamplesBuffer::new(1, 44100, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        assert_eq!(buf.next(), Some(1.0));
+        assert_eq!(buf.next(), Some(2.0));
+        assert_eq!(buf.next(), Some(3.0));
+        assert_eq!(buf.next(), Some(4.0));
+        assert_eq!(buf.next(), Some(5.0));
+        assert_eq!(buf.next(), Some(6.0));
         assert_eq!(buf.next(), None);
     }
 
@@ -175,6 +166,7 @@ mod tests {
     mod try_seek {
         use super::*;
         use crate::common::{ChannelCount, SampleRate};
+        use crate::Sample;
         use std::time::Duration;
 
         #[test]
@@ -184,19 +176,19 @@ mod tests {
             let mut buf = SamplesBuffer::new(
                 CHANNELS,
                 SAMPLE_RATE,
-                (0..2000i16).into_iter().collect::<Vec<_>>(),
+                (0..2000i16)
+                    .into_iter()
+                    .map(|s| s as Sample)
+                    .collect::<Vec<_>>(),
             );
             buf.try_seek(Duration::from_secs(5)).unwrap();
-            assert_eq!(
-                buf.next(),
-                Some(5i16 * SAMPLE_RATE as i16 * CHANNELS as i16)
-            );
+            assert_eq!(buf.next(), Some(5.0 * SAMPLE_RATE as f32 * CHANNELS as f32));
 
-            assert!(buf.next().is_some_and(|s| s % 2 == 1));
-            assert!(buf.next().is_some_and(|s| s % 2 == 0));
+            assert!(buf.next().is_some_and(|s| s.trunc() as i32 % 2 == 1));
+            assert!(buf.next().is_some_and(|s| s.trunc() as i32 % 2 == 0));
 
             buf.try_seek(Duration::from_secs(6)).unwrap();
-            assert!(buf.next().is_some_and(|s| s % 2 == 1),);
+            assert!(buf.next().is_some_and(|s| s.trunc() as i32 % 2 == 1),);
         }
     }
 }

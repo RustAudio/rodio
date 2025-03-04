@@ -5,12 +5,11 @@ use std::time::Duration;
 use crate::source::SeekError;
 use crate::Source;
 
-use crate::common::{ChannelCount, SampleRate};
+use crate::common::{ChannelCount, Sample, SampleRate};
 
 use claxon::FlacReader;
-use dasp_sample::{Sample, I24};
-
-use super::DecoderSample;
+use dasp_sample::Sample as _;
+use dasp_sample::I24;
 
 /// Decoder for the FLAC format.
 pub struct FlacDecoder<R>
@@ -109,7 +108,7 @@ impl<R> Iterator for FlacDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -124,13 +123,10 @@ where
                 let bits = self.bits_per_sample;
                 let real_val = match bits {
                     8 => (raw_val as i8).to_sample(),
-                    16 => {
-                        let raw_val = raw_val as i16;
-                        #[cfg(not(feature = "integer-decoder"))] // perf
-                        let raw_val = raw_val.to_sample();
-                        raw_val
-                    }
-                    24 => I24::new(raw_val).unwrap_or(Sample::EQUILIBRIUM).to_sample(),
+                    16 => (raw_val as i16).to_sample(),
+                    24 => I24::new(raw_val)
+                        .unwrap_or(dasp_sample::Sample::EQUILIBRIUM)
+                        .to_sample(),
                     32 => raw_val.to_sample(),
                     _ => {
                         // FLAC also supports 12 and 20 bits per sample. We use bit

@@ -4,11 +4,9 @@ use std::time::Duration;
 use crate::source::SeekError;
 use crate::Source;
 
-use crate::common::{ChannelCount, SampleRate};
+use crate::common::{ChannelCount, Sample, SampleRate};
 use lewton::inside_ogg::OggStreamReader;
 use lewton::samples::InterleavedSamples;
-
-use super::DecoderSample;
 
 /// Decoder for an OGG file that contains Vorbis sound format.
 pub struct VorbisDecoder<R>
@@ -16,7 +14,7 @@ where
     R: Read + Seek,
 {
     stream_reader: OggStreamReader<R>,
-    current_data: Vec<DecoderSample>,
+    current_data: Vec<Sample>,
     next: usize,
 }
 
@@ -34,16 +32,15 @@ where
         Ok(Self::from_stream_reader(stream_reader))
     }
     pub fn from_stream_reader(mut stream_reader: OggStreamReader<R>) -> Self {
-        let mut data =
-            match stream_reader.read_dec_packet_generic::<InterleavedSamples<DecoderSample>>() {
-                Ok(Some(d)) => d.samples,
-                _ => Vec::new(),
-            };
+        let mut data = match stream_reader.read_dec_packet_generic::<InterleavedSamples<Sample>>() {
+            Ok(Some(d)) => d.samples,
+            _ => Vec::new(),
+        };
 
         // The first packet is always empty, therefore
         // we need to read the second frame to get some data
         if let Ok(Some(mut d)) =
-            stream_reader.read_dec_packet_generic::<InterleavedSamples<DecoderSample>>()
+            stream_reader.read_dec_packet_generic::<InterleavedSamples<Sample>>()
         {
             data.append(&mut d.samples);
         }
@@ -106,7 +103,7 @@ impl<R> Iterator for VorbisDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -115,7 +112,7 @@ where
             if self.current_data.is_empty() {
                 if let Ok(Some(data)) = self
                     .stream_reader
-                    .read_dec_packet_generic::<InterleavedSamples<DecoderSample>>()
+                    .read_dec_packet_generic::<InterleavedSamples<Sample>>()
                 {
                     self.current_data = data.samples;
                     self.next = 0;
@@ -125,7 +122,7 @@ where
         } else {
             if let Ok(Some(data)) = self
                 .stream_reader
-                .read_dec_packet_generic::<InterleavedSamples<DecoderSample>>()
+                .read_dec_packet_generic::<InterleavedSamples<Sample>>()
             {
                 self.current_data = data.samples;
                 self.next = 0;

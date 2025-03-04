@@ -6,7 +6,7 @@
 //!
 //! ```
 //! use rodio::static_buffer::StaticSamplesBuffer;
-//! let _ = StaticSamplesBuffer::new(1, 44100, &[1i16, 2, 3, 4, 5, 6]);
+//! let _ = StaticSamplesBuffer::new(1, 44100, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 //! ```
 //!
 
@@ -19,20 +19,14 @@ use crate::{Sample, Source};
 
 /// A buffer of samples treated as a source.
 #[derive(Clone)]
-pub struct StaticSamplesBuffer<S>
-where
-    S: 'static,
-{
-    data: SliceIter<'static, S>,
+pub struct StaticSamplesBuffer {
+    data: SliceIter<'static, Sample>,
     channels: ChannelCount,
     sample_rate: SampleRate,
     duration: Duration,
 }
 
-impl<S> StaticSamplesBuffer<S>
-where
-    S: Sample,
-{
+impl StaticSamplesBuffer {
     /// Builds a new `StaticSamplesBuffer`.
     ///
     /// # Panic
@@ -45,8 +39,8 @@ where
     pub fn new(
         channels: ChannelCount,
         sample_rate: SampleRate,
-        data: &'static [S],
-    ) -> StaticSamplesBuffer<S> {
+        data: &'static [Sample],
+    ) -> StaticSamplesBuffer {
         assert!(channels != 0);
         assert!(sample_rate != 0);
 
@@ -67,10 +61,7 @@ where
     }
 }
 
-impl<S> Source for StaticSamplesBuffer<S>
-where
-    S: Sample,
-{
+impl Source for StaticSamplesBuffer {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         None
@@ -99,14 +90,11 @@ where
     }
 }
 
-impl<S> Iterator for StaticSamplesBuffer<S>
-where
-    S: Sample + Clone,
-{
-    type Item = S;
+impl Iterator for StaticSamplesBuffer {
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<S> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.data.next().cloned()
     }
 
@@ -123,24 +111,24 @@ mod tests {
 
     #[test]
     fn basic() {
-        let _ = StaticSamplesBuffer::new(1, 44100, &[0i16, 0, 0, 0, 0, 0]);
+        let _ = StaticSamplesBuffer::new(1, 44100, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     #[should_panic]
     fn panic_if_zero_channels() {
-        StaticSamplesBuffer::new(0, 44100, &[0i16, 0, 0, 0, 0, 0]);
+        StaticSamplesBuffer::new(0, 44100, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     #[should_panic]
     fn panic_if_zero_sample_rate() {
-        StaticSamplesBuffer::new(1, 0, &[0i16, 0, 0, 0, 0, 0]);
+        StaticSamplesBuffer::new(1, 0, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     fn duration_basic() {
-        let buf = StaticSamplesBuffer::new(2, 2, &[0i16, 0, 0, 0, 0, 0]);
+        let buf = StaticSamplesBuffer::new(2, 2, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
         let dur = buf.total_duration().unwrap();
         assert_eq!(dur.as_secs(), 1);
         assert_eq!(dur.subsec_nanos(), 500_000_000);
@@ -148,13 +136,13 @@ mod tests {
 
     #[test]
     fn iteration() {
-        let mut buf = StaticSamplesBuffer::new(1, 44100, &[1i16, 2, 3, 4, 5, 6]);
-        assert_eq!(buf.next(), Some(1));
-        assert_eq!(buf.next(), Some(2));
-        assert_eq!(buf.next(), Some(3));
-        assert_eq!(buf.next(), Some(4));
-        assert_eq!(buf.next(), Some(5));
-        assert_eq!(buf.next(), Some(6));
+        let mut buf = StaticSamplesBuffer::new(1, 44100, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        assert_eq!(buf.next(), Some(1.0));
+        assert_eq!(buf.next(), Some(2.0));
+        assert_eq!(buf.next(), Some(3.0));
+        assert_eq!(buf.next(), Some(4.0));
+        assert_eq!(buf.next(), Some(5.0));
+        assert_eq!(buf.next(), Some(6.0));
         assert_eq!(buf.next(), None);
     }
 }

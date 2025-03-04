@@ -10,8 +10,6 @@ use minimp3::Decoder;
 use minimp3::Frame;
 use minimp3_fixed as minimp3;
 
-use dasp_sample::Sample;
-
 pub struct Mp3Decoder<R>
 where
     R: Read + Seek,
@@ -112,9 +110,7 @@ where
         let v = self.current_span.data[self.current_span_offset];
         self.current_span_offset += 1;
 
-        #[cfg(not(feature = "integer-decoder"))] // perf
-        let v = v.to_sample();
-        Some(v)
+        Some(v.to_sample())
     }
 }
 

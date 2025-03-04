@@ -2,14 +2,13 @@ use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
 use crate::source::SeekError;
-use crate::Source;
+use crate::{Sample, Source};
 
 use crate::common::{ChannelCount, SampleRate};
 
-use dasp_sample::{Sample, I24};
+use dasp_sample::Sample as _;
+use dasp_sample::I24;
 use hound::{SampleFormat, WavReader};
-
-use super::DecoderSample;
 
 /// Decoder for the WAV format.
 pub struct WavDecoder<R>
@@ -44,9 +43,9 @@ where
         let channels = spec.channels;
 
         let total_duration = {
-            let sample_rate = sample_rate as u64;
-            let secs = len / sample_rate;
-            let nanos = ((len % sample_rate) * 1_000_000_000) / sample_rate;
+            let data_rate = sample_rate as u64 * channels as u64;
+            let secs = len / data_rate;
+            let nanos = ((len % data_rate) * 1_000_000_000) / data_rate;
             Duration::new(secs, nanos as u32)
         };
 
@@ -76,7 +75,7 @@ impl<R> Iterator for SamplesIterator<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -87,12 +86,7 @@ where
                 (SampleFormat::Float, bits) => {
                     if bits == 32 {
                         let next_f32: Option<Result<f32, _>> = self.reader.samples().next();
-                        next_f32.and_then(|value| {
-                            let value = value.ok();
-                            #[cfg(feature = "integer-decoder")] // perf
-                            let value = value.map(|value| value.to_sample());
-                            value
-                        })
+                        next_f32.and_then(|value| value.ok())
                     } else {
                         #[cfg(feature = "tracing")]
                         tracing::error!("Unsupported WAV float bit depth: {}", bits);
@@ -108,12 +102,7 @@ where
                 }
                 (SampleFormat::Int, 16) => {
                     let next_i16: Option<Result<i16, _>> = self.reader.samples().next();
-                    next_i16.and_then(|value| {
-                        let value = value.ok();
-                        #[cfg(not(feature = "integer-decoder"))] // perf
-                        let value = value.map(|value| value.to_sample());
-                        value
-                    })
+                    next_i16.and_then(|value| value.ok().map(|value| value.to_sample()))
                 }
                 (SampleFormat::Int, 24) => {
                     let next_i24_in_i32: Option<Result<i32, _>> = self.reader.samples().next();
@@ -206,7 +195,7 @@ impl<R> Iterator for WavDecoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {

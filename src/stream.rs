@@ -1,14 +1,13 @@
-use std::io::{Read, Seek};
-use std::marker::Sync;
-use std::sync::Arc;
-use std::{error, fmt};
-
 use crate::common::{ChannelCount, SampleRate};
 use crate::decoder;
 use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, FrameCount, Sample, SampleFormat, StreamConfig, SupportedBufferSize};
+use std::io::{Read, Seek};
+use std::marker::Sync;
+use std::sync::Arc;
+use std::{error, fmt};
 
 const HZ_44100: SampleRate = 44_100;
 
@@ -16,13 +15,13 @@ const HZ_44100: SampleRate = 44_100;
 /// Use `mixer()` method to control output.
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
-    mixer: Arc<Mixer<f32>>,
+    mixer: Arc<Mixer>,
     _stream: cpal::Stream,
 }
 
 impl OutputStream {
     /// Access the output stream's mixer.
-    pub fn mixer(&self) -> Arc<Mixer<f32>> {
+    pub fn mixer(&self) -> Arc<Mixer> {
         self.mixer.clone()
     }
 }
@@ -41,8 +40,23 @@ impl Default for OutputStreamConfig {
             channel_count: 2,
             sample_rate: HZ_44100,
             buffer_size: BufferSize::Default,
-            sample_format: SampleFormat::I8,
+            sample_format: SampleFormat::F32,
         }
+    }
+}
+
+impl core::fmt::Debug for OutputStreamBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let device = if let Some(device) = &self.device {
+            "Some(".to_owned() + device.name().as_deref().unwrap_or("UnNamed") + ")"
+        } else {
+            "None".to_owned()
+        };
+
+        f.debug_struct("OutputStreamBuilder")
+            .field("device", &device)
+            .field("config", &self.config)
+            .finish()
     }
 }
 
@@ -242,7 +256,9 @@ fn clamp_supported_buffer_size(
 ) -> BufferSize {
     match buffer_size {
         SupportedBufferSize::Range { min, max } => {
-            BufferSize::Fixed(preferred_size.clamp(*min, *max))
+            let size = preferred_size.clamp(*min, *max);
+            assert!(size > 0, "selected buffer size is greater than zero");
+            BufferSize::Fixed(size)
         }
         SupportedBufferSize::Unknown => BufferSize::Default,
     }
@@ -250,7 +266,7 @@ fn clamp_supported_buffer_size(
 
 /// A convenience function. Plays a sound once.
 /// Returns a `Sink` that can be used to control the sound.
-pub fn play<R>(mixer: &Mixer<f32>, input: R) -> Result<Sink, PlayError>
+pub fn play<R>(mixer: &Mixer, input: R) -> Result<Sink, PlayError>
 where
     R: Read + Seek + Send + Sync + 'static,
 {
@@ -314,11 +330,14 @@ pub enum StreamError {
     DefaultStreamConfigError(cpal::DefaultStreamConfigError),
     /// Error opening stream with OS. See [cpal::BuildStreamError] for details.
     BuildStreamError(cpal::BuildStreamError),
-    /// Could not list supported stream configs for device. Maybe it
-    /// disconnected, for details see: [cpal::SupportedStreamConfigsError].
+    /// Could not list supported stream configs for the device. Maybe it
+    /// disconnected. For details see: [cpal::SupportedStreamConfigsError].
     SupportedStreamConfigsError(cpal::SupportedStreamConfigsError),
     /// Could not find any output device
     NoDevice,
+    /// New cpal sample format that rodio does not yet support please open
+    /// an issue if you run into this.
+    UnsupportedSampleFormat,
 }
 
 impl fmt::Display for StreamError {
@@ -329,6 +348,7 @@ impl fmt::Display for StreamError {
             Self::DefaultStreamConfigError(e) => e.fmt(f),
             Self::SupportedStreamConfigsError(e) => e.fmt(f),
             Self::NoDevice => write!(f, "NoDevice"),
+            Self::UnsupportedSampleFormat => write!(f, "UnsupportedSampleFormat"),
         }
     }
 }
@@ -341,11 +361,23 @@ impl error::Error for StreamError {
             Self::DefaultStreamConfigError(e) => Some(e),
             Self::SupportedStreamConfigsError(e) => Some(e),
             Self::NoDevice => None,
+            Self::UnsupportedSampleFormat => None,
         }
     }
 }
 
 impl OutputStream {
+    fn validate_config(config: &OutputStreamConfig) {
+        if let BufferSize::Fixed(sz) = config.buffer_size {
+            assert!(sz > 0, "fixed buffer size is greater than zero");
+        }
+        assert!(config.sample_rate > 0, "sample rate is greater than zero");
+        assert!(
+            config.channel_count > 0,
+            "channel number is greater than zero"
+        );
+    }
+
     fn open<E>(
         device: &cpal::Device,
         config: &OutputStreamConfig,
@@ -354,24 +386,23 @@ impl OutputStream {
     where
         E: FnMut(cpal::StreamError) + Send + 'static,
     {
+        Self::validate_config(config);
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
-        Self::init_stream(device, config, source, error_callback)
-            .map_err(StreamError::BuildStreamError)
-            .and_then(|stream| {
-                stream.play().map_err(StreamError::PlayStreamError)?;
-                Ok(Self {
-                    _stream: stream,
-                    mixer: controller,
-                })
+        Self::init_stream(device, config, source, error_callback).and_then(|stream| {
+            stream.play().map_err(StreamError::PlayStreamError)?;
+            Ok(Self {
+                _stream: stream,
+                mixer: controller,
             })
+        })
     }
 
     fn init_stream<E>(
         device: &cpal::Device,
         config: &OutputStreamConfig,
-        mut samples: MixerSource<f32>,
+        mut samples: MixerSource,
         error_callback: E,
-    ) -> Result<cpal::Stream, cpal::BuildStreamError>
+    ) -> Result<cpal::Stream, StreamError>
     where
         E: FnMut(cpal::StreamError) + Send + 'static,
     {
@@ -485,8 +516,9 @@ impl OutputStream {
                 error_callback,
                 None,
             ),
-            _ => Err(cpal::BuildStreamError::StreamConfigNotSupported),
+            _ => return Err(StreamError::UnsupportedSampleFormat),
         }
+        .map_err(StreamError::BuildStreamError)
     }
 }
 

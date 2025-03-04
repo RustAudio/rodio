@@ -25,7 +25,7 @@
 //! // Decode that sound file into a source
 //! let source = Decoder::new(file).unwrap();
 //! // Play the sound directly on the device 2x faster
-//! stream_handle.mixer().add(source.convert_samples().speed(2.0));
+//! stream_handle.mixer().add(source.speed(2.0));
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //! Here is how you would do it using the sink:
@@ -49,7 +49,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::Source;
 
 /// Internal function that builds a `Speed` object.
 pub fn speed<I>(input: I, factor: f32) -> Speed<I> {
@@ -66,7 +66,6 @@ pub struct Speed<I> {
 impl<I> Speed<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Modifies the speed factor.
     #[inline]
@@ -96,7 +95,6 @@ where
 impl<I> Iterator for Speed<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -111,17 +109,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for Speed<I>
-where
-    I: Source + ExactSizeIterator,
-    I::Item: Sample,
-{
-}
+impl<I> ExactSizeIterator for Speed<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for Speed<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

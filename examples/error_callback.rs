@@ -11,11 +11,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .default_output_device()
         .ok_or("No default audio output device is found.")?;
 
+    let (tx, rx) = std::sync::mpsc::channel();
+
     let stream_handle = rodio::OutputStreamBuilder::from_device(default_device)?
-        .with_error_callback(|err| {
+        .with_error_callback(move |err| {
             // Filter for where err is a DeviceNotAvailable error.
             if let cpal::StreamError::DeviceNotAvailable = err {
-                eprintln!("The audio device is not available.");
+                if let Err(e) = tx.send("The audio device is not available.") {
+                    eprintln!("Error emitting StreamError: {}", e);
+                }
             }
         })
         .open_stream_or_fallback()?;
@@ -24,11 +28,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let wave = SineWave::new(740.0)
         .amplify(0.1)
-        .take_duration(Duration::from_secs(1));
+        .take_duration(Duration::from_secs(30));
     mixer.add(wave);
 
-    println!("Beep...");
-    thread::sleep(Duration::from_millis(1500));
+    if let Ok(err) = rx.recv_timeout(Duration::from_secs(30)) {
+        eprintln!("{}", err);
+    }
 
     Ok(())
 }

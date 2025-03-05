@@ -2,7 +2,6 @@ use cpal::traits::HostTrait;
 use rodio::source::SineWave;
 use rodio::Source;
 use std::error::Error;
-use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {

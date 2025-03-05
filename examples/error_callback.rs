@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_error_callback(move |err| {
             // Filter for where err is a DeviceNotAvailable error.
             if let cpal::StreamError::DeviceNotAvailable = err {
-                if let Err(e) = tx.send("The audio device is not available.") {
+                if let Err(e) = tx.send(err) {
                     eprintln!("Error emitting StreamError: {}", e);
                 }
             }
@@ -31,7 +31,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     mixer.add(wave);
 
     if let Ok(err) = rx.recv_timeout(Duration::from_secs(30)) {
-        eprintln!("{}", err);
+        // Here we print the error that was emitted by the error callback.
+        // but in a real application we may want to destroy the stream and
+        // try to reopen it, either with the same device or a different one.
+        eprintln!("Error with stream {}", err);
     }
 
     Ok(())

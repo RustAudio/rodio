@@ -1,14 +1,16 @@
 use rodio::{ChannelCount, Decoder, Source};
 use rstest::rstest;
 use rstest_reuse::{self, *};
-use std::io::{BufReader, Read, Seek};
+use std::io::{Read, Seek};
 use std::path::Path;
 use std::time::Duration;
 
 #[template]
 #[rstest]
-// note: disabled, broken decoder see issue: #516 and #539
-// #[cfg_attr(feature = "symphonia-vorbis"), case("ogg", true, "symphonia")],
+#[cfg_attr(
+    all(feature = "symphonia-ogg", feature = "symphonia-vorbis"),
+    case("ogg", true, "symphonia")
+)]
 #[cfg_attr(
     all(feature = "minimp3", not(feature = "symphonia-mp3")),
     case("mp3", false, "minimp3")
@@ -22,8 +24,10 @@ use std::time::Duration;
     case("flac", false, "claxon")
 )]
 #[cfg_attr(feature = "symphonia-mp3", case("mp3", true, "symphonia"))]
-// note: disabled, broken decoder see issue: #577
-#[cfg_attr(feature = "symphonia-isomp4", case("m4a", true, "symphonia"))]
+#[cfg_attr(
+    all(feature = "symphonia-isomp4", feature = "symphonia-aac"),
+    case("m4a", true, "symphonia")
+)]
 #[cfg_attr(feature = "symphonia-wav", case("wav", true, "symphonia"))]
 #[cfg_attr(feature = "symphonia-flac", case("flac", true, "symphonia"))]
 fn all_decoders(
@@ -35,15 +39,19 @@ fn all_decoders(
 
 #[template]
 #[rstest]
-// note: disabled, broken decoder see issue: #516 and #539
-// #[cfg_attr(feature = "symphonia-vorbis"), case("ogg", true, "symphonia")],
+#[cfg_attr(
+    all(feature = "symphonia-ogg", feature = "symphonia-vorbis"),
+    case("ogg", "symphonia")
+)]
 #[cfg_attr(
     all(feature = "wav", not(feature = "symphonia-wav")),
     case("wav", "hound")
 )]
 #[cfg_attr(feature = "symphonia-mp3", case("mp3", "symphonia"))]
-// note: disabled, broken decoder see issue: #577
-// #[cfg_attr(feature = "symphonia-isomp4", case("m4a", "symphonia"))]
+#[cfg_attr(
+    all(feature = "symphonia-isomp4", feature = "symphonia-aac"),
+    case("m4a", "symphonia")
+)]
 #[cfg_attr(feature = "symphonia-wav", case("wav", "symphonia"))]
 #[cfg_attr(feature = "symphonia-flac", case("flac", "symphonia"))]
 fn supported_decoders(#[case] format: &'static str, #[case] decoder_name: &'static str) {}
@@ -109,7 +117,7 @@ fn seek_possible_after_exausting_source(
     while source.next().is_some() {}
     assert!(source.next().is_none());
 
-    source.try_seek(Duration::from_secs(0)).unwrap();
+    source.try_seek(Duration::ZERO).unwrap();
     assert!(source.next().is_some());
 }
 
@@ -119,6 +127,12 @@ fn seek_does_not_break_channel_order(
     #[case] format: &'static str,
     #[case] _decoder_name: &'static str,
 ) {
+    if format == "m4a" {
+        // skip this test for m4a while the symphonia decoder has issues with aac timing.
+        // re-investigate when symphonia 0.5.5 or greater is released.
+        return;
+    }
+
     let mut source = get_rl(format);
     let channels = source.channels();
     assert_eq!(channels, 2, "test needs a stereo beep file");
@@ -233,12 +247,11 @@ fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
 fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/music").with_extension(format);
     let file = std::fs::File::open(asset).unwrap();
-    Decoder::new(BufReader::new(file)).unwrap()
+    Decoder::try_from(file).unwrap()
 }
 
 fn get_rl(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/RL").with_extension(format);
-    println!("opening: {}", asset.display());
     let file = std::fs::File::open(asset).unwrap();
-    Decoder::new(BufReader::new(file)).unwrap()
+    Decoder::try_from(file).unwrap()
 }

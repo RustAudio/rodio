@@ -14,7 +14,6 @@
 //!
 //! ```no_run
 //! use std::fs::File;
-//! use std::io::BufReader;
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
 //! // Get an output stream handle to the default physical sound device.
@@ -23,9 +22,9 @@
 //!         .expect("open default audio stream");
 //! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 //! // Load a sound from a file, using a path relative to Cargo.toml
-//! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
+//! let file = File::open("examples/music.ogg").unwrap();
 //! // Decode that sound file into a source
-//! let source = Decoder::new(file).unwrap();
+//! let source = Decoder::try_from(file).unwrap();
 //! // Play the sound directly on the device
 //! stream_handle.mixer().add(source);
 //!
@@ -65,10 +64,8 @@
 //! and [`.append()`](Sink::append) your sound to it.
 //!
 //! ```no_run
-//! use std::fs::File;
-//! use std::io::BufReader;
 //! use std::time::Duration;
-//! use rodio::{Decoder, OutputStream, Sink};
+//! use rodio::{OutputStream, Sink};
 //! use rodio::source::{SineWave, Source};
 //!
 //! // _stream must live as long as the sink

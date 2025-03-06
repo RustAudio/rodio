@@ -195,7 +195,8 @@ impl Source for SymphoniaDecoder {
             ));
         }
 
-        // Seeking should be "saturating", meaning: target positions beyond the end of the stream // are clamped to the end.
+        // Seeking should be "saturating", meaning: target positions beyond the end of the stream
+        // are clamped to the end.
         let mut target = pos;
         if let Some(total_duration) = self.total_duration {
             if target > total_duration {

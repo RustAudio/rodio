@@ -10,16 +10,20 @@
 //! use std::fs::File;
 //! use rodio::Decoder;
 //!
-//! let file = File::open("audio.mp3").unwrap();
-//! let len = file.metadata().unwrap().len();
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let file = File::open("audio.mp3")?;
+//!     let len = file.metadata()?.len();
 //!
-//! let decoder = Decoder::builder()
-//!     .with_data(file)
-//!     .with_byte_len(len)      // Enable seeking and duration calculation
-//!     .with_hint("mp3")        // Optional format hint
-//!     .with_gapless(true)      // Enable gapless playback
-//!     .build()
-//!     .unwrap();
+//!     Decoder::builder()
+//!         .with_data(file)
+//!         .with_byte_len(len)      // Enable seeking and duration calculation
+//!         .with_hint("mp3")        // Optional format hint
+//!         .with_gapless(true)      // Enable gapless playback
+//!         .build()?;
+//!
+//!     // Use the decoder...
+//!     Ok(())
+//! }
 //! ```
 //!
 //! # Settings
@@ -55,9 +59,7 @@ pub struct Settings {
     /// Can be obtained from file metadata or by seeking to the end of the stream.
     pub(crate) byte_len: Option<u64>,
 
-    /// Whether to use coarse seeking.
-    /// Coarse seeking is faster but less accurate: it may seek to a position slightly before or
-    /// after the requested one, especially when the bitrate is variable.
+    /// Whether to use coarse seeking, or sample-accurate seeking instead.
     pub(crate) coarse_seek: bool,
 
     /// Whether to trim frames for gapless playback.
@@ -101,13 +103,17 @@ impl Default for Settings {
 /// use std::fs::File;
 /// use rodio::decoder::DecoderBuilder;
 ///
-/// let file = File::open("audio.mp3").unwrap();
-/// let decoder = DecoderBuilder::new()
-///     .with_data(file)
-///     .with_hint("mp3")
-///     .with_gapless(true)
-///     .build()
-///     .unwrap();
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let file = File::open("audio.mp3")?;
+///     let decoder = DecoderBuilder::new()
+///         .with_data(file)
+///         .with_hint("mp3")
+///         .with_gapless(true)
+///         .build()?;
+///
+///     // Use the decoder...
+///     Ok(())
+/// }
 /// ```
 #[derive(Clone, Debug)]
 pub struct DecoderBuilder<R> {
@@ -134,11 +140,15 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// use std::fs::File;
     /// use rodio::decoder::DecoderBuilder;
     ///
-    /// let file = File::open("audio.mp3").unwrap();
-    /// let decoder = DecoderBuilder::new()
-    ///     .with_data(file)
-    ///     .build()
-    ///     .unwrap();
+    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let file = File::open("audio.mp3")?;
+    ///     let decoder = DecoderBuilder::new()
+    ///         .with_data(file)
+    ///         .build()?;
+    ///
+    ///     // Use the decoder...
+    ///     Ok(())
+    /// }
     /// ```
     pub fn new() -> Self {
         Self::default()
@@ -160,16 +170,23 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// use std::fs::File;
     /// use rodio::Decoder;
     ///
-    /// let file = File::open("audio.mp3").unwrap();
-    /// let len = file.metadata().unwrap().len();
-    /// let decoder = Decoder::builder()
-    ///     .with_data(file)
-    ///     .with_byte_len(len)
-    ///     .build()
-    ///     .unwrap();
+    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let file = File::open("audio.mp3")?;
+    ///     let len = file.metadata()?.len();
+    ///     let decoder = Decoder::builder()
+    ///         .with_data(file)
+    ///         .with_byte_len(len)
+    ///         .build()?;
+    ///
+    ///     // Use the decoder...
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// Alternatively, it can be obtained by seeking to the end of the stream.
+    ///
+    /// An incorrect byte length can lead to unexpected behavior, including but not limited to
+    /// incorrect duration calculations and seeking errors.
     pub fn with_byte_len(mut self, byte_len: u64) -> Self {
         self.settings.byte_len = Some(byte_len);
         self
@@ -177,7 +194,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Enables or disables coarse seeking.
     ///
-    /// This needs byte_len to be set. Coarse seeking is faster but less accurate:
+    /// This needs `byte_len` to be set. Coarse seeking is faster but less accurate:
     /// it may seek to a position slightly before or after the requested one,
     /// especially when the bitrate is variable.
     pub fn with_coarse_seek(mut self, coarse_seek: bool) -> Self {
@@ -195,7 +212,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Sets a format hint for the decoder.
     ///
-    /// When known, this can help the decoder to select the correct codec.
+    /// When known, this can help the decoder to select the correct codec faster.
     /// Common values are "mp3", "wav", "flac", "ogg", etc.
     pub fn with_hint(mut self, hint: &str) -> Self {
         self.settings.hint = Some(hint.to_string());
@@ -204,7 +221,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Sets a mime type hint for the decoder.
     ///
-    /// When known, this can help the decoder to select the correct demuxer.
+    /// When known, this can help the decoder to select the correct demuxer faster.
     /// Common values are "audio/mpeg", "audio/vnd.wav", "audio/flac", "audio/ogg", etc.
     pub fn with_mime_type(mut self, mime_type: &str) -> Self {
         self.settings.mime_type = Some(mime_type.to_string());
@@ -214,7 +231,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// Configure whether the decoder should report as seekable.
     ///
     /// For reliable seeking behavior, `byte_len` should be set either from file metadata
-    /// or by seeking to the end of the stream. While seeking may work without byte_len
+    /// or by seeking to the end of the stream. While seeking may work without `byte_len`
     /// for some formats, it is not guaranteed.
     ///
     /// # Examples
@@ -222,16 +239,20 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// use std::fs::File;
     /// use rodio::Decoder;
     ///
-    /// let file = File::open("audio.mp3").unwrap();
-    /// let len = file.metadata().unwrap().len();
+    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let file = File::open("audio.mp3")?;
+    ///     let len = file.metadata()?.len();
     ///
-    /// // Recommended: Set both byte_len and seekable
-    /// let decoder = Decoder::builder()
-    ///     .with_data(file)
-    ///     .with_byte_len(len)
-    ///     .with_seekable(true)
-    ///     .build()
-    ///     .unwrap();
+    ///     // Recommended: Set both byte_len and seekable
+    ///     let decoder = Decoder::builder()
+    ///         .with_data(file)
+    ///         .with_byte_len(len)
+    ///         .with_seekable(true)
+    ///         .build()?;
+    ///
+    ///     // Use the decoder...
+    ///     Ok(())
+    /// }
     /// ```
     pub fn with_seekable(mut self, is_seekable: bool) -> Self {
         self.settings.is_seekable = is_seekable;

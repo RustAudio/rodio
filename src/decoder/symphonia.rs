@@ -32,7 +32,6 @@ pub(crate) struct SymphoniaDecoder {
     total_duration: Option<Duration>,
     buffer: SampleBuffer<Sample>,
     spec: SignalSpec,
-    time_base: Option<units::TimeBase>,
     seek_mode: SeekMode,
 }
 
@@ -110,8 +109,9 @@ impl SymphoniaDecoder {
 
         let mut decoder = symphonia::default::get_codecs()
             .make(&track.codec_params, &DecoderOptions::default())?;
-        let time_base = stream.codec_params.time_base;
-        let total_duration = time_base
+        let total_duration = stream
+            .codec_params
+            .time_base
             .zip(stream.codec_params.n_frames)
             .map(|(base, spans)| base.calc_time(spans).into());
 
@@ -152,7 +152,6 @@ impl SymphoniaDecoder {
             total_duration,
             buffer,
             spec,
-            time_base,
             seek_mode,
         }))
     }
@@ -188,6 +187,15 @@ impl Source for SymphoniaDecoder {
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), source::SeekError> {
+        if matches!(self.seek_mode, SeekMode::Accurate)
+            && self.decoder.codec_params().time_base.is_none()
+        {
+            return Err(source::SeekError::SymphoniaDecoder(
+                SeekError::AccurateSeekNotSupported,
+            ));
+        }
+
+        // Seeking should be "saturating", meaning: target positions beyond the end of the stream // are clamped to the end.
         let mut target = pos;
         if let Some(total_duration) = self.total_duration {
             if target > total_duration {
@@ -195,7 +203,7 @@ impl Source for SymphoniaDecoder {
             }
         }
 
-        // make sure the next sample is for the right channel
+        // Remember the current channel, so we can restore it after seeking.
         let active_channel = self.current_span_offset % self.channels() as usize;
 
         let seek_res = self
@@ -217,9 +225,16 @@ impl Source for SymphoniaDecoder {
         // Force the iterator to decode the next packet.
         self.current_span_offset = usize::MAX;
 
+        // Symphonia does not seek to the exact position, it seeks to the closest keyframe.
+        // If accurate seeking is required, fast-forward to the exact position.
         if matches!(self.seek_mode, SeekMode::Accurate) {
             self.refine_position(seek_res)?;
-            self.current_span_offset += active_channel;
+        }
+
+        // After seeking, we are at the beginning of an inter-sample frame, i.e. the first
+        // channel. We need to advance the iterator to the right channel.
+        for _ in 0..active_channel {
+            self.next();
         }
 
         Ok(())
@@ -229,42 +244,23 @@ impl Source for SymphoniaDecoder {
 /// Error returned when the try_seek implementation of the symphonia decoder fails.
 #[derive(Debug)]
 pub enum SeekError {
-    /// Could not get seek ahead to precise position
-    Refining(&'static str),
+    /// Accurate seeking is not supported
+    ///
+    /// This error occurs when the decoder cannot extract time base information from the source.
+    /// You may catch this error to try a coarse seek instead.
+    AccurateSeekNotSupported,
     /// Format reader failed to seek
     BaseSeek(symphonia::core::errors::Error),
-    /// Decoding failed retrying on the next packet failed
-    Retrying(symphonia::core::errors::Error),
-    /// Decoding failed on multiple consecutive packets
-    Decoding(symphonia::core::errors::Error),
 }
 
 impl fmt::Display for SeekError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SeekError::Refining(err) => {
-                write!(
-                    f,
-                    "Could not get next packet while refining seek position: {:?}",
-                    err
-                )
+            SeekError::AccurateSeekNotSupported => {
+                write!(f, "Accurate seeking is not supported")
             }
             SeekError::BaseSeek(err) => {
                 write!(f, "Format reader failed to seek: {:?}", err)
-            }
-            SeekError::Retrying(err) => {
-                write!(
-                    f,
-                    "Decoding failed retrying on the next packet failed: {:?}",
-                    err
-                )
-            }
-            SeekError::Decoding(err) => {
-                write!(
-                    f,
-                    "Decoding failed on multiple consecutive packets: {:?}",
-                    err
-                )
             }
         }
     }
@@ -273,10 +269,8 @@ impl fmt::Display for SeekError {
 impl std::error::Error for SeekError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            SeekError::Refining(_) => None,
+            SeekError::AccurateSeekNotSupported => None,
             SeekError::BaseSeek(err) => Some(err),
-            SeekError::Retrying(err) => Some(err),
-            SeekError::Decoding(err) => Some(err),
         }
     }
 }
@@ -286,10 +280,10 @@ impl SymphoniaDecoder {
     fn refine_position(&mut self, seek_res: SeekedTo) -> Result<(), source::SeekError> {
         // Calculate the number of samples to skip.
         let mut samples_to_skip = (Duration::from(
-            self.time_base
-                .ok_or(source::SeekError::SymphoniaDecoder(SeekError::Refining(
-                    "time base not available",
-                )))?
+            self.decoder
+                .codec_params()
+                .time_base
+                .expect("time base availability guaranteed by caller")
                 .calc_time(seek_res.required_ts.saturating_sub(seek_res.actual_ts)),
         )
         .as_secs_f32()
@@ -317,22 +311,23 @@ impl Iterator for SymphoniaDecoder {
             let mut decode_errors = 0;
             let decoded = loop {
                 let packet = self.format.next_packet().ok()?;
-                let decoded = self.decoder.decode(&packet);
-                if decoded.is_err() {
-                    decode_errors += 1;
-                    if decode_errors > MAX_DECODE_RETRIES {
-                        return None;
-                    } else {
-                        continue;
+                let decoded = match self.decoder.decode(&packet) {
+                    Ok(decoded) => decoded,
+                    Err(_) => {
+                        decode_errors += 1;
+                        if decode_errors > MAX_DECODE_RETRIES {
+                            return None;
+                        } else {
+                            continue;
+                        }
                     }
-                }
+                };
 
                 // Loop until we get a packet with audio frames. This is necessary because some
                 // formats can have packets with only metadata, particularly when rewinding, in
                 // which case the iterator would otherwise end with `None`.
                 // Note: checking `decoded.frames()` is more reliable than `packet.dur()`, which
                 // can resturn non-zero durations for packets without audio frames.
-                let decoded = decoded.ok()?;
                 if decoded.frames() > 0 {
                     break decoded;
                 }

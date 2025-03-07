@@ -13,7 +13,6 @@
 //!
 //! ```no_run
 //!# use std::fs::File;
-//!# use std::io::BufReader;
 //!# use rodio::{Decoder, Sink, OutputStream, source::{Source, SineWave}};
 //!
 //! // Get an output stream handle to the default physical sound device.
@@ -21,9 +20,9 @@
 //! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
 //!         .expect("open default audio stream");
 //! // Load a sound from a file, using a path relative to `Cargo.toml`
-//! let file = BufReader::new(File::open("examples/music.ogg").unwrap());
+//! let file = File::open("examples/music.ogg").unwrap();
 //! // Decode that sound file into a source
-//! let source = Decoder::new(file).unwrap();
+//! let source = Decoder::try_from(file).unwrap();
 //! // Play the sound directly on the device 2x faster
 //! stream_handle.mixer().add(source.speed(2.0));
 //! std::thread::sleep(std::time::Duration::from_secs(5));

@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::io::BufReader;
 use std::thread;
 use std::time::Duration;
 
@@ -30,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let file = std::fs::File::open("assets/music.ogg")?;
-    let source = rodio::Decoder::new(BufReader::new(file))?
+    let source = rodio::Decoder::try_from(file)?
         .repeat_infinite()
         .take_duration(total_duration);
     sink.append(source);

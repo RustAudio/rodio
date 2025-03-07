@@ -1,21 +1,69 @@
-//! Decodes samples from an audio file.
+//! Decodes audio samples from various audio file formats.
+//!
+//! This module provides decoders for common audio formats like MP3, WAV, Vorbis and FLAC.
+//! It supports both one-shot playback and looped playback of audio files.
+//!
+//! # Usage
+//!
+//! The simplest way to decode files (automatically sets up seeking and duration):
+//! ```no_run
+//! use std::fs::File;
+//! use rodio::Decoder;
+//!
+//! let file = File::open("audio.mp3").unwrap();
+//! let decoder = Decoder::try_from(file).unwrap();  // Automatically sets byte_len from metadata
+//! ```
+//!
+//! For more control over decoder settings, use the builder pattern:
+//! ```no_run
+//! use std::fs::File;
+//! use rodio::Decoder;
+//!
+//! let file = File::open("audio.mp3").unwrap();
+//! let len = file.metadata().unwrap().len();
+//!
+//! let decoder = Decoder::builder()
+//!     .with_data(file)
+//!     .with_byte_len(len)      // Enable seeking and duration calculation
+//!     .with_seekable(true)     // Enable seeking operations
+//!     .with_hint("mp3")        // Optional format hint
+//!     .with_gapless(true)      // Enable gapless playback
+//!     .build()
+//!     .unwrap();
+//! ```
+//!
+//! # Features
+//!
+//! The following audio formats are supported based on enabled features:
+//!
+//! - `wav` - WAV format support
+//! - `flac` - FLAC format support
+//! - `vorbis` - Vorbis format support
+//! - `mp3` - MP3 format support via minimp3
+//! - `symphonia` - Enhanced format support via the Symphonia backend
+//!
+//! When using `symphonia`, additional formats like AAC and MP4 containers become available
+//! if the corresponding features are enabled.
 
-use std::error::Error;
-use std::fmt;
+use std::{
+    error::Error,
+    fmt,
+    io::{BufReader, Read, Seek},
+    marker::PhantomData,
+    time::Duration,
+};
+
 #[allow(unused_imports)]
-use std::io::{Read, Seek, SeekFrom};
-use std::mem;
-use std::str::FromStr;
-use std::time::Duration;
+use std::io::SeekFrom;
 
-use crate::source::SeekError;
-use crate::{Sample, Source};
+use crate::{
+    common::{ChannelCount, SampleRate},
+    source::{SeekError, Source},
+    Sample,
+};
 
-#[cfg(feature = "symphonia")]
-use self::read_seek_source::ReadSeekSource;
-use crate::common::{ChannelCount, SampleRate};
-#[cfg(feature = "symphonia")]
-use ::symphonia::core::io::{MediaSource, MediaSourceStream};
+pub mod builder;
+pub use builder::{DecoderBuilder, Settings};
 
 #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
 mod flac;
@@ -31,28 +79,36 @@ mod vorbis;
 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
 mod wav;
 
-/// Source of audio samples from decoding a file.
-///
-/// Supports MP3, WAV, Vorbis and Flac.
-pub struct Decoder<R>(DecoderImpl<R>)
-where
-    R: Read + Seek;
+/// Source of audio samples decoded from an input stream.
+/// See the [module-level documentation](self) for examples and usage.
+pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 
-/// Source of audio samples from decoding a file that never ends. When the
-/// end of the file is reached the decoder starts again from the beginning.
+/// Source of audio samples from decoding a file that never ends.
+/// When the end of the file is reached, the decoder starts again from the beginning.
 ///
-/// Supports MP3, WAV, Vorbis and Flac.
-pub struct LoopedDecoder<R>(DecoderImpl<R>)
-where
-    R: Read + Seek;
+/// A `LoopedDecoder` will attempt to seek back to the start of the stream when it reaches
+/// the end. If seeking fails for any reason (like IO errors), iteration will stop.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::fs::File;
+/// use rodio::Decoder;
+///
+/// let file = File::open("audio.mp3").unwrap();
+/// let looped_decoder = Decoder::new_looped(file).unwrap();
+/// ```
+pub struct LoopedDecoder<R: Read + Seek> {
+    /// The underlying decoder implementation.
+    inner: Option<DecoderImpl<R>>,
+    /// Configuration settings for the decoder.
+    settings: Settings,
+}
 
 // Cannot really reduce the size of the VorbisDecoder. There are not any
 // arrays just a lot of struct fields.
 #[allow(clippy::large_enum_variant)]
-enum DecoderImpl<R>
-where
-    R: Read + Seek,
-{
+enum DecoderImpl<R: Read + Seek> {
     #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
     Wav(wav::WavDecoder<R>),
     #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
@@ -62,8 +118,7 @@ where
     #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
     Mp3(mp3::Mp3Decoder<R>),
     #[cfg(feature = "symphonia")]
-    Symphonia(symphonia::SymphoniaDecoder),
-    None(::std::marker::PhantomData<R>),
+    Symphonia(symphonia::SymphoniaDecoder, PhantomData<R>),
 }
 
 impl<R: Read + Seek> DecoderImpl<R> {
@@ -79,8 +134,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.next(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.next(),
-            DecoderImpl::None(_) => None,
+            DecoderImpl::Symphonia(source, PhantomData) => source.next(),
         }
     }
 
@@ -96,8 +150,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.size_hint(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.size_hint(),
-            DecoderImpl::None(_) => (0, None),
+            DecoderImpl::Symphonia(source, PhantomData) => source.size_hint(),
         }
     }
 
@@ -113,8 +166,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.current_span_len(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.current_span_len(),
-            DecoderImpl::None(_) => Some(0),
+            DecoderImpl::Symphonia(source, PhantomData) => source.current_span_len(),
         }
     }
 
@@ -130,8 +182,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.channels(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.channels(),
-            DecoderImpl::None(_) => 0,
+            DecoderImpl::Symphonia(source, PhantomData) => source.channels(),
         }
     }
 
@@ -147,11 +198,16 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.sample_rate(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.sample_rate(),
-            DecoderImpl::None(_) => 1,
+            DecoderImpl::Symphonia(source, PhantomData) => source.sample_rate(),
         }
     }
 
+    /// Returns the total duration of this audio source.
+    ///
+    /// # Symphonia Notes
+    ///
+    /// For formats that lack timing information like MP3 and Vorbis, this requires the decoder to
+    /// be initialized with the correct byte length via `Decoder::builder().with_byte_len()`.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         match self {
@@ -164,8 +220,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.total_duration(),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.total_duration(),
-            DecoderImpl::None(_) => Some(Duration::default()),
+            DecoderImpl::Symphonia(source, PhantomData) => source.total_duration(),
         }
     }
 
@@ -181,214 +236,311 @@ impl<R: Read + Seek> DecoderImpl<R> {
             #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
             DecoderImpl::Mp3(source) => source.try_seek(pos),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source) => source.try_seek(pos),
-            DecoderImpl::None(_) => Err(SeekError::NotSupported {
-                underlying_source: "DecoderImpl::None",
-            }),
+            DecoderImpl::Symphonia(source, PhantomData) => source.try_seek(pos),
         }
     }
 }
 
-impl<R> Decoder<R>
+/// Converts a `File` into a `Decoder` with automatic optimizations.
+/// This is the preferred way to decode files as it enables seeking optimizations
+/// and accurate duration calculations.
+///
+/// This implementation:
+/// - Wraps the file in a `BufReader` for better performance
+/// - Gets the file length from metadata to improve seeking operations and duration accuracy
+/// - Enables seeking by default
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The file metadata cannot be read
+/// - The audio format cannot be recognized or is not supported
+///
+/// # Examples
+/// ```no_run
+/// use std::fs::File;
+/// use rodio::Decoder;
+///
+/// let file = File::open("audio.mp3").unwrap();
+/// let decoder = Decoder::try_from(file).unwrap();
+/// ```
+impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
+    type Error = DecoderError;
+
+    fn try_from(file: std::fs::File) -> Result<Self, Self::Error> {
+        let len = file
+            .metadata()
+            .map_err(|e| Self::Error::IoError(e.to_string()))?
+            .len();
+
+        Self::builder()
+            .with_data(BufReader::new(file))
+            .with_byte_len(len)
+            .with_seekable(true)
+            .build()
+    }
+}
+
+/// Converts a `BufReader` into a `Decoder`.
+/// When working with files, prefer `TryFrom<File>` as it will automatically set byte_len
+/// for better seeking performance.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+/// or is not supported.
+///
+/// # Examples
+/// ```no_run
+/// use std::fs::File;
+/// use std::io::BufReader;
+/// use rodio::Decoder;
+///
+/// let file = File::open("audio.mp3").unwrap();
+/// let reader = BufReader::new(file);
+/// let decoder = Decoder::try_from(reader).unwrap();
+/// ```
+impl<R> TryFrom<BufReader<R>> for Decoder<BufReader<R>>
 where
     R: Read + Seek + Send + Sync + 'static,
 {
-    /// Builds a new decoder.
-    ///
-    /// Attempts to automatically detect the format of the source of data.
-    #[allow(unused_variables)]
-    pub fn new(data: R) -> Result<Decoder<R>, DecoderError> {
-        #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-        let data = match wav::WavDecoder::new(data) {
-            Err(data) => data,
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Wav(decoder)));
-            }
-        };
+    type Error = DecoderError;
 
-        #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-        let data = match flac::FlacDecoder::new(data) {
-            Err(data) => data,
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Flac(decoder)));
-            }
-        };
-
-        #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-        let data = match vorbis::VorbisDecoder::new(data) {
-            Err(data) => data,
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Vorbis(decoder)));
-            }
-        };
-
-        #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-        let data = match mp3::Mp3Decoder::new(data) {
-            Err(data) => data,
-            Ok(decoder) => {
-                return Ok(Decoder(DecoderImpl::Mp3(decoder)));
-            }
-        };
-
-        #[cfg(feature = "symphonia")]
-        {
-            let mss = MediaSourceStream::new(
-                Box::new(ReadSeekSource::new(data)) as Box<dyn MediaSource>,
-                Default::default(),
-            );
-
-            match symphonia::SymphoniaDecoder::new(mss, None) {
-                Err(e) => Err(e),
-                Ok(decoder) => Ok(Decoder(DecoderImpl::Symphonia(decoder))),
-            }
-        }
-        #[cfg(not(feature = "symphonia"))]
-        Err(DecoderError::UnrecognizedFormat)
-    }
-
-    /// Builds a new looped decoder.
-    ///
-    /// Attempts to automatically detect the format of the source of data.
-    pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
-        Self::new(data).map(LoopedDecoder::new)
-    }
-
-    /// Builds a new decoder from wav data.
-    #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
-    pub fn new_wav(data: R) -> Result<Decoder<R>, DecoderError> {
-        match wav::WavDecoder::new(data) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Wav(decoder))),
-        }
-    }
-
-    /// Builds a new decoder from wav data.
-    #[cfg(feature = "symphonia-wav")]
-    pub fn new_wav(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "wav")
-    }
-
-    /// Builds a new decoder from flac data.
-    #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
-    pub fn new_flac(data: R) -> Result<Decoder<R>, DecoderError> {
-        match flac::FlacDecoder::new(data) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Flac(decoder))),
-        }
-    }
-
-    /// Builds a new decoder from flac data.
-    #[cfg(feature = "symphonia-flac")]
-    pub fn new_flac(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "flac")
-    }
-
-    /// Builds a new decoder from vorbis data.
-    #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
-    pub fn new_vorbis(data: R) -> Result<Decoder<R>, DecoderError> {
-        match vorbis::VorbisDecoder::new(data) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Vorbis(decoder))),
-        }
-    }
-
-    /// Builds a new decoder from vorbis data.
-    #[cfg(feature = "symphonia-vorbis")]
-    pub fn new_vorbis(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "ogg")
-    }
-
-    /// Builds a new decoder from mp3 data.
-    #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-    pub fn new_mp3(data: R) -> Result<Decoder<R>, DecoderError> {
-        match mp3::Mp3Decoder::new(data) {
-            Err(_) => Err(DecoderError::UnrecognizedFormat),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Mp3(decoder))),
-        }
-    }
-
-    /// Builds a new decoder from mp3 data.
-    #[cfg(feature = "symphonia-mp3")]
-    pub fn new_mp3(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "mp3")
-    }
-
-    /// Builds a new decoder from aac data.
-    #[cfg(feature = "symphonia-aac")]
-    pub fn new_aac(data: R) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, "aac")
-    }
-
-    /// Builds a new decoder from mp4 data.
-    #[cfg(feature = "symphonia-isomp4")]
-    pub fn new_mp4(data: R, hint: Mp4Type) -> Result<Decoder<R>, DecoderError> {
-        Decoder::new_symphonia(data, &hint.to_string())
-    }
-
-    #[cfg(feature = "symphonia")]
-    fn new_symphonia(data: R, hint: &str) -> Result<Decoder<R>, DecoderError> {
-        let mss = MediaSourceStream::new(
-            Box::new(ReadSeekSource::new(data)) as Box<dyn MediaSource>,
-            Default::default(),
-        );
-
-        match symphonia::SymphoniaDecoder::new(mss, Some(hint)) {
-            Err(e) => Err(e),
-            Ok(decoder) => Ok(Decoder(DecoderImpl::Symphonia(decoder))),
-        }
+    fn try_from(data: BufReader<R>) -> Result<Self, Self::Error> {
+        Self::new(data)
     }
 }
 
-#[allow(missing_docs)] // Reason: will be removed, see: #612
-#[derive(Debug)]
-pub enum Mp4Type {
-    Mp4,
-    M4a,
-    M4p,
-    M4b,
-    M4r,
-    M4v,
-    Mov,
-}
-
-impl FromStr for Mp4Type {
-    type Err = String;
-
-    fn from_str(input: &str) -> Result<Mp4Type, Self::Err> {
-        match &input.to_lowercase()[..] {
-            "mp4" => Ok(Mp4Type::Mp4),
-            "m4a" => Ok(Mp4Type::M4a),
-            "m4p" => Ok(Mp4Type::M4p),
-            "m4b" => Ok(Mp4Type::M4b),
-            "m4r" => Ok(Mp4Type::M4r),
-            "m4v" => Ok(Mp4Type::M4v),
-            "mov" => Ok(Mp4Type::Mov),
-            _ => Err(format!("{input} is not a valid mp4 extension")),
-        }
-    }
-}
-
-impl fmt::Display for Mp4Type {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let text = match self {
-            Mp4Type::Mp4 => "mp4",
-            Mp4Type::M4a => "m4a",
-            Mp4Type::M4p => "m4p",
-            Mp4Type::M4b => "m4b",
-            Mp4Type::M4r => "m4r",
-            Mp4Type::M4v => "m4v",
-            Mp4Type::Mov => "mov",
-        };
-        write!(f, "{text}")
-    }
-}
-
-impl<R> LoopedDecoder<R>
+/// Converts a `Cursor` into a `Decoder`.
+/// When working with files, prefer `TryFrom<File>` as it will automatically set byte_len
+/// for better seeking performance.
+///
+/// This is useful for decoding audio data that's already in memory.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+/// or is not supported.
+///
+/// # Examples
+/// ```no_run
+/// use std::io::Cursor;
+/// use rodio::Decoder;
+///
+/// let data = std::fs::read("audio.mp3").unwrap();
+/// let cursor = Cursor::new(data);
+/// let decoder = Decoder::try_from(cursor).unwrap();
+/// ```
+impl<T> TryFrom<std::io::Cursor<T>> for Decoder<std::io::Cursor<T>>
 where
-    R: Read + Seek,
+    T: AsRef<[u8]> + Send + Sync + 'static,
 {
-    fn new(decoder: Decoder<R>) -> LoopedDecoder<R> {
-        Self(decoder.0)
+    type Error = DecoderError;
+
+    fn try_from(data: std::io::Cursor<T>) -> Result<Self, Self::Error> {
+        Self::new(data)
+    }
+}
+
+impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
+    /// Returns a builder for creating a new decoder with customizable settings.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use std::fs::File;
+    /// use rodio::Decoder;
+    ///
+    /// let file = File::open("audio.mp3").unwrap();
+    /// let decoder = Decoder::builder()
+    ///     .with_data(file)
+    ///     .with_hint("mp3")
+    ///     .with_gapless(true)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
+    pub fn builder() -> DecoderBuilder<R> {
+        DecoderBuilder::new()
+    }
+
+    /// Builds a new decoder with default settings.
+    ///
+    /// Attempts to automatically detect the format of the source of data.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+    /// or is not supported.
+    pub fn new(data: R) -> Result<Self, DecoderError> {
+        DecoderBuilder::new().with_data(data).build()
+    }
+
+    /// Builds a new looped decoder with default settings.
+    ///
+    /// Attempts to automatically detect the format of the source of data.
+    /// The decoder will restart from the beginning when it reaches the end.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+    /// or is not supported.
+    pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
+        DecoderBuilder::new().with_data(data).build_looped()
+    }
+
+    /// Builds a new decoder with WAV format hint.
+    ///
+    /// This method provides a hint that the data is WAV format, which may help the decoder
+    /// identify the format more quickly. However, if WAV decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.wav").unwrap();
+    /// let decoder = Decoder::new_wav(file).unwrap();
+    /// ```
+    #[cfg(any(feature = "wav", feature = "symphonia-wav"))]
+    pub fn new_wav(data: R) -> Result<Self, DecoderError> {
+        DecoderBuilder::new()
+            .with_data(data)
+            .with_hint("wav")
+            .build()
+    }
+
+    /// Builds a new decoder with FLAC format hint.
+    ///
+    /// This method provides a hint that the data is FLAC format, which may help the decoder
+    /// identify the format more quickly. However, if FLAC decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.flac").unwrap();
+    /// let decoder = Decoder::new_flac(file).unwrap();
+    /// ```
+    #[cfg(any(feature = "flac", feature = "symphonia-flac"))]
+    pub fn new_flac(data: R) -> Result<Self, DecoderError> {
+        DecoderBuilder::new()
+            .with_data(data)
+            .with_hint("flac")
+            .build()
+    }
+
+    /// Builds a new decoder with Vorbis format hint.
+    ///
+    /// This method provides a hint that the data is Vorbis format, which may help the decoder
+    /// identify the format more quickly. However, if Vorbis decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.ogg").unwrap();
+    /// let decoder = Decoder::new_vorbis(file).unwrap();
+    /// ```
+    #[cfg(any(feature = "vorbis", feature = "symphonia-vorbis"))]
+    pub fn new_vorbis(data: R) -> Result<Self, DecoderError> {
+        DecoderBuilder::new()
+            .with_data(data)
+            .with_hint("ogg")
+            .build()
+    }
+
+    /// Builds a new decoder with MP3 format hint.
+    ///
+    /// This method provides a hint that the data is MP3 format, which may help the decoder
+    /// identify the format more quickly. However, if MP3 decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.mp3").unwrap();
+    /// let decoder = Decoder::new_mp3(file).unwrap();
+    /// ```
+    #[cfg(any(feature = "minimp3", feature = "symphonia-mp3"))]
+    pub fn new_mp3(data: R) -> Result<Self, DecoderError> {
+        DecoderBuilder::new()
+            .with_data(data)
+            .with_hint("mp3")
+            .build()
+    }
+
+    /// Builds a new decoder with AAC format hint.
+    ///
+    /// This method provides a hint that the data is AAC format, which may help the decoder
+    /// identify the format more quickly. However, if AAC decoding fails, other formats
+    /// will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.aac").unwrap();
+    /// let decoder = Decoder::new_aac(file).unwrap();
+    /// ```
+    #[cfg(feature = "symphonia-aac")]
+    pub fn new_aac(data: R) -> Result<Self, DecoderError> {
+        DecoderBuilder::new()
+            .with_data(data)
+            .with_hint("aac")
+            .build()
+    }
+
+    /// Builds a new decoder with MP4 container format hint.
+    ///
+    /// This method provides a hint that the data is in MP4 container format by setting
+    /// the MIME type to "audio/mp4". This may help the decoder identify the format
+    /// more quickly. However, if MP4 decoding fails, other formats will still be attempted.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if no suitable decoder was found.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::fs::File;
+    ///
+    /// let file = File::open("audio.m4a").unwrap();
+    /// let decoder = Decoder::new_mp4(file).unwrap();
+    /// ```
+    #[cfg(feature = "symphonia-isomp4")]
+    pub fn new_mp4(data: R) -> Result<Self, DecoderError> {
+        DecoderBuilder::new()
+            .with_data(data)
+            .with_mime_type("audio/mp4")
+            .build()
     }
 }
 
@@ -444,13 +596,20 @@ where
 {
     type Item = Sample;
 
-    #[inline]
+    /// Returns the next sample in the audio stream.
+    ///
+    /// When the end of the stream is reached, attempts to seek back to the start
+    /// and continue playing. If seeking fails, or if no decoder is available,
+    /// returns `None`.
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(sample) = self.0.next() {
-            Some(sample)
-        } else {
-            let decoder = mem::replace(&mut self.0, DecoderImpl::None(Default::default()));
-            let (decoder, sample) = match decoder {
+        if let Some(inner) = &mut self.inner {
+            if let Some(sample) = inner.next() {
+                return Some(sample);
+            }
+
+            // Take ownership of the decoder to reset it
+            let decoder = self.inner.take()?;
+            let (new_decoder, sample) = match decoder {
                 #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
                 DecoderImpl::Wav(source) => {
                     let mut reader = source.into_inner();
@@ -487,23 +646,39 @@ where
                     (DecoderImpl::Mp3(source), sample)
                 }
                 #[cfg(feature = "symphonia")]
-                DecoderImpl::Symphonia(source) => {
+                DecoderImpl::Symphonia(source, PhantomData) => {
                     let mut reader = source.into_inner();
                     reader.seek(SeekFrom::Start(0)).ok()?;
-                    let mut source = symphonia::SymphoniaDecoder::new(reader, None).ok()?;
+                    let mut source =
+                        symphonia::SymphoniaDecoder::new(reader, &self.settings).ok()?;
                     let sample = source.next();
-                    (DecoderImpl::Symphonia(source), sample)
+                    (DecoderImpl::Symphonia(source, PhantomData), sample)
                 }
-                none @ DecoderImpl::None(_) => (none, None),
             };
-            self.0 = decoder;
+            self.inner = Some(new_decoder);
             sample
+        } else {
+            None
         }
     }
 
+    /// Returns the size hint for this iterator.
+    ///
+    /// The lower bound is:
+    /// - The minimum number of samples remaining in the current iteration if there is an active decoder
+    /// - 0 if there is no active decoder (inner is None)
+    ///
+    /// The upper bound is always `None` since the decoder loops indefinitely.
+    /// This differs from non-looped decoders which may provide a finite upper bound.
+    ///
+    /// Note that even with an active decoder, reaching the end of the stream may result
+    /// in the decoder becoming inactive if seeking back to the start fails.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
+        (
+            self.inner.as_ref().map_or(0, |inner| inner.size_hint().0),
+            None,
+        )
     }
 }
 
@@ -511,39 +686,76 @@ impl<R> Source for LoopedDecoder<R>
 where
     R: Read + Seek,
 {
+    /// Returns the current span length of the underlying decoder.
+    ///
+    /// Returns `None` if there is no active decoder.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        self.0.current_span_len()
+        self.inner.as_ref()?.current_span_len()
     }
 
+    /// Returns the number of channels in the audio stream.
+    ///
+    /// Returns the default channel count if there is no active decoder.
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.0.channels()
+        self.inner
+            .as_ref()
+            .map_or(ChannelCount::default(), |inner| inner.channels())
     }
 
+    /// Returns the sample rate of the audio stream.
+    ///
+    /// Returns the default sample rate if there is no active decoder.
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.0.sample_rate()
+        self.inner
+            .as_ref()
+            .map_or(SampleRate::default(), |inner| inner.sample_rate())
     }
 
+    /// Returns the total duration of this audio source.
+    ///
+    /// Always returns `None` for looped decoders since they have no fixed end point -
+    /// they will continue playing indefinitely by seeking back to the start when reaching
+    /// the end of the audio data.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
     }
 
+    /// Attempts to seek to a specific position in the audio stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SeekError::NotSupported` if:
+    /// - There is no active decoder
+    /// - The underlying decoder does not support seeking
+    ///
+    /// May also return other `SeekError` variants if the underlying decoder's seek operation fails.
+    ///
+    /// # Note
+    ///
+    /// Even for looped playback, seeking past the end of the stream will not automatically
+    /// wrap around to the beginning - it will return an error just like a normal decoder.
+    /// Looping only occurs when reaching the end through normal playback.
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.0.try_seek(pos)
+        match &mut self.inner {
+            Some(inner) => inner.try_seek(pos),
+            None => Err(SeekError::Other(Box::new(DecoderError::IoError(
+                "Looped source ended when it failed to loop back".to_string(),
+            )))),
+        }
     }
 }
 
-/// Error that can happen when creating a decoder.
+/// Errors that can occur when creating a decoder.
 #[derive(Debug, Clone)]
 pub enum DecoderError {
     /// The format of the data has not been recognized.
     UnrecognizedFormat,
 
     /// An IO error occurred while reading, writing, or seeking the stream.
-    #[cfg(feature = "symphonia")]
     IoError(String),
 
     /// The stream contained malformed data and could not be decoded or demuxed.
@@ -559,7 +771,7 @@ pub enum DecoderError {
     #[cfg(feature = "symphonia")]
     ResetRequired,
 
-    /// No streams were found by the decoder
+    /// No streams were found by the decoder.
     #[cfg(feature = "symphonia")]
     NoStreams,
 }

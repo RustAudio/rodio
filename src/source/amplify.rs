@@ -12,6 +12,11 @@ where
     Amplify { input, factor }
 }
 
+/// converts decibels to linear
+pub fn to_linear(decibels: f32) -> f32 {
+    f32::powf(10f32, decibels * 0.05)
+}
+
 /// Filter that modifies each sample by a given value.
 #[derive(Clone, Debug)]
 pub struct Amplify<I> {
@@ -91,5 +96,52 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const EPSILON: f32 = 0.3;
+    /// Based on [Wikipedia's Decibel article].
+    ///
+    /// [Wikipedia's Decibel article]: https://web.archive.org/web/20230810185300/https://en.wikipedia.org/wiki/Decibel
+    const DECIBELS_LINEAR_TABLE: [(f32, f32); 27] = [
+        (100., 100000.),
+        (90., 31623.),
+        (80., 10000.),
+        (70., 3162.),
+        (60., 1000.),
+        (50., 316.2),
+        (40., 100.),
+        (30., 31.62),
+        (20., 10.),
+        (10., 3.162),
+        (5.998, 1.995),
+        (3.003, 1.413),
+        (1.002, 1.122),
+        (0., 1.),
+        (-1.002, 0.891),
+        (-3.003, 0.708),
+        (-5.998, 0.501),
+        (-10., 0.3162),
+        (-20., 0.1),
+        (-30., 0.03162),
+        (-40., 0.01),
+        (-50., 0.003162),
+        (-60., 0.001),
+        (-70., 0.0003162),
+        (-80., 0.0001),
+        (-90., 0.00003162),
+        (-100., 0.00001),
+    ];
+
+    #[test]
+    fn convert_decibels_to_linear() {
+        for (db, linear) in DECIBELS_LINEAR_TABLE {
+            dbg!(db, linear, f32::abs(to_linear(db) - linear));
+            assert!(f32::abs(to_linear(db) - linear) < EPSILON,)
+        }
     }
 }

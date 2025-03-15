@@ -31,6 +31,12 @@ impl<I> Amplify<I> {
         self.factor = factor;
     }
 
+    /// Modifies the amplification factor logarithmically.
+    #[inline]
+    pub fn set_log_factor(&mut self, factor: f32) {
+        self.factor = to_linear(factor);
+    }
+
     /// Returns a reference to the inner source.
     #[inline]
     pub fn inner(&self) -> &I {

@@ -234,6 +234,15 @@ pub trait Source: Iterator<Item = Sample> {
         skip::skip_duration(self, duration)
     }
 
+    /// Amplifies the sound logarithmically by the given value.
+    #[inline]
+    fn amplify_decibel(self, value: f32) -> Amplify<Self>
+    where
+        Self: Sized,
+    {
+        amplify::amplify(self, to_linear(value))
+    }
+
     /// Amplifies the sound by the given value.
     #[inline]
     fn amplify(self, value: f32) -> Amplify<Self>

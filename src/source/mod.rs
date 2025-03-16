@@ -5,10 +5,11 @@ use core::time::Duration;
 
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
+use amplify::to_linear;
 use dasp_sample::FromSample;
 
 pub use self::agc::AutomaticGainControl;
-pub use self::amplify::{to_linear, Amplify};
+pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
 pub use self::channel_volume::ChannelVolume;

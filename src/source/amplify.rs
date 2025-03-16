@@ -12,7 +12,7 @@ where
     Amplify { input, factor }
 }
 
-/// converts decibels to linear
+/// Internal function that converts decibels to linear
 pub fn to_linear(decibels: f32) -> f32 {
     f32::powf(10f32, decibels * 0.05)
 }

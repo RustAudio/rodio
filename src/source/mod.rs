@@ -92,7 +92,7 @@ pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
 /// be represented as an analog signal.
 ///
 /// In order to store this signal in the computer's memory or on the disk, we perform what is
-/// called *sampling*. The consists in choosing an interval of time (for example 20µs) and reading
+/// called *sampling*. This consists in choosing an interval of time (for example 20µs) and reading
 /// the amplitude of the signal at each interval (for example, if the interval is 20µs we read the
 /// amplitude every 20µs). By doing so we obtain a list of numerical values, each value being
 /// called a *sample*.

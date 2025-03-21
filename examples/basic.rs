@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let beep1 = {
         // Play a WAV file.
         let file = std::fs::File::open("assets/beep.wav")?;
-        let sink = rodio::play(&mixer, BufReader::new(file))?;
+        let sink = rodio::play(mixer, BufReader::new(file))?;
         sink.set_volume(0.2);
         sink
     };
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let beep3 = {
         // Play an OGG file.
         let file = std::fs::File::open("assets/beep3.ogg")?;
-        let sink = rodio::play(&mixer, BufReader::new(file))?;
+        let sink = rodio::play(mixer, BufReader::new(file))?;
         sink.set_volume(0.2);
         sink
     };

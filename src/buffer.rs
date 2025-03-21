@@ -177,7 +177,6 @@ mod tests {
                 CHANNELS,
                 SAMPLE_RATE,
                 (0..2000i16)
-                    .into_iter()
                     .map(|s| s as Sample)
                     .collect::<Vec<_>>(),
             );

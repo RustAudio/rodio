@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut positions = ([0., 0., 0.], [-1., 0., 0.], [1., 0., 0.]);
     let sink = rodio::SpatialSink::connect_new(
-        &stream_handle.mixer(),
+        stream_handle.mixer(),
         positions.0,
         positions.1,
         positions.2,

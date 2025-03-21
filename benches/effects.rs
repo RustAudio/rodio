@@ -12,7 +12,7 @@ fn main() {
 
 #[divan::bench]
 fn reverb(bencher: Bencher) {
-    bencher.with_inputs(|| music_wav()).bench_values(|source| {
+    bencher.with_inputs(music_wav).bench_values(|source| {
         source
             .buffered()
             .reverb(Duration::from_secs_f32(0.05), 0.3)
@@ -23,13 +23,13 @@ fn reverb(bencher: Bencher) {
 #[divan::bench]
 fn high_pass(bencher: Bencher) {
     bencher
-        .with_inputs(|| music_wav())
+        .with_inputs(music_wav)
         .bench_values(|source| source.high_pass(200).for_each(divan::black_box_drop))
 }
 
 #[divan::bench]
 fn fade_out(bencher: Bencher) {
-    bencher.with_inputs(|| music_wav()).bench_values(|source| {
+    bencher.with_inputs(music_wav).bench_values(|source| {
         source
             .fade_out(Duration::from_secs(5))
             .for_each(divan::black_box_drop)
@@ -39,13 +39,13 @@ fn fade_out(bencher: Bencher) {
 #[divan::bench]
 fn amplify(bencher: Bencher) {
     bencher
-        .with_inputs(|| music_wav())
+        .with_inputs(music_wav)
         .bench_values(|source| source.amplify(0.8).for_each(divan::black_box_drop))
 }
 
 #[divan::bench]
 fn agc_enabled(bencher: Bencher) {
-    bencher.with_inputs(|| music_wav()).bench_values(|source| {
+    bencher.with_inputs(music_wav).bench_values(|source| {
         source
             .automatic_gain_control(
                 1.0,   // target_level

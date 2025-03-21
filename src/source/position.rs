@@ -174,7 +174,7 @@ mod tests {
         source.next();
         assert_eq!(source.get_pos().as_secs_f32(), 2.0);
 
-        assert_eq!(source.try_seek(Duration::new(1, 0)).is_ok(), true);
+        assert!(source.try_seek(Duration::new(1, 0)).is_ok());
         assert_eq!(source.get_pos().as_secs_f32(), 1.0);
     }
 
@@ -190,7 +190,7 @@ mod tests {
         source.next();
         assert_eq!(source.get_pos().as_secs_f32(), 1.0);
 
-        assert_eq!(source.try_seek(Duration::new(1, 0)).is_ok(), true);
+        assert!(source.try_seek(Duration::new(1, 0)).is_ok());
         assert_eq!(source.get_pos().as_secs_f32(), 1.0);
     }
 }

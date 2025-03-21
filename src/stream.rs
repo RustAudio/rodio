@@ -3,7 +3,7 @@ use crate::decoder;
 use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, FrameCount, Sample, SampleFormat, StreamConfig, SupportedBufferSize};
+use cpal::{BufferSize, Sample, SampleFormat, StreamConfig};
 use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::{error, fmt};
@@ -185,9 +185,8 @@ where
         self.config = OutputStreamConfig {
             channel_count: config.channels() as ChannelCount,
             sample_rate: config.sample_rate().0 as SampleRate,
-            // In case of supported range limit buffer size to avoid unexpectedly long playback delays.
-            buffer_size: clamp_supported_buffer_size(config.buffer_size(), 1024),
             sample_format: config.sample_format(),
+            ..Default::default()
         };
         self
     }
@@ -246,20 +245,6 @@ where
             }
             Err(err)
         })
-    }
-}
-
-fn clamp_supported_buffer_size(
-    buffer_size: &SupportedBufferSize,
-    preferred_size: FrameCount,
-) -> BufferSize {
-    match buffer_size {
-        SupportedBufferSize::Range { min, max } => {
-            let size = preferred_size.clamp(*min, *max);
-            assert!(size > 0, "selected buffer size is greater than zero");
-            BufferSize::Fixed(size)
-        }
-        SupportedBufferSize::Unknown => BufferSize::Default,
     }
 }
 

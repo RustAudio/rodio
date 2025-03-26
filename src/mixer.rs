@@ -13,6 +13,11 @@ use std::time::Duration;
 /// added to the mixer will be converted to these values.
 ///
 /// After creating a mixer, you can add new sounds with the controller.
+///
+/// Note that mixer without any input source behaves like an `Empty` (not: `Zero`) source,
+/// and thus, just after appending to a sink, the mixer is removed from the sink.
+/// As a result, input sources added to the mixer later might not be forwarded to the sink.
+/// Add `Zero` source to prevent detaching the mixer from sink.
 pub fn mixer(channels: ChannelCount, sample_rate: SampleRate) -> (Mixer, MixerSource) {
     let input = Mixer(Arc::new(Inner {
         has_pending: AtomicBool::new(false),

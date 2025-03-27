@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+# Version 0.21 (TODO)
+
 ### Added
 - Added `Source::amplify_decibel()` method to control volume by decibels.
 - Added `Source::amplify_normalized()` method to perceptually modify volume.

@@ -44,13 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `DynamicMixerController` renamed to `Mixer`, `DynamicMixer` renamed to `MixerSource`.
 - Breaking: `Sink::try_new` renamed to `connect_new` and does not return error anymore.
             `Sink::new_idle` was renamed to `new`.
+- Breaking: `symphonia::SeekError` has a new variant `AccurateSeekNotSupported`
+  and variants `Retrying` and `Refining` have been removed.
 - Breaking: In the `Source` trait, the method `current_frame_len()` was renamed to `current_span_len()`.
 - Breaking: `Decoder` now outputs `f32` samples.
 - Breaking: The term 'frame' was renamed to 'span' in the crate and documentation.
 - Breaking: `LoopedDecoder` now returns `None` if seeking fails during loop reset.
 - Breaking: `ReadSeekSource::new()` now takes `Settings`.
-- Breaking: Sources now use `f32` samples. To convert to and from other types of samples use
-            functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
+- Breaking: Sources now use `f32` samples. To convert to and from other types of samples use functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
 - `OutputStreamConfig` is now public.
 - `OutputStream` now prints when it is dropped, can be disabled with `OutputStream::log_on_drop(false)`.
 - Update `cpal` to [0.16](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0160-2025-06-07).

@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `ReadSeekSource::new()` now takes `Settings`.
 - Breaking: Sources now use `f32` samples. To convert to and from other types of samples use
             functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
+- Breaking: `symphonia::SeekError` has a new variant `AccurateSeekNotSupported`
+  and variants `Retrying` and `Refining` have been removed.
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to

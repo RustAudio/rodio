@@ -26,7 +26,7 @@ mod test {
             let a = first as f64;
             let b = second as f64;
             let c = numerator as f64 / denominator as f64;
-            if c < 0.0 || c > 1.0 { return TestResult::discard(); };
+            if !(0.0..=1.0).contains(&c) { return TestResult::discard(); };
 
             let reference = a * (1.0 - c) + b * c;
             let x = lerp(&(first as f32), &(second as f32), numerator as u32, denominator as u32) as f64;

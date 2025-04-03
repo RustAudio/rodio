@@ -219,7 +219,7 @@ impl SourcesQueueOutput {
         let (next, signal_after_end) = {
             let mut next = self.input.next_sounds.lock().unwrap();
 
-            if next.len() == 0 {
+            if next.is_empty() {
                 let silence = Box::new(Zero::new_samples(1, 44100, THRESHOLD)) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.

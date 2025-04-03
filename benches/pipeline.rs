@@ -12,7 +12,7 @@ fn main() {
 
 #[divan::bench]
 fn long(bencher: Bencher) {
-    bencher.with_inputs(|| music_wav()).bench_values(|source| {
+    bencher.with_inputs(music_wav).bench_values(|source| {
         let mut take_dur = source
             .high_pass(300)
             .amplify(1.2)
@@ -38,7 +38,7 @@ fn long(bencher: Bencher) {
 
 #[divan::bench]
 fn short(bencher: Bencher) {
-    bencher.with_inputs(|| music_wav()).bench_values(|source| {
+    bencher.with_inputs(music_wav).bench_values(|source| {
         source
             .amplify(1.2)
             .low_pass(200)

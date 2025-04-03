@@ -401,7 +401,7 @@ mod tests {
 
         assert_eq!(source.next(), Some(0.0));
 
-        assert_eq!(sink.empty(), true);
+        assert!(sink.empty());
     }
 
     #[test]

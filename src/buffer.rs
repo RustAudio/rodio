@@ -176,10 +176,7 @@ mod tests {
             let mut buf = SamplesBuffer::new(
                 CHANNELS,
                 SAMPLE_RATE,
-                (0..2000i16)
-                    .into_iter()
-                    .map(|s| s as Sample)
-                    .collect::<Vec<_>>(),
+                (0..2000i16).map(|s| s as Sample).collect::<Vec<_>>(),
             );
             buf.try_seek(Duration::from_secs(5)).unwrap();
             assert_eq!(buf.next(), Some(5.0 * SAMPLE_RATE as f32 * CHANNELS as f32));

@@ -156,7 +156,7 @@ fn seek_does_not_break_channel_order(
 
         source.try_seek(beep_start + offset).unwrap();
         let samples: Vec<_> = source.by_ref().take(100).collect();
-        let channel0 = 0 + channel_offset;
+        let channel0 = channel_offset;
         assert!(
             is_silent(&samples, source.channels(), channel0),
             "channel0 should be silent,

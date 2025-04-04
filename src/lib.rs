@@ -33,7 +33,7 @@
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //!
-//! [rodio::play()] helps to simplify the above
+//! [`rodio::play()`](crate::play) helps to simplify the above
 //! ```no_run
 //! use std::fs::File;
 //! use std::io::BufReader;

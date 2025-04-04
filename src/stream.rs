@@ -183,13 +183,23 @@ where
     /// ## Large vs Small buffer
     /// - A larger buffer size results in high latency. Changes made trough
     ///   Rodio (volume/skip/effects etc) takes longer before they can be heard.
-    /// - A small buffer might cause higher CPU usage, playback interruptions
-    ///   or result in errors like: `alsa::poll() returned POLLERR`
+    /// - A small buffer might cause:
+    ///   - Higher CPU usage
+    ///   - Playback interruptions such as buffer underruns.
+    ///   - Rodio to log errors like: `alsa::poll() returned POLLERR`
     ///
     /// ## Recommendation
-    /// If low latency is important to you offer the user a method to find the
-    /// minimum buffer size that works well on their system under expected
-    /// conditions. A good example of this approach can be seen in mumble
+    /// If low latency is important to you consider offering the user a method
+    /// to find the minimum buffer size that works well on their system under
+    /// expected conditions. A good example of this approach can be seen in
+    /// [mumble](https://www.mumble.info/documentation/user/audio-settings/)
+    /// (specifically the *Output Delay* & *Jitter buffer*.
+    ///
+    /// ### Typical values:
+    /// **Warning**: these may not work.
+    /// - Low-latency (audio production, live monitoring): 512-1024
+    /// - General use (games, media playback): 1024-2048
+    /// - Stability-focused (background music, non-interactive): 2048-4096
     pub fn with_buffer_size(mut self, buffer_size: cpal::BufferSize) -> OutputStreamBuilder<E> {
         self.config.buffer_size = buffer_size;
         self

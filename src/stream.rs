@@ -163,8 +163,33 @@ where
     }
 
     /// Sets preferred output buffer size.
-    /// Larger buffer size causes longer playback delays. Buffer sizes that are too small
-    /// may cause higher CPU usage or playback interruptions.
+    ///
+    /// To play sound without any glitches the audio card may never receive a
+    /// sample to late. Some samples might take longer to generate then
+    /// others. For example because:
+    ///  - The OS preempts the thread creating the samples. This happens more
+    ///    often if the computer is under high load.
+    ///  - The decoder needs to read more data from disk.
+    ///  - Rodio code takes longer to run for some samples then others
+    ///  - The OS can only send audio samples in groups to the DAC.
+    ///
+    /// The OS solves this by buffering samples. The larger that buffer the
+    /// smaller the impact of variable sample generation time. On the other
+    /// hand Rodio controls audio by changing the value of samples. We can not
+    /// change a sample already in the OS buffer. That means there is a
+    /// minimum delay (latency) of `<buffer size>/<sample_rate*channel_count>`
+    /// seconds before a change made through rodio takes effect.
+    ///
+    /// ## Large vs Small buffer
+    /// - A larger buffer size results in high latency. Changes made trough
+    ///   Rodio (volume/skip/effects etc) takes longer before they can be heard.
+    /// - A small buffer might cause higher CPU usage, playback interruptions
+    ///   or result in errors like: `alsa::poll() returned POLLERR`
+    ///
+    /// ## Recommendation
+    /// If low latency is important to you offer the user a method to find the
+    /// minimum buffer size that works well on their system under expected
+    /// conditions. A good example of this approach can be seen in mumble
     pub fn with_buffer_size(mut self, buffer_size: cpal::BufferSize) -> OutputStreamBuilder<E> {
         self.config.buffer_size = buffer_size;
         self

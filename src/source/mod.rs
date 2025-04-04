@@ -5,6 +5,7 @@ use core::time::Duration;
 
 use crate::common::{ChannelCount, SampleRate};
 use crate::Sample;
+use amplify::to_linear;
 use dasp_sample::FromSample;
 
 pub use self::agc::AutomaticGainControl;
@@ -231,6 +232,15 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
     {
         skip::skip_duration(self, duration)
+    }
+
+    /// Amplifies the sound logarithmically by the given value.
+    #[inline]
+    fn amplify_decibel(self, value: f32) -> Amplify<Self>
+    where
+        Self: Sized,
+    {
+        amplify::amplify(self, to_linear(value))
     }
 
     /// Amplifies the sound by the given value.

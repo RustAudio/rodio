@@ -211,7 +211,7 @@ where
         self
     }
 
-    /// Set available parameters from a CPAL supported config. You can ge list of
+    /// Set available parameters from a CPAL supported config. You can get a list of
     /// such configurations for an output device using [crate::stream::supported_output_configs()]
     pub fn with_supported_config(
         mut self,

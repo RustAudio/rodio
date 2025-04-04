@@ -180,7 +180,7 @@ where
     /// minimum delay (latency) of `<buffer size>/<sample_rate*channel_count>`
     /// seconds before a change made through rodio takes effect.
     ///
-    /// ## Large vs Small buffer
+    /// # Large vs Small buffer
     /// - A larger buffer size results in high latency. Changes made trough
     ///   Rodio (volume/skip/effects etc) takes longer before they can be heard.
     /// - A small buffer might cause:
@@ -188,15 +188,15 @@ where
     ///   - Playback interruptions such as buffer underruns.
     ///   - Rodio to log errors like: `alsa::poll() returned POLLERR`
     ///
-    /// ## Recommendation
+    /// # Recommendation
     /// If low latency is important to you consider offering the user a method
     /// to find the minimum buffer size that works well on their system under
     /// expected conditions. A good example of this approach can be seen in
     /// [mumble](https://www.mumble.info/documentation/user/audio-settings/)
     /// (specifically the *Output Delay* & *Jitter buffer*.
     ///
-    /// ### Typical values:
-    /// **Warning**: these may not work.
+    /// These are some typical values that are a good starting point. They may also 
+    /// break audio completely, it depends on the system.
     /// - Low-latency (audio production, live monitoring): 512-1024
     /// - General use (games, media playback): 1024-2048
     /// - Stability-focused (background music, non-interactive): 2048-4096

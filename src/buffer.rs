@@ -13,12 +13,13 @@
 use crate::common::{ChannelCount, SampleRate};
 use crate::source::SeekError;
 use crate::{Sample, Source};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// A buffer of samples treated as a source.
 #[derive(Debug, Clone)]
 pub struct SamplesBuffer {
-    data: Vec<Sample>,
+    data: Arc<Vec<Sample>>,
     pos: usize,
     channels: ChannelCount,
     sample_rate: SampleRate,
@@ -28,7 +29,7 @@ pub struct SamplesBuffer {
 impl SamplesBuffer {
     /// Builds a new `SamplesBuffer`.
     ///
-    /// # Panic
+    /// # Panics
     ///
     /// - Panics if the number of channels is zero.
     /// - Panics if the samples rate is zero.
@@ -42,7 +43,7 @@ impl SamplesBuffer {
         assert!(channels >= 1);
         assert!(sample_rate >= 1);
 
-        let data = data.into();
+        let data = Arc::new(data.into());
         let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
             / sample_rate as u64
             / channels as u64;

@@ -19,7 +19,7 @@ use std::time::Duration;
 /// A buffer of samples treated as a source.
 #[derive(Debug, Clone)]
 pub struct SamplesBuffer {
-    data: Arc<Vec<Sample>>,
+    data: Arc<[Sample]>,
     pos: usize,
     channels: ChannelCount,
     sample_rate: SampleRate,
@@ -43,7 +43,7 @@ impl SamplesBuffer {
         assert!(channels >= 1);
         assert!(sample_rate >= 1);
 
-        let data = Arc::new(data.into());
+        let data: Arc<[f32]> = data.into().into();
         let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
             / sample_rate as u64
             / channels as u64;

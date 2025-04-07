@@ -549,7 +549,7 @@ impl OutputStream {
 }
 
 /// Return all formats supported by the device.
-fn supported_output_configs(
+pub fn supported_output_configs(
     device: &cpal::Device,
 ) -> Result<impl Iterator<Item = cpal::SupportedStreamConfig>, StreamError> {
     let mut supported: Vec<_> = device

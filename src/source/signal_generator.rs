@@ -98,7 +98,7 @@ impl SignalGenerator {
     }
 
     /// Create a new `SignalGenerator` object that generates an endless waveform
-    /// from the [generator function](GeneratorFunction) `generator_function`.
+    /// from the [generator function](crate::source::signal_generator::GeneratorFunction) `generator_function`.
     ///
     /// # Panics
     ///

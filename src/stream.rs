@@ -195,7 +195,7 @@ where
     /// [mumble](https://www.mumble.info/documentation/user/audio-settings/)
     /// (specifically the *Output Delay* & *Jitter buffer*.
     ///
-    /// These are some typical values that are a good starting point. They may also 
+    /// These are some typical values that are a good starting point. They may also
     /// break audio completely, it depends on the system.
     /// - Low-latency (audio production, live monitoring): 512-1024
     /// - General use (games, media playback): 1024-2048

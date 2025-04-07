@@ -163,8 +163,43 @@ where
     }
 
     /// Sets preferred output buffer size.
-    /// Larger buffer size causes longer playback delays. Buffer sizes that are too small
-    /// may cause higher CPU usage or playback interruptions.
+    ///
+    /// To play sound without any glitches the audio card may never receive a
+    /// sample to late. Some samples might take longer to generate then
+    /// others. For example because:
+    ///  - The OS preempts the thread creating the samples. This happens more
+    ///    often if the computer is under high load.
+    ///  - The decoder needs to read more data from disk.
+    ///  - Rodio code takes longer to run for some samples then others
+    ///  - The OS can only send audio samples in groups to the DAC.
+    ///
+    /// The OS solves this by buffering samples. The larger that buffer the
+    /// smaller the impact of variable sample generation time. On the other
+    /// hand Rodio controls audio by changing the value of samples. We can not
+    /// change a sample already in the OS buffer. That means there is a
+    /// minimum delay (latency) of `<buffer size>/<sample_rate*channel_count>`
+    /// seconds before a change made through rodio takes effect.
+    ///
+    /// # Large vs Small buffer
+    /// - A larger buffer size results in high latency. Changes made trough
+    ///   Rodio (volume/skip/effects etc) takes longer before they can be heard.
+    /// - A small buffer might cause:
+    ///   - Higher CPU usage
+    ///   - Playback interruptions such as buffer underruns.
+    ///   - Rodio to log errors like: `alsa::poll() returned POLLERR`
+    ///
+    /// # Recommendation
+    /// If low latency is important to you consider offering the user a method
+    /// to find the minimum buffer size that works well on their system under
+    /// expected conditions. A good example of this approach can be seen in
+    /// [mumble](https://www.mumble.info/documentation/user/audio-settings/)
+    /// (specifically the *Output Delay* & *Jitter buffer*.
+    ///
+    /// These are some typical values that are a good starting point. They may also
+    /// break audio completely, it depends on the system.
+    /// - Low-latency (audio production, live monitoring): 512-1024
+    /// - General use (games, media playback): 1024-2048
+    /// - Stability-focused (background music, non-interactive): 2048-4096
     pub fn with_buffer_size(mut self, buffer_size: cpal::BufferSize) -> OutputStreamBuilder<E> {
         self.config.buffer_size = buffer_size;
         self
@@ -176,7 +211,7 @@ where
         self
     }
 
-    /// Set available parameters from a CPAL supported config. You can ge list of
+    /// Set available parameters from a CPAL supported config. You can get a list of
     /// such configurations for an output device using [crate::stream::supported_output_configs()]
     pub fn with_supported_config(
         mut self,

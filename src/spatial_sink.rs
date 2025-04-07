@@ -108,7 +108,7 @@ impl SpatialSink {
     /// - If you set the speed to 2 the total duration will be halve of what it
     ///   was.
     ///
-    /// See [`Speed`] for details
+    /// See [`Speed`](crate::source::Speed) for details
     #[inline]
     pub fn speed(&self) -> f32 {
         self.sink.speed()

@@ -33,7 +33,7 @@
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //!
-//! [rodio::play()] helps to simplify the above
+//! [rodio::play()](crate::play) helps to simplify the above
 //! ```no_run
 //! use std::fs::File;
 //! use std::io::BufReader;
@@ -159,7 +159,7 @@ mod math;
 mod sink;
 mod spatial_sink;
 #[cfg(feature = "playback")]
-mod stream;
+pub mod stream;
 #[cfg(feature = "wav")]
 mod wav_output;
 

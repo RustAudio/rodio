@@ -119,13 +119,13 @@ impl Sink {
 
         let source = source
             .speed(1.0)
-            // must be placed before pausable but after speed & delay
+            // Must be placed before pausable but after speed & delay
             .track_position()
             .pausable(false)
             .amplify(1.0)
             .skippable()
             .stoppable()
-            // if you change the duration update the docs for try_seek!
+            // If you change the duration update the docs for try_seek!
             .periodic_access(Duration::from_millis(5), move |src| {
                 if controls.stopped.load(Ordering::SeqCst) {
                     src.stop();
@@ -198,7 +198,6 @@ impl Sink {
     /// - If you set the speed to 2 the total duration will be halve of what it
     ///   was.
     ///
-    /// See [`Speed`](crate::source::Speed) for details
     #[inline]
     pub fn set_speed(&self, value: f32) {
         *self.controls.speed.lock().unwrap() = value;

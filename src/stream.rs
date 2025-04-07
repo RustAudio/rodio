@@ -1,3 +1,10 @@
+/// Output audio via the OS via mixers or play directly
+/// 
+/// This module provides a builder that's used to configure and open audio output. Once
+/// opened sources can be mixed into the output via `OutputStream::mixer`.
+///
+/// There is also a convenience function `play` for using that output mixer to
+/// play a single sound.
 use crate::common::{ChannelCount, SampleRate};
 use crate::decoder;
 use crate::mixer::{mixer, Mixer, MixerSource};
@@ -542,7 +549,7 @@ impl OutputStream {
 }
 
 /// Return all formats supported by the device.
-fn supported_output_configs(
+pub fn supported_output_configs(
     device: &cpal::Device,
 ) -> Result<impl Iterator<Item = cpal::SupportedStreamConfig>, StreamError> {
     let mut supported: Vec<_> = device

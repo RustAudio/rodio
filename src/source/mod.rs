@@ -234,6 +234,15 @@ pub trait Source: Iterator<Item = Sample> {
         skip::skip_duration(self, duration)
     }
 
+    /// Amplifies the sound by the given value.
+    #[inline]
+    fn amplify(self, value: f32) -> Amplify<Self>
+    where
+        Self: Sized,
+    {
+        amplify::amplify(self, value)
+    }
+
     /// Amplifies the sound logarithmically by the given value.
     #[inline]
     fn amplify_decibel(self, value: f32) -> Amplify<Self>
@@ -243,13 +252,31 @@ pub trait Source: Iterator<Item = Sample> {
         amplify::amplify(self, to_linear(value))
     }
 
-    /// Amplifies the sound by the given value.
+    /// Normalized amplification in `[0.0, 1.0]` range. This method better matches the perceived
+    /// loudness of sounds in human hearing and is recommended to use when you want to change
+    /// volume in `[0.0, 1.0]` range.
+    ///
+    /// **note: it clamps values outside this range.**
     #[inline]
-    fn amplify(self, value: f32) -> Amplify<Self>
+    fn amplify_normalized(self, value: f32) -> Amplify<Self>
     where
         Self: Sized,
     {
-        amplify::amplify(self, value)
+        const NORMALIZATION_MIN: f32 = 0.0;
+        const NORMALIZATION_MAX: f32 = 1.0;
+        const LOG_VOLUME_GROWTH_RATE: f32 = 6.907_755_4;
+        const LOG_VOLUME_SCALE_FACTOR: f32 = 1000.0;
+
+        if value > NORMALIZATION_MIN && value < NORMALIZATION_MAX {
+            let mut amplitude = f32::exp(LOG_VOLUME_GROWTH_RATE * value) / LOG_VOLUME_SCALE_FACTOR;
+            if value < 0.1 {
+                amplitude *= value * 10.0;
+
+                return amplify::amplify(self, amplitude);
+            }
+        }
+
+        amplify::amplify(self, value.clamp(NORMALIZATION_MIN, NORMALIZATION_MAX))
     }
 
     /// Applies automatic gain control to the sound.

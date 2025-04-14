@@ -13,7 +13,7 @@ where
 }
 
 /// Internal function that converts decibels to linear
-pub fn to_linear(decibels: f32) -> f32 {
+pub(super) fn to_linear(decibels: f32) -> f32 {
     f32::powf(10f32, decibels * 0.05)
 }
 
@@ -147,7 +147,7 @@ mod test {
     fn convert_decibels_to_linear() {
         for (db, linear) in DECIBELS_LINEAR_TABLE {
             dbg!(db, linear, f32::abs(to_linear(db) - linear));
-            assert!(f32::abs(to_linear(db) - linear) < EPSILON,)
+            assert!(f32::abs(to_linear(db) - linear) < EPSILON)
         }
     }
 }

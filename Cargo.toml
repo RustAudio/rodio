@@ -42,7 +42,18 @@ noise = ["rand"]
 wasm-bindgen = ["cpal/wasm-bindgen"]
 cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
 
-symphonia-all = ["symphonia/all"]
+symphonia-all = [
+    "symphonia-aiff",
+    "symphonia-caf",
+    "symphonia-isomp4",
+    "symphonia-mkv",
+    "symphonia-ogg",
+    "symphonia-wav",
+    "symphonia-flac",
+    "symphonia-aac",
+    "symphonia-alac",
+    "symphonia-mp3",
+]
 
 symphonia-aiff = ["symphonia/aiff", "symphonia/pcm"]
 symphonia-caf = ["symphonia/caf", "symphonia/pcm", "symphonia/adpcm", "symphonia/mpa", "symphonia/aac", "symphonia/alac"]

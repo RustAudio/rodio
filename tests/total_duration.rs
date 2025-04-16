@@ -10,7 +10,7 @@ use rstest_reuse::{self, *};
 #[template]
 #[rstest]
 #[cfg_attr(
-    feature = "symphonia-vorbis",
+    feature = "symphonia-ogg",
     case("ogg", Duration::from_secs_f64(69.328979591), "symphonia")
 )]
 #[cfg_attr(

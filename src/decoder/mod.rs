@@ -780,7 +780,6 @@ impl fmt::Display for DecoderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let text = match self {
             DecoderError::UnrecognizedFormat => "Unrecognized format",
-            #[cfg(feature = "symphonia")]
             DecoderError::IoError(msg) => &msg[..],
             #[cfg(feature = "symphonia")]
             DecoderError::DecodeError(msg) => msg,

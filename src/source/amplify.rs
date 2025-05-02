@@ -108,8 +108,6 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-
-    const EPSILON: f32 = 0.3;
     /// Based on [Wikipedia's Decibel article].
     ///
     /// [Wikipedia's Decibel article]: https://web.archive.org/web/20230810185300/https://en.wikipedia.org/wiki/Decibel
@@ -146,8 +144,13 @@ mod test {
     #[test]
     fn convert_decibels_to_linear() {
         for (db, linear) in DECIBELS_LINEAR_TABLE {
-            dbg!(db, linear, f32::abs(to_linear(db) - linear));
-            assert!(f32::abs(to_linear(db) - linear) < EPSILON)
+            const PRECISION: f32 = 5.066e3;
+            let to_linear = to_linear(db);
+
+            assert!(
+                2.0 * (to_linear - linear).abs()
+                    < PRECISION * f32::EPSILON * (to_linear.abs() + linear.abs())
+            );
         }
     }
 }

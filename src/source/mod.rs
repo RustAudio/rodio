@@ -268,16 +268,14 @@ pub trait Source: Iterator<Item = Sample> {
         const LOG_VOLUME_GROWTH_RATE: f32 = 6.907_755_4;
         const LOG_VOLUME_SCALE_FACTOR: f32 = 1000.0;
 
-        if value > NORMALIZATION_MIN && value < NORMALIZATION_MAX {
-            let mut amplitude = f32::exp(LOG_VOLUME_GROWTH_RATE * value) / LOG_VOLUME_SCALE_FACTOR;
-            if value < 0.1 {
-                amplitude *= value * 10.0;
+        let value = value.clamp(NORMALIZATION_MIN, NORMALIZATION_MAX);
 
-                return amplify::amplify(self, amplitude);
-            }
+        let mut amplitude = f32::exp(LOG_VOLUME_GROWTH_RATE * value) / LOG_VOLUME_SCALE_FACTOR;
+        if value < 0.1 {
+            amplitude *= value * 10.0;
         }
 
-        amplify::amplify(self, value.clamp(NORMALIZATION_MIN, NORMALIZATION_MAX))
+        amplify::amplify(self, amplitude)
     }
 
     /// Applies automatic gain control to the sound.

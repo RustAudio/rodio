@@ -125,7 +125,12 @@ impl SymphoniaDecoder {
             match decoder.decode(&current_span) {
                 Ok(decoded) => break decoded,
                 Err(e) => match e {
-                    Error::DecodeError(_) => continue,
+                    Error::DecodeError(_) => {
+                        // Decode errors are intentionally ignored with no retry limit.
+                        // This behavior ensures that the decoder skips over problematic packets
+                        // and continues processing the rest of the stream.
+                        continue;
+                    }
                     _ => return Err(e),
                 },
             }
@@ -300,7 +305,12 @@ impl Iterator for SymphoniaDecoder {
                 let packet = self.format.next_packet().ok()?;
                 let decoded = match self.decoder.decode(&packet) {
                     Ok(decoded) => decoded,
-                    Err(Error::DecodeError(_)) => continue,
+                    Err(Error::DecodeError(_)) => {
+                        // Skip over packets that cannot be decoded. This ensures the iterator
+                        // continues processing subsequent packets instead of terminating due to
+                        // non-critical decode errors.
+                        continue;
+                    }
                     Err(_) => return None,
                 };
 

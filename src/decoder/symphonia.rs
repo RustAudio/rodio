@@ -20,11 +20,6 @@ use crate::{
     source, Source,
 };
 
-// Decoder errors are not considered fatal.
-// The correct action is to just get a new packet and try again.
-// But a decode error in more than 3 consecutive packets is fatal.
-const MAX_DECODE_RETRIES: usize = 3;
-
 pub(crate) struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
     current_span_offset: usize,
@@ -115,7 +110,6 @@ impl SymphoniaDecoder {
             .zip(stream.codec_params.n_frames)
             .map(|(base, spans)| base.calc_time(spans).into());
 
-        let mut decode_errors: usize = 0;
         let decoded = loop {
             let current_span = match probed.format.next_packet() {
                 Ok(packet) => packet,
@@ -132,12 +126,10 @@ impl SymphoniaDecoder {
                 Ok(decoded) => break decoded,
                 Err(e) => match e {
                     Error::DecodeError(_) => {
-                        decode_errors += 1;
-                        if decode_errors > MAX_DECODE_RETRIES {
-                            return Err(e);
-                        } else {
-                            continue;
-                        }
+                        // Decode errors are intentionally ignored with no retry limit.
+                        // This behavior ensures that the decoder skips over problematic packets
+                        // and continues processing the rest of the stream.
+                        continue;
                     }
                     _ => return Err(e),
                 },
@@ -309,19 +301,17 @@ impl Iterator for SymphoniaDecoder {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_span_offset >= self.buffer.len() {
-            let mut decode_errors = 0;
             let decoded = loop {
                 let packet = self.format.next_packet().ok()?;
                 let decoded = match self.decoder.decode(&packet) {
                     Ok(decoded) => decoded,
-                    Err(_) => {
-                        decode_errors += 1;
-                        if decode_errors > MAX_DECODE_RETRIES {
-                            return None;
-                        } else {
-                            continue;
-                        }
+                    Err(Error::DecodeError(_)) => {
+                        // Skip over packets that cannot be decoded. This ensures the iterator
+                        // continues processing subsequent packets instead of terminating due to
+                        // non-critical decode errors.
+                        continue;
                     }
+                    Err(_) => return None,
                 };
 
                 // Loop until we get a packet with audio frames. This is necessary because some

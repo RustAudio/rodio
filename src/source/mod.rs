@@ -255,7 +255,7 @@ pub trait Source: Iterator<Item = Sample> {
     /// Normalized amplification in `[0.0, 1.0]` range. This method better matches the perceived
     /// loudness of sounds in human hearing and is recommended to use when you want to change
     /// volume in `[0.0, 1.0]` range.
-    /// based on article: https://www.dr-lex.be/info-stuff/volumecontrols.html
+    /// based on article: <https://www.dr-lex.be/info-stuff/volumecontrols.html>
     ///
     /// **note: it clamps values outside this range.**
     #[inline]

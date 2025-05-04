@@ -177,6 +177,14 @@ impl Sink {
         *self.controls.volume.lock().unwrap() = value;
     }
 
+    /// Gets the speed of the sound.
+    ///
+    /// See [`Sink::set_speed`] for details on what *speed* means.
+    #[inline]
+    pub fn speed(&self) -> f32 {
+        *self.controls.speed.lock().unwrap()
+    }
+
     /// Changes the play speed of the sound. Does not adjust the samples, only the playback speed.
     ///
     /// # Note:
@@ -191,23 +199,6 @@ impl Sink {
     ///   was.
     ///
     /// See [`Speed`](crate::source::Speed) for details
-    #[inline]
-    pub fn speed(&self) -> f32 {
-        *self.controls.speed.lock().unwrap()
-    }
-
-    /// Changes the speed of the sound.
-    ///
-    /// The value `1.0` is the "normal" speed (unfiltered input). Any value other than `1.0` will
-    /// change the play speed of the sound.
-    ///
-    /// #### Note:
-    /// 1. **Increasing the speed would also increase the pitch by the same factor**
-    /// - If you increased set the speed to 0.5, the frequency would be slower (0.5x the original frequency) .
-    /// - Also if you set the speed to 1.5 the frequency would be faster ( 1.5x the original frequency).
-    /// 2. **Change in the speed would affect your total duration inversely**
-    /// - if you set the speed by 0.5, your total duration would be (2x the original total duration) longer.
-    /// - Also if you set the speed to 2 the total duration would be (0.5 the original total_duration) shorter
     #[inline]
     pub fn set_speed(&self, value: f32) {
         *self.controls.speed.lock().unwrap() = value;

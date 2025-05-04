@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added `Source::amplify_decibel()` method to control volume by decibels.
+- Added `Source::amplify_normalized()` method to perceptually modify volume.
 - Adds a function to write a `Source` to a `wav` file, see `output_to_wav`.
 - Output audio stream buffer size can now be adjusted.
 - Sources for directly generating square waves, triangle waves, square waves, and

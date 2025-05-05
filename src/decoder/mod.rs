@@ -119,7 +119,13 @@ enum DecoderImpl<R: Read + Seek> {
     Mp3(mp3::Mp3Decoder<R>),
     #[cfg(feature = "symphonia")]
     Symphonia(symphonia::SymphoniaDecoder, PhantomData<R>),
+    // This variant is here just to satisfy the compiler when there are no decoders enabled.
+    // It is unreachable and should never be constructed.
+    #[allow(dead_code)]
+    None(Unreachable, PhantomData<R>),
 }
+
+enum Unreachable {}
 
 impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
@@ -135,6 +141,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.next(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.next(),
+            DecoderImpl::None(_, _) => unreachable!(),
         }
     }
 
@@ -151,6 +158,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.size_hint(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.size_hint(),
+            DecoderImpl::None(_, _) => unreachable!(),
         }
     }
 
@@ -167,6 +175,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.current_span_len(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.current_span_len(),
+            DecoderImpl::None(_, _) => unreachable!(),
         }
     }
 
@@ -183,6 +192,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.channels(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.channels(),
+            DecoderImpl::None(_, _) => unreachable!(),
         }
     }
 
@@ -199,6 +209,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.sample_rate(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.sample_rate(),
+            DecoderImpl::None(_, _) => unreachable!(),
         }
     }
 
@@ -221,6 +232,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.total_duration(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.total_duration(),
+            DecoderImpl::None(_, _) => unreachable!(),
         }
     }
 
@@ -237,6 +249,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.try_seek(pos),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.try_seek(pos),
+            DecoderImpl::None(_, _) => unreachable!(),
         }
     }
 }

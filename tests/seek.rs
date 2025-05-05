@@ -175,10 +175,7 @@ fn seek_does_not_break_channel_order(
     }
 }
 
-fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize>
-where
-    R: Iterator<Item = f32>,
-{
+fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize> {
     let channels = source.channels() as usize;
     let samples: Vec<f32> = source.by_ref().collect();
 

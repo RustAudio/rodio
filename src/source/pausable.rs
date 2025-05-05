@@ -50,6 +50,12 @@ where
         }
     }
 
+    /// Indicates if the data source is in a paused state.
+    #[inline]
+    pub fn is_paused(&self) -> bool {
+        self.paused_channels.is_some()
+    }
+
     /// Returns a reference to the inner source.
     #[inline]
     pub fn inner(&self) -> &I {

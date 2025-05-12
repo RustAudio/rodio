@@ -25,7 +25,7 @@ We have written an upgrade [guide](UPGRADE.md), it will help you upgrade to rodi
 
 # [Examples](https://github.com/RustAudio/rodio/tree/f1eaaa4a6346933fc8a58d5fd1ace170946b3a94/examples)
 
-We are always making changes to rodio. That can mean the examples do not work with the current crates.io release. You will have to look at the examples from commit `f1eaaa4a`. They are available [on github](https://github.com/RustAudio/rodio/tree/f1eaaa4a6346933fc8a58d5fd1ace170946b3a94/examples).
+We are always making changes to rodio. This can mean that the examples do not work with the current crates.io release. You will have to look at the examples from commit `f1eaaa4a`. They are available [on github](https://github.com/RustAudio/rodio/tree/f1eaaa4a6346933fc8a58d5fd1ace170946b3a94/examples).
 
 ## Requirements
 

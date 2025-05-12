@@ -18,7 +18,7 @@ nothing
       removed
 
 ## OutputStream
-The outputstream is now more configurable. Where you used `OutputStream::try_default()` you have a choice:
+The output stream is now more configurable. Where you used `OutputStream::try_default()` you have a choice:
  - *(recommended)* Get an error when the default stream could not be opened: `OutputStreamBuilder::open_default_stream()?`
  - Stay close to the old behavior using: `OutputStreamBuilder::open_stream_or_fallback()`, which tries to open the default (audio) stream. If that fails it tries all other combinations of device and settings. The old behavior was only trying all settings of the default device.
 
@@ -37,7 +37,7 @@ let sink = rodio::Sink::try_new(&handle)?;
 becomes this in Rodio *0.21.0*:
 ```rust
 let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
-let sink = rodio::Sink::connect_new(&stream_handle.mixer());
+let sink = rodio::Sink::connect_new(stream_handle.mixer());
 ```
 
 The `SpatialSink` changes mirror those in `Sink` described above.

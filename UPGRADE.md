@@ -46,7 +46,7 @@ let sink = rodio::Sink::try_new(&handle)?;
 becomes this in Rodio *0.21.0*:
 ```rust
 let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
-let sink = rodio::Sink::connect_new(&stream_handle.mixer());
+let sink = rodio::Sink::connect_new(stream_handle.mixer());
 ```
 
 The `SpatialSink` changes mirror those in `Sink` described above.

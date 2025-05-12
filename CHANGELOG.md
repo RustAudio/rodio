@@ -75,7 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   correctly.
 - Removed unwrap() calls in MP3, WAV, FLAC and Vorbis format detection for better error handling.
 - `LoopedDecoder::size_hint` now correctly indicates an infinite stream.
-- Symphonia decoder `total_duration` for Vorbis now return the correct value (#696).
+- Symphonia decoder `total_duration` no longer returns None when it could
+  return Some
 - Symphonia decoder for MP4 now seeks correctly (#577).
 - White noise was not correctly uniformly distributed.
 - Pink noise was not correctly distributed on sampling rates other than 44100 Hz.

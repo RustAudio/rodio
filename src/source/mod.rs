@@ -30,7 +30,7 @@ pub use self::periodic::PeriodicAccess;
 pub use self::position::TrackPosition;
 pub use self::repeat::Repeat;
 pub use self::sawtooth::SawtoothWave;
-pub use self::signal_generator::{Function, SignalGenerator, GeneratorFunction};
+pub use self::signal_generator::{Function, GeneratorFunction, SignalGenerator};
 pub use self::sine::SineWave;
 pub use self::skip::SkipDuration;
 pub use self::skippable::Skippable;

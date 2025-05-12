@@ -1,5 +1,5 @@
 /// Output audio via the OS via mixers or play directly
-/// 
+///
 /// This module provides a builder that's used to configure and open audio output. Once
 /// opened sources can be mixed into the output via `OutputStream::mixer`.
 ///

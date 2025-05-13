@@ -274,7 +274,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
             Err(data) => data,
         };
 
-        #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
+        #[cfg(all(feature = "vorbis", not(feature = "symphonia-ogg")))]
         let data = match vorbis::VorbisDecoder::new(data) {
             Ok(decoder) => return Ok((DecoderImpl::Vorbis(decoder), self.settings)),
             Err(data) => data,

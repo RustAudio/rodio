@@ -43,7 +43,7 @@ The following Rodio *0.20.1* code:
 let (_stream, handle) = rodio::OutputStream::try_default()?;
 let sink = rodio::Sink::try_new(&handle)?;
 ```
-becomes this in Rodio *0.21.0*:
+Should be written like this in Rodio *0.21.0*:
 ```rust
 let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
 let sink = rodio::Sink::connect_new(stream_handle.mixer());
@@ -55,5 +55,18 @@ The `SpatialSink` changes mirror those in `Sink` described above.
 Replace `DynamicMixerController` with `Mixer` and `DynamicMixer` with `MixerSource`.
 
 ## Decoder
-`Decoder::new_mp4` no longer takes an `Mp4Type` as hint. You can remove the argument
->>>>>>> f306766 (finishes upgrade guid for new release)
+- `Decoder::new_mp4` no longer takes an `Mp4Type` as hint. You can remove the argument
+- Symphonia now longer assumes all sources are seek-able. Use
+  `DecoderBuilder::with_seekable` or `try_from` on a `File` or `Bufreader`.
+
+The following Rodio *0.20.1* code
+```rust
+let file = File::open("music.ogg")?;
+let reader = BufReader::new(file);
+let source = Decoder::new(reader);
+```
+Should be written like this in Rodio *0.21.0*:
+```rust
+let file = File::open("music.ogg")?;
+let source = Decoder::try_from(music.ogg)?;
+```

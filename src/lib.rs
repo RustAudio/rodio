@@ -60,7 +60,7 @@
 //! named [`Sink`] which represents an audio track. [`Sink`] plays its input sources sequentially,
 //! one after another. To play sounds in simultaneously in parallel, use [`mixer::Mixer`] instead.
 //!
-//! To play a soung Create a [`Sink`] connect it to the output stream,
+//! To play a song Create a [`Sink`] connect it to the output stream,
 //! and [`.append()`](Sink::append) your sound to it.
 //!
 //! ```no_run
@@ -159,7 +159,7 @@ mod math;
 mod sink;
 mod spatial_sink;
 #[cfg(feature = "playback")]
-mod stream;
+pub mod stream;
 #[cfg(feature = "wav")]
 mod wav_output;
 

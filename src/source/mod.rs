@@ -12,6 +12,7 @@ pub use self::agc::AutomaticGainControl;
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
+pub use self::channel_router::{ChannelMap, ChannelRouterController, ChannelRouterSource};
 pub use self::channel_volume::ChannelVolume;
 pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
@@ -47,6 +48,7 @@ mod agc;
 mod amplify;
 mod blt;
 mod buffered;
+mod channel_router;
 mod channel_volume;
 mod chirp;
 mod crossfade;
@@ -373,6 +375,103 @@ pub trait Source: Iterator<Item = Sample> {
             release_time,
             absolute_max_gain,
         )
+    }
+
+    /// Creates a [`ChannelRouter`] that can mix input channels together and
+    /// assign them to new channels.
+    #[inline]
+    fn channel_router(
+        self,
+        channel_count: u16,
+        channel_map: ChannelMap,
+    ) -> (ChannelRouterController, ChannelRouterSource<Self>)
+    where
+        Self: Sized,
+    {
+        channel_router::channel_router(self, channel_count, channel_map)
+    }
+
+    /// Creates a one-channel output [`ChannelRouter`] that extracts the channel `channel` from
+    /// this sound.
+    #[inline]
+    fn extract_channel(self, channel: u16) -> ChannelRouterSource<Self>
+    where
+        Self: Sized,
+    {
+        self.extract_channels(vec![channel])
+    }
+
+    /// Creates a [`ChannelRouter`] that reorders this sound's channels according to the order of
+    /// the channels in the `channels` parameter.
+    ///
+    /// # Panics
+    ///
+    /// - length of `channels` exceeds `u16::MAX`.
+    #[inline]
+    fn extract_channels(self, channels: Vec<u16>) -> ChannelRouterSource<Self>
+    where
+        Self: Sized,
+    {
+        assert!(
+            channels.len() < u16::MAX.into(),
+            "`channels` excessive length"
+        );
+        let mut mapping = ChannelMap::new();
+        let output_count = channels.len() as u16;
+        for (output_channel, input_channel) in channels.into_iter().enumerate() {
+            mapping[input_channel as usize][output_channel] = 1.0f32;
+        }
+        channel_router::channel_router(self, output_count, mapping).1
+    }
+
+    /// Creates a [`ChannelRouter`] that mixes all of the input channels to mono with full gain.
+    #[inline]
+    fn mono(self) -> ChannelRouterSource<Self>
+    where
+        Self: Sized,
+    {
+        let mapping: ChannelMap = vec![vec![1.0f32]; self.channels().into()];
+        channel_router::channel_router(self, 1, mapping).1
+    }
+
+    /// Creates a [`ChannelRouter`] that splits a mono channel into two stereo channels, at half
+    /// their original gain.
+    ///
+    /// # Panics
+    ///
+    /// - `self.channels()` is not equal to 1
+    #[inline]
+    fn mono_to_stereo(self) -> ChannelRouterSource<Self>
+    where
+        Self: Sized,
+    {
+        let mapping: ChannelMap = vec![vec![0.5f32, 0.5f32]];
+        channel_router::channel_router(self, 2, mapping).1
+    }
+
+    /// Creates a [`ChannelRouter`] that mixes a 5.1 source in SMPTE channel order (L, R, C, Lfe, Ls,
+    /// Rs) into a stereo mix, with gain coefficients per [ITU-BS.775-1](itu_775).
+    ///
+    /// [itu_775]: https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.775-1-199407-S!!PDF-E.pdf
+    ///
+    /// # Panics
+    ///
+    /// - `self.channels()` is not equal to 6
+    #[inline]
+    fn downmix_51(self) -> ChannelRouterSource<Self>
+    where
+        Self: Sized,
+    {
+        let three_db_down = std::f32::consts::FRAC_1_SQRT_2;
+        let mapping: ChannelMap = vec![
+            vec![1.0f32, 0.0f32],
+            vec![0.0f32, 1.0f32],
+            vec![three_db_down, three_db_down],
+            vec![0.0f32, 0.0f32],
+            vec![three_db_down, 0.0f32],
+            vec![0.0f32, three_db_down],
+        ];
+        channel_router::channel_router(self, 6, mapping).1
     }
 
     /// Mixes this sound fading out with another sound fading in for the given duration.

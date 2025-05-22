@@ -94,5 +94,9 @@ name = "noise_generator"
 required-features = ["noise"]
 
 [[example]]
+name = "channel_routing"
+
+[[example]]
 name = "into_file"
 required-features = ["wav", "mp3"]
+

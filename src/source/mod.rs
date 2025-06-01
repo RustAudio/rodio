@@ -42,6 +42,7 @@ pub use self::take::TakeDuration;
 pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
+pub use self::distortion::Distortion;
 
 mod agc;
 mod amplify;
@@ -77,6 +78,7 @@ mod take;
 mod triangle;
 mod uniform;
 mod zero;
+mod distortion;
 
 #[cfg(feature = "noise")]
 mod noise;
@@ -572,6 +574,15 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Source<Item = f32>,
     {
         blt::high_pass_with_q(self, freq, q)
+    }
+
+    /// Applies a distortion effect to the sound.
+    #[inline]
+    fn distortion(self, gain: f32, threshold: f32) -> Distortion<Self>
+    where
+        Self: Sized,
+    {
+        distortion::distortion(self, gain, threshold)
     }
 
     // There is no `can_seek()` method as it is impossible to use correctly. Between

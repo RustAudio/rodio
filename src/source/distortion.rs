@@ -1,19 +1,3 @@
-//! Distortion filter for audio sources.
-//!
-//! # Example
-//!
-//! ```rust
-//! use rodio::source::{Source, SineWave};
-//! use rodio::Sink;
-//! use std::time::Duration;
-//!
-//! let source = SineWave::new(440.0).take_duration(Duration::from_secs(2));
-//! let distorted = source.distortion(2.0, 0.5);
-//! let (sink, output) = Sink::new();
-//! sink.append(distorted);
-//! sink.sleep_until_end();
-//! ```
-
 use std::time::Duration;
 
 use super::SeekError;

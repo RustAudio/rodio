@@ -1,7 +1,7 @@
 use rodio::source::{SineWave, Source};
 use std::error::Error;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Open the default output stream and get the mixer

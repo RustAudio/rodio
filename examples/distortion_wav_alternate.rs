@@ -1,5 +1,8 @@
 use std::error::Error;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::Duration;
 
@@ -17,15 +20,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let distortion_enabled_clone = distortion_enabled.clone();
 
     // Apply distortion and alternate the effect during playback
-    let distorted = source
-        .distortion(4.0, 0.3)
-        .periodic_access(Duration::from_millis(250), move |src| {
-            // src is &mut PeriodicAccess<Distortion<Decoder<...>>>
-            let enable = distortion_enabled_clone.load(Ordering::Relaxed);
-            // Call the setters on the distortion filter inside the source
-            src.set_gain(if enable { 4.0 } else { 1.0 });
-            src.set_threshold(if enable { 0.3 } else { 1.0 });
-        });
+    let distorted =
+        source
+            .distortion(4.0, 0.3)
+            .periodic_access(Duration::from_millis(250), move |src| {
+                // src is &mut PeriodicAccess<Distortion<Decoder<...>>>
+                let enable = distortion_enabled_clone.load(Ordering::Relaxed);
+                // Call the setters on the distortion filter inside the source
+                src.set_gain(if enable { 4.0 } else { 1.0 });
+                src.set_threshold(if enable { 0.3 } else { 1.0 });
+            });
 
     sink.append(distorted);
 

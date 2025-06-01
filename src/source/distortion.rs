@@ -16,16 +16,20 @@
 
 use std::time::Duration;
 
+use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
-use super::SeekError;
 
 /// Internal function that builds a `Distortion` object.
 pub fn distortion<I>(input: I, gain: f32, threshold: f32) -> Distortion<I>
 where
     I: Source,
 {
-    Distortion { input, gain, threshold }
+    Distortion {
+        input,
+        gain,
+        threshold,
+    }
 }
 
 /// Filter that applies a distortion effect to the source.

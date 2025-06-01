@@ -16,6 +16,7 @@ pub use self::channel_volume::ChannelVolume;
 pub use self::chirp::{chirp, Chirp};
 pub use self::crossfade::Crossfade;
 pub use self::delay::Delay;
+pub use self::distortion::Distortion;
 pub use self::done::Done;
 pub use self::empty::Empty;
 pub use self::empty_callback::EmptyCallback;
@@ -42,7 +43,6 @@ pub use self::take::TakeDuration;
 pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::Zero;
-pub use self::distortion::Distortion;
 
 mod agc;
 mod amplify;
@@ -52,6 +52,7 @@ mod channel_volume;
 mod chirp;
 mod crossfade;
 mod delay;
+mod distortion;
 mod done;
 mod empty;
 mod empty_callback;
@@ -78,7 +79,6 @@ mod take;
 mod triangle;
 mod uniform;
 mod zero;
-mod distortion;
 
 #[cfg(feature = "noise")]
 mod noise;

@@ -1,6 +1,8 @@
+use rodio::source::SeekError;
 use rodio::{ChannelCount, Decoder, Source};
 use rstest::rstest;
 use rstest_reuse::{self, *};
+use std::fs::File;
 use std::io::{Read, Seek};
 use std::path::Path;
 use std::time::Duration;
@@ -254,4 +256,27 @@ fn get_rl(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/RL").with_extension(format);
     let file = std::fs::File::open(asset).unwrap();
     Decoder::try_from(file).unwrap()
+}
+
+#[apply(supported_decoders)]
+#[trace]
+fn decoder_that_need_bytes_len_return_error(
+    #[case] format: &'static str,
+    #[case] decoder_name: &'static str,
+) {
+    if decoder_name != "symphonia" {
+        return;
+    }
+
+    let asset = Path::new("assets/music").with_extension(format);
+    let file = File::open(asset).unwrap();
+    let mut decoder = Decoder::builder()
+        .with_data(file)
+        .build()
+        .unwrap();
+
+    let res = decoder.try_seek(Duration::from_secs(2));
+    let Err(SeekError::NeedsBytesLen) = res else {
+        panic!("should not be able to seek without bytes_len.is_some()");
+    };
 }

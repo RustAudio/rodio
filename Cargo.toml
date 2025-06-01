@@ -17,6 +17,7 @@ hound = { version = "3.3.1", optional = true }
 lewton = { version = "0.10", optional = true }
 minimp3_fixed = { version = "0.5.4", optional = true }
 symphonia = { version = "0.5.4", optional = true, default-features = false }
+# symphonia = { git = "https://github.com/roderickvd/Symphonia", branch = "perf/faster-seeking", optional = true }
 crossbeam-channel = { version = "0.5.15", optional = true }
 
 rand = { version = "0.9.0", features = ["small_rng", "os_rng"], optional = true }

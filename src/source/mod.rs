@@ -614,6 +614,8 @@ pub enum SeekError {
         /// The source that did not support seek
         underlying_source: &'static str,
     },
+    /// The decoder needs to know the length of the underlying byte stream
+    NeedsBytesLen,
     #[cfg(feature = "symphonia")]
     /// The symphonia decoder ran into an issue
     SymphoniaDecoder(crate::decoder::symphonia::SeekError),
@@ -640,6 +642,7 @@ impl fmt::Display for SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {}", err),
             SeekError::Other(_) => write!(f, "An error occurred"),
+            SeekError::NeedsBytesLen => write!(f, "The decoder needs to know the length of the file/byte stream to be able to seek. You can set that by using the `DecoderBuilder` or creating a decoder using `Decoder::try_from(some_file)`"),
         }
     }
 }
@@ -651,6 +654,7 @@ impl std::error::Error for SeekError {
             SeekError::SymphoniaDecoder(err) => Some(err),
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(err) => Some(err),
+            SeekError::NeedsBytesLen => None,
             SeekError::Other(err) => Some(err.as_ref()),
         }
     }
@@ -669,6 +673,7 @@ impl SeekError {
     pub fn source_intact(&self) -> bool {
         match self {
             SeekError::NotSupported { .. } => true,
+            SeekError::NeedsBytesLen => true,
             #[cfg(feature = "symphonia")]
             SeekError::SymphoniaDecoder(_) => false,
             #[cfg(feature = "wav")]

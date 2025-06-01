@@ -6,7 +6,7 @@ use symphonia::{
         codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
         errors::Error,
         formats::{FormatOptions, FormatReader, SeekMode, SeekTo, SeekedTo},
-        io::MediaSourceStream,
+        io::{MediaSource, MediaSourceStream},
         meta::MetadataOptions,
         probe::Hint,
         units,
@@ -28,6 +28,8 @@ pub(crate) struct SymphoniaDecoder {
     buffer: SampleBuffer<Sample>,
     spec: SignalSpec,
     seek_mode: SeekMode,
+    /// Symphonia can only seek if bytes_len is availabile. When it is then this is true
+    can_seek: bool,
 }
 
 impl SymphoniaDecoder {
@@ -36,8 +38,8 @@ impl SymphoniaDecoder {
             Err(e) => match e {
                 Error::IoError(e) => Err(DecoderError::IoError(e.to_string())),
                 Error::DecodeError(e) => Err(DecoderError::DecodeError(e)),
-                Error::SeekError(_) => {
-                    unreachable!("Seek errors should not occur during initialization")
+                Error::SeekError(e) => {
+                    unreachable!("Seek errors should not occur during initialization, got: {e:?}")
                 }
                 Error::Unsupported(_) => Err(DecoderError::UnrecognizedFormat),
                 Error::LimitError(e) => Err(DecoderError::LimitError(e)),
@@ -74,6 +76,7 @@ impl SymphoniaDecoder {
         } else {
             SeekMode::Accurate
         };
+        let can_seek = mss.byte_len().is_some();
         let mut probed = get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
 
         let stream = match probed.format.default_track() {
@@ -145,6 +148,7 @@ impl SymphoniaDecoder {
             buffer,
             spec,
             seek_mode,
+            can_seek,
         }))
     }
 
@@ -179,6 +183,10 @@ impl Source for SymphoniaDecoder {
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), source::SeekError> {
+        if !self.can_seek {
+            return Err(source::SeekError::NeedsBytesLen);
+        }
+
         if matches!(self.seek_mode, SeekMode::Accurate)
             && self.decoder.codec_params().time_base.is_none()
         {

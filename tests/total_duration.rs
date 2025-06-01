@@ -55,7 +55,6 @@ fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     rodio::Decoder::builder()
         .with_data(file)
         .with_byte_len(len)
-        .with_seekable(true)
         .with_gapless(false)
         .build()
         .unwrap()

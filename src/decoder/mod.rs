@@ -25,7 +25,6 @@
 //! let decoder = Decoder::builder()
 //!     .with_data(file)
 //!     .with_byte_len(len)      // Enable seeking and duration calculation
-//!     .with_seekable(true)     // Enable seeking operations
 //!     .with_hint("mp3")        // Optional format hint
 //!     .with_gapless(true)      // Enable gapless playback
 //!     .build()
@@ -276,7 +275,6 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
         Self::builder()
             .with_data(BufReader::new(file))
             .with_byte_len(len)
-            .with_seekable(true)
             .build()
     }
 }

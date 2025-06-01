@@ -74,9 +74,6 @@ pub struct Settings {
     /// An MIME type hint for the decoder about the format of the stream.
     /// When known, this can help the decoder to select the correct demuxer.
     pub(crate) mime_type: Option<String>,
-
-    /// Whether the decoder should report as seekable.
-    pub(crate) is_seekable: bool,
 }
 
 impl Default for Settings {
@@ -87,7 +84,6 @@ impl Default for Settings {
             gapless: true,
             hint: None,
             mime_type: None,
-            is_seekable: false,
         }
     }
 }
@@ -225,37 +221,6 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// Common values are "audio/mpeg", "audio/vnd.wav", "audio/flac", "audio/ogg", etc.
     pub fn with_mime_type(mut self, mime_type: &str) -> Self {
         self.settings.mime_type = Some(mime_type.to_string());
-        self
-    }
-
-    /// Configure whether the decoder should report as seekable.
-    ///
-    /// For reliable seeking behavior, `byte_len` should be set either from file metadata
-    /// or by seeking to the end of the stream. While seeking may work without `byte_len`
-    /// for some formats, it is not guaranteed.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use std::fs::File;
-    /// use rodio::Decoder;
-    ///
-    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let file = File::open("audio.mp3")?;
-    ///     let len = file.metadata()?.len();
-    ///
-    ///     // Recommended: Set both byte_len and seekable
-    ///     let decoder = Decoder::builder()
-    ///         .with_data(file)
-    ///         .with_byte_len(len)
-    ///         .with_seekable(true)
-    ///         .build()?;
-    ///
-    ///     // Use the decoder...
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn with_seekable(mut self, is_seekable: bool) -> Self {
-        self.settings.is_seekable = is_seekable;
         self
     }
 

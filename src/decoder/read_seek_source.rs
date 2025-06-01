@@ -14,8 +14,6 @@ pub struct ReadSeekSource<T: Read + Seek + Send + Sync> {
     /// Optional length of the media source in bytes.
     /// When known, this can help with seeking and duration calculations.
     byte_len: Option<u64>,
-    /// Whether this media source reports as seekable.
-    is_seekable: bool,
 }
 
 impl<T: Read + Seek + Send + Sync> ReadSeekSource<T> {
@@ -29,16 +27,15 @@ impl<T: Read + Seek + Send + Sync> ReadSeekSource<T> {
         ReadSeekSource {
             inner,
             byte_len: settings.byte_len,
-            is_seekable: settings.is_seekable,
         }
     }
 }
 
 impl<T: Read + Seek + Send + Sync> MediaSource for ReadSeekSource<T> {
-    /// Returns whether this media source reports as seekable.
+    /// symphonia sources are only seekable if `byte_len.is_some()`
     #[inline]
     fn is_seekable(&self) -> bool {
-        self.is_seekable
+        self.byte_len.is_some()
     }
 
     /// Returns the total length of the media source in bytes, if known.

@@ -1,7 +1,7 @@
 use rodio::source::{SineWave, Source};
 use std::error::Error;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Open the default output stream and get the mixer
@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create a sine wave source and apply distortion
     let distorted = SineWave::new(440.0)
         .amplify(0.2)
-       // .distortion(4.0, 0.3)
+        .distortion(4.0, 0.3)
         .take_duration(Duration::from_secs(3));
 
     // Play the distorted sound

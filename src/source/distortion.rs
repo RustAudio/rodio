@@ -1,31 +1,19 @@
-//! Distortion filter for audio sources.
-//!
-//! # Example
-//!
-//! ```rust
-//! use rodio::source::{Source, SineWave};
-//! use rodio::Sink;
-//! use std::time::Duration;
-//!
-//! let source = SineWave::new(440.0).take_duration(Duration::from_secs(2));
-//! let distorted = source.distortion(2.0, 0.5);
-//! let (sink, output) = Sink::new();
-//! sink.append(distorted);
-//! sink.sleep_until_end();
-//! ```
-
 use std::time::Duration;
 
+use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
-use super::SeekError;
 
 /// Internal function that builds a `Distortion` object.
-pub fn distortion<I>(input: I, gain: f32, threshold: f32) -> Distortion<I>
+pub(crate) fn distortion<I>(input: I, gain: f32, threshold: f32) -> Distortion<I>
 where
     I: Source,
 {
-    Distortion { input, gain, threshold }
+    Distortion {
+        input,
+        gain,
+        threshold,
+    }
 }
 
 /// Filter that applies a distortion effect to the source.

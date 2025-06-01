@@ -1,30 +1,24 @@
-use rodio::source::Source;
-use rodio::Decoder;
+use rodio::source::{SineWave, Source};
 use std::error::Error;
-use std::fs::File;
-use std::io::BufReader;
-use std::thread;
 use std::time::Duration;
+use std::thread;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Open the default output stream and get the mixer
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let mixer = stream_handle.mixer();
 
-    // Open and decode the MP3 file
-    let file = File::open("assets/music.mp3")?;
-    let source = Decoder::try_from(BufReader::new(file))?;
-
-    // Apply distortion effect
-    let distorted = source
+    // Create a sine wave source and apply distortion
+    let distorted = SineWave::new(440.0)
+        .amplify(0.2)
         .distortion(4.0, 0.3)
-        .take_duration(Duration::from_secs(5));
+        .take_duration(Duration::from_secs(3));
 
     // Play the distorted sound
     mixer.add(distorted);
 
-    println!("Playing music.mp3 with distortion for 5 seconds...");
-    thread::sleep(Duration::from_secs(5));
+    println!("Playing distorted sine wave for 3 seconds...");
+    thread::sleep(Duration::from_secs(3));
     println!("Done.");
 
     Ok(())

@@ -1,7 +1,10 @@
+#![cfg_attr(not(feature = "playback"), allow(unused_imports))]
+
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
+#[cfg(feature = "playback")]
 fn main() -> Result<(), Box<dyn Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let sink = rodio::Sink::connect_new(stream_handle.mixer());
@@ -35,4 +38,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     Ok(())
+}
+
+#[cfg(not(feature = "playback"))]
+fn main() {
+    println!("rodio has not been compiled with playback, use `--features playback` to enable this feature.");
+    println!("Exiting...");
 }

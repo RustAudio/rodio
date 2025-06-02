@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use std::io::{Read, Seek};
 use std::path::Path;
 use std::time::Duration;
@@ -7,6 +10,17 @@ use rodio::{Decoder, Source};
 use rstest::rstest;
 use rstest_reuse::{self, *};
 
+#[cfg(any(
+    feature = "flac",
+    feature = "minimp3",
+    feature = "symphonia-aac",
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[template]
 #[rstest]
 #[cfg_attr(
@@ -61,6 +75,16 @@ fn get_music(format: &str) -> Decoder<impl Read + Seek> {
         .unwrap()
 }
 
+#[cfg(any(
+    feature = "flac",
+    feature = "minimp3",
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[apply(all_decoders)]
 #[trace]
 fn decoder_returns_total_duration(

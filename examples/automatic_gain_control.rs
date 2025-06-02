@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "playback"), allow(unused_imports))]
+
 use rodio::source::Source;
 use rodio::Decoder;
 use std::error::Error;
@@ -7,6 +9,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+#[cfg(feature = "playback")]
 fn main() -> Result<(), Box<dyn Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let sink = rodio::Sink::connect_new(stream_handle.mixer());
@@ -43,5 +46,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Keep the program running until the playback is complete.
     sink.sleep_until_end();
+
     Ok(())
+}
+
+#[cfg(not(feature = "playback"))]
+fn main() {
+    println!("rodio has not been compiled with playback, use `--features playback` to enable this feature.");
+    println!("Exiting...");
 }

@@ -1,8 +1,9 @@
 //! Noise generator example. Use the "noise" feature to enable the noise generator sources.
+#![cfg_attr(not(feature = "playback"), allow(unused_imports))]
 
 use std::error::Error;
 
-#[cfg(feature = "noise")]
+#[cfg(all(feature = "noise", feature = "playback"))]
 fn main() -> Result<(), Box<dyn Error>> {
     use rodio::source::{pink, white, Source};
     use std::thread;
@@ -30,8 +31,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[cfg(not(feature = "noise"))]
+#[cfg(not(all(feature = "noise", feature = "playback")))]
 fn main() {
-    println!("rodio has not been compiled with noise sources, use `--features noise` to enable this feature.");
+    println!("rodio has not been compiled with noise sources, use `--features noise,playback` to enable this feature.");
     println!("Exiting...");
 }

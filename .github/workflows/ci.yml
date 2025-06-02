@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
 
 env:
   RUSTFLAGS: "-C debuginfo=0 -D warnings"
@@ -18,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-latest, windows-latest, ubuntu-latest ]
-        toolchain: [ stable, beta, nightly ]
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        toolchain: [stable, beta, nightly]
         include:
           - os: macos-latest
             MACOS: true
@@ -49,6 +49,5 @@ jobs:
       # `cargo test` does not check benchmarks and `cargo test --all-targets` excludes
       # documentation tests. Therefore, we need an additional docs test command here.
       - run: cargo test --doc
-      # Check minimal build. `tests/seek.rs` fails if there are no decoders at all,
-      # adding one to make the tests check pass.
-      - run: cargo check --tests --lib --no-default-features --features mp3
+      # Check minimal build.
+      - run: cargo check --tests --lib --no-default-features

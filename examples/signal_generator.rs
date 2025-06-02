@@ -1,7 +1,9 @@
 //! Test signal generator example.
+#![cfg_attr(not(feature = "playback"), allow(unused_imports))]
 
 use std::error::Error;
 
+#[cfg(feature = "playback")]
 fn main() -> Result<(), Box<dyn Error>> {
     use rodio::source::{chirp, Function, SignalGenerator, Source};
     use std::thread;
@@ -68,4 +70,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     thread::sleep(interval_duration);
 
     Ok(())
+}
+
+#[cfg(not(feature = "playback"))]
+fn main() {
+    println!("rodio has not been compiled with playback, use `--features playback` to enable this feature.");
+    println!("Exiting...");
 }

@@ -1,6 +1,9 @@
+#![cfg_attr(not(feature = "playback"), allow(unused_imports))]
+
 use std::error::Error;
 use std::time::Duration;
 
+#[cfg(feature = "playback")]
 fn main() -> Result<(), Box<dyn Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let sink = rodio::Sink::connect_new(stream_handle.mixer());
@@ -21,4 +24,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("seek example ended");
 
     Ok(())
+}
+
+#[cfg(not(feature = "playback"))]
+fn main() {
+    println!("rodio has not been compiled with playback, use `--features playback` to enable this feature.");
+    println!("Exiting...");
 }

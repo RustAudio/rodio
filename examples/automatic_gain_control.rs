@@ -43,6 +43,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Keep the program running until the playback is complete.
     sink.sleep_until_end();
-
     Ok(())
 }

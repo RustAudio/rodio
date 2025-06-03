@@ -1,4 +1,5 @@
 //! Test signal generator example.
+
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {

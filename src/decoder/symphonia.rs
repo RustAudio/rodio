@@ -199,16 +199,20 @@ impl Source for SymphoniaDecoder {
         // Remember the current channel, so we can restore it after seeking.
         let active_channel = self.current_span_offset % self.channels() as usize;
 
-        let seek_res = self
-            .format
-            .seek(
-                self.seek_mode,
-                SeekTo::Time {
-                    time: target.into(),
-                    track_id: None,
-                },
-            )
-            .map_err(SeekError::BaseSeek)?;
+        let seek_res = match self.format.seek(
+            self.seek_mode,
+            SeekTo::Time {
+                time: target.into(),
+                track_id: None,
+            },
+        ) {
+            Err(Error::SeekError(symphonia::core::errors::SeekErrorKind::ForwardOnly)) => {
+                return Err(source::SeekError::SymphoniaDecoder(
+                    SeekError::RandomAccessNotSupported,
+                ));
+            }
+            other => other.map_err(SeekError::Demuxer),
+        }?;
 
         // Seeking is a demuxer operation without the decoder knowing about it,
         // so we need to reset the decoder to make sure it's in sync and prevent
@@ -242,18 +246,28 @@ pub enum SeekError {
     /// This error occurs when the decoder cannot extract time base information from the source.
     /// You may catch this error to try a coarse seek instead.
     AccurateSeekNotSupported,
-    /// Format reader failed to seek
-    BaseSeek(symphonia::core::errors::Error),
+    /// The decoder does not support random access seeking
+    ///
+    /// This error occurs when the source is not seekable or does not have a known byte length.
+    RandomAccessNotSupported,
+    /// Demuxer failed to seek
+    Demuxer(symphonia::core::errors::Error),
 }
 
 impl fmt::Display for SeekError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SeekError::AccurateSeekNotSupported => {
-                write!(f, "Accurate seeking is not supported")
+                write!(
+                    f,
+                    "Accurate seeking is not supported on this file/byte stream that lacks time base information"
+                )
             }
-            SeekError::BaseSeek(err) => {
-                write!(f, "Format reader failed to seek: {:?}", err)
+            SeekError::RandomAccessNotSupported => {
+                write!(f, "The decoder needs to know the length of the file/byte stream to be able to seek backwards. You can set that by using the `DecoderBuilder` or creating a decoder using `Decoder::try_from(some_file)`.")
+            }
+            SeekError::Demuxer(err) => {
+                write!(f, "Demuxer failed to seek: {:?}", err)
             }
         }
     }
@@ -263,7 +277,8 @@ impl std::error::Error for SeekError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             SeekError::AccurateSeekNotSupported => None,
-            SeekError::BaseSeek(err) => Some(err),
+            SeekError::RandomAccessNotSupported => None,
+            SeekError::Demuxer(err) => Some(err),
         }
     }
 }

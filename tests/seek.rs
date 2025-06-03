@@ -239,7 +239,36 @@ fn seek_does_not_break_channel_order(
     }
 }
 
-fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize> {
+#[test]
+fn random_access_seeks() {
+    // Decoder::new::<File> does *not* set byte_len and is_seekable
+    let mp3_file = std::fs::File::open("assets/music.mp3").unwrap();
+    let mut decoder = Decoder::new(mp3_file).unwrap();
+    assert!(
+        decoder.try_seek(Duration::from_secs(2)).is_ok(),
+        "forward seek should work without byte_len"
+    );
+    assert!(
+        decoder.try_seek(Duration::from_secs(1)).is_err(),
+        "backward seek should fail without byte_len"
+    );
+
+    // Decoder::try_from::<File> sets byte_len and is_seekable
+    let mut decoder = get_music("mp3");
+    assert!(
+        decoder.try_seek(Duration::from_secs(2)).is_ok(),
+        "forward seek should work with byte_len"
+    );
+    assert!(
+        decoder.try_seek(Duration::from_secs(1)).is_ok(),
+        "backward seek should work with byte_len"
+    );
+}
+
+fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize>
+where
+    R: Iterator<Item = f32>,
+{
     let channels = source.channels() as usize;
     let samples: Vec<f32> = source.by_ref().collect();
 

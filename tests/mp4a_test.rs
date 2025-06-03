@@ -8,6 +8,7 @@ fn test_mp4a_encodings() {
     // Licensed under Creative Commons: By Attribution 3.0
     // http://creativecommons.org/licenses/by/3.0/
     let file = std::fs::File::open("assets/monkeys.mp4a").unwrap();
-    let mut decoder = rodio::Decoder::try_from(file).unwrap();
+    // Open with `new` instead of `try_from` to ensure it works even without is_seekable
+    let mut decoder = rodio::Decoder::new(file).unwrap();
     assert!(decoder.any(|x| x != 0.0)); // Assert not all zeros
 }

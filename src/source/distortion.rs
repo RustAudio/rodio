@@ -67,13 +67,7 @@ where
         self.input.next().map(|value| {
             let v = value * self.gain;
             let t = self.threshold;
-            if v > t {
-                t
-            } else if v < -t {
-                -t
-            } else {
-                v
-            }
+            v.clamp(-t, t)
         })
     }
 

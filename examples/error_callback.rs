@@ -1,13 +1,9 @@
-#![cfg_attr(not(feature = "playback"), allow(unused_imports))]
-
-#[cfg(feature = "playback")]
 use cpal::traits::HostTrait;
 use rodio::source::SineWave;
 use rodio::Source;
 use std::error::Error;
 use std::time::Duration;
 
-#[cfg(feature = "playback")]
 fn main() -> Result<(), Box<dyn Error>> {
     // You can use any other output device that can be queried from CPAL.
     let default_device = cpal::default_host()
@@ -42,10 +38,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
-}
-
-#[cfg(not(feature = "playback"))]
-fn main() {
-    println!("rodio has not been compiled with playback, use `--features playback` to enable this feature.");
-    println!("Exiting...");
 }

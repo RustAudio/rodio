@@ -1,5 +1,3 @@
-#![cfg_attr(not(feature = "playback"), allow(unused_imports))]
-
 use rodio::source::SineWave;
 use rodio::Source;
 use std::error::Error;
@@ -7,7 +5,6 @@ use std::io::BufReader;
 use std::thread;
 use std::time::Duration;
 
-#[cfg(feature = "playback")]
 fn main() -> Result<(), Box<dyn Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let mixer = stream_handle.mixer();
@@ -52,10 +49,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     thread::sleep(Duration::from_millis(1500));
 
     Ok(())
-}
-
-#[cfg(not(feature = "playback"))]
-fn main() {
-    println!("rodio has not been compiled with playback, use `--features playback` to enable this feature.");
-    println!("Exiting...");
 }

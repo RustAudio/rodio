@@ -1,11 +1,8 @@
-#![cfg_attr(not(feature = "playback"), allow(unused_imports))]
-
 use rodio::mixer;
 use rodio::source::{SineWave, Source};
 use std::error::Error;
 use std::time::Duration;
 
-#[cfg(feature = "playback")]
 fn main() -> Result<(), Box<dyn Error>> {
     // Construct a dynamic controller and mixer, stream_handle, and sink.
     let (controller, mixer) = mixer::mixer(2, 44_100);
@@ -41,10 +38,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     sink.sleep_until_end();
 
     Ok(())
-}
-
-#[cfg(not(feature = "playback"))]
-fn main() {
-    println!("rodio has not been compiled with playback, use `--features playback` to enable this feature.");
-    println!("Exiting...");
 }

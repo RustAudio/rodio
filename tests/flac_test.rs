@@ -1,4 +1,6 @@
+#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
 use rodio::Source;
+#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
 use std::time::Duration;
 
 #[cfg(any(feature = "flac", feature = "symphonia-flac"))]

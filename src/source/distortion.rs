@@ -5,7 +5,7 @@ use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
 
 /// Internal function that builds a `Distortion` object.
-pub fn distortion<I>(input: I, gain: f32, threshold: f32) -> Distortion<I>
+pub(crate) fn distortion<I>(input: I, gain: f32, threshold: f32) -> Distortion<I>
 where
     I: Source,
 {

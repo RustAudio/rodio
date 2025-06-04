@@ -2,7 +2,6 @@
 
 use std::error::Error;
 
-#[cfg(feature = "noise")]
 fn main() -> Result<(), Box<dyn Error>> {
     use rodio::source::{pink, white, Source};
     use std::thread;
@@ -28,10 +27,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     thread::sleep(interval_duration);
 
     Ok(())
-}
-
-#[cfg(not(feature = "noise"))]
-fn main() {
-    println!("rodio has not been compiled with noise sources, use `--features noise` to enable this feature.");
-    println!("Exiting...");
 }

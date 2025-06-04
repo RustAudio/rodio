@@ -19,7 +19,10 @@ minimp3_fixed = { version = "0.5.4", optional = true }
 symphonia = { version = "0.5.4", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.15", optional = true }
 
-rand = { version = "0.9.0", features = ["small_rng", "os_rng"], optional = true }
+rand = { version = "0.9.0", features = [
+    "small_rng",
+    "os_rng",
+], optional = true }
 tracing = { version = "0.1.40", optional = true }
 
 atomic_float = { version = "1.1.0", optional = true }
@@ -72,27 +75,91 @@ divan = "0.1.14"
 [[bench]]
 name = "effects"
 harness = false
+required-features = ["wav"]
 
 [[bench]]
 name = "conversions"
 harness = false
+required-features = ["wav"]
 
 [[bench]]
 name = "resampler"
 harness = false
+required-features = ["wav"]
 
 [[bench]]
 name = "pipeline"
 harness = false
+required-features = ["wav"]
 
 [[example]]
-name = "music_m4a"
-required-features = ["symphonia-isomp4", "symphonia-aac"]
+name = "automatic_gain_control"
+required-features = ["playback", "flac"]
 
 [[example]]
-name = "noise_generator"
-required-features = ["noise"]
+name = "basic"
+required-features = ["playback", "vorbis"]
+
+[[example]]
+name = "callback_on_end"
+required-features = ["playback", "wav"]
+
+[[example]]
+name = "custom_config"
+required-features = ["playback", "wav"]
+
+[[example]]
+name = "error_callback"
+required-features = ["playback"]
 
 [[example]]
 name = "into_file"
-required-features = ["wav", "mp3"]
+required-features = ["mp3", "wav"]
+
+[[example]]
+name = "low_pass"
+required-features = ["playback", "wav"]
+
+[[example]]
+name = "mix_multiple_sources"
+required-features = ["playback"]
+
+[[example]]
+name = "music_m4a"
+required-features = ["playback", "symphonia-isomp4", "symphonia-aac"]
+
+[[example]]
+name = "music_mp3"
+required-features = ["playback", "mp3"]
+
+[[example]]
+name = "music_ogg"
+required-features = ["playback", "vorbis"]
+
+[[example]]
+name = "music_wav"
+required-features = ["playback", "wav"]
+
+[[example]]
+name = "noise_generator"
+required-features = ["playback", "noise"]
+
+[[example]]
+name = "reverb"
+required-features = ["playback", "vorbis"]
+
+[[example]]
+name = "seek_mp3"
+required-features = ["playback", "mp3"]
+
+[[example]]
+name = "signal_generator"
+required-features = ["playback"]
+
+[[example]]
+name = "spatial"
+required-features = ["playback", "vorbis"]
+
+[[example]]
+name = "stereo"
+required-features = ["playback", "vorbis"]

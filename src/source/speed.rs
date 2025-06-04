@@ -11,7 +11,8 @@
 //! To speed up a source from sink all you need to do is call the   `set_speed(factor: f32)` function
 //! For example, here is how you speed up your sound by using sink or playing raw:
 //!
-//! ```no_run
+#![cfg_attr(not(feature = "playback"), doc = "```ignore")]
+#![cfg_attr(feature = "playback", doc = "```no_run")]
 //!# use std::fs::File;
 //!# use rodio::{Decoder, Sink, OutputStream, source::{Source, SineWave}};
 //!
@@ -28,7 +29,8 @@
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //! Here is how you would do it using the sink:
-//!```no_run
+#![cfg_attr(not(feature = "playback"), doc = "```ignore")]
+#![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use rodio::source::{Source, SineWave};
 //! let source = SineWave::new(440.0)
 //!    .take_duration(std::time::Duration::from_secs_f32(20.25))

@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use std::io::{Read, Seek};
 use std::path::Path;
 use std::time::Duration;
@@ -7,6 +10,17 @@ use rodio::{Decoder, Source};
 use rstest::rstest;
 use rstest_reuse::{self, *};
 
+#[cfg(any(
+    feature = "flac",
+    feature = "minimp3",
+    feature = "symphonia-aac",
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[template]
 #[rstest]
 #[cfg_attr(
@@ -61,6 +75,16 @@ fn get_music(format: &str) -> Decoder<impl Read + Seek> {
         .unwrap()
 }
 
+#[cfg(any(
+    feature = "flac",
+    feature = "minimp3",
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[apply(all_decoders)]
 #[trace]
 fn decoder_returns_total_duration(
@@ -72,9 +96,7 @@ fn decoder_returns_total_duration(
     let decoder = get_music(format);
     let res = decoder
         .total_duration()
-        .expect(&format!(
-            "did not return a total duration, decoder: {decoder_name}"
-        ))
+        .unwrap_or_else(|| panic!("did not return a total duration, decoder: {decoder_name}"))
         .as_secs_f64();
     let correct_duration = correct_duration.as_secs_f64();
     let abs_diff = (res - correct_duration).abs();

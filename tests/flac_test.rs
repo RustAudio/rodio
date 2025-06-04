@@ -1,6 +1,6 @@
-#[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
+#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
 use rodio::Source;
-#[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
+#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
 use std::time::Duration;
 
 #[cfg(any(feature = "flac", feature = "symphonia-flac"))]
@@ -12,8 +12,6 @@ fn test_flac_encodings() {
 
     // File is not just silence
     assert!(decoder.any(|x| x != 0.0));
-    // Symphonia does not expose functionality to get the duration so this check must be disabled
-    #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
     assert_eq!(decoder.total_duration(), Some(Duration::from_secs(3))); // duration is calculated correctly
 
     // 24 bit FLAC file exported from Audacity (2 channels, various compression levels)
@@ -21,7 +19,6 @@ fn test_flac_encodings() {
         let file = std::fs::File::open(format!("assets/audacity24bit_level{level}.flac")).unwrap();
         let mut decoder = rodio::Decoder::try_from(file).unwrap();
         assert!(!decoder.all(|x| x != 0.0));
-        #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
         assert_eq!(decoder.total_duration(), Some(Duration::from_secs(3)));
     }
 }

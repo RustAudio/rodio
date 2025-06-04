@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use rodio::{ChannelCount, Decoder, Source};
 use rstest::rstest;
 use rstest_reuse::{self, *};
@@ -5,6 +8,17 @@ use std::io::{Read, Seek};
 use std::path::Path;
 use std::time::Duration;
 
+#[cfg(any(
+    feature = "flac",
+    feature = "minimp3",
+    feature = "symphonia-aac",
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[template]
 #[rstest]
 #[cfg_attr(
@@ -37,6 +51,14 @@ fn all_decoders(
 ) {
 }
 
+#[cfg(any(
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[template]
 #[rstest]
 #[cfg_attr(
@@ -56,6 +78,16 @@ fn all_decoders(
 #[cfg_attr(feature = "symphonia-flac", case("flac", "symphonia"))]
 fn supported_decoders(#[case] format: &'static str, #[case] decoder_name: &'static str) {}
 
+#[cfg(any(
+    feature = "flac",
+    feature = "minimp3",
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[apply(all_decoders)]
 #[trace]
 fn seek_returns_err_if_unsupported(
@@ -68,6 +100,14 @@ fn seek_returns_err_if_unsupported(
     assert_eq!(res.is_ok(), supports_seek, "decoder: {decoder_name}");
 }
 
+#[cfg(any(
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[apply(supported_decoders)]
 #[trace]
 fn seek_beyond_end_saturates(#[case] format: &'static str, #[case] decoder_name: &'static str) {
@@ -79,6 +119,14 @@ fn seek_beyond_end_saturates(#[case] format: &'static str, #[case] decoder_name:
     assert!(time_remaining(decoder) < Duration::from_secs(1));
 }
 
+#[cfg(any(
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[apply(supported_decoders)]
 #[trace]
 fn seek_results_in_correct_remaining_playtime(
@@ -107,6 +155,14 @@ fn seek_results_in_correct_remaining_playtime(
     }
 }
 
+#[cfg(any(
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[apply(supported_decoders)]
 #[trace]
 fn seek_possible_after_exausting_source(
@@ -121,6 +177,14 @@ fn seek_possible_after_exausting_source(
     assert!(source.next().is_some());
 }
 
+#[cfg(any(
+    feature = "symphonia-flac",
+    feature = "symphonia-mp3",
+    feature = "symphonia-isomp4",
+    feature = "symphonia-ogg",
+    feature = "symphonia-wav",
+    feature = "wav",
+))]
 #[apply(supported_decoders)]
 #[trace]
 fn seek_does_not_break_channel_order(
@@ -175,10 +239,7 @@ fn seek_does_not_break_channel_order(
     }
 }
 
-fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize>
-where
-    R: Iterator<Item = f32>,
-{
+fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize> {
     let channels = source.channels() as usize;
     let samples: Vec<f32> = source.by_ref().collect();
 

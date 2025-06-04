@@ -12,7 +12,8 @@
 //!
 //! Here is a complete example of how you would play an audio file:
 //!
-//! ```no_run
+#![cfg_attr(not(feature = "playback"), doc = "```ignore")]
+#![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use std::fs::File;
 //! use rodio::{Decoder, OutputStream, source::Source};
 //!
@@ -34,7 +35,8 @@
 //! ```
 //!
 //! [`rodio::play()`](crate::play) helps to simplify the above
-//! ```no_run
+#![cfg_attr(not(feature = "playback"), doc = "```ignore")]
+#![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use std::fs::File;
 //! use std::io::BufReader;
 //! use rodio::{Decoder, OutputStream, source::Source};
@@ -63,7 +65,8 @@
 //! To play a soung Create a [`Sink`] connect it to the output stream,
 //! and [`.append()`](Sink::append) your sound to it.
 //!
-//! ```no_run
+#![cfg_attr(not(feature = "playback"), doc = "```ignore")]
+#![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use std::time::Duration;
 //! use rodio::{OutputStream, Sink};
 //! use rodio::source::{SineWave, Source};
@@ -96,7 +99,8 @@
 //!
 //! Example:
 //!
-//! ```
+#![cfg_attr(not(feature = "playback"), doc = "```ignore")]
+#![cfg_attr(feature = "playback", doc = "```")]
 //! use rodio::Source;
 //! use std::time::Duration;
 //!
@@ -147,7 +151,15 @@
 //! on the number of sinks that can be created (except for the fact that creating too many will slow
 //! down your program).
 
-#![cfg_attr(test, deny(missing_docs))]
+#![cfg_attr(
+    any(test, not(feature = "playback")),
+    deny(missing_docs),
+    allow(dead_code),
+    allow(unused_imports),
+    allow(unused_variables),
+    allow(unreachable_code)
+)]
+
 #[cfg(feature = "playback")]
 pub use cpal::{
     self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,

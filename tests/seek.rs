@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+#[cfg(feature = "symphonia-mp3")]
+use rodio::{decoder::symphonia, source::SeekError};
 use rodio::{ChannelCount, Decoder, Source};
 use rstest::rstest;
 use rstest_reuse::{self, *};
@@ -239,6 +241,7 @@ fn seek_does_not_break_channel_order(
     }
 }
 
+#[cfg(feature = "symphonia-mp3")]
 #[test]
 fn random_access_seeks() {
     // Decoder::new::<File> does *not* set byte_len and is_seekable
@@ -249,7 +252,12 @@ fn random_access_seeks() {
         "forward seek should work without byte_len"
     );
     assert!(
-        decoder.try_seek(Duration::from_secs(1)).is_err(),
+        matches!(
+            decoder.try_seek(Duration::from_secs(1)),
+            Err(SeekError::SymphoniaDecoder(
+                symphonia::SeekError::RandomAccessNotSupported,
+            ))
+        ),
         "backward seek should fail without byte_len"
     );
 

@@ -109,6 +109,22 @@ name = "custom_config"
 required-features = ["playback", "wav"]
 
 [[example]]
+name = "distortion"
+required-features = ["playback"]
+
+[[example]]
+name = "distortion_mp3"
+required-features = ["playback", "mp3"]
+
+[[example]]
+name = "distortion_wav"
+required-features = ["playback", "wav"]
+
+[[example]]
+name = "distortion_wav_alternate"
+required-features = ["playback", "wav"]
+
+[[example]]
 name = "error_callback"
 required-features = ["playback"]
 
@@ -123,6 +139,10 @@ required-features = ["playback", "wav"]
 [[example]]
 name = "mix_multiple_sources"
 required-features = ["playback"]
+
+[[example]]
+name = "music_flac"
+required-features = ["playback", "flac"]
 
 [[example]]
 name = "music_m4a"

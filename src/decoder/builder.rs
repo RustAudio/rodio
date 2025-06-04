@@ -165,6 +165,8 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// - Reliable seeking operations
     /// - Duration calculations in formats that lack timing information (e.g. MP3, Vorbis)
     ///
+    /// Note that this also sets `is_seekable` to `true`.
+    ///
     /// The byte length should typically be obtained from file metadata:
     /// ```no_run
     /// use std::fs::File;
@@ -189,10 +191,11 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// incorrect duration calculations and seeking errors.
     pub fn with_byte_len(mut self, byte_len: u64) -> Self {
         self.settings.byte_len = Some(byte_len);
+        self.settings.is_seekable = true;
         self
     }
 
-    /// Enables or disables coarse seeking.
+    /// Enables or disables coarse seeking. This is disabled by default.
     ///
     /// This needs `byte_len` to be set. Coarse seeking is faster but less accurate:
     /// it may seek to a position slightly before or after the requested one,
@@ -202,7 +205,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
         self
     }
 
-    /// Enables or disables gapless playback.
+    /// Enables or disables gapless playback. This is enabled by default.
     ///
     /// When enabled, removes silence between tracks for formats that support it.
     pub fn with_gapless(mut self, gapless: bool) -> Self {
@@ -228,7 +231,8 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
         self
     }
 
-    /// Configure whether the decoder should report as seekable.
+    /// Configure whether the data supports random access seeking. Without this,
+    /// only forward seeking may work.
     ///
     /// For reliable seeking behavior, `byte_len` should be set either from file metadata
     /// or by seeking to the end of the stream. While seeking may work without `byte_len`

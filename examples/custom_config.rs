@@ -31,5 +31,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Beep...");
     thread::sleep(Duration::from_millis(1500));
 
+    stream_handle.close();
     Ok(())
 }

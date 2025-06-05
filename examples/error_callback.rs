@@ -37,5 +37,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         eprintln!("Error with stream {}", err);
     }
 
+    stream_handle.close();
     Ok(())
 }

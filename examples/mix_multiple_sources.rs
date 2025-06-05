@@ -37,5 +37,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Sleep the thread until sink is empty.
     sink.sleep_until_end();
 
+    stream_handle.close();
     Ok(())
 }

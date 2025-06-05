@@ -20,5 +20,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     sink.try_seek(Duration::from_secs(5))?;
     println!("seek example ended");
 
+    stream_handle.close();
     Ok(())
 }

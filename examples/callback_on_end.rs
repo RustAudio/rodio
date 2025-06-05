@@ -34,5 +34,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         playlist_pos.load(Ordering::Relaxed)
     );
 
+    stream_handle.close();
     Ok(())
 }

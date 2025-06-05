@@ -8,8 +8,8 @@ use dasp_sample::FromSample;
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::mixer::Mixer;
 use crate::source::SeekError;
+use crate::stream::{OutputMixer, OutputStreamTracker};
 use crate::{queue, source::Done, Source};
 
 /// Handle to a device that outputs sounds.
@@ -17,6 +17,7 @@ use crate::{queue, source::Done, Source};
 /// Dropping the `Sink` stops all its sounds. You can use `detach` if you want the sounds to continue
 /// playing.
 pub struct Sink {
+    output_counter: Option<OutputStreamTracker>,
     queue_tx: Arc<queue::SourcesQueueInput>,
     sleep_until_end: Mutex<Option<Receiver<()>>>,
 
@@ -69,9 +70,10 @@ struct Controls {
 impl Sink {
     /// Builds a new `Sink`, beginning playback on a stream.
     #[inline]
-    pub fn connect_new(mixer: &Mixer) -> Sink {
-        let (sink, source) = Sink::new();
+    pub fn connect_new(mixer: OutputMixer) -> Sink {
+        let (mut sink, source) = Sink::new();
         mixer.add(source);
+        sink.output_counter = Some(mixer.output_counter);
         sink
     }
 
@@ -94,6 +96,7 @@ impl Sink {
             }),
             sound_count: Arc::new(AtomicUsize::new(0)),
             detached: false,
+            output_counter: None,
         };
         (sink, queue_rx)
     }

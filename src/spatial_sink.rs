@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use dasp_sample::FromSample;
 
-use crate::mixer::Mixer;
 use crate::source::{SeekError, Spatial};
+use crate::stream::OutputMixer;
 use crate::{Sink, Source};
 
 /// A sink that allows changing the position of the source and the listeners
@@ -25,7 +25,7 @@ struct SoundPositions {
 impl SpatialSink {
     /// Builds a new `SpatialSink`.
     pub fn connect_new(
-        mixer: &Mixer,
+        mixer: OutputMixer,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
         right_ear: [f32; 3],

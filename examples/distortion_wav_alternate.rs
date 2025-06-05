@@ -45,5 +45,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Wait for playback to finish
     sink.sleep_until_end();
 
+    stream_handle.close();
     Ok(())
 }

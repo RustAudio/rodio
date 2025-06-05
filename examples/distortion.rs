@@ -21,5 +21,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     thread::sleep(Duration::from_secs(3));
     println!("Done.");
 
+    stream_handle.close();
     Ok(())
 }

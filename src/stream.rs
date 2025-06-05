@@ -13,6 +13,10 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Sample, SampleFormat, StreamConfig};
 use std::io::{Read, Seek};
 use std::marker::Sync;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
 use std::{error, fmt};
 
 const HZ_44100: SampleRate = 44_100;
@@ -21,14 +25,32 @@ const HZ_44100: SampleRate = 44_100;
 /// Use `mixer()` method to control output.
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
-    mixer: Mixer,
-    _stream: cpal::Stream,
+    mixer: OutputMixer,
+}
+
+impl OutputMixer {
+    /// Adds a new source to mix to the existing ones.
+    #[inline]
+    pub fn add<T>(&self, source: T)
+    where
+        T: crate::Source + Send + 'static,
+    {
+        self.inner.add(source);
+    }
+}
+
+/// A mixer that mixes into the output, any source added to this
+/// will play over the output.
+#[derive(Clone)]
+pub struct OutputMixer {
+    pub(crate) output_counter: OutputStreamTracker,
+    inner: Mixer,
 }
 
 impl OutputStream {
     /// Access the output stream's mixer.
-    pub fn mixer(&self) -> &Mixer {
-        &self.mixer
+    pub fn mixer(&self) -> OutputMixer {
+        self.mixer.clone()
     }
 }
 
@@ -292,7 +314,7 @@ where
 
 /// A convenience function. Plays a sound once.
 /// Returns a `Sink` that can be used to control the sound.
-pub fn play<R>(mixer: &Mixer, input: R) -> Result<Sink, PlayError>
+pub fn play<R>(mixer: OutputMixer, input: R) -> Result<Sink, PlayError>
 where
     R: Read + Seek + Send + Sync + 'static,
 {
@@ -392,6 +414,26 @@ impl error::Error for StreamError {
     }
 }
 
+#[derive(Debug, Default)]
+pub(crate) struct OutputStreamTracker {
+    counter: Arc<AtomicU32>,
+}
+
+impl Clone for OutputStreamTracker {
+    fn clone(&self) -> Self {
+        self.counter.fetch_add(1, Ordering::Relaxed);
+        Self {
+            counter: self.counter.clone(),
+        }
+    }
+}
+
+impl Drop for OutputStreamTracker {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 impl OutputStream {
     fn validate_config(config: &OutputStreamConfig) {
         if let BufferSize::Fixed(sz) = config.buffer_size {
@@ -413,14 +455,26 @@ impl OutputStream {
         E: FnMut(cpal::StreamError) + Send + 'static,
     {
         Self::validate_config(config);
+        let output_counter = OutputStreamTracker::default();
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
-        Self::init_stream(device, config, source, error_callback).and_then(|stream| {
-            stream.play().map_err(StreamError::PlayStreamError)?;
-            Ok(Self {
-                _stream: stream,
-                mixer: controller,
-            })
-        })
+        let mixer = OutputMixer {
+            output_counter: output_counter.clone(),
+            inner: controller,
+        };
+        {
+            let device = device.clone();
+            let config = config.clone();
+            std::thread::spawn(move || {
+                let stream = Self::init_stream(&device, &config, source, error_callback).unwrap();
+                stream.play().map_err(StreamError::PlayStreamError).unwrap();
+
+                while output_counter.counter.load(Ordering::Relaxed) > 0 {
+                    sleep(Duration::from_millis(100));
+                    dbg!(&output_counter);
+                }
+            });
+        }
+        Ok(Self { mixer })
     }
 
     fn init_stream<E>(

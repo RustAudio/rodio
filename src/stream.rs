@@ -32,11 +32,13 @@ impl OutputStream {
         &self.mixer
     }
 
+    /// Access the output stream's config.
     pub fn config(&self) -> &OutputStreamConfig {
         &self.config
     }
 }
 
+/// Describes the output stream's configuration
 #[derive(Copy, Clone, Debug)]
 pub struct OutputStreamConfig {
     channel_count: ChannelCount,
@@ -57,18 +59,22 @@ impl Default for OutputStreamConfig {
 }
 
 impl OutputStreamConfig {
+    /// Access the output stream config's channel count.
     pub fn channel_count(&self) -> ChannelCount {
         self.channel_count
     }
 
+    /// Access the output stream config's sample rate.
     pub fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
 
+    /// Access the output stream config's buffer size.
     pub fn buffer_size(&self) -> &BufferSize {
         &self.buffer_size
     }
 
+    /// Access the output stream config's sample format.
     pub fn sample_format(&self) -> SampleFormat {
         self.sample_format
     }

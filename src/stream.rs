@@ -448,7 +448,7 @@ impl OutputStream {
             Ok(Self {
                 _stream: stream,
                 mixer: controller,
-                config: config.clone(),
+                config: *config,
             })
         })
     }

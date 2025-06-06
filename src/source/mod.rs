@@ -14,6 +14,7 @@ pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
 pub use self::channel_volume::ChannelVolume;
 pub use self::chirp::{chirp, Chirp};
+pub use self::compressor::Compressor;
 pub use self::crossfade::Crossfade;
 pub use self::delay::Delay;
 pub use self::distortion::Distortion;
@@ -50,6 +51,7 @@ mod blt;
 mod buffered;
 mod channel_volume;
 mod chirp;
+mod compressor;
 mod crossfade;
 mod delay;
 mod distortion;
@@ -583,6 +585,15 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
     {
         distortion::distortion(self, gain, threshold)
+    }
+
+    /// Applies a compressor effect to the sound.
+    #[inline]
+    fn compressor(self, threshold: f32, ratio: f32, attack: f32, release: f32) -> Compressor<Self>
+    where
+        Self: Sized,
+    {
+        compressor::compressor(self, threshold, ratio, attack, release)
     }
 
     // There is no `can_seek()` method as it is impossible to use correctly. Between

@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Using `Decoder::TryFrom` for `File` now automatically wraps in `BufReader` and sets `byte_len`.
   `TryFrom<Cursor<T>>` and `TryFrom<BufReader>` are also supported.
 - Added `Source::distortion()` method to control distortion effect by `gain` and `threshold`.
+- Added `Source::compressor()` method for dynamic range compression with threshold, ratio, attack, and release parameters.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.

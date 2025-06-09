@@ -9,35 +9,31 @@ documentation = "https://docs.rs/rodio"
 exclude = ["assets/**", "tests/**"]
 edition = "2021"
 
-[dependencies]
-cpal = { version = "0.16.0", optional = true }
-dasp_sample = "0.11.0"
-claxon = { version = "0.4.2", optional = true }
-hound = { version = "3.3.1", optional = true }
-lewton = { version = "0.10", optional = true }
-minimp3_fixed = { version = "0.5.4", optional = true }
-symphonia = { version = "0.5.4", optional = true, default-features = false }
-crossbeam-channel = { version = "0.5.15", optional = true }
-
-rand = { version = "0.9.0", features = [
-    "small_rng",
-    "os_rng",
-], optional = true }
-tracing = { version = "0.1.40", optional = true }
-
-atomic_float = { version = "1.1.0", optional = true }
-num-rational = "0.4.2"
-
 [features]
+# Default feature set provides audio playback and common format support
 default = ["playback", "flac", "mp3", "mp4", "vorbis", "wav"]
-tracing = ["dep:tracing"]
-experimental = ["dep:atomic_float"]
-playback = ["dep:cpal"]
-wav_output = ["dep:hound"]
 
+# Core functionality features
+#
+# Enable audio playback
+playback = ["dep:cpal"]
+# Enable writing audio to WAV files
+wav_output = ["dep:hound"]
+# Enable structured observability and instrumentation
+tracing = ["dep:tracing"]
+# Experimental features using atomic floating-point operations
+experimental = ["dep:atomic_float"]
+
+# Audio generation features
+#
+# Enable noise generation (white noise, pink noise, etc.)
 noise = ["rand"]
 
+# Platform-specific features
+#
+# Enable WebAssembly support for web browsers
 wasm-bindgen = ["cpal/wasm-bindgen"]
+# Use shared C++ stdlib on Android (reduces APK size, fixes linking issues)
 cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
 
 # To decode an audio source with Rodio, you need to enable the appropriate features for *both* the
@@ -47,7 +43,7 @@ cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
 # - .mp3 is an MPEG-1 Audio Layer III file, which is a container format that uses the MP3 codec
 # - .mp4 is an MPEG-4 container, typically (but not always) with an AAC-encoded audio stream
 # - .ogg is an Ogg container with a Vorbis-encoded audio stream
-
+#
 # A reasonable set of audio demuxers and decoders for most applications.
 flac = ["symphonia-flac"]
 mp3 = ["symphonia-mp3"]
@@ -88,6 +84,25 @@ claxon = ["dep:claxon"]         # FLAC
 hound = ["dep:hound"]           # WAV
 minimp3 = ["dep:minimp3_fixed"] # MP3
 lewton = ["dep:lewton"]         # Ogg Vorbis
+
+[dependencies]
+cpal = { version = "0.15.3", optional = true }
+dasp_sample = "0.11.0"
+claxon = { version = "0.4.2", optional = true }
+hound = { version = "3.3.1", optional = true }
+lewton = { version = "0.10", optional = true }
+minimp3_fixed = { version = "0.5.4", optional = true }
+symphonia = { version = "0.5.4", optional = true, default-features = false }
+crossbeam-channel = { version = "0.5.15", optional = true }
+
+rand = { version = "0.9.0", features = [
+    "small_rng",
+    "os_rng",
+], optional = true }
+tracing = { version = "0.1.40", optional = true }
+
+atomic_float = { version = "1.1.0", optional = true }
+num-rational = "0.4.2"
 
 [dev-dependencies]
 quickcheck = "1"

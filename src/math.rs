@@ -161,7 +161,7 @@ mod test {
 
             // Test implementation precision against exact mathematical result
             let relative_error = ((actual_linear - exact_linear) / exact_linear).abs();
-            const MAX_RELATIVE_ERROR: f32 = 5.0 * f32::EPSILON; // Measured max error: 2.3x ε (at -100dB), with 2x safety margin
+            const MAX_RELATIVE_ERROR: f32 = 5.0 * f32::EPSILON; // max error: 2.3x ε (at -100dB), with 2x safety margin
 
             assert!(
                 relative_error < MAX_RELATIVE_ERROR,
@@ -193,7 +193,7 @@ mod test {
             if exact_db.abs() > 10.0 * f32::EPSILON {
                 // Use relative error for non-zero dB values
                 let relative_error = ((actual_db - exact_db) / exact_db.abs()).abs();
-                const MAX_RELATIVE_ERROR: f32 = 5.0 * f32::EPSILON; // Measured max error: 1.0x ε, with 5x safety margin
+                const MAX_RELATIVE_ERROR: f32 = 5.0 * f32::EPSILON; // max error: 1.0x ε, with 5x safety margin
 
                 assert!(
                     relative_error < MAX_RELATIVE_ERROR,
@@ -240,7 +240,7 @@ mod test {
             let round_trip_db = linear_to_db(linear);
 
             let error = (round_trip_db - original_db).abs();
-            const MAX_ROUND_TRIP_ERROR: f32 = 16.0 * f32::EPSILON; // Measured max error: 8x ε (practical audio range), with 2x safety margin
+            const MAX_ROUND_TRIP_ERROR: f32 = 16.0 * f32::EPSILON; // max error: 8x ε (practical audio range), with 2x safety margin
 
             assert!(
                 error < MAX_ROUND_TRIP_ERROR,

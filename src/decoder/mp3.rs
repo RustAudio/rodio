@@ -111,7 +111,7 @@ where
         let v = self.current_span.data[self.current_span_offset];
         self.current_span_offset += 1;
 
-        Some(v.into())
+        Some(v.to_sample())
     }
 }
 

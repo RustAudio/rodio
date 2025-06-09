@@ -1,9 +1,9 @@
-#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
+#[cfg(any(feature = "claxon", feature = "symphonia-flac"))]
 use rodio::Source;
-#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
+#[cfg(any(feature = "claxon", feature = "symphonia-flac"))]
 use std::time::Duration;
 
-#[cfg(any(feature = "flac", feature = "symphonia-flac"))]
+#[cfg(any(feature = "claxon", feature = "symphonia-flac"))]
 #[test]
 fn test_flac_encodings() {
     // 16 bit FLAC file exported from Audacity (2 channels, compression level 5)

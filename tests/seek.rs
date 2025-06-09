@@ -11,7 +11,7 @@ use std::path::Path;
 use std::time::Duration;
 
 #[cfg(any(
-    feature = "flac",
+    feature = "claxon",
     feature = "minimp3",
     feature = "symphonia-aac",
     feature = "symphonia-flac",
@@ -19,7 +19,7 @@ use std::time::Duration;
     feature = "symphonia-isomp4",
     feature = "symphonia-ogg",
     feature = "symphonia-wav",
-    feature = "wav",
+    feature = "hound",
 ))]
 #[template]
 #[rstest]
@@ -32,11 +32,11 @@ use std::time::Duration;
     case("mp3", false, "minimp3")
 )]
 #[cfg_attr(
-    all(feature = "wav", not(feature = "symphonia-wav")),
+    all(feature = "hound", not(feature = "symphonia-wav")),
     case("wav", true, "hound")
 )]
 #[cfg_attr(
-    all(feature = "flac", not(feature = "symphonia-flac")),
+    all(feature = "claxon", not(feature = "symphonia-flac")),
     case("flac", false, "claxon")
 )]
 #[cfg_attr(feature = "symphonia-mp3", case("mp3", true, "symphonia"))]
@@ -59,7 +59,7 @@ fn all_decoders(
     feature = "symphonia-isomp4",
     feature = "symphonia-ogg",
     feature = "symphonia-wav",
-    feature = "wav",
+    feature = "hound",
 ))]
 #[template]
 #[rstest]
@@ -68,7 +68,7 @@ fn all_decoders(
     case("ogg", "symphonia")
 )]
 #[cfg_attr(
-    all(feature = "wav", not(feature = "symphonia-wav")),
+    all(feature = "hound", not(feature = "symphonia-wav")),
     case("wav", "hound")
 )]
 #[cfg_attr(feature = "symphonia-mp3", case("mp3", "symphonia"))]
@@ -81,14 +81,14 @@ fn all_decoders(
 fn supported_decoders(#[case] format: &'static str, #[case] decoder_name: &'static str) {}
 
 #[cfg(any(
-    feature = "flac",
+    feature = "claxon",
     feature = "minimp3",
     feature = "symphonia-flac",
     feature = "symphonia-mp3",
     feature = "symphonia-isomp4",
     feature = "symphonia-ogg",
     feature = "symphonia-wav",
-    feature = "wav",
+    feature = "hound",
 ))]
 #[apply(all_decoders)]
 #[trace]
@@ -108,7 +108,7 @@ fn seek_returns_err_if_unsupported(
     feature = "symphonia-isomp4",
     feature = "symphonia-ogg",
     feature = "symphonia-wav",
-    feature = "wav",
+    feature = "hound",
 ))]
 #[apply(supported_decoders)]
 #[trace]
@@ -127,7 +127,7 @@ fn seek_beyond_end_saturates(#[case] format: &'static str, #[case] decoder_name:
     feature = "symphonia-isomp4",
     feature = "symphonia-ogg",
     feature = "symphonia-wav",
-    feature = "wav",
+    feature = "hound",
 ))]
 #[apply(supported_decoders)]
 #[trace]
@@ -163,7 +163,7 @@ fn seek_results_in_correct_remaining_playtime(
     feature = "symphonia-isomp4",
     feature = "symphonia-ogg",
     feature = "symphonia-wav",
-    feature = "wav",
+    feature = "hound",
 ))]
 #[apply(supported_decoders)]
 #[trace]
@@ -185,7 +185,7 @@ fn seek_possible_after_exausting_source(
     feature = "symphonia-isomp4",
     feature = "symphonia-ogg",
     feature = "symphonia-wav",
-    feature = "wav",
+    feature = "hound",
 ))]
 #[apply(supported_decoders)]
 #[trace]

@@ -1,36 +1,33 @@
 //! Example demonstrating the new LimitSettings API for audio limiting.
 //!
-//! This example shows how to use the LimitSettings struct with the builder pattern
+//! This example shows how to use the LimitSettings struct with the builder
 //! to configure audio limiting parameters.
 
 use rodio::source::{LimitSettings, SineWave, Source};
 use std::time::Duration;
 
 fn main() {
-    // Example 1: Using default settings
     println!("Example 1: Default LimitSettings");
-    let default_settings = LimitSettings::default();
-    println!("  Threshold: {} dB", default_settings.threshold);
-    println!("  Knee width: {} dB", default_settings.knee_width);
-    println!("  Attack: {:?}", default_settings.attack);
-    println!("  Release: {:?}", default_settings.release);
+    let default_limiting = LimitSettings::default();
+    println!("  Threshold: {} dB", default_limiting.threshold);
+    println!("  Knee width: {} dB", default_limiting.knee_width);
+    println!("  Attack: {:?}", default_limiting.attack);
+    println!("  Release: {:?}", default_limiting.release);
     println!();
 
-    // Example 2: Using builder pattern for custom settings
     println!("Example 2: Custom LimitSettings with builder pattern");
-    let custom_settings = LimitSettings::new()
+    let custom_limiting = LimitSettings::new()
         .with_threshold(-3.0)
         .with_knee_width(2.0)
         .with_attack(Duration::from_millis(10))
         .with_release(Duration::from_millis(50));
 
-    println!("  Threshold: {} dB", custom_settings.threshold);
-    println!("  Knee width: {} dB", custom_settings.knee_width);
-    println!("  Attack: {:?}", custom_settings.attack);
-    println!("  Release: {:?}", custom_settings.release);
+    println!("  Threshold: {} dB", custom_limiting.threshold);
+    println!("  Knee width: {} dB", custom_limiting.knee_width);
+    println!("  Attack: {:?}", custom_limiting.attack);
+    println!("  Release: {:?}", custom_limiting.release);
     println!();
 
-    // Example 3: Applying limiter to a sine wave with default settings
     println!("Example 3: Applying limiter to a sine wave with default settings");
 
     // Create a sine wave at 440 Hz
@@ -50,7 +47,6 @@ fn main() {
     println!("  Peak amplitude after limiting: {:.3}", max_sample);
     println!();
 
-    // Example 4: Applying custom settings with builder pattern
     println!("Example 4: Custom settings with builder pattern");
 
     // Create another sine wave for custom limiting
@@ -59,7 +55,7 @@ fn main() {
         .take_duration(Duration::from_millis(50));
 
     // Apply the custom settings from Example 2
-    let custom_limited = sine_wave2.limit(custom_settings);
+    let custom_limited = sine_wave2.limit(custom_limiting);
     let custom_samples: Vec<f32> = custom_limited.take(50).collect();
     println!(
         "  Generated {} samples with custom settings",
@@ -67,18 +63,15 @@ fn main() {
     );
     println!();
 
-    // Example 5: Different limiting scenarios
     println!("Example 5: Comparing different limiting scenarios");
 
-    // Gentle limiting
-    let gentle_settings = LimitSettings::default()
+    let gentle_limiting = LimitSettings::default()
         .with_threshold(-6.0)           // Higher threshold (less limiting)
         .with_knee_width(8.0)           // Wide knee (softer)
         .with_attack(Duration::from_millis(20))    // Slower attack
         .with_release(Duration::from_millis(200)); // Slower release
 
-    // Aggressive limiting
-    let aggressive_settings = LimitSettings::default()
+    let aggressive_limiting = LimitSettings::default()
         .with_threshold(-1.0)           // Lower threshold (more limiting)
         .with_knee_width(1.0)           // Narrow knee (harder)
         .with_attack(Duration::from_millis(2))    // Fast attack
@@ -87,42 +80,25 @@ fn main() {
     println!("  Gentle limiting:");
     println!(
         "    Threshold: {} dB, Knee: {} dB",
-        gentle_settings.threshold, gentle_settings.knee_width
+        gentle_limiting.threshold, gentle_limiting.knee_width
     );
     println!(
         "    Attack: {:?}, Release: {:?}",
-        gentle_settings.attack, gentle_settings.release
+        gentle_limiting.attack, gentle_limiting.release
     );
 
     println!("  Aggressive limiting:");
     println!(
         "    Threshold: {} dB, Knee: {} dB",
-        aggressive_settings.threshold, aggressive_settings.knee_width
+        aggressive_limiting.threshold, aggressive_limiting.knee_width
     );
     println!(
         "    Attack: {:?}, Release: {:?}",
-        aggressive_settings.attack, aggressive_settings.release
+        aggressive_limiting.attack, aggressive_limiting.release
     );
     println!();
 
-    // Example 6: Chaining with other effects
-    println!("Example 6: Chaining limiter with other effects");
-
-    let complex_chain = SineWave::new(220.0)
-        .amplify(1.5)                              // Add some gain
-        .limit(LimitSettings::default()            // Apply limiting with default + threshold
-            .with_threshold(-2.0))
-        .take_duration(Duration::from_millis(50));
-
-    let chained_samples: Vec<f32> = complex_chain.take(50).collect();
-    println!(
-        "  Generated {} samples from chained effects",
-        chained_samples.len()
-    );
-    println!();
-
-    // Example 7: Limiting demonstration
-    println!("Example 7: Limiting with -6dB threshold");
+    println!("Example 6: Limiting with -6dB threshold");
 
     // Create a sine wave that will definitely trigger limiting
     const AMPLITUDE: f32 = 2.5; // High amplitude to ensure limiting occurs
@@ -131,13 +107,13 @@ fn main() {
         .take_duration(Duration::from_millis(100)); // 100ms = ~4410 samples
 
     // Apply limiting with -6dB threshold (should limit to ~0.5)
-    let strict_settings = LimitSettings::default()
+    let strict_limiting = LimitSettings::default()
         .with_threshold(-6.0)
         .with_knee_width(0.5)                     // Narrow knee for precise limiting
         .with_attack(Duration::from_millis(3))    // Fast attack
         .with_release(Duration::from_millis(12)); // Moderate release
 
-    let limited_sine = test_sine.limit(strict_settings.clone());
+    let limited_sine = test_sine.limit(strict_limiting.clone());
     let test_samples: Vec<f32> = limited_sine.take(4410).collect();
 
     // Analyze peaks at different time periods
@@ -152,14 +128,14 @@ fn main() {
         .fold(0.0f32, |acc, &x| acc.max(x.abs()));
 
     // With -6dB threshold, ALL samples are well below 1.0!
-    let target_linear = 10.0_f32.powf(strict_settings.threshold / 20.0);
+    let target_linear = 10.0_f32.powf(strict_limiting.threshold / 20.0);
     let max_settled = test_samples[2000..]
         .iter()
         .fold(0.0f32, |acc, &x| acc.max(x.abs()));
 
     println!(
         "  {}dB threshold limiting results:",
-        strict_settings.threshold
+        strict_limiting.threshold
     );
     println!("    Original max amplitude: {AMPLITUDE}");
     println!("    Target threshold: {:.3}", target_linear);

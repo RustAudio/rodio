@@ -167,7 +167,6 @@ pub use cpal::{
 };
 
 mod common;
-mod math;
 mod sink;
 mod spatial_sink;
 #[cfg(feature = "playback")]
@@ -178,6 +177,7 @@ mod wav_output;
 pub mod buffer;
 pub mod conversions;
 pub mod decoder;
+pub mod math;
 pub mod mixer;
 pub mod queue;
 pub mod source;

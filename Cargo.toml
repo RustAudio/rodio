@@ -133,6 +133,10 @@ name = "into_file"
 required-features = ["mp3", "wav"]
 
 [[example]]
+name = "limit_wav"
+required-features = ["playback", "wav"]
+
+[[example]]
 name = "low_pass"
 required-features = ["playback", "wav"]
 

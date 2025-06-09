@@ -3,9 +3,11 @@
 use core::fmt;
 use core::time::Duration;
 
-use crate::common::{ChannelCount, SampleRate};
-use crate::Sample;
-use amplify::to_linear;
+use crate::{
+    common::{ChannelCount, SampleRate},
+    math, Sample,
+};
+
 use dasp_sample::FromSample;
 
 pub use self::agc::AutomaticGainControl;
@@ -253,7 +255,7 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized,
     {
-        amplify::amplify(self, to_linear(value))
+        amplify::amplify(self, math::db_to_linear(value))
     }
 
     /// Normalized amplification in `[0.0, 1.0]` range. This method better matches the perceived
@@ -420,7 +422,7 @@ pub trait Source: Iterator<Item = Sample> {
     ///
     /// * `settings` - [`LimitSettings`] struct containing:
     ///   - **threshold** - Level in dB where limiting begins (must be negative)
-    ///   - **knee_width** - Range in dB over which limiting gradually increases  
+    ///   - **knee_width** - Range in dB over which limiting gradually increases
     ///   - **attack** - Time to respond to level increases
     ///   - **release** - Time to recover after level decreases
     ///

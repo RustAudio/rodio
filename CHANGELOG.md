@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Using `Decoder::TryFrom` for `File` now automatically wraps in `BufReader` and sets `byte_len`.
   `TryFrom<Cursor<T>>` and `TryFrom<BufReader>` are also supported.
 - Added `Source::distortion()` method to control distortion effect by `gain` and `threshold`.
+- Added `OutputStream::config()` method to access an `OutputStream`'s `OutputStreamConfig` once
+  an `OutputStream` has been built.
+- Added `OutputStreamConfig::channel_count()`, `OutputStreamConfig::sample_rate()`,
+  `OutputStreamConfig::buffer_size()` and `OutputStreamConfig::sample_format()` getters to access
+  an `OutputStreamConfig`'s channel count, sample rate, buffer size and sample format values.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.
@@ -40,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `ReadSeekSource::new()` now takes `Settings`.
 - Breaking: Sources now use `f32` samples. To convert to and from other types of samples use
             functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
+- `OutputStreamConfig` is now public.
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to

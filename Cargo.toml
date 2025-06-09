@@ -85,6 +85,9 @@ hound = ["dep:hound"]           # WAV
 minimp3 = ["dep:minimp3_fixed"] # MP3
 lewton = ["dep:lewton"]         # Ogg Vorbis
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
 cpal = { version = "0.15.3", optional = true }
 dasp_sample = "0.11.0"

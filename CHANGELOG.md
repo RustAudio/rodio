@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `OutputStreamConfig::channel_count()`, `OutputStreamConfig::sample_rate()`,
   `OutputStreamConfig::buffer_size()` and `OutputStreamConfig::sample_format()` getters to access
   an `OutputStreamConfig`'s channel count, sample rate, buffer size and sample format values.
+- Added `Source::limit()` method for limiting the maximum amplitude of a source.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.

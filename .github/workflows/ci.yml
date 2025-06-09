@@ -51,3 +51,5 @@ jobs:
       - run: cargo test --doc
       # Check minimal build.
       - run: cargo check --tests --lib --no-default-features
+      # Check alternative decoders.
+      - run: cargo check --tests --lib --no-default-features --features minimp3

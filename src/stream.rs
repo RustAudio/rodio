@@ -21,6 +21,7 @@ const HZ_44100: SampleRate = 44_100;
 /// Use `mixer()` method to control output.
 /// If this is dropped, playback will end, and the associated output stream will be disposed.
 pub struct OutputStream {
+    config: OutputStreamConfig,
     mixer: Mixer,
     _stream: cpal::Stream,
 }
@@ -30,10 +31,16 @@ impl OutputStream {
     pub fn mixer(&self) -> &Mixer {
         &self.mixer
     }
+
+    /// Access the output stream's config.
+    pub fn config(&self) -> &OutputStreamConfig {
+        &self.config
+    }
 }
 
+/// Describes the output stream's configuration
 #[derive(Copy, Clone, Debug)]
-struct OutputStreamConfig {
+pub struct OutputStreamConfig {
     channel_count: ChannelCount,
     sample_rate: SampleRate,
     buffer_size: BufferSize,
@@ -48,6 +55,28 @@ impl Default for OutputStreamConfig {
             buffer_size: BufferSize::Default,
             sample_format: SampleFormat::F32,
         }
+    }
+}
+
+impl OutputStreamConfig {
+    /// Access the output stream config's channel count.
+    pub fn channel_count(&self) -> ChannelCount {
+        self.channel_count
+    }
+
+    /// Access the output stream config's sample rate.
+    pub fn sample_rate(&self) -> SampleRate {
+        self.sample_rate
+    }
+
+    /// Access the output stream config's buffer size.
+    pub fn buffer_size(&self) -> &BufferSize {
+        &self.buffer_size
+    }
+
+    /// Access the output stream config's sample format.
+    pub fn sample_format(&self) -> SampleFormat {
+        self.sample_format
     }
 }
 
@@ -419,6 +448,7 @@ impl OutputStream {
             Ok(Self {
                 _stream: stream,
                 mixer: controller,
+                config: *config,
             })
         })
     }

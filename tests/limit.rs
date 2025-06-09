@@ -100,12 +100,16 @@ fn test_limiter_with_different_settings() {
         assert!(
             peak <= expected_peak + 0.1,
             "Threshold {}dB: peak {:.3} should be ≤ {:.3}",
-            threshold_db, peak, expected_peak + 0.1
+            threshold_db,
+            peak,
+            expected_peak + 0.1
         );
         assert!(
             peak >= expected_peak - 0.1,
             "Threshold {}dB: peak {:.3} should be ≥ {:.3}",
-            threshold_db, peak, expected_peak - 0.1
+            threshold_db,
+            peak,
+            expected_peak - 0.1
         );
     }
 }
@@ -114,33 +118,46 @@ fn test_limiter_with_different_settings() {
 fn test_limiter_stereo_processing() {
     // Test that stereo limiting works correctly
     use rodio::buffer::SamplesBuffer;
-    
+
     // Create stereo test signal - left channel louder than right
-    let left_samples = (0..1000).map(|i| (i as f32 * 0.01).sin() * 1.5).collect::<Vec<_>>();
-    let right_samples = (0..1000).map(|i| (i as f32 * 0.01).sin() * 0.8).collect::<Vec<_>>();
-    
+    let left_samples = (0..1000)
+        .map(|i| (i as f32 * 0.01).sin() * 1.5)
+        .collect::<Vec<_>>();
+    let right_samples = (0..1000)
+        .map(|i| (i as f32 * 0.01).sin() * 0.8)
+        .collect::<Vec<_>>();
+
     let mut stereo_samples = Vec::new();
     for i in 0..1000 {
         stereo_samples.push(left_samples[i]);
         stereo_samples.push(right_samples[i]);
     }
-    
+
     let buffer = SamplesBuffer::new(2, 44100, stereo_samples);
-    let settings = rodio::source::LimitSettings::default()
-        .with_threshold(-3.0);
-    
+    let settings = rodio::source::LimitSettings::default().with_threshold(-3.0);
+
     let limiter = buffer.limit(settings);
     let limited_samples: Vec<f32> = limiter.collect();
-    
+
     // Extract left and right channels after limiting
     let limited_left: Vec<f32> = limited_samples.iter().step_by(2).cloned().collect();
     let limited_right: Vec<f32> = limited_samples.iter().skip(1).step_by(2).cloned().collect();
-    
+
     let left_peak = limited_left.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
-    let right_peak = limited_right.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
-    
+    let right_peak = limited_right
+        .iter()
+        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
+
     // Both channels should be limited to approximately the same level
     // (limiter should prevent the louder channel from exceeding threshold)
-    assert!(left_peak <= 1.5, "Left channel should be limited: {:.3}", left_peak);
-    assert!(right_peak <= 1.5, "Right channel should be limited: {:.3}", right_peak);
+    assert!(
+        left_peak <= 1.5,
+        "Left channel should be limited: {:.3}",
+        left_peak
+    );
+    assert!(
+        right_peak <= 1.5,
+        "Right channel should be limited: {:.3}",
+        right_peak
+    );
 }

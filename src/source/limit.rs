@@ -192,29 +192,29 @@ impl LimitSettings {
     }
 
     /// Creates settings optimized for dynamic content like music and sound effects.
-    /// 
+    ///
     /// Designed for content with varying dynamics where you want to preserve
     /// the natural feel while preventing occasional peaks from clipping.
-    /// 
+    ///
     /// # Configuration
-    /// 
+    ///
     /// - **Threshold**: -3.0 dBFS (more headroom than default)
     /// - **Knee width**: 6.0 dB (wide, transparent transition)
     /// - **Attack**: 5 ms (default, balanced response)
     /// - **Release**: 100 ms (default, smooth recovery)
-    /// 
+    ///
     /// # Use Cases
-    /// 
+    ///
     /// - Music playback with occasional loud peaks
     /// - Sound effects that need natural dynamics
     /// - Content where transparency is more important than tight control
     /// - Game audio with varying intensity levels
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
-    /// 
+    ///
     /// let music = SineWave::new(440.0).amplify(1.5);
     /// let limited = music.limit(LimitSettings::dynamic_content());
     /// ```
@@ -226,30 +226,30 @@ impl LimitSettings {
     }
 
     /// Creates settings optimized for broadcast and streaming applications.
-    /// 
+    ///
     /// Designed for consistent loudness and reliable peak control in scenarios
     /// where clipping absolutely cannot occur and consistent levels are critical.
-    /// 
+    ///
     /// # Configuration
-    /// 
+    ///
     /// - **Threshold**: -1.0 dBFS (default, tight control)
     /// - **Knee width**: 2.0 dB (narrower, more decisive limiting)
     /// - **Attack**: 3 ms (faster response to catch transients)
     /// - **Release**: 50 ms (faster recovery for consistent levels)
-    /// 
+    ///
     /// # Use Cases
-    /// 
+    ///
     /// - Live streaming where clipping would be catastrophic
     /// - Broadcast audio that must meet loudness standards
     /// - Voice chat applications requiring consistent levels
     /// - Podcast production for consistent listening experience
     /// - Game voice communication systems
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
-    /// 
+    ///
     /// let voice_chat = SineWave::new(440.0).amplify(2.0);
     /// let limited = voice_chat.limit(LimitSettings::broadcast());
     /// ```
@@ -262,116 +262,116 @@ impl LimitSettings {
     }
 
     /// Creates settings optimized for mastering and final audio production.
-    /// 
+    ///
     /// Designed for the final stage of audio production where tight peak control
     /// is needed while maintaining audio quality and preventing any clipping.
-    /// 
+    ///
     /// # Configuration
-    /// 
+    ///
     /// - **Threshold**: -0.5 dBFS (very tight, maximum loudness)
     /// - **Knee width**: 1.0 dB (narrow, precise control)
     /// - **Attack**: 1 ms (very fast, catches all transients)
     /// - **Release**: 200 ms (slower, maintains natural envelope)
-    /// 
+    ///
     /// # Use Cases
-    /// 
+    ///
     /// - Final mastering stage for tight peak control
     /// - Preparing audio for streaming platforms (after loudness processing)
     /// - Album mastering where consistent peak levels are critical
     /// - Audio post-production for film/video
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
-    /// 
+    ///
     /// let master_track = SineWave::new(440.0).amplify(3.0);
     /// let mastered = master_track.limit(LimitSettings::mastering());
     /// ```
     #[inline]
     pub fn mastering() -> Self {
         Self {
-            threshold: -0.5,                         // Very tight for peak control
-            knee_width: 1.0,                         // Narrow knee for precise control
-            attack: Duration::from_millis(1),        // Very fast attack
-            release: Duration::from_millis(200),     // Slower release for natural envelope
+            threshold: -0.5,                     // Very tight for peak control
+            knee_width: 1.0,                     // Narrow knee for precise control
+            attack: Duration::from_millis(1),    // Very fast attack
+            release: Duration::from_millis(200), // Slower release for natural envelope
         }
     }
 
     /// Creates settings optimized for live performance and real-time applications.
-    /// 
+    ///
     /// Designed for scenarios where low latency is critical and the limiter
     /// must respond quickly to protect equipment and audiences.
-    /// 
+    ///
     /// # Configuration
-    /// 
+    ///
     /// - **Threshold**: -2.0 dBFS (some headroom for safety)
     /// - **Knee width**: 3.0 dB (moderate, good compromise)
     /// - **Attack**: 0.5 ms (extremely fast for protection)
     /// - **Release**: 30 ms (fast recovery for live feel)
-    /// 
+    ///
     /// # Use Cases
-    /// 
+    ///
     /// - Live concert sound reinforcement
     /// - DJ mixing and live electronic music
     /// - Real-time audio processing where latency matters
     /// - Equipment protection in live settings
     /// - Interactive audio applications and games
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
-    /// 
+    ///
     /// let live_input = SineWave::new(440.0).amplify(2.5);
     /// let protected = live_input.limit(LimitSettings::live_performance());
     /// ```
     #[inline]
     pub fn live_performance() -> Self {
         Self {
-            threshold: -2.0,                         // Some headroom for safety
-            knee_width: 3.0,                         // Moderate knee
-            attack: Duration::from_micros(500),      // Extremely fast for protection
-            release: Duration::from_millis(30),      // Fast recovery for live feel
+            threshold: -2.0,                    // Some headroom for safety
+            knee_width: 3.0,                    // Moderate knee
+            attack: Duration::from_micros(500), // Extremely fast for protection
+            release: Duration::from_millis(30), // Fast recovery for live feel
         }
     }
 
     /// Creates settings optimized for gaming and interactive audio.
-    /// 
+    ///
     /// Designed for games where audio levels can vary dramatically between
     /// quiet ambient sounds and loud action sequences, requiring responsive
     /// limiting that maintains immersion.
-    /// 
+    ///
     /// # Configuration
-    /// 
+    ///
     /// - **Threshold**: -3.0 dBFS (balanced headroom for dynamic range)
     /// - **Knee width**: 3.0 dB (moderate transition for natural feel)
     /// - **Attack**: 2 ms (fast enough for sound effects, not harsh)
     /// - **Release**: 75 ms (quick recovery for interactive responsiveness)
-    /// 
+    ///
     /// # Use Cases
-    /// 
+    ///
     /// - Game audio mixing for consistent player experience
     /// - Interactive audio applications requiring dynamic response
     /// - VR/AR audio where sudden loud sounds could be jarring
     /// - Mobile games needing battery-efficient processing
     /// - Streaming gameplay audio for viewers
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
-    /// 
+    ///
     /// let game_audio = SineWave::new(440.0).amplify(2.0);
     /// let limited = game_audio.limit(LimitSettings::gaming());
     /// ```
     #[inline]
     pub fn gaming() -> Self {
         Self {
-            threshold: -3.0,                         // Balanced headroom for dynamics
-            knee_width: 3.0,                         // Moderate for natural feel
-            attack: Duration::from_millis(2),        // Fast but not harsh
-            release: Duration::from_millis(75),      // Quick for interactivity
+            threshold: -3.0,                    // Balanced headroom for dynamics
+            knee_width: 3.0,                    // Moderate for natural feel
+            attack: Duration::from_millis(2),   // Fast but not harsh
+            release: Duration::from_millis(75), // Quick for interactivity
         }
     }
 

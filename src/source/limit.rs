@@ -57,6 +57,72 @@
 //! let stream = SineWave::new(440.0).amplify(2.0);
 //! let limited_stream = stream.limit(LimitSettings::broadcast());
 //! ```
+//!
+//! # Channel Count Stability
+//!
+//! The limiter is optimized for sources with fixed channel counts (typical for audio files).
+//! If a source changes its channel count mid-stream, consider recreating the limiter to
+//! maintain optimal performance.
+//!
+//! # Channel Configuration and Dynamic Changes
+//!
+//! The limiter automatically selects optimized implementations based on channel count:
+//! - **Mono (1 channel)**: Single-channel optimized processing
+//! - **Stereo (2 channels)**: Two-channel optimized with fixed arrays
+//! - **Multi-channel (3+ channels)**: Generic implementation using vectors
+//!
+//! ## Typical Usage Pattern
+//!
+//! In 99.9% of cases, limiters are created per-file with consistent channel counts:
+//!
+//! ```rust
+//! use rodio::{Decoder, source::Source};
+//! use std::fs::File;
+//! use std::io::BufReader;
+//!
+//! // Each file maintains consistent channel count throughout
+//! let file1 = BufReader::new(File::open("stereo_music.wav").unwrap());
+//! let stereo_decoder = Decoder::new(file1).unwrap();
+//! let limited_stereo = stereo_decoder.limit(LimitSettings::dynamic_content());
+//!
+//! let file2 = BufReader::new(File::open("mono_podcast.wav").unwrap());
+//! let mono_decoder = Decoder::new(file2).unwrap();
+//! let limited_mono = mono_decoder.limit(LimitSettings::broadcast());
+//! ```
+//!
+//! ## Dynamic Channel Count Changes (Edge Case)
+//!
+//! **Important**: If the channel count changes within a single source during playback,
+//! the limiter will continue to function but may exhibit suboptimal behavior:
+//!
+//! ### Performance Impact
+//! - The limiter's internal structure is optimized for the initial channel count
+//! - Multi-channel vectors are pre-allocated based on the first span
+//! - Changing channel counts may cause array bounds issues or require fallback processing
+//!
+//! ### Audio Quality Impact
+//! - **Stereo imaging**: May suffer if channels are added/removed mid-stream
+//! - **Gain pumping**: Possible audible artifacts when channel configurations change
+//! - **Balance shifting**: Uneven limiting if new channels don't match existing state
+//!
+//! ### Severity by Content Type
+//! - **Music (non-hard-panned)**: Minimal impact, may be inaudible
+//! - **Hard-panned audio**: More noticeable imaging artifacts
+//! - **Multi-channel gaming/surround**: Most problematic, significant balance issues
+//!
+//! ### Recommended Solution
+//! For sources with dynamic channel counts, recreate the limiter when changes occur:
+//!
+//! ```rust
+//! use rodio::source::{Source, LimitSettings};
+//!
+//! // Pseudocode for handling dynamic channel changes
+//! let settings = LimitSettings::gaming();
+//! let mut current_limiter = source.limit(settings.clone());
+//!
+//! // When channel count changes are detected:
+//! // current_limiter = new_source.limit(settings);
+//! ```
 
 use std::time::Duration;
 
@@ -553,6 +619,16 @@ pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
 /// - **Stereo**: Two-channel optimized with interleaved processing
 /// - **Multi-channel**: Generic implementation for 3+ channels
 ///
+/// # Channel Count Stability
+///
+/// **Important**: The limiter is optimized for sources with fixed channel counts.
+/// Most audio files (music, podcasts, etc.) maintain constant channel counts,
+/// making this optimization safe and beneficial.
+///
+/// If the underlying source changes channel count mid-stream (rare), the limiter
+/// will continue to function but performance may be degraded. For such cases,
+/// recreate the limiter when the channel count changes.
+///
 /// # Type Parameters
 ///
 /// * `I` - The input audio source type that implements [`Source`]
@@ -995,6 +1071,16 @@ where
     /// * `Mono`: Direct single-channel processing
     /// * `Stereo`: Optimized two-channel processing
     /// * `MultiChannel`: Generic multi-channel processing
+    ///
+    /// # Channel Count Changes
+    ///
+    /// **Important**: This limiter assumes a fixed channel count determined at creation time.
+    /// Most audio sources (files, streams) maintain constant channel counts, making this
+    /// assumption safe for typical usage.
+    ///
+    /// If the underlying source changes its channel count mid-stream (rare), the limiter
+    /// will continue to function but may experience timing and imaging issues. For optimal
+    /// performance, recreate the limiter when the channel count changes.
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         match self {

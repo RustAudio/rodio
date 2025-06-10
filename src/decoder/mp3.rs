@@ -1,10 +1,11 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use super::DecoderSample;
-use crate::common::{ChannelCount, SampleRate};
+use crate::common::{ChannelCount, Sample, SampleRate};
 use crate::source::SeekError;
 use crate::Source;
+
+use dasp_sample::Sample as _;
 
 use minimp3::Decoder;
 use minimp3::Frame;
@@ -93,7 +94,7 @@ impl<R> Iterator for Mp3Decoder<R>
 where
     R: Read + Seek,
 {
-    type Item = DecoderSample;
+    type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
         let current_span_len = self.current_span_len()?;

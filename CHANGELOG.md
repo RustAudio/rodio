@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: Sources now use `f32` samples. To convert to and from other types of samples use
             functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
 - `OutputStreamConfig` is now public.
+- Update `cpal` to [0.16](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0160-2025-06-07).
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to

@@ -87,7 +87,11 @@ mod zero;
 #[cfg(feature = "noise")]
 mod noise;
 #[cfg(feature = "noise")]
-pub use self::noise::{pink, white, PinkNoise, WhiteNoise};
+pub use self::noise::{
+    blue, brownian, gaussian_white, pink, triangular_white, velvet, violet, white, BlueNoise,
+    BrownianNoise, GaussianWhiteNoise, NoiseGenerator, PinkNoise, TriangularWhiteNoise,
+    VelvetNoise, VioletNoise, WhiteNoise,
+};
 
 /// A source of samples.
 ///

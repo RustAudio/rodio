@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `OutputStreamConfig::buffer_size()` and `OutputStreamConfig::sample_format()` getters to access
   an `OutputStreamConfig`'s channel count, sample rate, buffer size and sample format values.
 - Added `Source::limit()` method for limiting the maximum amplitude of a source.
+- Added more noise generators: `gaussian_white`, `triangular_white`, `blue`, `brownian`, `violet`,
+  and `velvet`.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.
@@ -48,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
             functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
 - `OutputStreamConfig` is now public.
 - Update `cpal` to [0.16](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0160-2025-06-07).
+- docs.rs will now document all features, including those that are not enabled by default.
+- `PinkNoise` is not deterministically seekable, so will now return `Err` when seeking.
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to
@@ -61,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LoopedDecoder::size_hint` now correctly indicates an infinite stream.
 - Symphonia decoder `total_duration` for Vorbis now return the correct value (#696).
 - Symphonia decoder for MP4 now seeks correctly (#577).
+- White noise was not correctly uniformly distributed
+- Pink noise was not correctly distributed on sampling rates other than 44100 Hz
 
 ### Deprecated
 - Deprecated `Sample::zero_value()` function in favor of `Sample::ZERO_VALUE` constant

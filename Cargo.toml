@@ -9,8 +9,87 @@ documentation = "https://docs.rs/rodio"
 exclude = ["assets/**", "tests/**"]
 edition = "2021"
 
+[features]
+# Default feature set provides audio playback and common format support
+default = ["playback", "flac", "mp3", "mp4", "vorbis", "wav"]
+
+# Core functionality features
+#
+# Enable audio playback
+playback = ["dep:cpal"]
+# Enable writing audio to WAV files
+wav_output = ["dep:hound"]
+# Enable structured observability and instrumentation
+tracing = ["dep:tracing"]
+# Experimental features using atomic floating-point operations
+experimental = ["dep:atomic_float"]
+
+# Audio generation features
+#
+# Enable noise generation (white noise, pink noise, etc.)
+noise = ["rand"]
+
+# Platform-specific features
+#
+# Enable WebAssembly support for web browsers
+wasm-bindgen = ["cpal/wasm-bindgen"]
+# Use shared C++ stdlib on Android (reduces APK size, fixes linking issues)
+cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
+
+# To decode an audio source with Rodio, you need to enable the appropriate features for *both* the
+# demuxer and the decoder.
+#
+# Audio files consist of a demuxer (container format) and a decoder (audio codec), for example:
+# - .mp3 is an MPEG-1 Audio Layer III file, which is a container format that uses the MP3 codec
+# - .mp4 is an MPEG-4 container, typically (but not always) with an AAC-encoded audio stream
+# - .ogg is an Ogg container with a Vorbis-encoded audio stream
+#
+# A reasonable set of audio demuxers and decoders for most applications.
+flac = ["symphonia-flac"]
+mp3 = ["symphonia-mp3"]
+mp4 = ["symphonia-isomp4", "symphonia-aac"]
+vorbis = ["symphonia-ogg", "symphonia-vorbis"]
+wav = ["symphonia-wav", "symphonia-pcm"]
+
+# The following features are combinations of demuxers and decoders provided by Symphonia.
+# Unless you are developing a generic audio player, this is probably overkill.
+symphonia-all = ["symphonia/all-formats", "symphonia/all-codecs"]
+
+# Combination of decoder and native demuxer provided by Symphonia
+symphonia-flac = ["symphonia/flac"]
+symphonia-mp1 = ["symphonia/mp1"]   # MPEG-1 Audio Layer I
+symphonia-mp2 = ["symphonia/mp2"]   # MPEG-1 Audio Layer II
+symphonia-mp3 = ["symphonia/mp3"]   # MPEG-1 Audio Layer III
+
+# Combination of all MPEG-1 audio demuxers and decoders provided by Symphonia
+symphonia-mpa = ["symphonia/mpa"]
+
+# Formats (demuxers) provided by Symphonia
+symphonia-aiff = ["symphonia/aiff"]
+symphonia-caf = ["symphonia/caf"]
+symphonia-isomp4 = ["symphonia/isomp4"]
+symphonia-mkv = ["symphonia/mkv"]
+symphonia-ogg = ["symphonia/ogg"]
+
+# Codecs (decoders) provided by Symphonia
+symphonia-aac = ["symphonia/aac"]
+symphonia-adpcm = ["symphonia/adpcm"]
+symphonia-alac = ["symphonia/alac"]
+symphonia-pcm = ["symphonia/pcm"]
+symphonia-vorbis = ["symphonia/vorbis"]
+symphonia-wav = ["symphonia/wav"]
+
+# Alternative decoders and demuxers
+claxon = ["dep:claxon"]         # FLAC
+hound = ["dep:hound"]           # WAV
+minimp3 = ["dep:minimp3_fixed"] # MP3
+lewton = ["dep:lewton"]         # Ogg Vorbis
+
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
-cpal = { version = "0.16.0", optional = true }
+cpal = { version = "0.15.3", optional = true }
 dasp_sample = "0.11.0"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.3.1", optional = true }
@@ -27,42 +106,6 @@ tracing = { version = "0.1.40", optional = true }
 
 atomic_float = { version = "1.1.0", optional = true }
 num-rational = "0.4.2"
-
-[features]
-default = ["playback", "flac", "vorbis", "wav", "mp3"]
-tracing = ["dep:tracing"]
-experimental = ["dep:atomic_float"]
-playback = ["dep:cpal"]
-
-flac = ["claxon"]
-vorbis = ["lewton"]
-wav = ["hound"]
-mp3 = ["symphonia-mp3"]
-minimp3 = ["dep:minimp3_fixed"]
-
-noise = ["rand"]
-
-wasm-bindgen = ["cpal/wasm-bindgen"]
-cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
-
-symphonia-aac = ["symphonia/aac"]
-symphonia-all = [
-    "symphonia-aac",
-    "symphonia-flac",
-    "symphonia-isomp4",
-    "symphonia-mp3",
-    "symphonia-ogg",
-    "symphonia-vorbis",
-    "symphonia-wav",
-]
-symphonia-flac = ["symphonia/flac"]
-symphonia-isomp4 = ["symphonia/isomp4"]
-symphonia-mp3 = ["symphonia/mp3"]
-symphonia-ogg = ["symphonia/ogg"]
-symphonia-vorbis = ["symphonia/vorbis"]
-symphonia-wav = ["symphonia/wav", "symphonia/pcm", "symphonia/adpcm"]
-symphonia-alac = ["symphonia/isomp4", "symphonia/alac"]
-symphonia-aiff = ["symphonia/aiff", "symphonia/pcm"]
 
 [dev-dependencies]
 quickcheck = "1"
@@ -130,7 +173,7 @@ required-features = ["playback"]
 
 [[example]]
 name = "into_file"
-required-features = ["mp3", "wav"]
+required-features = ["mp3", "wav_output"]
 
 [[example]]
 name = "limit_wav"
@@ -150,7 +193,7 @@ required-features = ["playback", "flac"]
 
 [[example]]
 name = "music_m4a"
-required-features = ["playback", "symphonia-isomp4", "symphonia-aac"]
+required-features = ["playback", "mp4"]
 
 [[example]]
 name = "music_mp3"

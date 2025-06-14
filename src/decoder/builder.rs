@@ -267,18 +267,18 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     fn build_impl(self) -> Result<(DecoderImpl<R>, Settings), DecoderError> {
         let data = self.data.ok_or(DecoderError::UnrecognizedFormat)?;
 
-        #[cfg(all(feature = "wav", not(feature = "symphonia-wav")))]
+        #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
         let data = match wav::WavDecoder::new(data) {
             Ok(decoder) => return Ok((DecoderImpl::Wav(decoder), self.settings)),
             Err(data) => data,
         };
-        #[cfg(all(feature = "flac", not(feature = "symphonia-flac")))]
+        #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
         let data = match flac::FlacDecoder::new(data) {
             Ok(decoder) => return Ok((DecoderImpl::Flac(decoder), self.settings)),
             Err(data) => data,
         };
 
-        #[cfg(all(feature = "vorbis", not(feature = "symphonia-vorbis")))]
+        #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
         let data = match vorbis::VorbisDecoder::new(data) {
             Ok(decoder) => return Ok((DecoderImpl::Vorbis(decoder), self.settings)),
             Err(data) => data,

@@ -6,15 +6,14 @@
 
 Rust playback library.
 
-Playback is handled by [cpal](https://github.com/RustAudio/cpal). Format decoding can be handled either by [Symphonia](https://github.com/pdeljanov/Symphonia), or by format-specific decoders:
+Playback is handled by [cpal](https://github.com/RustAudio/cpal). Format decoding is handled by [Symphonia](https://github.com/pdeljanov/Symphonia) by default, or by optional format-specific decoders:
 
- - MP3 by [minimp3](https://github.com/lieff/minimp3) (but defaults to [Symphonia](https://github.com/pdeljanov/Symphonia)).
- - WAV by [hound](https://github.com/ruud-v-a/hound).
- - Vorbis by [lewton](https://github.com/est31/lewton).
  - FLAC by [claxon](https://github.com/ruuda/claxon).
- - MP4 and AAC (both disabled by default) are handled only by [Symphonia](https://github.com/pdeljanov/Symphonia).
+ - MP3 by [minimp3](https://github.com/lieff/minimp3).
+ - Vorbis by [lewton](https://github.com/est31/lewton).
+ - WAV by [hound](https://github.com/ruud-v-a/hound).
 
-See [the docs](https://docs.rs/rodio/latest/rodio/#alternative-decoder-backends) for more details on backends.
+See [the feature flags](https://docs.rs/crate/rodio/latest/features) for more details on formats, and other features.
 
 # [Documentation](http://docs.rs/rodio)
 
@@ -51,7 +50,7 @@ Through cpal rodio depends on the alsa library (libasound & libasound-dev), this
 - Install crossbuild-essential-arm64: `sudo apt-get install crossbuild-essential-arm64 clang`
 - Add the aarch64 target for rust: `rustup target add aarch64-unknown-linux-gnu`
 - Add the architecture arm64 to apt using: `sudo dpkg --add-architecture arm64`
-- Install the [multi-arch](https://wiki.debian.org/Multiarch/HOWTO) version of libasound2-dev for arm64 using: `sudo apt install libasound2-dev:arm64` 
+- Install the [multi-arch](https://wiki.debian.org/Multiarch/HOWTO) version of libasound2-dev for arm64 using: `sudo apt install libasound2-dev:arm64`
 - Build with the pkg config sysroot set to /usr/aarch64-linux-gnu and aarch64-linux-gnu as linker: `PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc" cargo build --target aarch64-unknown-linux-gnu`
 
 This will work for other Linux targets too if you change the architecture in the

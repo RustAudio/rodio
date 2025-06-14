@@ -45,11 +45,11 @@ jobs:
 
       - run: cargo test --all-targets
       - run: cargo test --lib --bins --tests --benches --features=experimental
-      - run: cargo test --all-targets --features=symphonia-all
+      - run: cargo test --all-targets --features=symphonia-all,wav_output
       # `cargo test` does not check benchmarks and `cargo test --all-targets` excludes
       # documentation tests. Therefore, we need an additional docs test command here.
       - run: cargo test --doc
       # Check minimal build.
       - run: cargo check --tests --lib --no-default-features
       # Check alternative decoders.
-      - run: cargo check --tests --lib --no-default-features --features minimp3
+      - run: cargo check --tests --lib --no-default-features --features claxon,hound,minimp3,lewton

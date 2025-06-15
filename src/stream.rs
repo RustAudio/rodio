@@ -11,22 +11,33 @@ use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Sample, SampleFormat, StreamConfig};
+use drop_bomb::DropBomb;
 use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::{error, fmt};
 
 const HZ_44100: SampleRate = 44_100;
 
-/// `cpal::Stream` container.
-/// Use `mixer()` method to control output.
-/// If this is dropped, playback will end, and the associated output stream will be disposed.
+/// `cpal::Stream` container. Use `mixer()` method to control output. This
+/// type **can not be dropped**. It will panic and crash your program if
+/// dropped normally. Instead you must call [`OutputStream::close`].
+///
+/// # Panics
+/// This will panic if dropped. Instead call [`OutputStream::close`]
 pub struct OutputStream {
     config: OutputStreamConfig,
     mixer: Mixer,
     _stream: cpal::Stream,
+    bomb: DropBomb,
 }
 
 impl OutputStream {
+    /// Closes the outputstream and drops it whithout panicking. This will
+    /// stop all audio playing through this `OutputStream`.
+    pub fn close(mut self) {
+        self.bomb.defuse();
+    }
+
     /// Access the output stream's mixer.
     pub fn mixer(&self) -> &Mixer {
         &self.mixer
@@ -449,6 +460,11 @@ impl OutputStream {
                 _stream: stream,
                 mixer: controller,
                 config: *config,
+                bomb: DropBomb::new(
+                    "You can not drop an `OutputStream` you \
+                    must call `close` on it instead. \
+                    See the docs for `OutputStream` for more",
+                ),
             })
         })
     }

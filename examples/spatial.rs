@@ -56,5 +56,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     sink.sleep_until_end();
 
+    stream_handle.close();
     Ok(())
 }

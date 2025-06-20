@@ -94,10 +94,7 @@ impl<S: Source> Source for Segment<S> {
     }
 
     fn channels(&self) -> ChannelCount {
-        self.active
-            .as_ref()
-            .map(Source::channels)
-            .unwrap_or(2)
+        self.active.as_ref().map(Source::channels).unwrap_or(2)
     }
 
     fn sample_rate(&self) -> SampleRate {

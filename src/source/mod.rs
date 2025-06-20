@@ -654,7 +654,7 @@ pub enum SeekError {
     /// Any other error probably in a custom Source
     Other(Box<dyn std::error::Error + Send>),
     /// Can not seek, this part of the split is not active
-    SegmentNotActive,
+    SegementNotActive,
 }
 impl fmt::Display for SeekError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -671,7 +671,7 @@ impl fmt::Display for SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {}", err),
             SeekError::Other(_) => write!(f, "An error occurred"),
-            SeekError::SegmentNotActive => {
+            SeekError::SegementNotActive => {
                 write!(f, "Can not seek, this segement is still active")
             }
         }
@@ -686,7 +686,7 @@ impl std::error::Error for SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(err) => Some(err),
             SeekError::Other(err) => Some(err.as_ref()),
-            SeekError::SegmentNotActive => None,
+            SeekError::SegementNotActive => None,
         }
     }
 }
@@ -709,7 +709,7 @@ impl SeekError {
             #[cfg(feature = "wav")]
             SeekError::HoundDecoder(_) => false,
             SeekError::Other(_) => false,
-            SeekError::SegmentNotActive => true,
+            SeekError::SegementNotActive => true,
         }
     }
 }

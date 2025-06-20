@@ -16,11 +16,7 @@ pub struct Segment<S> {
     split_duration: Option<Duration>,
 }
 
-impl<S> Segment<S>
-where
-    S: Source,
-    <S as Iterator>::Item: crate::Sample,
-{
+impl<S: Source> Segment<S> {
     /// see docs at [Source::split_once];
     pub(crate) fn new(input: S, split_point: Duration) -> [Self; 2] {
         let shared_source = Arc::new(Mutex::new(None));
@@ -53,18 +49,14 @@ where
     }
 }
 
-impl<S> Iterator for Segment<S>
-where
-    S: Source,
-    S::Item: crate::Sample,
-{
-    type Item = <S as Iterator>::Item;
+impl<S: Source> Iterator for Segment<S> {
+    type Item = f32;
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<f32> {
         let input = if let Some(active) = self.active.as_mut() {
             active
         } else {
-            // did they other stop and is it in our segment?
+            // did the other stop and is it in our segment?
             let mut shared = self
                 .shared_source
                 .lock()
@@ -89,18 +81,14 @@ where
     }
 }
 
-impl<S> Source for Segment<S>
-where
-    S: Source,
-    S::Item: crate::Sample,
-{
+impl<S: Source> Source for Segment<S> {
     fn current_span_len(&self) -> Option<usize> {
         if let Some(input) = self.active.as_ref() {
             input.current_span_len()
         } else {
-            // We do not know the channel count nor sample rate if the source
-            // is inactive. We will provide dummy values. This ensures the
-            // caller will recheck when we become active
+            // We can not know the channel count or sample rate until the source
+            // is active. Until then we provide dummy values. Returning one ensures the
+            // caller will recheck by the time this segment is active.
             Some(1)
         }
     }
@@ -109,14 +97,14 @@ where
         self.active
             .as_ref()
             .map(Source::channels)
-            .unwrap_or_default()
+            .unwrap_or(2)
     }
 
     fn sample_rate(&self) -> SampleRate {
         self.active
             .as_ref()
             .map(Source::sample_rate)
-            .unwrap_or_default()
+            .unwrap_or(44100)
     }
 
     fn total_duration(&self) -> Option<Duration> {
@@ -124,6 +112,7 @@ where
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), super::SeekError> {
+        dbg!();
         if let Some(active) = self.active.as_mut() {
             active.try_seek(pos)?;
             if !self.segment_range.contains(&pos) {
@@ -131,7 +120,7 @@ where
             }
             Ok(())
         } else {
-            Err(super::SeekError::SegmentNotActive)
+            Err(super::SeekError::SegementNotActive)
         }
     }
 }

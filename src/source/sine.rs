@@ -1,4 +1,4 @@
-use crate::common::{ChannelCount, SampleRate};
+use crate::common::{ChannelCount, Sample, SampleRate};
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
 use std::time::Duration;
@@ -29,7 +29,7 @@ impl SineWave {
 }
 
 impl Iterator for SineWave {
-    type Item = f32;
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<f32> {

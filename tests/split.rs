@@ -13,7 +13,7 @@ fn split_contains_all_samples() {
 }
 
 #[test]
-fn seek_over_segment_boundry() {
+fn seek_over_segment_boundary() {
     let input = [0, 1, 2, 3, 4, 5, 6, 7].map(|s| s as f32);
     let source = SamplesBuffer::new(1, 1, input);
 

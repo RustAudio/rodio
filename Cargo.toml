@@ -183,3 +183,7 @@ required-features = ["playback", "vorbis"]
 [[example]]
 name = "stereo"
 required-features = ["playback", "vorbis"]
+
+[[example]]
+name = "fadeout_end"
+required-features = ["playback", "vorbis"]

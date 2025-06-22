@@ -1,4 +1,4 @@
-#[cfg(feature = "wav")]
+#[cfg(any(feature = "hound", feature = "wav"))]
 #[test]
 fn test_wav_encodings() {
     // 16 bit wav file exported from Audacity (1 channel)

@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added `Source::amplify_decibel()` method to control volume by decibels.
 - Added `Source::amplify_normalized()` method to perceptually modify volume.
-- Adds a function to write a `Source` to a `wav` file, see `output_to_wav`.
+- Adds a function to write a `Source` to a `wav` file, enable the `wav_output` feature and see
+  `output_to_wav`.
 - Output audio stream buffer size can now be adjusted.
 - Sources for directly generating square waves, triangle waves, square waves, and
   sawtooths have been added.
@@ -48,6 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
             functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
 - `OutputStreamConfig` is now public.
 - Update `cpal` to [0.16](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0160-2025-06-07).
+- The default decoders have changed to Symphonia. The previous decoders are still available as
+  optional features: use `claxon` for FLAC, `lewton` for Vorbis, and `hound` for WAV.
+- Support for decoding MP4 containers with AAC audio is now enabled by default.
+- Breaking: As optional features are now available: CAF and MKV containers, MP1/MP2 and ADPCM
+            decoders. Previously, the ADPCM decoder was enabled when `symphonia-wav` was.
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to

@@ -686,7 +686,7 @@ pub enum SeekError {
     #[cfg(feature = "symphonia")]
     /// The symphonia decoder ran into an issue
     SymphoniaDecoder(crate::decoder::symphonia::SeekError),
-    #[cfg(feature = "wav")]
+    #[cfg(feature = "hound")]
     /// The hound (wav) decoder ran into an issue
     HoundDecoder(std::io::Error),
     // Prefer adding an enum variant to using this. It's meant for end users their
@@ -706,7 +706,7 @@ impl fmt::Display for SeekError {
             }
             #[cfg(feature = "symphonia")]
             SeekError::SymphoniaDecoder(err) => write!(f, "Error seeking: {}", err),
-            #[cfg(feature = "wav")]
+            #[cfg(feature = "hound")]
             SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {}", err),
             SeekError::Other(_) => write!(f, "An error occurred"),
         }
@@ -718,7 +718,7 @@ impl std::error::Error for SeekError {
             SeekError::NotSupported { .. } => None,
             #[cfg(feature = "symphonia")]
             SeekError::SymphoniaDecoder(err) => Some(err),
-            #[cfg(feature = "wav")]
+            #[cfg(feature = "hound")]
             SeekError::HoundDecoder(err) => Some(err),
             SeekError::Other(err) => Some(err.as_ref()),
         }
@@ -740,7 +740,7 @@ impl SeekError {
             SeekError::NotSupported { .. } => true,
             #[cfg(feature = "symphonia")]
             SeekError::SymphoniaDecoder(_) => false,
-            #[cfg(feature = "wav")]
+            #[cfg(feature = "hound")]
             SeekError::HoundDecoder(_) => false,
             SeekError::Other(_) => false,
         }

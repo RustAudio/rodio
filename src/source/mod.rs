@@ -313,7 +313,7 @@ pub trait Source: Iterator<Item = Sample> {
     ///   A recommended attack_time of `4.0` seconds provides a sweet spot for most applications.
     ///
     /// `release_time`:
-    ///   **TL;DR**: Response time for volume decreases. Shorter = faster gain reduction. **Recommended: `0.005` seconds**.
+    ///   **TL;DR**: Response time for volume decreases. Shorter = faster gain reduction. **Recommended: `0.0` seconds**.
     ///
     ///   The time (in seconds) for the AGC to respond to input level decreases.
     ///   This parameter controls how quickly the gain is reduced when the signal level drops.
@@ -323,8 +323,8 @@ pub trait Source: Iterator<Item = Sample> {
     ///   However, if the release_time is too high, the AGC may not be able to lower the gain
     ///   quickly enough, potentially leading to clipping and distorted sound before it can adjust.
     ///   Finding the right balance is crucial for maintaining natural-sounding dynamics and
-    ///   preventing distortion. A recommended release_time of `0.005` seconds often works well for
-    ///   general use, providing a good balance between responsiveness and smooth transitions.
+    ///   preventing distortion. A recommended release_time of `0.0` seconds works well for
+    ///   general use, allowing the AGC to decrease the gain immediately with no delay, ensuring there is no clipping.
     ///
     /// `absolute_max_gain`:
     ///   **TL;DR**: Maximum allowed gain. Prevents over-amplification. **Recommended: `5.0`**.
@@ -349,7 +349,7 @@ pub trait Source: Iterator<Item = Sample> {
     /// let source = SineWave::new(444.0); // An example.
     /// let (sink, output) = Sink::new(); // An example.
     ///
-    /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
+    /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.0, 5.0);
     ///
     /// // Add the AGC-controlled source to the sink
     /// sink.append(agc_source);

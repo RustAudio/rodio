@@ -107,8 +107,8 @@ num-rational = "0.4.2"
 
 [dev-dependencies]
 quickcheck = "1"
-rstest = "0.18.2"
-rstest_reuse = "0.6.0"
+rstest = "0.24"
+rstest_reuse = "0.7"
 approx = "0.5.1"
 dasp_sample = "0.11.0"
 divan = "0.1.14"

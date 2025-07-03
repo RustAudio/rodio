@@ -15,30 +15,28 @@
 //!
 //! ## Seeking Support
 //!
-//! **Seekable generators** (stateless or can recalculate state):
+//! **Seekable generators** (stateless or can reset state):
 //! - White, Gaussian white, Triangular white noise (stateless)
-//! - Velvet noise (can recalculate grid position from time)
 //! - Violet noise (can reset differentiator state)
 //!
 //! **Non-seekable generators** (stateful - depends on previous samples):
 //! - Pink (integrator state), Blue (depends on pink)
-//! - Brownian (accumulator state)
+//! - Brownian (accumulator state), Velvet (grid position state)
 //!
 //! ## Basic Usage
 //!
 //! ```rust
-//! use rodio::source::{white, pink, triangular_white, blue, WhiteNoise, PinkNoise, NoiseGenerator};
-//! use rand::rngs::SmallRng;
+//! use rodio::source::noise::{WhiteUniform, Pink, WhiteTriangular, Blue};
 //!
-//! // Basic: create different noise types (all at 44.1kHz)
-//! let white = white(44100);                 // For testing equipment linearly
-//! let pink = pink(44100);                   // For pleasant background sound
-//! let triangular = triangular_white(44100); // For TPDF dithering
-//! let blue = blue(44100);                   // For high-passed dithering applications
+//! // Simple usage - creates generators with `SmallRng`
+//! let white = WhiteUniform::new(44100);          // For testing equipment linearly
+//! let pink = Pink::new(44100);                   // For pleasant background sound
+//! let triangular = WhiteTriangular::new(44100);  // For TPDF dithering
+//! let blue = Blue::new(44100);                   // For high-passed dithering applications
 //!
-//! // Advanced: create with custom RNG (useful for deterministic output)
-//! let white_custom = WhiteNoise::<SmallRng>::new_with_seed(44100, 12345);
-//! let pink_custom = PinkNoise::<SmallRng>::new_with_seed(44100, 12345);
+//! // Advanced usage - specify your own RNG type
+//! use rand::{rngs::StdRng, SeedableRng};
+//! let white_custom = WhiteUniform::<StdRng>::new_with_rng(44100, StdRng::seed_from_u64(12345));
 //! ```
 
 use std::time::Duration;
@@ -52,191 +50,19 @@ use rand_distr::{Normal, Triangular};
 
 use crate::{ChannelCount, Sample, SampleRate, Source};
 
-/// Trait providing common constructor patterns for noise generators.
-/// Provides default implementations for `new()` and `new_with_seed()`
-/// that delegate to `new_with_rng()`.
-pub trait NoiseGenerator<R: Rng + SeedableRng> {
-    /// Create a new noise generator with a custom RNG.
-    fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self;
-
-    /// Create a new noise generator, seeding the RNG with system entropy.
-    fn new(sample_rate: SampleRate) -> Self
-    where
-        Self: Sized,
-    {
-        Self::new_with_rng(sample_rate, R::from_os_rng())
-    }
-
-    /// Create a new noise generator, seeding the RNG with `seed`.
-    fn new_with_seed(sample_rate: SampleRate, seed: u64) -> Self
-    where
-        Self: Sized,
-    {
-        Self::new_with_rng(sample_rate, R::seed_from_u64(seed))
-    }
+/// Convenience function to create a new `WhiteUniform` noise source.
+#[deprecated(since = "0.21", note = "use WhiteUniform::new() instead")]
+pub fn white(sample_rate: SampleRate) -> WhiteUniform<SmallRng> {
+    WhiteUniform::new(sample_rate)
 }
 
-/// Create white noise - sounds like radio static (RPDF).
-/// Also known as uniform noise.
-///
-/// White noise has equal power at all frequencies, making it suitable for:
-/// - Testing equipment frequency response linearly (flat spectrum analysis)
-/// - Masking other sounds (covers all frequencies equally)
-/// - As a base for creating other noise types
-///
-/// **Sound character**: Harsh, static-like, evenly bright across all frequencies.
-/// **Distribution**: RPDF (Rectangular Probability Density Function) - uniform distribution.
-///
-/// ```rust
-/// use rodio::source::white;
-/// let white_noise = white(44100);  // 44.1kHz sample rate
-/// ```
-pub fn white(sample_rate: SampleRate) -> WhiteNoise<SmallRng> {
-    WhiteNoise::<SmallRng>::new(sample_rate)
+/// Convenience function to create a new `Pink` noise source.
+#[deprecated(since = "0.21", note = "use Pink::new() instead")]
+pub fn pink(sample_rate: SampleRate) -> Pink<SmallRng> {
+    Pink::new(sample_rate)
 }
 
-/// Create pink noise - sounds much more natural than white noise.
-/// Also known as 1/f noise or flicker noise.
-///
-/// Pink noise emphasizes lower frequencies, making it sound more natural and pleasant than white
-/// noise. Suitable for:
-/// - Audio system and room calibration (industry standard, matches human hearing)
-/// - Speaker and headphone testing (perceptually balanced)
-/// - Pleasant background/ambient sounds
-/// - Sleep sounds or concentration aids
-///
-/// **Sound character**: Warmer and more pleasant than white noise, like distant rainfall.
-///
-/// ```rust
-/// use rodio::source::pink;
-/// let pink_noise = pink(44100);  // Sounds much more natural than white
-/// ```
-pub fn pink(sample_rate: SampleRate) -> PinkNoise<SmallRng> {
-    PinkNoise::<SmallRng>::new(sample_rate)
-}
-
-/// Create blue noise - sounds brighter than white noise but less harsh.
-/// Also known as azure noise.
-///
-/// Blue noise emphasizes higher frequencies while distributing energy more evenly than white noise.
-/// Suitable for:
-/// - High-passed audio dithering (optimal frequency distribution - pushes noise up but not too far)
-/// - Digital signal processing applications
-/// - Situations where you want bright sound without harshness
-/// - Reducing low-frequency rumble or artifacts
-///
-/// **Sound character**: Brighter than white noise but smoother and less fatiguing.
-///
-/// **Why not violet for dithering?** Blue noise provides the ideal balance - moves noise away from
-/// audible low frequencies without pushing it so high that it causes aliasing or gets filtered out.
-///
-/// ```rust
-/// use rodio::source::blue;
-/// let blue_noise = blue(44100);  // Bright but pleasant
-/// ```
-pub fn blue(sample_rate: SampleRate) -> BlueNoise<SmallRng> {
-    BlueNoise::<SmallRng>::new(sample_rate)
-}
-
-/// Create violet noise - very bright and sharp sounding.
-/// Also known as purple noise.
-///
-/// Violet noise heavily emphasizes high frequencies, creating a very bright, almost piercing sound.
-/// Suitable when you need:
-/// - Testing high-frequency response of audio equipment
-/// - Creating harsh, bright sound effects
-/// - Emphasizing treble frequencies
-/// - Sharp, attention-grabbing audio textures
-///
-/// **Sound character**: Very bright, sharp, can be harsh - use sparingly.
-///
-/// ```rust
-/// use rodio::source::violet;
-/// let violet_noise = violet(44100);  // Very bright and sharp
-/// ```
-pub fn violet(sample_rate: SampleRate) -> VioletNoise<SmallRng> {
-    VioletNoise::<SmallRng>::new(sample_rate)
-}
-
-/// Create brownian noise - sounds very muffled and deep.
-/// Also known as red noise or Brown noise.
-///
-/// Brownian noise heavily emphasizes low frequencies, creating a very muffled, deep sound.
-/// Suitable for:
-/// - Creating distant, muffled sound effects
-/// - Deep, rumbling background textures
-/// - Simulating sounds heard through walls or underwater
-/// - Scientific modeling of random walk processes
-///
-/// **Sound character**: Very muffled, deep, lacks high frequencies entirely.
-///
-/// ```rust
-/// use rodio::source::brownian;
-/// let brownian_noise = brownian(44100);  // Deep and muffled
-/// ```
-pub fn brownian(sample_rate: SampleRate) -> BrownianNoise<SmallRng> {
-    BrownianNoise::<SmallRng>::new(sample_rate)
-}
-
-/// Create velvet noise - sounds like sparse random impulses.
-/// Also known as sparse noise or decorrelated noise.
-///
-/// Velvet noise creates random impulses with controlled spacing, not continuous noise.
-/// The default density is 2000 impulses per second, which should sound smoother than white noise.
-///
-/// **Use for:** Artificial reverb effects, room simulation, creating decorrelated audio channels.
-/// **Sound character**: Random impulses with silence between - smoother than white noise.
-/// **Efficiency**: Computationally cheaper than other noise types for reverb - mostly outputs silence.
-///
-/// ```rust
-/// use rodio::source::velvet;
-/// let velvet_noise = velvet(44100);  // 2000 impulses per second
-/// ```
-pub fn velvet(sample_rate: SampleRate) -> VelvetNoise<SmallRng> {
-    VelvetNoise::<SmallRng>::new(sample_rate)
-}
-
-/// Create Gaussian white noise - white noise with normal distribution.
-/// Also known as normal noise or bell curve noise.
-///
-/// Has the same flat frequency spectrum as regular white noise, but uses a normal
-/// (Gaussian) distribution instead of uniform. This makes it more suitable for:
-/// - Scientific simulations requiring normal distribution
-/// - Modeling natural random processes
-/// - Applications where bell-curve statistics matter
-/// - More analog-like behavior in audio modeling
-///
-/// **Sound character**: Very similar to regular white noise.
-/// **Distribution**: GPDF (Gaussian) vs RPDF (uniform) for regular white noise.
-///
-/// ```rust
-/// use rodio::source::gaussian_white;
-/// let gaussian_white = gaussian_white(44100);  // Analog-like white noise
-/// ```
-pub fn gaussian_white(sample_rate: SampleRate) -> GaussianWhiteNoise<SmallRng> {
-    GaussianWhiteNoise::<SmallRng>::new(sample_rate)
-}
-
-/// Create triangular white noise - optimal for high-quality dithering.
-///
-/// Triangular white noise uses two uniform random samples to create a triangular
-/// distribution. TPDF (Triangular Probability Density Function) dithering completely
-/// eliminates correlation between the original signal and quantization error, making
-/// it superior to RPDF (uniform) dithering for audio applications.
-///
-/// **Use for:** High-quality audio dithering when reducing bit depth.
-/// **Sound character**: Similar to white noise in frequency content.
-/// **Distribution**: TPDF - sum of two uniform samples creates triangular probability curve.
-///
-/// ```rust
-/// use rodio::source::triangular_white;
-/// let triangular_noise = triangular_white(44100);  // Perfect for dithering
-/// ```
-pub fn triangular_white(sample_rate: SampleRate) -> TriangularWhiteNoise<SmallRng> {
-    TriangularWhiteNoise::<SmallRng>::new(sample_rate)
-}
-
-/// Macro to implement the basic Source trait for mono noise generators.
+/// Macro to implement the basic `Source` trait for mono noise generators.
 /// This covers the common case of infinite-duration, single-channel noise.
 macro_rules! impl_noise_source_basic {
     ($type:ty) => {
@@ -260,7 +86,7 @@ macro_rules! impl_noise_source_basic {
     };
 }
 
-/// Macro to implement the basic Source trait with stateless seeking support.
+/// Macro to implement the basic `Source` trait with stateless seeking support.
 /// For noise generators that can seek to any position without state dependency.
 macro_rules! impl_noise_source_seekable {
     ($type:ty) => {
@@ -321,15 +147,24 @@ impl<R: Rng, D: Distribution<f32> + Clone> NoiseSampler<R, D> {
 /// **When to use:** Audio equipment testing, sound masking, or as a base for other effects.
 /// **Sound:** Harsh, bright, evenly distributed across all frequencies.
 #[derive(Clone, Debug)]
-pub struct WhiteNoise<R: Rng> {
+pub struct WhiteUniform<R: Rng = SmallRng> {
     sample_rate: SampleRate,
     sampler: NoiseSampler<R, Uniform<f32>>,
 }
 
-impl<R: Rng + SeedableRng> NoiseGenerator<R> for WhiteNoise<R> {
-    fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
+impl WhiteUniform<SmallRng> {
+    /// Create a new white noise generator with `SmallRng` seeded from system entropy.
+    pub fn new(sample_rate: SampleRate) -> Self {
+        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+    }
+}
+
+impl<R: Rng + SeedableRng> WhiteUniform<R> {
+    /// Create a new white noise generator with a custom RNG.
+    pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let distribution =
             Uniform::new_inclusive(-1.0, 1.0).expect("Failed to create uniform distribution");
+
         Self {
             sample_rate,
             sampler: NoiseSampler::new(rng, distribution),
@@ -337,7 +172,7 @@ impl<R: Rng + SeedableRng> NoiseGenerator<R> for WhiteNoise<R> {
     }
 }
 
-impl<R: Rng> Iterator for WhiteNoise<R> {
+impl<R: Rng> Iterator for WhiteUniform<R> {
     type Item = Sample;
 
     #[inline]
@@ -346,7 +181,7 @@ impl<R: Rng> Iterator for WhiteNoise<R> {
     }
 }
 
-impl_noise_source_seekable!(WhiteNoise<R>);
+impl_noise_source_seekable!(WhiteUniform<R>);
 
 /// Triangular white noise generator - ideal for TPDF dithering.
 ///
@@ -359,14 +194,23 @@ impl_noise_source_seekable!(WhiteNoise<R>);
 /// **Sound:** Similar to white noise but with better statistical properties.
 /// **Distribution**: TPDF - triangular distribution from sum of two uniform samples.
 #[derive(Clone, Debug)]
-pub struct TriangularWhiteNoise<R: Rng> {
+pub struct WhiteTriangular<R: Rng = SmallRng> {
     sample_rate: SampleRate,
     sampler: NoiseSampler<R, Triangular<f32>>,
 }
 
-impl<R: Rng + SeedableRng> NoiseGenerator<R> for TriangularWhiteNoise<R> {
-    fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
+impl WhiteTriangular<SmallRng> {
+    /// Create a new triangular white noise generator with SmallRng seeded from system entropy.
+    pub fn new(sample_rate: SampleRate) -> Self {
+        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+    }
+}
+
+impl<R: Rng + SeedableRng> WhiteTriangular<R> {
+    /// Create a new triangular white noise generator with a custom RNG.
+    pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let distribution = Triangular::new(-1.0, 1.0, 0.0).expect("Valid triangular distribution");
+
         Self {
             sample_rate,
             sampler: NoiseSampler::new(rng, distribution),
@@ -374,7 +218,7 @@ impl<R: Rng + SeedableRng> NoiseGenerator<R> for TriangularWhiteNoise<R> {
     }
 }
 
-impl<R: Rng> Iterator for TriangularWhiteNoise<R> {
+impl<R: Rng> Iterator for WhiteTriangular<R> {
     type Item = Sample;
 
     #[inline]
@@ -383,9 +227,10 @@ impl<R: Rng> Iterator for TriangularWhiteNoise<R> {
     }
 }
 
-impl_noise_source_seekable!(TriangularWhiteNoise<R>);
+impl_noise_source_seekable!(WhiteTriangular<R>);
 
 /// Velvet noise generator - creates sparse random impulses, not continuous noise.
+/// Also known as sparse noise or decorrelated noise.
 ///
 /// Unlike other noise types, velvet noise produces random impulses separated
 /// by periods of silence. Divides time into regular intervals and places
@@ -394,9 +239,10 @@ impl_noise_source_seekable!(TriangularWhiteNoise<R>);
 /// **When to use:** Building reverb effects, room simulation, decorrelating audio channels.
 /// **Sound:** Random impulses with silence between - smoother than continuous noise.
 /// **Default:** 2000 impulses per second.
-/// **Efficiency:** Very computationally efficient - mostly outputs zeros, only occasional computation.
+/// **Efficiency:** Very computationally efficient - mostly outputs zeros, only occasional
+/// computation.
 #[derive(Clone, Debug)]
-pub struct VelvetNoise<R: Rng> {
+pub struct Velvet<R: Rng = SmallRng> {
     sample_rate: SampleRate,
     rng: R,
     grid_size: f32,   // samples per grid cell
@@ -404,9 +250,17 @@ pub struct VelvetNoise<R: Rng> {
     impulse_pos: f32, // where impulse occurs in current grid
 }
 
-impl<R: Rng + SeedableRng> NoiseGenerator<R> for VelvetNoise<R> {
-    fn new_with_rng(sample_rate: SampleRate, mut rng: R) -> Self {
-        let density = 2000.0; // impulses per second
+impl Velvet<SmallRng> {
+    /// Create a new velvet noise generator with SmallRng seeded from system entropy.
+    pub fn new(sample_rate: SampleRate) -> Self {
+        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+    }
+}
+
+impl<R: Rng + SeedableRng> Velvet<R> {
+    /// Create a new velvet noise generator with a custom RNG.
+    pub fn new_with_rng(sample_rate: SampleRate, mut rng: R) -> Self {
+        let density = VELVET_DEFAULT_DENSITY;
         let grid_size = sample_rate as f32 / density;
         let impulse_pos = rng.random::<f32>() * grid_size;
 
@@ -420,7 +274,7 @@ impl<R: Rng + SeedableRng> NoiseGenerator<R> for VelvetNoise<R> {
     }
 }
 
-impl<R: Rng + SeedableRng> VelvetNoise<R> {
+impl<R: Rng + SeedableRng> Velvet<R> {
     /// Create a new velvet noise generator with custom density (impulses per second).
     pub fn new_with_density(sample_rate: SampleRate, density: f32) -> Self {
         let mut rng = R::from_os_rng();
@@ -438,7 +292,7 @@ impl<R: Rng + SeedableRng> VelvetNoise<R> {
     }
 }
 
-impl<R: Rng> Iterator for VelvetNoise<R> {
+impl<R: Rng> Iterator for Velvet<R> {
     type Item = Sample;
 
     #[inline]
@@ -466,9 +320,10 @@ impl<R: Rng> Iterator for VelvetNoise<R> {
     }
 }
 
-impl_noise_source_basic!(VelvetNoise<R>);
+impl_noise_source_basic!(Velvet<R>);
 
 /// Gaussian white noise generator - statistically perfect white noise (GPDF).
+/// Also known as normal noise or bell curve noise.
 ///
 /// Like regular white noise but with normal distribution (bell curve) instead of uniform.
 /// More closely mimics analog circuits and natural processes, which typically follow bell curves.
@@ -479,27 +334,36 @@ impl_noise_source_basic!(VelvetNoise<R>);
 /// **Sound character**: Very similar to regular white noise, but with more analog-like character.
 /// **vs White Noise:** Gaussian mimics natural/analog systems better, uniform white is faster and simpler.
 #[derive(Clone, Debug)]
-pub struct GaussianWhiteNoise<R: Rng> {
+pub struct WhiteGaussian<R: Rng = SmallRng> {
     sample_rate: SampleRate,
     sampler: NoiseSampler<R, Normal<f32>>,
 }
 
-impl<R: Rng + SeedableRng> GaussianWhiteNoise<R> {
-    /// The mean of the Gaussian distribution used for sampling.
+impl<R: Rng + SeedableRng> WhiteGaussian<R> {
+    /// Get the mean (average) value of the noise distribution.
     pub fn mean(&self) -> f32 {
-        self.sampler.distribution.mean()
+        self.sampler.distribution.mean() as f32
     }
 
-    /// The standard deviation of the Gaussian distribution used for sampling.
+    /// Get the standard deviation of the noise distribution.
     pub fn std_dev(&self) -> f32 {
-        self.sampler.distribution.std_dev()
+        self.sampler.distribution.std_dev() as f32
     }
 }
 
-impl<R: Rng + SeedableRng> NoiseGenerator<R> for GaussianWhiteNoise<R> {
-    fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
+impl WhiteGaussian<SmallRng> {
+    /// Create a new Gaussian white noise generator with `SmallRng` seeded from system entropy.
+    pub fn new(sample_rate: SampleRate) -> Self {
+        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+    }
+}
+
+impl<R: Rng + SeedableRng> WhiteGaussian<R> {
+    /// Create a new Gaussian white noise generator with a custom RNG.
+    pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let distribution = Normal::new(0.0, 1.0 / 3.0)
             .expect("Normal distribution with mean=0, std=1/3 should be valid");
+
         Self {
             sample_rate,
             sampler: NoiseSampler::new(rng, distribution),
@@ -507,18 +371,18 @@ impl<R: Rng + SeedableRng> NoiseGenerator<R> for GaussianWhiteNoise<R> {
     }
 }
 
-impl<R: Rng> Iterator for GaussianWhiteNoise<R> {
+impl<R: Rng> Iterator for WhiteGaussian<R> {
     type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // Sample directly from Normal(0.0, 1/3) distribution
-        // ~99.7% of samples naturally fall within [-1.0, 1.0] without clamping
-        Some(self.sampler.sample())
+        // Sample directly from Normal(0.0, 1/3) distribution and clamp to [-1.0, 1.0]
+        // This ensures all samples are bounded as required
+        Some(self.sampler.sample().clamp(-1.0, 1.0))
     }
 }
 
-impl_noise_source_seekable!(GaussianWhiteNoise<R>);
+impl_noise_source_seekable!(WhiteGaussian<R>);
 
 /// Number of generators used in PinkNoise for frequency coverage.
 ///
@@ -529,6 +393,13 @@ impl_noise_source_seekable!(GaussianWhiteNoise<R>);
 /// frequency coverage for sample rates from 8kHz to 192kHz+ while maintaining
 /// computational efficiency.
 const PINK_NOISE_GENERATORS: usize = 16;
+
+/// Default impulse density for Velvet noise in impulses per second.
+///
+/// This provides a good balance between realistic reverb characteristics and
+/// computational efficiency. Lower values create sparser, more distant reverb
+/// effects, while higher values create denser, closer reverb simulation.
+const VELVET_DEFAULT_DENSITY: f32 = 2000.0;
 
 /// Pink noise generator - sounds much more natural than white noise.
 ///
@@ -544,16 +415,24 @@ const PINK_NOISE_GENERATORS: usize = 16;
 /// Technical: 1/f frequency spectrum (power decreases 3dB per octave).
 /// Works correctly at all sample rates from 8kHz to 192kHz+.
 #[derive(Clone, Debug)]
-pub struct PinkNoise<R: Rng> {
+pub struct Pink<R: Rng = SmallRng> {
     sample_rate: SampleRate,
-    white_noise: WhiteNoise<R>,
+    white_noise: WhiteUniform<R>,
     values: [f32; PINK_NOISE_GENERATORS],
     counters: [u32; PINK_NOISE_GENERATORS],
     max_counts: [u32; PINK_NOISE_GENERATORS],
 }
 
-impl<R: Rng + SeedableRng> NoiseGenerator<R> for PinkNoise<R> {
-    fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
+impl Pink<SmallRng> {
+    /// Create a new pink noise generator with `SmallRng` seeded from system entropy.
+    pub fn new(sample_rate: SampleRate) -> Self {
+        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+    }
+}
+
+impl<R: Rng + SeedableRng> Pink<R> {
+    /// Create a new pink noise generator with a custom RNG.
+    pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let mut max_counts = [1u32; PINK_NOISE_GENERATORS];
         // Each generator updates at half the rate of the previous one: 1, 2, 4, 8, 16, ...
         for i in 1..PINK_NOISE_GENERATORS {
@@ -562,7 +441,7 @@ impl<R: Rng + SeedableRng> NoiseGenerator<R> for PinkNoise<R> {
 
         Self {
             sample_rate,
-            white_noise: WhiteNoise::new_with_rng(sample_rate, rng),
+            white_noise: WhiteUniform::new_with_rng(sample_rate, rng),
             values: [0.0; PINK_NOISE_GENERATORS],
             counters: [0; PINK_NOISE_GENERATORS],
             max_counts,
@@ -570,7 +449,7 @@ impl<R: Rng + SeedableRng> NoiseGenerator<R> for PinkNoise<R> {
     }
 }
 
-impl<R: Rng> Iterator for PinkNoise<R> {
+impl<R: Rng> Iterator for Pink<R> {
     type Item = Sample;
 
     #[inline]
@@ -596,13 +475,13 @@ impl<R: Rng> Iterator for PinkNoise<R> {
     }
 }
 
-impl_noise_source_basic!(PinkNoise<R>);
+impl_noise_source_basic!(Pink<R>);
 
 /// Blue noise generator - sounds brighter than white noise but smoother.
 ///
 /// Blue noise emphasizes higher frequencies while distributing energy more evenly
 /// than white noise. It's "brighter" sounding but less harsh and fatiguing.
-/// Generated by differentiating pink noise.
+/// Generated by differentiating pink noise. Also known as azure noise.
 ///
 /// **When to use:** High-passed audio dithering (preferred over violet), digital signal processing,
 /// or when you want bright sound without the harshness of white noise.
@@ -612,41 +491,49 @@ impl_noise_source_basic!(PinkNoise<R>);
 ///
 /// Technical: f frequency spectrum (power increases 3dB per octave).
 #[derive(Clone, Debug)]
-pub struct BlueNoise<R: Rng> {
+pub struct Blue<R: Rng = SmallRng> {
     sample_rate: SampleRate,
-    pink_noise: PinkNoise<R>,
-    prev_pink: f32,
+    white_noise: WhiteGaussian<R>,
+    prev_white: f32,
 }
 
-impl<R: Rng + SeedableRng> NoiseGenerator<R> for BlueNoise<R> {
-    fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
+impl Blue<SmallRng> {
+    /// Create a new blue noise generator with `SmallRng` seeded from system entropy.
+    pub fn new(sample_rate: SampleRate) -> Self {
+        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+    }
+}
+
+impl<R: Rng + SeedableRng> Blue<R> {
+    /// Create a new blue noise generator with a custom RNG.
+    pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         Self {
             sample_rate,
-            pink_noise: PinkNoise::new_with_rng(sample_rate, rng),
-            prev_pink: 0.0,
+            white_noise: WhiteGaussian::new_with_rng(sample_rate, rng),
+            prev_white: 0.0,
         }
     }
 }
 
-impl<R: Rng> Iterator for BlueNoise<R> {
+impl<R: Rng> Iterator for Blue<R> {
     type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let pink = self
-            .pink_noise
+        let white = self
+            .white_noise
             .next()
-            .expect("PinkNoise should never return None");
-        let blue = pink - self.prev_pink;
-        self.prev_pink = pink;
-        // Scale by 0.5 to keep output in reasonable range
-        Some(blue * 0.5)
+            .expect("White noise should never return None");
+        let blue = white - self.prev_white;
+        self.prev_white = white;
+        Some(blue)
     }
 }
 
-impl_noise_source_basic!(BlueNoise<R>);
+impl_noise_source_basic!(Blue<R>);
 
 /// Violet noise generator - very bright and sharp sounding.
+/// Also known as purple noise.
 ///
 /// Violet noise (also called purple noise) heavily emphasizes high frequencies,
 /// creating a very bright, sharp, sometimes harsh sound. It's the opposite of
@@ -661,38 +548,46 @@ impl_noise_source_basic!(BlueNoise<R>);
 /// Technical: f² frequency spectrum (power increases 6dB per octave).
 /// Generated by differentiating uniform random samples.
 #[derive(Clone, Debug)]
-pub struct VioletNoise<R: Rng> {
+pub struct Violet<R: Rng = SmallRng> {
     sample_rate: SampleRate,
-    white_noise: WhiteNoise<R>,
+    blue_noise: Blue<R>,
     prev: f32,
 }
 
-impl<R: Rng + SeedableRng> NoiseGenerator<R> for VioletNoise<R> {
-    fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
+impl Violet<SmallRng> {
+    /// Create a new violet noise generator with `SmallRng` seeded from system entropy.
+    pub fn new(sample_rate: SampleRate) -> Self {
+        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+    }
+}
+
+impl<R: Rng + SeedableRng> Violet<R> {
+    /// Create a new violet noise generator with a custom RNG.
+    pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         Self {
             sample_rate,
-            white_noise: WhiteNoise::new_with_rng(sample_rate, rng),
-            prev: 0.0, // Start at zero for consistent seeking
+            blue_noise: Blue::new_with_rng(sample_rate, rng),
+            prev: 0.0,
         }
     }
 }
 
-impl<R: Rng> Iterator for VioletNoise<R> {
+impl<R: Rng> Iterator for Violet<R> {
     type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let white = self
-            .white_noise
+        let blue = self
+            .blue_noise
             .next()
-            .expect("WhiteNoise should never return None");
-        let violet = white - self.prev;
-        self.prev = white;
+            .expect("Blue noise should never return None");
+        let violet = blue - self.prev; // Difference can exceed [-1.0, 1.0] - this is mathematically correct
+        self.prev = blue;
         Some(violet)
     }
 }
 
-impl<R: Rng> Source for VioletNoise<R> {
+impl<R: Rng> Source for Violet<R> {
     fn current_span_len(&self) -> Option<usize> {
         None
     }
@@ -717,6 +612,7 @@ impl<R: Rng> Source for VioletNoise<R> {
 }
 
 /// Brownian noise generator - sounds very muffled and deep.
+/// Also known as red noise or Brown noise.
 ///
 /// Brownian noise (also called red noise) heavily emphasizes low frequencies,
 /// creating a very muffled, deep sound with almost no high frequencies.
@@ -728,17 +624,25 @@ impl<R: Rng> Source for VioletNoise<R> {
 /// **Sound:** Very muffled, deep, lacks high frequencies - sounds "distant".
 /// **Technical:** Uses Gaussian white noise as input for more natural integration behavior.
 #[derive(Clone, Debug)]
-pub struct BrownianNoise<R: Rng> {
+pub struct Brownian<R: Rng = SmallRng> {
     sample_rate: SampleRate,
-    white_noise: GaussianWhiteNoise<R>,
+    white_noise: WhiteGaussian<R>,
     accumulator: f32,
     leak_factor: f32,
     scale: f32,
 }
 
-impl<R: Rng + SeedableRng> NoiseGenerator<R> for BrownianNoise<R> {
-    fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
-        let white_noise = GaussianWhiteNoise::new_with_rng(sample_rate, rng);
+impl Brownian<SmallRng> {
+    /// Create a new brownian noise generator with `SmallRng` seeded from system entropy.
+    pub fn new(sample_rate: SampleRate) -> Self {
+        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+    }
+}
+
+impl<R: Rng + SeedableRng> Brownian<R> {
+    /// Create a new brownian noise generator with a custom RNG.
+    pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
+        let white_noise = WhiteGaussian::new_with_rng(sample_rate, rng);
 
         // Leak factor prevents DC buildup while maintaining brownian characteristics.
         // Center frequency is set to 5Hz, which provides good brownian behavior
@@ -763,7 +667,7 @@ impl<R: Rng + SeedableRng> NoiseGenerator<R> for BrownianNoise<R> {
     }
 }
 
-impl<R: Rng> Iterator for BrownianNoise<R> {
+impl<R: Rng> Iterator for Brownian<R> {
     type Item = Sample;
 
     #[inline]
@@ -775,10 +679,385 @@ impl<R: Rng> Iterator for BrownianNoise<R> {
 
         // Leaky integration: prevents DC buildup while maintaining brownian characteristics
         self.accumulator = self.accumulator * self.leak_factor + white;
-
-        // Apply mathematically derived scaling factor for consistent output level
         Some(self.accumulator * self.scale)
     }
 }
 
-impl_noise_source_basic!(BrownianNoise<R>);
+impl_noise_source_basic!(Brownian<R>);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::rngs::SmallRng;
+    use rand::SeedableRng;
+    use rstest::rstest;
+    use rstest_reuse::{self, *};
+
+    // Test constants
+    const TEST_SAMPLE_RATE: u32 = 44100;
+    const TEST_SAMPLES_SMALL: usize = 100;
+    const TEST_SAMPLES_MEDIUM: usize = 1000;
+
+    // Helper function to create iterator from generator name
+    fn create_generator_iterator(name: &str) -> Box<dyn Iterator<Item = f32>> {
+        match name {
+            "WhiteUniform" => Box::new(WhiteUniform::new(TEST_SAMPLE_RATE)),
+            "WhiteTriangular" => Box::new(WhiteTriangular::new(TEST_SAMPLE_RATE)),
+            "WhiteGaussian" => Box::new(WhiteGaussian::new(TEST_SAMPLE_RATE)),
+            "Pink" => Box::new(Pink::new(TEST_SAMPLE_RATE)),
+            "Blue" => Box::new(Blue::new(TEST_SAMPLE_RATE)),
+            "Violet" => Box::new(Violet::new(TEST_SAMPLE_RATE)),
+            "Brownian" => Box::new(Brownian::new(TEST_SAMPLE_RATE)),
+            "Velvet" => Box::new(Velvet::new(TEST_SAMPLE_RATE)),
+            _ => panic!("Unknown generator: {}", name),
+        }
+    }
+
+    // Helper function to create source from generator name
+    fn create_generator_source(name: &str) -> Box<dyn Source> {
+        match name {
+            "WhiteUniform" => Box::new(WhiteUniform::new(TEST_SAMPLE_RATE)),
+            "WhiteTriangular" => Box::new(WhiteTriangular::new(TEST_SAMPLE_RATE)),
+            "WhiteGaussian" => Box::new(WhiteGaussian::new(TEST_SAMPLE_RATE)),
+            "Pink" => Box::new(Pink::new(TEST_SAMPLE_RATE)),
+            "Blue" => Box::new(Blue::new(TEST_SAMPLE_RATE)),
+            "Violet" => Box::new(Violet::new(TEST_SAMPLE_RATE)),
+            "Brownian" => Box::new(Brownian::new(TEST_SAMPLE_RATE)),
+            "Velvet" => Box::new(Velvet::new(TEST_SAMPLE_RATE)),
+            _ => panic!("Unknown generator: {}", name),
+        }
+    }
+
+    // Templates for different generator groups
+    #[template]
+    #[rstest]
+    #[case("WhiteUniform")]
+    #[case("WhiteTriangular")]
+    #[case("WhiteGaussian")]
+    #[case("Pink")]
+    #[case("Blue")]
+    #[case("Violet")]
+    #[case("Brownian")]
+    #[case("Velvet")]
+    fn all_generators(#[case] generator_name: &str) {}
+
+    #[template]
+    #[rstest]
+    #[case("WhiteUniform")]
+    #[case("WhiteTriangular")]
+    #[case("WhiteGaussian")]
+    #[case("Violet")]
+    fn seekable_generators(#[case] generator_name: &str) {}
+
+    // Generators that are mathematically bounded to [-1.0, 1.0]
+    #[template]
+    #[rstest]
+    #[case("WhiteUniform")]
+    #[case("WhiteTriangular")]
+    #[case("Pink")]
+    #[case("Velvet")]
+    fn bounded_generators(#[case] generator_name: &str) {}
+
+    // Generators that can mathematically exceed [-1.0, 1.0] (differentiators and integrators)
+    #[template]
+    #[rstest]
+    #[case("WhiteGaussian")] // Gaussian can exceed bounds (3-sigma rule, ~0.3% chance)
+    #[case("Blue")]          // Difference of bounded values can exceed bounds
+    #[case("Violet")]        // Difference of bounded values can exceed bounds  
+    #[case("Brownian")]      // Integration can exceed bounds despite scaling
+    fn unbounded_generators(#[case] generator_name: &str) {}
+
+    // Test that mathematically bounded generators stay within [-1.0, 1.0]
+    #[apply(bounded_generators)]
+    #[trace]
+    fn test_bounded_generators_range(generator_name: &str) {
+        let mut generator = create_generator_iterator(generator_name);
+        for i in 0..TEST_SAMPLES_MEDIUM {
+            let sample = generator.next().unwrap();
+            assert!(
+                sample >= -1.0 && sample <= 1.0,
+                "{} sample {} out of range [-1.0, 1.0]: {}",
+                generator_name,
+                i,
+                sample
+            );
+        }
+    }
+
+    // Test that unbounded generators produce finite samples (no bounds check)
+    #[apply(unbounded_generators)]
+    #[trace]
+    fn test_unbounded_generators_finite(generator_name: &str) {
+        let mut generator = create_generator_iterator(generator_name);
+        for i in 0..TEST_SAMPLES_MEDIUM {
+            let sample = generator.next().unwrap();
+            assert!(
+                sample.is_finite(),
+                "{} produced non-finite sample at index {}: {}",
+                generator_name,
+                i,
+                sample
+            );
+        }
+    }
+
+    // Test that seekable generators can seek without errors
+    #[apply(seekable_generators)]
+    #[trace]
+    fn test_seekable_generators_seek(generator_name: &str) {
+        let mut generator = create_generator_source(generator_name);
+        let seek_result = generator.try_seek(std::time::Duration::from_secs(1));
+        assert!(
+            seek_result.is_ok(),
+            "{} should support seeking but returned error: {:?}",
+            generator_name,
+            seek_result
+        );
+    }
+
+    // Test common Source trait properties for all generators
+    #[apply(all_generators)]
+    #[trace]
+    fn test_source_trait_properties(generator_name: &str) {
+        let source = create_generator_source(generator_name);
+
+        // All noise generators should be mono (1 channel)
+        assert_eq!(source.channels(), 1, "{} should be mono", generator_name);
+
+        // All should have the expected sample rate
+        assert_eq!(
+            source.sample_rate(),
+            TEST_SAMPLE_RATE,
+            "{} should have correct sample rate",
+            generator_name
+        );
+
+        // All should have infinite duration
+        assert_eq!(
+            source.total_duration(),
+            None,
+            "{} should have infinite duration",
+            generator_name
+        );
+
+        // All should return None for current_span_len (infinite streams)
+        assert_eq!(
+            source.current_span_len(),
+            None,
+            "{} should have no span length limit",
+            generator_name
+        );
+    }
+
+    #[test]
+    fn test_white_uniform_distribution() {
+        let mut generator = WhiteUniform::new(TEST_SAMPLE_RATE);
+        let mut min = f32::INFINITY;
+        let mut max = f32::NEG_INFINITY;
+
+        for _ in 0..TEST_SAMPLES_MEDIUM {
+            let sample = generator.next().unwrap();
+            min = min.min(sample);
+            max = max.max(sample);
+        }
+
+        // Should use the full range approximately
+        assert!(min < -0.9, "Min sample should be close to -1.0: {}", min);
+        assert!(max > 0.9, "Max sample should be close to 1.0: {}", max);
+    }
+
+    #[test]
+    fn test_triangular_distribution() {
+        let mut generator = WhiteTriangular::new(TEST_SAMPLE_RATE);
+
+        // Triangular distribution should have most values near 0
+        let mut near_zero_count = 0;
+        let total_samples = TEST_SAMPLES_MEDIUM;
+
+        for _ in 0..total_samples {
+            let sample = generator.next().unwrap();
+            if sample.abs() < 0.5 {
+                near_zero_count += 1;
+            }
+        }
+
+        // Triangular distribution should have more samples near zero than uniform
+        assert!(
+            near_zero_count > total_samples / 2,
+            "Triangular distribution should favor values near zero"
+        );
+    }
+
+    #[test]
+    fn test_gaussian_noise_properties() {
+        let generator = WhiteGaussian::new(TEST_SAMPLE_RATE);
+        assert_eq!(generator.std_dev(), 1.0 / 3.0);
+        assert_eq!(generator.mean(), 0.0);
+
+        // Test that most samples fall within 3 standard deviations (should be ~99.7%)
+        let mut generator = WhiteGaussian::new(TEST_SAMPLE_RATE);
+        let samples: Vec<f32> = (0..TEST_SAMPLES_MEDIUM)
+            .map(|_| generator.next().unwrap())
+            .collect();
+        let out_of_bounds = samples.iter().filter(|&&s| s.abs() > 1.0).count();
+        let within_bounds_percentage =
+            ((samples.len() - out_of_bounds) as f64 / samples.len() as f64) * 100.0;
+
+        assert!(
+            within_bounds_percentage > 99.0,
+            "Expected >99% of Gaussian samples within [-1.0, 1.0], got {:.1}%",
+            within_bounds_percentage
+        );
+    }
+
+    #[test]
+    fn test_pink_noise_properties() {
+        let mut generator = Pink::new(TEST_SAMPLE_RATE);
+        let samples: Vec<f32> = (0..TEST_SAMPLES_MEDIUM)
+            .map(|_| generator.next().unwrap())
+            .collect();
+
+        // Pink noise should have more correlation between consecutive samples than white noise
+        let mut correlation_sum = 0.0;
+        for i in 0..samples.len() - 1 {
+            correlation_sum += samples[i] * samples[i + 1];
+        }
+        let avg_correlation = correlation_sum / (samples.len() - 1) as f32;
+
+        // Pink noise should have some positive correlation (though not as strong as Brownian)
+        assert!(
+            avg_correlation > -0.1,
+            "Pink noise should have low positive correlation, got: {}",
+            avg_correlation
+        );
+    }
+
+    #[test]
+    fn test_blue_noise_properties() {
+        let mut generator = Blue::new(TEST_SAMPLE_RATE);
+        let samples: Vec<f32> = (0..TEST_SAMPLES_MEDIUM)
+            .map(|_| generator.next().unwrap())
+            .collect();
+
+        // Blue noise should have less correlation than pink noise
+        let mut correlation_sum = 0.0;
+        for i in 0..samples.len() - 1 {
+            correlation_sum += samples[i] * samples[i + 1];
+        }
+        let avg_correlation = correlation_sum / (samples.len() - 1) as f32;
+
+        // Blue noise should have near-zero or negative correlation
+        assert!(
+            avg_correlation < 0.1,
+            "Blue noise should have low correlation, got: {}",
+            avg_correlation
+        );
+    }
+
+    #[test]
+    fn test_violet_noise_properties() {
+        let mut generator = Violet::new(TEST_SAMPLE_RATE);
+        let samples: Vec<f32> = (0..TEST_SAMPLES_MEDIUM)
+            .map(|_| generator.next().unwrap())
+            .collect();
+
+        // Violet noise should have high-frequency characteristics
+        // Check that consecutive differences have higher variance than the original signal
+        let mut diff_variance = 0.0;
+        let mut signal_variance = 0.0;
+        let mean = samples.iter().sum::<f32>() / samples.len() as f32;
+
+        for i in 0..samples.len() - 1 {
+            let diff = samples[i + 1] - samples[i];
+            diff_variance += diff * diff;
+            let centered = samples[i] - mean;
+            signal_variance += centered * centered;
+        }
+
+        diff_variance /= (samples.len() - 1) as f32;
+        signal_variance /= samples.len() as f32;
+
+        // For violet noise (high-pass), differences should have comparable or higher variance
+        assert!(
+            diff_variance > signal_variance * 0.1,
+            "Violet noise should have high-frequency characteristics, diff_var: {}, signal_var: {}",
+            diff_variance,
+            signal_variance
+        );
+    }
+
+    #[test]
+    fn test_brownian_noise_properties() {
+        // Test that brownian noise doesn't accumulate DC indefinitely
+        let mut generator = Brownian::new(TEST_SAMPLE_RATE);
+        let samples: Vec<f32> = (0..TEST_SAMPLE_RATE)
+            .map(|_| generator.next().unwrap())
+            .collect(); // 1 second
+
+        let average = samples.iter().sum::<f32>() / samples.len() as f32;
+        // Average should be close to zero due to leak factor
+        assert!(
+            average.abs() < 0.5,
+            "Brownian noise average too far from zero: {}",
+            average
+        );
+
+        // Brownian noise should have strong positive correlation between consecutive samples
+        let mut correlation_sum = 0.0;
+        for i in 0..samples.len() - 1 {
+            correlation_sum += samples[i] * samples[i + 1];
+        }
+        let avg_correlation = correlation_sum / (samples.len() - 1) as f32;
+
+        assert!(
+            avg_correlation > 0.1,
+            "Brownian noise should have strong positive correlation: {}",
+            avg_correlation
+        );
+    }
+
+    #[test]
+    fn test_velvet_noise_properties() {
+        let mut generator = Velvet::new(TEST_SAMPLE_RATE);
+        let mut impulse_count = 0;
+
+        for _ in 0..TEST_SAMPLE_RATE {
+            let sample = generator.next().unwrap();
+            if sample != 0.0 {
+                impulse_count += 1;
+                // Velvet impulses should be exactly +1.0 or -1.0
+                assert!(sample == 1.0 || sample == -1.0);
+            }
+        }
+
+        assert!(
+            impulse_count > (VELVET_DEFAULT_DENSITY * 0.75) as usize
+                && impulse_count < (VELVET_DEFAULT_DENSITY * 1.25) as usize,
+            "Impulse count out of range: expected ~{}, got {}",
+            VELVET_DEFAULT_DENSITY,
+            impulse_count
+        );
+    }
+
+    #[test]
+    fn test_velvet_custom_density() {
+        let density = 1000.0; // impulses per second for testing
+        let mut generator = Velvet::<SmallRng>::new_with_density(TEST_SAMPLE_RATE, density);
+
+        let mut impulse_count = 0;
+        for _ in 0..TEST_SAMPLE_RATE {
+            if generator.next().unwrap() != 0.0 {
+                impulse_count += 1;
+            }
+        }
+
+        // Should be approximately the requested density
+        let actual_density = impulse_count as f32;
+        assert!(
+            (actual_density - density).abs() < 200.0,
+            "Custom density not achieved: expected ~{}, got {}",
+            density,
+            actual_density
+        );
+    }
+}

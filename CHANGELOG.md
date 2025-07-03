@@ -33,8 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `OutputStreamConfig::buffer_size()` and `OutputStreamConfig::sample_format()` getters to access
   an `OutputStreamConfig`'s channel count, sample rate, buffer size and sample format values.
 - Added `Source::limit()` method for limiting the maximum amplitude of a source.
-- Added more noise generators: `gaussian_white`, `triangular_white`, `blue`, `brownian`, `violet`,
-  and `velvet`.
+- Added more noise generators: `WhiteGaussian`, `WhiteTriangular`, `Blue`, `Brownian`, `Violet`,
+  and `Velvet`.
 
 ### Changed
 - Breaking: `OutputStreamBuilder` should now be used to initialize an audio output stream.
@@ -57,7 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: As optional features are now available: CAF and MKV containers, MP1/MP2 and ADPCM
             decoders. Previously, the ADPCM decoder was enabled when `symphonia-wav` was.
 - docs.rs will now document all features, including those that are not enabled by default.
-- `PinkNoise` is not deterministically seekable, so will now return `Err` when seeking.
+- Breaking: `WhiteNoise` and `PinkNoise` have been renamed to `noise::WhiteUniform` and
+  `noise::Pink`.
+- `noise::Pink` is not deterministically seekable, so will now return `Err` when seeking.
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to
@@ -71,11 +73,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LoopedDecoder::size_hint` now correctly indicates an infinite stream.
 - Symphonia decoder `total_duration` for Vorbis now return the correct value (#696).
 - Symphonia decoder for MP4 now seeks correctly (#577).
-- White noise was not correctly uniformly distributed
-- Pink noise was not correctly distributed on sampling rates other than 44100 Hz
+- White noise was not correctly uniformly distributed.
+- Pink noise was not correctly distributed on sampling rates other than 44100 Hz.
 
 ### Deprecated
-- Deprecated `Sample::zero_value()` function in favor of `Sample::ZERO_VALUE` constant
+- Deprecated `Sample::zero_value()` function in favor of `Sample::ZERO_VALUE` constant.
+- Deprecated `white()` and `pink()` methods in favor of `noise::WhiteUniform::new()` and `noise::Pink::new()`.
 
 ### Removed
 - Breaking: Removed `Mp4Type` enum in favor of using MIME type string "audio/mp4" for MP4 format detection with `Decoder::new_mp4` (#612).

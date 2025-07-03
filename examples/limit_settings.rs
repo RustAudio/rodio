@@ -142,7 +142,5 @@ fn main() {
     println!("    Early peak (0-500 samples): {early_peak:.3}");
     println!("    Mid peak (1000-1500 samples): {mid_peak:.3}");
     println!("    Settled peak (2000+ samples): {settled_peak:.3}");
-    println!(
-        "    ALL samples now well below 1.0: max = {max_settled:.3}"
-    );
+    println!("    ALL samples now well below 1.0: max = {max_settled:.3}");
 }

@@ -762,9 +762,9 @@ mod tests {
     #[template]
     #[rstest]
     #[case("WhiteGaussian")] // Gaussian can exceed bounds (3-sigma rule, ~0.3% chance)
-    #[case("Blue")]          // Difference of bounded values can exceed bounds
-    #[case("Violet")]        // Difference of bounded values can exceed bounds  
-    #[case("Brownian")]      // Integration can exceed bounds despite scaling
+    #[case("Blue")] // Difference of bounded values can exceed bounds
+    #[case("Violet")] // Difference of bounded values can exceed bounds
+    #[case("Brownian")] // Integration can exceed bounds despite scaling
     fn unbounded_generators(#[case] generator_name: &str) {}
 
     // Test that mathematically bounded generators stay within [-1.0, 1.0]

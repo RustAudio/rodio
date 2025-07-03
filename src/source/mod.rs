@@ -698,10 +698,7 @@ impl fmt::Display for SeekError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SeekError::NotSupported { underlying_source } => {
-                write!(
-                    f,
-                    "Seeking is not supported by source: {underlying_source}"
-                )
+                write!(f, "Seeking is not supported by source: {underlying_source}")
             }
             #[cfg(feature = "symphonia")]
             SeekError::SymphoniaDecoder(err) => write!(f, "Error seeking: {err}"),

@@ -25,13 +25,11 @@ fn test_limiting_works() {
 
     assert!(
         settled_peak <= 0.6,
-        "Settled peak should be ~0.5 for -6dB: {:.3}",
-        settled_peak
+        "Settled peak should be ~0.5 for -6dB: {settled_peak:.3}"
     );
     assert!(
         settled_peak >= 0.4,
-        "Peak should be reasonably close to 0.5: {:.3}",
-        settled_peak
+        "Peak should be reasonably close to 0.5: {settled_peak:.3}"
     );
 
     let max_sample = settled_samples
@@ -39,8 +37,7 @@ fn test_limiting_works() {
         .fold(0.0f32, |acc, &x| acc.max(x.abs()));
     assert!(
         max_sample < 0.8,
-        "ALL samples should be well below 1.0: max={:.3}",
-        max_sample
+        "ALL samples should be well below 1.0: max={max_sample:.3}"
     );
 }
 
@@ -62,8 +59,7 @@ fn test_passthrough_below_threshold() {
         let diff = (orig - limited).abs();
         assert!(
             diff < 0.01,
-            "Below threshold should pass through: diff={:.6}",
-            diff
+            "Below threshold should pass through: diff={diff:.6}"
         );
     }
 }
@@ -152,12 +148,10 @@ fn test_limiter_stereo_processing() {
     // (limiter should prevent the louder channel from exceeding threshold)
     assert!(
         left_peak <= 1.5,
-        "Left channel should be limited: {:.3}",
-        left_peak
+        "Left channel should be limited: {left_peak:.3}"
     );
     assert!(
         right_peak <= 1.5,
-        "Right channel should be limited: {:.3}",
-        right_peak
+        "Right channel should be limited: {right_peak:.3}"
     );
 }

@@ -352,7 +352,7 @@ mod test {
             let duration =
                 Duration::from_secs_f32(resampled.count() as f32 / to as f32);
 
-            let delta = if d < duration { duration - d } else { d - duration };
+            let delta = duration.abs_diff(d);
             TestResult::from_bool(delta < Duration::from_millis(1))
         }
     }

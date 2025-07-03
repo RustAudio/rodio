@@ -700,14 +700,13 @@ impl fmt::Display for SeekError {
             SeekError::NotSupported { underlying_source } => {
                 write!(
                     f,
-                    "Seeking is not supported by source: {}",
-                    underlying_source
+                    "Seeking is not supported by source: {underlying_source}"
                 )
             }
             #[cfg(feature = "symphonia")]
-            SeekError::SymphoniaDecoder(err) => write!(f, "Error seeking: {}", err),
+            SeekError::SymphoniaDecoder(err) => write!(f, "Error seeking: {err}"),
             #[cfg(feature = "hound")]
-            SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {}", err),
+            SeekError::HoundDecoder(err) => write!(f, "Error seeking in wav source: {err}"),
             SeekError::Other(_) => write!(f, "An error occurred"),
         }
     }

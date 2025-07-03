@@ -342,12 +342,12 @@ pub struct WhiteGaussian<R: Rng = SmallRng> {
 impl<R: Rng + SeedableRng> WhiteGaussian<R> {
     /// Get the mean (average) value of the noise distribution.
     pub fn mean(&self) -> f32 {
-        self.sampler.distribution.mean() as f32
+        self.sampler.distribution.mean()
     }
 
     /// Get the standard deviation of the noise distribution.
     pub fn std_dev(&self) -> f32 {
-        self.sampler.distribution.std_dev() as f32
+        self.sampler.distribution.std_dev()
     }
 }
 
@@ -709,7 +709,7 @@ mod tests {
             "Violet" => Box::new(Violet::new(TEST_SAMPLE_RATE)),
             "Brownian" => Box::new(Brownian::new(TEST_SAMPLE_RATE)),
             "Velvet" => Box::new(Velvet::new(TEST_SAMPLE_RATE)),
-            _ => panic!("Unknown generator: {}", name),
+            _ => panic!("Unknown generator: {name}"),
         }
     }
 
@@ -724,7 +724,7 @@ mod tests {
             "Violet" => Box::new(Violet::new(TEST_SAMPLE_RATE)),
             "Brownian" => Box::new(Brownian::new(TEST_SAMPLE_RATE)),
             "Velvet" => Box::new(Velvet::new(TEST_SAMPLE_RATE)),
-            _ => panic!("Unknown generator: {}", name),
+            _ => panic!("Unknown generator: {name}"),
         }
     }
 
@@ -775,11 +775,8 @@ mod tests {
         for i in 0..TEST_SAMPLES_MEDIUM {
             let sample = generator.next().unwrap();
             assert!(
-                sample >= -1.0 && sample <= 1.0,
-                "{} sample {} out of range [-1.0, 1.0]: {}",
-                generator_name,
-                i,
-                sample
+                (-1.0..=1.0).contains(&sample),
+                "{generator_name} sample {i} out of range [-1.0, 1.0]: {sample}"
             );
         }
     }
@@ -793,10 +790,7 @@ mod tests {
             let sample = generator.next().unwrap();
             assert!(
                 sample.is_finite(),
-                "{} produced non-finite sample at index {}: {}",
-                generator_name,
-                i,
-                sample
+                "{generator_name} produced non-finite sample at index {i}: {sample}"
             );
         }
     }
@@ -809,9 +803,7 @@ mod tests {
         let seek_result = generator.try_seek(std::time::Duration::from_secs(1));
         assert!(
             seek_result.is_ok(),
-            "{} should support seeking but returned error: {:?}",
-            generator_name,
-            seek_result
+            "{generator_name} should support seeking but returned error: {seek_result:?}"
         );
     }
 
@@ -822,30 +814,27 @@ mod tests {
         let source = create_generator_source(generator_name);
 
         // All noise generators should be mono (1 channel)
-        assert_eq!(source.channels(), 1, "{} should be mono", generator_name);
+        assert_eq!(source.channels(), 1, "{generator_name} should be mono");
 
         // All should have the expected sample rate
         assert_eq!(
             source.sample_rate(),
             TEST_SAMPLE_RATE,
-            "{} should have correct sample rate",
-            generator_name
+            "{generator_name} should have correct sample rate"
         );
 
         // All should have infinite duration
         assert_eq!(
             source.total_duration(),
             None,
-            "{} should have infinite duration",
-            generator_name
+            "{generator_name} should have infinite duration"
         );
 
         // All should return None for current_span_len (infinite streams)
         assert_eq!(
             source.current_span_len(),
             None,
-            "{} should have no span length limit",
-            generator_name
+            "{generator_name} should have no span length limit"
         );
     }
 
@@ -862,8 +851,8 @@ mod tests {
         }
 
         // Should use the full range approximately
-        assert!(min < -0.9, "Min sample should be close to -1.0: {}", min);
-        assert!(max > 0.9, "Max sample should be close to 1.0: {}", max);
+        assert!(min < -0.9, "Min sample should be close to -1.0: {min}");
+        assert!(max > 0.9, "Max sample should be close to 1.0: {max}");
     }
 
     #[test]
@@ -905,8 +894,7 @@ mod tests {
 
         assert!(
             within_bounds_percentage > 99.0,
-            "Expected >99% of Gaussian samples within [-1.0, 1.0], got {:.1}%",
-            within_bounds_percentage
+            "Expected >99% of Gaussian samples within [-1.0, 1.0], got {within_bounds_percentage:.1}%"
         );
     }
 
@@ -927,8 +915,7 @@ mod tests {
         // Pink noise should have some positive correlation (though not as strong as Brownian)
         assert!(
             avg_correlation > -0.1,
-            "Pink noise should have low positive correlation, got: {}",
-            avg_correlation
+            "Pink noise should have low positive correlation, got: {avg_correlation}"
         );
     }
 
@@ -949,8 +936,7 @@ mod tests {
         // Blue noise should have near-zero or negative correlation
         assert!(
             avg_correlation < 0.1,
-            "Blue noise should have low correlation, got: {}",
-            avg_correlation
+            "Blue noise should have low correlation, got: {avg_correlation}"
         );
     }
 
@@ -980,9 +966,7 @@ mod tests {
         // For violet noise (high-pass), differences should have comparable or higher variance
         assert!(
             diff_variance > signal_variance * 0.1,
-            "Violet noise should have high-frequency characteristics, diff_var: {}, signal_var: {}",
-            diff_variance,
-            signal_variance
+            "Violet noise should have high-frequency characteristics, diff_var: {diff_variance}, signal_var: {signal_variance}"
         );
     }
 
@@ -998,8 +982,7 @@ mod tests {
         // Average should be close to zero due to leak factor
         assert!(
             average.abs() < 0.5,
-            "Brownian noise average too far from zero: {}",
-            average
+            "Brownian noise average too far from zero: {average}"
         );
 
         // Brownian noise should have strong positive correlation between consecutive samples
@@ -1011,8 +994,7 @@ mod tests {
 
         assert!(
             avg_correlation > 0.1,
-            "Brownian noise should have strong positive correlation: {}",
-            avg_correlation
+            "Brownian noise should have strong positive correlation: {avg_correlation}"
         );
     }
 
@@ -1033,9 +1015,7 @@ mod tests {
         assert!(
             impulse_count > (VELVET_DEFAULT_DENSITY * 0.75) as usize
                 && impulse_count < (VELVET_DEFAULT_DENSITY * 1.25) as usize,
-            "Impulse count out of range: expected ~{}, got {}",
-            VELVET_DEFAULT_DENSITY,
-            impulse_count
+            "Impulse count out of range: expected ~{VELVET_DEFAULT_DENSITY}, got {impulse_count}"
         );
     }
 
@@ -1055,9 +1035,7 @@ mod tests {
         let actual_density = impulse_count as f32;
         assert!(
             (actual_density - density).abs() < 200.0,
-            "Custom density not achieved: expected ~{}, got {}",
-            density,
-            actual_density
+            "Custom density not achieved: expected ~{density}, got {actual_density}"
         );
     }
 }

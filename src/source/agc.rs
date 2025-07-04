@@ -299,14 +299,20 @@ where
         Arc::clone(&self.is_enabled)
     }
 
-    #[cfg(not(feature = "experimental"))]
     /// Enable or disable AGC processing.
     ///
     /// Use this to enable or disable AGC processing.
     /// Useful for comparing processed and unprocessed audio or for disabling/enabling AGC.
     #[inline]
     pub fn set_enabled(&mut self, enabled: bool) {
-        self.is_enabled = enabled;
+        #[cfg(feature = "experimental")]
+        {
+            self.is_enabled.store(enabled, Ordering::Relaxed);
+        }
+        #[cfg(not(feature = "experimental"))]
+        {
+            self.is_enabled = enabled;
+        }
     }
 
     /// Updates the peak level with an adaptive attack coefficient

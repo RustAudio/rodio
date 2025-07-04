@@ -920,9 +920,9 @@ mod tests {
     fn test_brownian_noise_properties() {
         // Test that brownian noise doesn't accumulate DC indefinitely
         let mut generator = Brownian::new(TEST_SAMPLE_RATE);
-        let samples: Vec<f32> = (0..TEST_SAMPLE_RATE)
+        let samples: Vec<f32> = (0..TEST_SAMPLE_RATE * 10)
             .map(|_| generator.next().unwrap())
-            .collect(); // 1 second
+            .collect(); // 10 seconds
 
         let average = samples.iter().sum::<f32>() / samples.len() as f32;
         // Average should be close to zero due to leak factor

@@ -27,7 +27,7 @@ experimental = ["dep:atomic_float"]
 # Audio generation features
 #
 # Enable noise generation (white noise, pink noise, etc.)
-noise = ["rand"]
+noise = ["rand", "rand_distr"]
 
 # Platform-specific features
 #

@@ -13,39 +13,16 @@
 //! | **Brownian noise**   | Muffled/distant effects, deep rumbles                   | Very deep, muffled, lacks highs     | Heavy low-frequency emphasis, ~5Hz cutoff        |
 //! | **Velvet noise**     | Artificial reverb, room simulation                      | Sparse random impulses              | Computationally efficient, decorrelated          |
 //!
-//! ## Seeking Support
-//!
-//! **Seekable generators** (stateless or can reset state):
-//! - White, Gaussian white, Triangular white noise (stateless)
-//! - Violet noise (can reset differentiator state)
-//!
-//! **Non-seekable generators** (stateful - depends on previous samples):
-//! - Pink (integrator state), Blue (depends on pink)
-//! - Brownian (accumulator state), Velvet (grid position state)
-//!
-//! **Seeking implications:** Seekable generators can jump to any position instantly
-//! without affecting sound quality. Non-seekable generators would have audible
-//! discontinuities when seeking, as their internal state depends on previous samples.
-//!
 //! ## Basic Usage
 //!
 //! ```rust
 //! use rodio::source::noise::{WhiteUniform, Pink, WhiteTriangular, Blue};
-//! use rodio::{OutputStream, Sink};
 //!
 //! // Simple usage - creates generators with `SmallRng`
 //! let white = WhiteUniform::new(44100);          // For testing equipment linearly
 //! let pink = Pink::new(44100);                   // For pleasant background sound
 //! let triangular = WhiteTriangular::new(44100);  // For TPDF dithering
 //! let blue = Blue::new(44100);                   // For high-passed dithering applications
-//!
-//! // Real audio usage - Consider attenuating noise before playback
-//! let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-//! let sink = Sink::try_new(&stream_handle).unwrap();
-//!
-//! // Attenuate to prevent clipping and protect hearing
-//! sink.append(pink.amplify(0.3));  // 30% volume for pleasant background
-//! sink.append(white.amplify(0.1)); // 10% volume for testing (harsh sound)
 //!
 //! // Advanced usage - specify your own RNG type
 //! use rand::{rngs::StdRng, SeedableRng};
@@ -75,33 +52,9 @@ pub fn pink(sample_rate: SampleRate) -> Pink<SmallRng> {
     Pink::new(sample_rate)
 }
 
-/// Macro to implement the basic `Source` trait for mono noise generators.
-/// This covers the common case of infinite-duration, single-channel noise.
-macro_rules! impl_noise_source_basic {
-    ($type:ty) => {
-        impl<R: Rng> Source for $type {
-            fn current_span_len(&self) -> Option<usize> {
-                None
-            }
-
-            fn channels(&self) -> ChannelCount {
-                1
-            }
-
-            fn sample_rate(&self) -> SampleRate {
-                self.sample_rate
-            }
-
-            fn total_duration(&self) -> Option<Duration> {
-                None
-            }
-        }
-    };
-}
-
-/// Macro to implement the basic `Source` trait with stateless seeking support.
-/// For noise generators that can seek to any position without state dependency.
-macro_rules! impl_noise_source_seekable {
+/// Macro to implement the basic `Source` trait for mono noise generators with stateless seeking
+/// support.
+macro_rules! impl_noise_source {
     ($type:ty) => {
         impl<R: Rng> Source for $type {
             fn current_span_len(&self) -> Option<usize> {
@@ -194,7 +147,7 @@ impl<R: Rng> Iterator for WhiteUniform<R> {
     }
 }
 
-impl_noise_source_seekable!(WhiteUniform<R>);
+impl_noise_source!(WhiteUniform<R>);
 
 /// Triangular white noise generator - ideal for TPDF dithering.
 ///
@@ -240,7 +193,7 @@ impl<R: Rng> Iterator for WhiteTriangular<R> {
     }
 }
 
-impl_noise_source_seekable!(WhiteTriangular<R>);
+impl_noise_source!(WhiteTriangular<R>);
 
 /// Velvet noise generator - creates sparse random impulses, not continuous noise.
 /// Also known as sparse noise or decorrelated noise.
@@ -339,7 +292,7 @@ impl<R: Rng> Iterator for Velvet<R> {
     }
 }
 
-impl_noise_source_basic!(Velvet<R>);
+impl_noise_source!(Velvet<R>);
 
 /// Gaussian white noise generator - statistically perfect white noise (GPDF).
 /// Also known as normal noise or bell curve noise.
@@ -402,7 +355,7 @@ impl<R: Rng> Iterator for WhiteGaussian<R> {
     }
 }
 
-impl_noise_source_seekable!(WhiteGaussian<R>);
+impl_noise_source!(WhiteGaussian<R>);
 
 /// Number of generators used in PinkNoise for frequency coverage.
 ///
@@ -495,7 +448,7 @@ impl<R: Rng> Iterator for Pink<R> {
     }
 }
 
-impl_noise_source_basic!(Pink<R>);
+impl_noise_source!(Pink<R>);
 
 /// Blue noise generator - sounds brighter than white noise but smoother.
 ///
@@ -551,7 +504,7 @@ impl<R: Rng> Iterator for Blue<R> {
     }
 }
 
-impl_noise_source_basic!(Blue<R>);
+impl_noise_source!(Blue<R>);
 
 /// Violet noise generator - very bright and sharp sounding.
 /// Also known as purple noise.
@@ -609,29 +562,7 @@ impl<R: Rng> Iterator for Violet<R> {
     }
 }
 
-impl<R: Rng> Source for Violet<R> {
-    fn current_span_len(&self) -> Option<usize> {
-        None
-    }
-
-    fn channels(&self) -> ChannelCount {
-        1
-    }
-
-    fn sample_rate(&self) -> SampleRate {
-        self.sample_rate
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        None
-    }
-
-    fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
-        // Reset differentiator state - white noise is stateless so no seeking needed
-        self.prev = 0.0; // Reset to zero for consistent behavior
-        Ok(())
-    }
-}
+impl_noise_source!(Violet<R>);
 
 /// Brownian noise generator - sounds very muffled and deep.
 /// Also known as red noise or Brown noise.
@@ -706,7 +637,7 @@ impl<R: Rng> Iterator for Brownian<R> {
     }
 }
 
-impl_noise_source_basic!(Brownian<R>);
+impl_noise_source!(Brownian<R>);
 
 #[cfg(test)]
 mod tests {
@@ -764,14 +695,6 @@ mod tests {
     #[case("Velvet")]
     fn all_generators(#[case] generator_name: &str) {}
 
-    #[template]
-    #[rstest]
-    #[case("WhiteUniform")]
-    #[case("WhiteTriangular")]
-    #[case("WhiteGaussian")]
-    #[case("Violet")]
-    fn seekable_generators(#[case] generator_name: &str) {}
-
     // Generators that are mathematically bounded to [-1.0, 1.0]
     #[template]
     #[rstest]
@@ -818,10 +741,10 @@ mod tests {
         }
     }
 
-    // Test that seekable generators can seek without errors
-    #[apply(seekable_generators)]
+    // Test that generators can seek without errors
+    #[apply(all_generators)]
     #[trace]
-    fn test_seekable_generators_seek(generator_name: &str) {
+    fn test_generators_seek(generator_name: &str) {
         let mut generator = create_generator_source(generator_name);
         let seek_result = generator.try_seek(std::time::Duration::from_secs(1));
         assert!(

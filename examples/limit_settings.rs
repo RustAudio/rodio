@@ -44,7 +44,7 @@ fn main() {
 
     // Show peak reduction
     let max_sample = samples.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
-    println!("  Peak amplitude after limiting: {:.3}", max_sample);
+    println!("  Peak amplitude after limiting: {max_sample:.3}");
     println!();
 
     println!("Example 4: Custom settings with builder pattern");
@@ -138,12 +138,9 @@ fn main() {
         strict_limiting.threshold
     );
     println!("    Original max amplitude: {AMPLITUDE}");
-    println!("    Target threshold: {:.3}", target_linear);
-    println!("    Early peak (0-500 samples): {:.3}", early_peak);
-    println!("    Mid peak (1000-1500 samples): {:.3}", mid_peak);
-    println!("    Settled peak (2000+ samples): {:.3}", settled_peak);
-    println!(
-        "    ALL samples now well below 1.0: max = {:.3}",
-        max_settled
-    );
+    println!("    Target threshold: {target_linear:.3}");
+    println!("    Early peak (0-500 samples): {early_peak:.3}");
+    println!("    Mid peak (1000-1500 samples): {mid_peak:.3}");
+    println!("    Settled peak (2000+ samples): {settled_peak:.3}");
+    println!("    ALL samples now well below 1.0: max = {max_settled:.3}");
 }

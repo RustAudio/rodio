@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             // Filter for where err is a DeviceNotAvailable error.
             if let cpal::StreamError::DeviceNotAvailable = err {
                 if let Err(e) = tx.send(err) {
-                    eprintln!("Error emitting StreamError: {}", e);
+                    eprintln!("Error emitting StreamError: {e}");
                 }
             }
         })
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Here we print the error that was emitted by the error callback.
         // but in a real application we may want to destroy the stream and
         // try to reopen it, either with the same device or a different one.
-        eprintln!("Error with stream {}", err);
+        eprintln!("Error with stream {err}");
     }
 
     Ok(())

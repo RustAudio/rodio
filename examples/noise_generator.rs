@@ -1,30 +1,89 @@
-//! Noise generator example. Use the "noise" feature to enable the noise generator sources.
+//! Noise generator example demonstrating practical applications like dithering.
+//! Use the "noise" feature to enable the noise generator sources.
 
-use std::error::Error;
+use std::{error::Error, thread::sleep, time::Duration};
+
+use rodio::source::{
+    noise::{Blue, Brownian, Pink, Velvet, Violet, WhiteGaussian, WhiteTriangular, WhiteUniform},
+    Source,
+};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    use rodio::source::{pink, white, Source};
-    use std::thread;
-    use std::time::Duration;
-
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let sample_rate = stream_handle.config().sample_rate();
 
-    let noise_duration = Duration::from_millis(1000);
-    let interval_duration = Duration::from_millis(1500);
+    play_noise(
+        &stream_handle,
+        WhiteUniform::new(sample_rate),
+        "White Uniform",
+        "Testing equipment linearly, masking sounds",
+    );
 
-    stream_handle
-        .mixer()
-        .add(white(48000).amplify(0.1).take_duration(noise_duration));
-    println!("Playing white noise");
+    play_noise(
+        &stream_handle,
+        WhiteGaussian::new(sample_rate),
+        "White Gaussian",
+        "Scientific modeling, natural processes",
+    );
 
-    thread::sleep(interval_duration);
+    play_noise(
+        &stream_handle,
+        WhiteTriangular::new(sample_rate),
+        "White Triangular",
+        "High-quality audio dithering (TPDF)",
+    );
 
-    stream_handle
-        .mixer()
-        .add(pink(48000).amplify(0.1).take_duration(noise_duration));
-    println!("Playing pink noise");
+    play_noise(
+        &stream_handle,
+        Pink::new(sample_rate),
+        "Pink",
+        "Speaker testing, pleasant background sounds",
+    );
 
-    thread::sleep(interval_duration);
+    play_noise(
+        &stream_handle,
+        Blue::new(sample_rate),
+        "Blue",
+        "High-frequency emphasis, bright effects",
+    );
+
+    play_noise(
+        &stream_handle,
+        Violet::new(sample_rate),
+        "Violet",
+        "Very bright, sharp, high-frequency testing",
+    );
+
+    play_noise(
+        &stream_handle,
+        Brownian::new(sample_rate),
+        "Brownian",
+        "Muffled/distant effects, deep rumbles",
+    );
+
+    play_noise(
+        &stream_handle,
+        Velvet::new(sample_rate),
+        "Velvet",
+        "Sparse impulse generation for audio processing",
+    );
 
     Ok(())
+}
+
+/// Helper function to play a noise type with description
+fn play_noise<S>(stream_handle: &rodio::OutputStream, source: S, name: &str, description: &str)
+where
+    S: Source<Item = f32> + Send + 'static,
+{
+    println!("{} Noise", name);
+    println!("   Application: {}", description);
+
+    stream_handle.mixer().add(
+        source
+            .amplify(0.12)
+            .take_duration(Duration::from_millis(1500)),
+    );
+
+    sleep(Duration::from_millis(2000));
 }

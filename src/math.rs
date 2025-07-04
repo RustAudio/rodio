@@ -165,8 +165,7 @@ mod test {
 
             assert!(
                 relative_error < MAX_RELATIVE_ERROR,
-                "Implementation precision failed for {}dB: exact {:.8}, got {:.8}, relative error: {:.2e}",
-                db, exact_linear, actual_linear, relative_error
+                "Implementation precision failed for {db}dB: exact {exact_linear:.8}, got {actual_linear:.8}, relative error: {relative_error:.2e}"
             );
 
             // Sanity check: ensure we're in the right order of magnitude as Wikipedia data
@@ -174,8 +173,7 @@ mod test {
             let magnitude_ratio = actual_linear / wikipedia_linear;
             assert!(
                 magnitude_ratio > 0.99 && magnitude_ratio < 1.01,
-                "Result magnitude differs significantly from Wikipedia reference for {}dB: Wikipedia {}, got {}, ratio: {:.4}",
-                db, wikipedia_linear, actual_linear, magnitude_ratio
+                "Result magnitude differs significantly from Wikipedia reference for {db}dB: Wikipedia {wikipedia_linear}, got {actual_linear}, ratio: {magnitude_ratio:.4}"
             );
         }
     }
@@ -197,8 +195,7 @@ mod test {
 
                 assert!(
                     relative_error < MAX_RELATIVE_ERROR,
-                    "Linear to dB conversion precision failed for {}: exact {:.8}, got {:.8}, relative error: {:.2e}",
-                    linear, exact_db, actual_db, relative_error
+                    "Linear to dB conversion precision failed for {linear}: exact {exact_db:.8}, got {actual_db:.8}, relative error: {relative_error:.2e}"
                 );
             } else {
                 // Use absolute error for values very close to 0 dB (linear ≈ 1.0)
@@ -207,8 +204,7 @@ mod test {
 
                 assert!(
                     absolute_error < MAX_ABSOLUTE_ERROR,
-                    "Linear to dB conversion precision failed for {}: exact {:.8}, got {:.8}, absolute error: {:.2e}",
-                    linear, exact_db, actual_db, absolute_error
+                    "Linear to dB conversion precision failed for {linear}: exact {exact_db:.8}, got {actual_db:.8}, absolute error: {absolute_error:.2e}"
                 );
             }
 
@@ -223,8 +219,7 @@ mod test {
             if expected_db.abs() > 10.0 * f32::EPSILON {
                 assert!(
                     magnitude_ratio > 0.99 && magnitude_ratio < 1.01,
-                    "Result differs significantly from table reference for linear {}: expected {}dB, got {}dB, ratio: {:.4}",
-                    linear, expected_db, actual_db, magnitude_ratio
+                    "Result differs significantly from table reference for linear {linear}: expected {expected_db}dB, got {actual_db}dB, ratio: {magnitude_ratio:.4}"
                 );
             }
         }
@@ -244,10 +239,7 @@ mod test {
 
             assert!(
                 error < MAX_ROUND_TRIP_ERROR,
-                "Round-trip conversion failed for {}dB: got {:.8}dB, error: {:.2e}",
-                original_db,
-                round_trip_db,
-                error
+                "Round-trip conversion failed for {original_db}dB: got {round_trip_db:.8}dB, error: {error:.2e}"
             );
         }
 
@@ -263,10 +255,7 @@ mod test {
 
             assert!(
                 relative_error < MAX_ROUND_TRIP_RELATIVE_ERROR,
-                "Round-trip conversion failed for {}: got {:.8}, relative error: {:.2e}",
-                original_linear,
-                round_trip_linear,
-                relative_error
+                "Round-trip conversion failed for {original_linear}: got {round_trip_linear:.8}, relative error: {relative_error:.2e}"
             );
         }
     }

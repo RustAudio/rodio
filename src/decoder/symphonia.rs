@@ -267,7 +267,7 @@ impl fmt::Display for SeekError {
                 write!(f, "The decoder needs to know the length of the file/byte stream to be able to seek backwards. You can set that by using the `DecoderBuilder` or creating a decoder using `Decoder::try_from(some_file)`.")
             }
             SeekError::Demuxer(err) => {
-                write!(f, "Demuxer failed to seek: {:?}", err)
+                write!(f, "Demuxer failed to seek: {err:?}")
             }
         }
     }

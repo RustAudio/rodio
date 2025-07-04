@@ -60,7 +60,7 @@ fn agc_enabled(bencher: Bencher) {
 #[cfg(feature = "experimental")]
 #[divan::bench]
 fn agc_disabled(bencher: Bencher) {
-    bencher.with_inputs(|| music_wav()).bench_values(|source| {
+    bencher.with_inputs(music_wav).bench_values(|source| {
         // Create the AGC source
         let amplified_source = source.automatic_gain_control(
             1.0,   // target_level

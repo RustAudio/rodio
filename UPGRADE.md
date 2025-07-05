@@ -1,4 +1,6 @@
-This guide will help you update your code when upgrading from older versions of rodio.
+This guide will help you update your code when upgrading from older versions of
+rodio. While we do our best we might have missed things. PR's that improve this
+guide are very welcome!
 
 # rodio 0.21 to current GitHub version
 

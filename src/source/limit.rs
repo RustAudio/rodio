@@ -410,7 +410,7 @@ impl LimitSettings {
     /// * `knee_width` - Range in dB over which limiting transitions from off to full effect
     ///   - `0.0` dB = hard knee (abrupt limiting, may sound harsh)
     ///   - `1.0-2.0` dB = moderate knee (noticeable but controlled limiting)
-    ///   - `4.0` dB = soft knee (smooth, transparent limiting) [default]
+    ///   - `4.0` dB = soft knee (smooth, transparent limiting) \[default\]
     ///   - `6.0-8.0` dB = very soft knee (very gradual, musical limiting)
     ///
     /// # How Knee Width Works

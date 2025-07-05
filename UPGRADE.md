@@ -19,3 +19,5 @@ This guide will help you update your code when upgrading from older versions of 
       default (audio) stream. If that fails it tries all other combinations of
       device and settings. The old behavior was only trying all settings of the
       default device.
+- The output stream now prints to stderr or logs a message on drop, if that breaks your
+  CLI/UI use `stream.log_on_drop(false)`.

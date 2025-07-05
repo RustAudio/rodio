@@ -31,11 +31,14 @@ const HZ_44100: SampleRate = 44_100;
 ///
 /// # Example
 /// ```no_run
-/// #use rodio::OutputStreamBuilder;
-/// let stream_handle = OutputStreamBuilder::open_default_stream()?;
-/// stream_handle.log_drop(false); // Not recommended during development
+/// # use rodio::OutputStreamBuilder;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut stream_handle = OutputStreamBuilder::open_default_stream()?;
+/// stream_handle.log_on_drop(false); // Not recommended during development
 /// println!("Output config: {:?}", stream_handle.config());
 /// let mixer = stream_handle.mixer();
+/// # Ok(())
+/// # }
 /// ```
 pub struct OutputStream {
     config: OutputStreamConfig,
@@ -140,6 +143,9 @@ fn default_error_callback(err: cpal::StreamError) {
 /// Convenience builder for audio output stream.
 /// It provides methods to configure several parameters of the audio output and opening default
 /// device. See examples for use-cases.
+///
+/// <div class="warning">When the OutputStream is dropped playback will end, and the associated
+/// output stream will be disposed</div>
 pub struct OutputStreamBuilder<E = fn(cpal::StreamError)>
 where
     E: FnMut(cpal::StreamError) + Send + 'static,

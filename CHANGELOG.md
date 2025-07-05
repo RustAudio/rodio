@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `symphonia::SeekError` has a new variant `AccurateSeekNotSupported`
   and variants `Retrying` and `Refining` have been removed. Catching this error
   may allow a caller to retry in coarse seek mode.
+- Breaking: `symphonia::SeekError` has a new variant `RandomAccessNotSupported`. This error usually means that you are trying to seek backward without `is_seekable` or `byte_len` set: use `Decoder::try_from` or `DecoderBuilder` for that.
 - Breaking: In the `Source` trait, the method `current_frame_len()` was renamed to `current_span_len()`.
 - Breaking: `Decoder` now outputs `f32` samples.
 - Breaking: The term 'frame' was renamed to 'span' in the crate and documentation.
@@ -75,8 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   correctly.
 - Removed unwrap() calls in MP3, WAV, FLAC and Vorbis format detection for better error handling.
 - `LoopedDecoder::size_hint` now correctly indicates an infinite stream.
-- Symphonia decoder `total_duration` no longer returns None when it could
-  return Some
+- Symphonia decoder `total_duration` no longer returns `None` when it could
+  return `Some`
 - Symphonia decoder for MP4 now seeks correctly (#577).
 - White noise was not correctly uniformly distributed.
 - Pink noise was not correctly distributed on sampling rates other than 44100 Hz.

@@ -17,12 +17,30 @@ use std::{error, fmt};
 
 const HZ_44100: SampleRate = 44_100;
 
-/// `cpal::Stream` container.
-/// Use `mixer()` method to control output.
-/// If this is dropped, playback will end, and the associated output stream will be disposed.
+/// `cpal::Stream` container. Use `mixer()` method to control output.
+///
+/// <div class="warning">When dropped playback will end, and the associated
+/// output stream will be disposed</div>
+///
+/// # Note
+/// On drop this will print a message to stderr or emit a log msg when tracing is
+/// enabled. Though we recommend you do not you can disable that print/log with:
+/// [`OutputStream::log_on_drop(false)`](OutputStream::log_on_drop).
+/// If the `OutputStream` is dropped because the program is panicking we do not print
+/// or log anything.
+///
+/// # Example
+/// ```no_run
+/// #use rodio::OutputStreamBuilder;
+/// let stream_handle = OutputStreamBuilder::open_default_stream()?;
+/// stream_handle.log_drop(false); // Not recommended during development
+/// println!("Output config: {:?}", stream_handle.config());
+/// let mixer = stream_handle.mixer();
+/// ```
 pub struct OutputStream {
     config: OutputStreamConfig,
     mixer: Mixer,
+    log_on_drop: bool,
     _stream: cpal::Stream,
 }
 
@@ -35,6 +53,23 @@ impl OutputStream {
     /// Access the output stream's config.
     pub fn config(&self) -> &OutputStreamConfig {
         &self.config
+    }
+
+    /// [`OutputStream`] is dropped a message is logged to stderr or
+    /// emitted through tracing if the tracing feature is enabled.
+    pub fn log_on_drop(&mut self, enabled: bool) {
+        self.log_on_drop = enabled
+    }
+}
+
+impl Drop for OutputStream {
+    fn drop(&mut self) {
+        if self.log_on_drop && !std::thread::panicking() {
+            #[cfg(feature = "tracing")]
+            tracing::debug!("Dropping OutputStream, audio playing through this stream will stop");
+            #[cfg(not(feature = "tracing"))]
+            eprintln!("Dropping OutputStream, audio playing through this stream will stop")
+        }
     }
 }
 
@@ -449,6 +484,7 @@ impl OutputStream {
                 _stream: stream,
                 mixer: controller,
                 config: *config,
+                log_on_drop: true,
             })
         })
     }

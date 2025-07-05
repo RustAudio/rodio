@@ -56,15 +56,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: Sources now use `f32` samples. To convert to and from other types of samples use functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
 - Breaking: `WhiteNoise` and `PinkNoise` have been renamed to `noise::WhiteUniform` and
   `noise::Pink`.
+- Breaking: As optional features are now available: CAF and MKV containers, MP1/MP2 and ADPCM decoders. Previously, the ADPCM decoder was enabled when `symphonia-wav` was.
+- docs.rs will now document all features, including those that are not enabled by default.
 - `OutputStreamConfig` is now public.
 - `OutputStream` now prints when it is dropped, can be disabled with `OutputStream::log_on_drop(false)`.
 - Update `cpal` to [0.16](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0160-2025-06-07).
-- The default decoders have changed to Symphonia. The previous decoders are still available as
-  optional features: use `claxon` for FLAC, `lewton` for Vorbis, and `hound` for WAV.
+- The default decoders have changed to Symphonia. The previous decoders are still available as optional features: use `claxon` for FLAC, `lewton` for Vorbis, and `hound` for WAV.
 - Support for decoding MP4 containers with AAC audio is now enabled by default.
-- Breaking: As optional features are now available: CAF and MKV containers, MP1/MP2 and ADPCM
-            decoders. Previously, the ADPCM decoder was enabled when `symphonia-wav` was.
-- docs.rs will now document all features, including those that are not enabled by default.
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to

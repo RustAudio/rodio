@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Version [0.21] (2025-07-12)
+
 ### Added
 - Added `Source::amplify_decibel()` method to control volume by decibels.
 - Added `Source::amplify_normalized()` method to perceptually modify volume.
@@ -42,25 +44,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: `DynamicMixerController` renamed to `Mixer`, `DynamicMixer` renamed to `MixerSource`.
 - Breaking: `Sink::try_new` renamed to `connect_new` and does not return error anymore.
             `Sink::new_idle` was renamed to `new`.
+- Breaking: `symphonia::SeekError` has a new variant `AccurateSeekNotSupported`
+  and variants `Retrying` and `Refining` have been removed. Catching this error
+  may allow a caller to retry in coarse seek mode.
+- Breaking: `symphonia::SeekError` has a new variant `RandomAccessNotSupported`. This error usually means that you are trying to seek backward without `is_seekable` or `byte_len` set: use `Decoder::try_from` or `DecoderBuilder` for that.
 - Breaking: In the `Source` trait, the method `current_frame_len()` was renamed to `current_span_len()`.
 - Breaking: `Decoder` now outputs `f32` samples.
 - Breaking: The term 'frame' was renamed to 'span' in the crate and documentation.
 - Breaking: `LoopedDecoder` now returns `None` if seeking fails during loop reset.
 - Breaking: `ReadSeekSource::new()` now takes `Settings`.
-- Breaking: Sources now use `f32` samples. To convert to and from other types of samples use
-            functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
+- Breaking: Sources now use `f32` samples. To convert to and from other types of samples use functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
+- Breaking: `WhiteNoise` and `PinkNoise` have been renamed to `noise::WhiteUniform` and
+  `noise::Pink`.
+- Breaking: As optional features are now available: CAF and MKV containers, MP1/MP2 and ADPCM decoders. Previously, the ADPCM decoder was enabled when `symphonia-wav` was.
+- docs.rs will now document all features, including those that are not enabled by default.
 - `OutputStreamConfig` is now public.
 - `OutputStream` now prints when it is dropped, can be disabled with `OutputStream::log_on_drop(false)`.
 - Update `cpal` to [0.16](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0160-2025-06-07).
-- The default decoders have changed to Symphonia. The previous decoders are still available as
-  optional features: use `claxon` for FLAC, `lewton` for Vorbis, and `hound` for WAV.
+- The default decoders have changed to Symphonia. The previous decoders are still available as optional features: use `claxon` for FLAC, `lewton` for Vorbis, and `hound` for WAV.
 - Support for decoding MP4 containers with AAC audio is now enabled by default.
-- Breaking: As optional features are now available: CAF and MKV containers, MP1/MP2 and ADPCM
-            decoders. Previously, the ADPCM decoder was enabled when `symphonia-wav` was.
-- docs.rs will now document all features, including those that are not enabled by default.
-- Breaking: `WhiteNoise` and `PinkNoise` have been renamed to `noise::WhiteUniform` and
-  `noise::Pink`.
-- `noise::Pink` is not deterministically seekable, so will now return `Err` when seeking.
 
 ### Fixed
 - `ChannelVolume` no longer clips/overflows when converting from many channels to
@@ -72,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   correctly.
 - Removed unwrap() calls in MP3, WAV, FLAC and Vorbis format detection for better error handling.
 - `LoopedDecoder::size_hint` now correctly indicates an infinite stream.
-- Symphonia decoder `total_duration` for Vorbis now return the correct value (#696).
+- Symphonia decoder `total_duration` no longer returns `None` when it could
+  return `Some`
 - Symphonia decoder for MP4 now seeks correctly (#577).
 - White noise was not correctly uniformly distributed.
 - Pink noise was not correctly distributed on sampling rates other than 44100 Hz.
@@ -84,12 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Breaking: Removed `Mp4Type` enum in favor of using MIME type string "audio/mp4" for MP4 format detection with `Decoder::new_mp4` (#612).
 
-# Version 0.20.1 (2024-11-08)
+## Version [0.20.1] - 2024-11-08
 
 ### Fixed
 - Builds without the `symphonia` feature did not compile
 
-# Version 0.20.0 (2024-11-08)
+## Version [0.20.0] - 2024-11-08
 
 ### Added
 - Support for *ALAC/AIFF*
@@ -117,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `SamplesBuffer` is now `Clone`
 
-# Version 0.19.0 (2024-06-29)
+## Version [0.19.0] - 2024-06-29
 
 ### Added
 - Adds a new source `track_position`. It keeps track of duration since the
@@ -127,12 +130,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mp4a with decodable tracks after undecodable tracks now play. This matches
   VLC's behaviour.
 
-# Version 0.18.1 (2024-05-23)
+## Version [0.18.1] - 2024-05-23
 
 ### Fixed
 - Seek no longer hangs if the sink is empty.
 
-# Version 0.18.0 (2024-05-05)
+## Version [0.18.0] - 2024-05-05
 
 ### Changed
 - `Source` trait is now also implemented for `Box<dyn Source>` and `&mut Source`
@@ -153,32 +156,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `mp3::is_mp3()` no longer changes the position in the stream when the stream
   is mp3
 
-# Version 0.17.3 (2023-10-23)
+## Version [0.17.3] - 2023-10-23
 
 - Build fix for `minimp3` backend.
 
-# Version 0.17.2 (2023-10-17)
+## Version [0.17.2] - 2023-10-17
 
 - Add `EmptyCallback` source.
 - Fix index out of bounds bug.
 - Use non-vulnerable `minimp3` fork.
 - Add filter functions with additional q parameter.
 
-# Version 0.17.1 (2023-02-25)
+## Version [0.17.1] - 2023-02-25
 
 - Disable `symphonia`'s default features.
 
-# Version 0.17.0 (2023-02-17)
+## Version [0.17.0] - 2023-02-17
 
 - Update `cpal` to [0.15](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0150-2022-01-29).
 - Default to `symphonia` for mp3 decoding.
 
-# Version 0.16.0 (2022-09-14)
+## Version [0.16.0] - 2022-09-14
 
 - Update `cpal` to [0.14](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0140-2022-08-22).
 - Update `symphonia` to [0.5](https://github.com/pdeljanov/Symphonia/releases/tag/v0.5.1).
 
-# Version 0.15.0 (2022-01-23)
+## Version [0.15.0] - 2022-01-23
 
 - Remove requirement that the argument `Decoder::new` and `LoopedDecoder::new` implement `Send`.
 - Add optional symphonia backend.
@@ -187,7 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SineWave::new()` now takes a `f32` instead of a `u32`.
 - Add `len()` method to `SpatialSink`.
 
-# Version 0.14.0 (2021-05-21)
+## Version [0.14.0] - 2021-05-21
 
 - Re-export `cpal` in full.
 - Replace panics when calling `OutputStream::try_default`, `OutputStream::try_from_device` with new
@@ -195,49 +198,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OutputStream::try_default` will now fallback to non-default output devices if an `OutputStream`
   cannot be created from the default device.
 
-# Version 0.13.1 (2021-03-28)
+## Version [0.13.1] - 2021-03-28
 
 - Fix panic when no `pulseaudio-alsa` was installed.
 
-# Version 0.13.0 (2020-11-03)
+## Version [0.13.0] - 2020-11-03
 
 - Update `cpal` to [0.13](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0130-2020-10-28).
 - Add Android support.
 
-# Version 0.12.0 (2020-10-05)
+## Version [0.12.0] - 2020-10-05
 
 - Breaking: Update `cpal` to [0.12](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0120-2020-07-09).
 - Breaking: Rework API removing global "rodio audio processing" thread & adapting to the upstream cpal API changes.
 - Add new_X format specific methods to Decoder.
 - Fix resampler dependency on internal `Vec::capacity` behaviour.
 
-# Version 0.11.0 (2020-03-16)
+## Version [0.11.0] - 2020-03-16
 
 - Update `lewton` to [0.10](https://github.com/RustAudio/lewton/blob/master/CHANGELOG.md#release-0100---january-30-2020).
 - Breaking: Update `cpal` to [0.11](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0110-2019-12-11)
 
-# Version 0.10.0 (2019-11-16)
+## Version [0.10.0] - 2019-11-16
 
 - Removal of nalgebra in favour of own code.
 - Fix a bug that switched channels when resuming after having paused.
 - Attempt all supported output formats if the default format fails in `Sink::new`.
 - Breaking: Update `cpal` to [0.10](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0100-2019-07-05).
 
-# Version 0.9.0 (2019-06-08)
+## Version [0.9.0] - 2019-06-08
 
 - Remove exclusive `&mut` borrow requirements in `Sink` & `SpatialSink` setters.
 - Use `nalgebra` instead of `cgmath` for `Spatial` source.
 
-# Version 0.8.1 (2018-09-18)
+## Version [0.8.1] - 2018-09-18
 
 - Update `lewton` dependency to [0.9](https://github.com/RustAudio/lewton/blob/master/CHANGELOG.md#release-090---august-16-2018)
 - Change license from `Apache-2.0` only to `Apache-2.0 OR MIT`
 
-# Version 0.8.0 (2018-06-22)
+## Version [0.8.0] - 2018-06-22
 
 - Add mp3 decoding capabilities via `minimp3`
 
-# Version 0.7.0 (2018-04-19)
+## Version [0.7.0] - 2018-04-19
 
 - Update `cpal` dependency to 0.8, and adopt the new naming convention
 - BREAKING CHANGES:

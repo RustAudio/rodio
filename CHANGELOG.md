@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: Sources now use `f32` samples. To convert to and from other types of samples use
             functions from `dasp_sample` crate. For example `DaspSample::from_sample(sample)`.
 - `OutputStreamConfig` is now public.
+- `OutputStream` now prints when it is dropped, can be disabled with `OutputStream::log_on_drop(false)`.
 - Update `cpal` to [0.16](https://github.com/RustAudio/cpal/blob/master/CHANGELOG.md#version-0160-2025-06-07).
 - The default decoders have changed to Symphonia. The previous decoders are still available as
   optional features: use `claxon` for FLAC, `lewton` for Vorbis, and `hound` for WAV.

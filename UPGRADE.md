@@ -74,6 +74,10 @@ let source = Decoder::try_from(file)?;
 - Replace `DynamicMixerController` with `Mixer` and `DynamicMixer` with
   `MixerSource`.
 
+## Noise
+- The `Source::white` and `Source::pink` methods have been deprecated. Use
+  `WhiteUniform::new` and `Pink::new` instead.
+
 ## Source trait implementations
 - The `Source` trait had a required method `current_frame_len`, which has been
   renamed to `current_span_len`. Rename every occurrence.

@@ -58,7 +58,7 @@ Replace `DynamicMixerController` with `Mixer` and `DynamicMixer` with `MixerSour
 
 ## Decoder
 - `Decoder::new_mp4` no longer takes an `Mp4Type` as hint. You can remove the argument
-- Symphonia now longer assumes all sources are seek-able. Use
+- Symphonia no longer assumes all sources are seek-able. Use
   `DecoderBuilder::with_seekable` or `try_from` on a `File` or `Bufreader`.
 
 The following Rodio *0.20.1* code

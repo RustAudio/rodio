@@ -20,7 +20,7 @@ See [the feature flags](https://docs.rs/crate/rodio/latest/features) for more de
 [The documentation](http://docs.rs/rodio) contains an introduction to the library.
 
 # [Breaking Changes](UPGRADE.md)
-We have written an upgrade [guide](UPGRADE.md), it will help you upgrade to rodio 0.21.
+We have written an upgrade [guide](UPGRADE.md). It will help you upgrade to rodio 0.21.
 
 # [Examples](https://github.com/RustAudio/rodio/tree/f1eaaa4a6346933fc8a58d5fd1ace170946b3a94/examples)
 

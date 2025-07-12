@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## Version [0.21] (TODO)
+## Version [0.21] (2025-07-12)
 
 ### Added
 - Added `Source::amplify_decibel()` method to control volume by decibels.

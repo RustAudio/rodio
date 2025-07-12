@@ -22,9 +22,9 @@ See [the feature flags](https://docs.rs/crate/rodio/latest/features) for more de
 # [Breaking Changes](UPGRADE.md)
 We have written an upgrade [guide](UPGRADE.md). It will help you upgrade to rodio 0.21.
 
-# [Examples](https://github.com/RustAudio/rodio/tree/f1eaaa4a6346933fc8a58d5fd1ace170946b3a94/examples)
+# [Examples](https://github.com/RustAudio/rodio/tree/f7aa48daa08a303e247d68a1dad0dbcc915ca135/examples)
 
-We are always making changes to rodio. This can mean that the examples do not work with the current crates.io release. You will have to look at the examples from commit `f1eaaa4a`. They are available [on github](https://github.com/RustAudio/rodio/tree/f1eaaa4a6346933fc8a58d5fd1ace170946b3a94/examples).
+We are always making changes to rodio. This can mean that the examples do not work with the current crates.io release. You will have to look at the examples from commit `f7aa48d`. They are available [on github](https://github.com/RustAudio/rodio/tree/f7aa48daa08a303e247d68a1dad0dbcc915ca135/examples).
 
 ## Requirements
 

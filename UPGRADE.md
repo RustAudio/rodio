@@ -21,6 +21,8 @@ No changes are required.
   features in `Cargo.toml` for respectively FLAC, WAV and Ogg Vorbis.
 
 ## OutputStream
+- `OutputStreamHandle` no longer exists, you can remove it from your code.
+- `OutputStreamHandle::play_raw` has been removed, instead use `OutputStream.mixer().add()`.
 - The output stream is now more configurable. Where you used
   `OutputStream::try_default()`, you need to change to either:
     - *(recommended)* `OutputStreamBuilder::open_default_stream()?` which

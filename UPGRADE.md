@@ -7,7 +7,7 @@ changes and new features, see [CHANGELOG.md].
 
 # rodio 0.21 to current GitHub version
 
-Nothing.
+No changes are required.
 
 # rodio 0.20 or earlier to 0.21
 
@@ -67,7 +67,7 @@ let source = Decoder::new(reader);
 Should be written like this in Rodio *0.21*:
 ```rust
 let file = File::open("music.ogg")?;
-let source = Decoder::try_from(music.ogg)?;
+let source = Decoder::try_from(file)?;
 ```
 
 ## DynamicMixer

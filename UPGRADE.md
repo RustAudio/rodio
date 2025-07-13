@@ -25,14 +25,26 @@ No changes are required.
 - `OutputStreamHandle::play_raw` has been removed, instead use `OutputStream.mixer().add()`.
 - The output stream is now more configurable. Where you used
   `OutputStream::try_default()`, you need to change to either:
-    - *(recommended)* `OutputStreamBuilder::open_default_stream()?` which
-      returns an error when the default stream could not be opened, or
-    - `OutputStreamBuilder::open_stream_or_fallback()`, which tries to open the
-      default audio stream. If that fails it tries all other combinations of
-      device and settings. This is close to the old behavior, except that
-      previously only all settings of the default device were tried.
-    - The output stream now prints to stderr or logs a message on drop, if that breaks your
-      CLI/UI use `stream.log_on_drop(false)`.
+    - *(recommended)* `OutputStreamBuilder::open_default_stream()?` which tries
+      to open a new output stream for the default output device with its default
+      configuration. Failing that it attempt to open an output stream with
+      alternative configuration and/or non default output devices. Returns the
+      stream for the first configurations tried that succeeds. If all attempts
+      fail returns the initial error.
+    - *(org behavior)* `open_stream_or_fallback()?` which is used as follows:
+      ```rust
+        let default_device = cpal::default_host()
+            .default_output_device()
+            .ok_or("No default audio output device is found.")?;
+        rodio::OutputStreamBuilder::from_device(default_device)?
+            .open_stream_or_fallback()?;
+      ```
+      That tries to opening a output stream with the default configuration on
+      the default device. Failing that attempt to open a stream with other
+      available configurations supported by the default device. If all attempts
+      fail returns initial error.
+- The output stream now prints to stderr or logs a message on drop, if that breaks your
+  CLI/UI use `stream.log_on_drop(false)`.
 
 ## Sink & SpatialSink
 - Replace `Sink::try_new` with `Sink::connect_new`, which takes an `&Mixer`

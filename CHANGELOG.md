@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Update `cpal` to v0.16.
+
 ## Version [0.21] (2025-07-12)
 
 ### Added

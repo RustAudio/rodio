@@ -5,11 +5,11 @@ guide are very welcome!
 The list below only contains required code changes. For a complete list of
 changes and new features, see [CHANGELOG.md](CHANGELOG.md).
 
-# rodio 0.21 to current GitHub version
+# rodio 0.21.1 to current GitHub version
 
 No changes are required.
 
-# rodio 0.20 or earlier to 0.21
+# rodio 0.20 or earlier to 0.21.1
 
 ## Features
 - Playback logic has been turned into a feature that is enabled by default.

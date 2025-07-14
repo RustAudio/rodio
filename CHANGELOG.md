@@ -7,7 +7,7 @@ Migration guides for incompatible versions can be found in `UPGRADE.md` file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## Version [0.21.1] (2025-07-14)
 
 ### Changed
 - Upgrade `cpal` to v0.16.
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix clippy warnings with `Source::white` and `Source::pink` functions.
 
-## Version [0.21] (2025-07-12)
+## Version [0.21.0] (2025-07-12)
 
 ### Added
 - Added `Source::amplify_decibel()` method to control volume by decibels.

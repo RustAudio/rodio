@@ -1,7 +1,7 @@
 //! Mixer that plays multiple sounds at the same time.
 
 use crate::common::{ChannelCount, SampleRate};
-use crate::source::{SeekError, Source, UniformSourceIterator};
+use crate::source::{SeekError, Source, TrackPosition, UniformSourceIterator};
 use crate::Sample;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -69,7 +69,7 @@ impl Mixer {
 /// The output of the mixer. Implements `Source`.
 pub struct MixerSource {
     // The current iterator that produces samples.
-    current_sources: Vec<Box<dyn Source + Send>>,
+    current_sources: Vec<TrackPosition<Box<dyn Source + Send>>>,
 
     // The pending sounds.
     input: Mixer,
@@ -81,7 +81,7 @@ pub struct MixerSource {
     still_pending: Vec<Box<dyn Source + Send>>,
 
     // A temporary vec used in sum_current_sources.
-    still_current: Vec<Box<dyn Source + Send>>,
+    still_current: Vec<TrackPosition<Box<dyn Source + Send>>>,
 }
 
 impl Source for MixerSource {
@@ -106,39 +106,33 @@ impl Source for MixerSource {
     }
 
     #[inline]
-    fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
-            underlying_source: std::any::type_name::<Self>(),
-        })
+    fn try_seek(&mut self, new_pos: Duration) -> Result<(), SeekError> {
+        let mut org_positions = Vec::with_capacity(self.current_sources.len());
+        let mut encountered_err = None;
 
-        // uncomment when #510 is implemented (query position of playback)
+        for source in &mut self.current_sources {
+            let pos = source.get_pos();
+            if let Err(e) = source.try_seek(new_pos) {
+                encountered_err = Some(e);
+                break;
+            } else {
+                // store pos in case we need to roll back
+                org_positions.push(pos);
+            }
+        }
 
-        // let mut org_positions = Vec::with_capacity(self.current_sources.len());
-        // let mut encounterd_err = None;
-        //
-        // for source in &mut self.current_sources {
-        //     let pos = /* source.playback_pos() */ todo!();
-        //     if let Err(e) = source.try_seek(pos) {
-        //         encounterd_err = Some(e);
-        //         break;
-        //     } else {
-        //         // store pos in case we need to roll back
-        //         org_positions.push(pos);
-        //     }
-        // }
-        //
-        // if let Some(e) = encounterd_err {
-        //     // rollback seeks that happend before err
-        //     for (pos, source) in org_positions
-        //         .into_iter()
-        //         .zip(self.current_sources.iter_mut())
-        //     {
-        //         source.try_seek(pos)?;
-        //     }
-        //     Err(e)
-        // } else {
-        //     Ok(())
-        // }
+        if let Some(e) = encountered_err {
+            // rollback seeks that happened before err
+            for (pos, source) in org_positions
+                .into_iter()
+                .zip(self.current_sources.iter_mut())
+            {
+                source.try_seek(pos)?;
+            }
+            Err(e)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -180,7 +174,7 @@ impl MixerSource {
             let in_step = self.sample_count % source.channels() as usize == 0;
 
             if in_step {
-                self.current_sources.push(source);
+                self.current_sources.push(source.track_position());
             } else {
                 self.still_pending.push(source);
             }

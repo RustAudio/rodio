@@ -92,7 +92,7 @@ all-features = true
 cpal = { version = "0.16", optional = true }
 dasp_sample = "0.11.0"
 claxon = { version = "0.4.2", optional = true }
-hound = { version = "3.3.1", optional = true }
+hound = { version = "3.5", optional = true }
 lewton = { version = "0.10", optional = true }
 minimp3_fixed = { version = "0.5.4", optional = true }
 symphonia = { version = "0.5.4", optional = true, default-features = false }
@@ -107,10 +107,9 @@ num-rational = "0.4.2"
 
 [dev-dependencies]
 quickcheck = "1"
-rstest = "0.24"
+rstest = "0.25"
 rstest_reuse = "0.7"
 approx = "0.5.1"
-dasp_sample = "0.11.0"
 divan = "0.1.14"
 
 [[bench]]

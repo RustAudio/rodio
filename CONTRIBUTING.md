@@ -158,7 +158,8 @@ The crate is published by triggering `.github/workflows/publish.yml` GitHub acti
 After the crate is successfully published a new version's git tag is created in the repository.
 
 So to publish a new version
-1. Update `version` field in `Cargo.toml`.
-2. Push the changes to the `master` branch.
-3. Wait until GitHub build job completes successfully.
-4. [On the Actions page](https://github.com/RustAudio/rodio/actions) start `.github/workflows/publish.yml`.
+1. Run `cargo outdated -R` to ensure all dependencies are up to date
+2. Update `version` field in `Cargo.toml`.
+3. Push the changes to the `master` branch.
+4. Wait until GitHub build job completes successfully.
+5. [On the Actions page](https://github.com/RustAudio/rodio/actions) start `.github/workflows/publish.yml`.

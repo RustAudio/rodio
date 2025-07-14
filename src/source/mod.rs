@@ -85,8 +85,10 @@ mod uniform;
 mod zero;
 
 #[cfg(feature = "noise")]
+#[cfg_attr(docsrs, doc(cfg(feature = "noise")))]
 pub mod noise;
 #[cfg(feature = "noise")]
+#[cfg_attr(docsrs, doc(cfg(feature = "noise")))]
 pub use self::noise::{Pink, WhiteUniform};
 
 /// A source of samples.
@@ -687,6 +689,7 @@ pub enum SeekError {
     /// The symphonia decoder ran into an issue
     SymphoniaDecoder(crate::decoder::symphonia::SeekError),
     #[cfg(feature = "hound")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "hound")))]
     /// The hound (wav) decoder ran into an issue
     HoundDecoder(std::io::Error),
     // Prefer adding an enum variant to using this. It's meant for end users their
@@ -694,6 +697,7 @@ pub enum SeekError {
     /// Any other error probably in a custom Source
     Other(Box<dyn std::error::Error + Send>),
 }
+
 impl fmt::Display for SeekError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

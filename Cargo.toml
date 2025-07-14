@@ -87,6 +87,7 @@ lewton = ["dep:lewton"]         # Ogg Vorbis
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 cpal = { version = "0.16", optional = true }

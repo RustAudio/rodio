@@ -174,6 +174,7 @@ mod spatial_sink;
 #[cfg(feature = "playback")]
 pub mod stream;
 #[cfg(feature = "wav_output")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 mod wav_output;
 
 pub mod buffer;
@@ -193,4 +194,5 @@ pub use crate::spatial_sink::SpatialSink;
 #[cfg(feature = "playback")]
 pub use crate::stream::{play, OutputStream, OutputStreamBuilder, PlayError, StreamError};
 #[cfg(feature = "wav_output")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 pub use crate::wav_output::output_to_wav;

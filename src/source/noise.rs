@@ -41,13 +41,13 @@ use rand_distr::{Normal, Triangular};
 use crate::{ChannelCount, Sample, SampleRate, Source};
 
 /// Convenience function to create a new `WhiteUniform` noise source.
-#[deprecated(since = "0.21", note = "use WhiteUniform::new() instead")]
+#[deprecated(since = "0.21.0", note = "use WhiteUniform::new() instead")]
 pub fn white(sample_rate: SampleRate) -> WhiteUniform<SmallRng> {
     WhiteUniform::new(sample_rate)
 }
 
 /// Convenience function to create a new `Pink` noise source.
-#[deprecated(since = "0.21", note = "use Pink::new() instead")]
+#[deprecated(since = "0.21.0", note = "use Pink::new() instead")]
 pub fn pink(sample_rate: SampleRate) -> Pink<SmallRng> {
     Pink::new(sample_rate)
 }

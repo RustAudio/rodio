@@ -3,7 +3,7 @@ rodio. While we did our best, we might have missed things. PRs that improve this
 guide are very welcome!
 
 The list below only contains required code changes. For a complete list of
-changes and new features, see [CHANGELOG.md].
+changes and new features, see [CHANGELOG.md](CHANGELOG.md).
 
 # rodio 0.21 to current GitHub version
 

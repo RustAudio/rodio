@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Upgrade `cpal` to v0.16.
+- Update dependencies.
+
+### Fixed
+- Fix clippy warnings with `Source::white` and `Source::pink` functions.
+
 ## Version [0.21] (2025-07-12)
 
 ### Added

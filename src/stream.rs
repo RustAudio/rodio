@@ -71,7 +71,7 @@ impl Drop for OutputStream {
             #[cfg(feature = "tracing")]
             tracing::debug!("Dropping OutputStream, audio playing through this stream will stop");
             #[cfg(not(feature = "tracing"))]
-            eprintln!("Dropping OutputStream, audio playing through this stream will stop")
+            eprintln!("Dropping OutputStream, audio playing through this stream will stop, to prevent this message from appearing use tracing or call `.log_on_drop(false)` on this OutputStream")
         }
     }
 }

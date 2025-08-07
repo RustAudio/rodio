@@ -85,6 +85,10 @@ macro_rules! impl_noise_source {
                 None
             }
 
+            fn bits_per_sample(&self) -> Option<u32> {
+                Some(f32::MANTISSA_DIGITS)
+            }
+
             fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
                 // Stateless noise generators can seek to any position since all positions
                 // are equally random and don't depend on previous state
@@ -747,6 +751,10 @@ impl<R: Rng> Source for Brownian<R> {
         None
     }
 
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(f32::MANTISSA_DIGITS)
+    }
+
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
         // Stateless noise generators can seek to any position since all positions
         // are equally random and don't depend on previous state
@@ -822,6 +830,10 @@ impl<R: Rng> Source for Red<R> {
 
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(f32::MANTISSA_DIGITS)
     }
 
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {

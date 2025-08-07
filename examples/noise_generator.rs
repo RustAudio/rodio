@@ -76,8 +76,8 @@ fn play_noise<S>(stream_handle: &rodio::OutputStream, source: S, name: &str, des
 where
     S: Source<Item = f32> + Send + 'static,
 {
-    println!("{} Noise", name);
-    println!("   Application: {}", description);
+    println!("{name} Noise");
+    println!("   Application: {description}");
 
     stream_handle.mixer().add(
         source

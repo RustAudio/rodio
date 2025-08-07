@@ -10,27 +10,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
-
 - `Chirp` now implements `Iterator::size_hint` and `ExactSizeIterator`.
 - Added `Red` noise generator that is more practical than `Brownian` noise.
 - Added `std_dev()` to `WhiteUniform` and `WhiteTriangular`.
 - Added a macro `nz!` which facilitates creating NonZero's for `SampleRate` and
   `ChannelCount`.
-- Adds a new input source: Microphone.
-- Adds a new method on source: record which collects all samples into a
-  SamplesBuffer.
+- Adds a new input source: `Microphone`.
+- Adds a new method on source: `record` which collects all samples into a
+  `SamplesBuffer`.
 - Adds `wav_to_writer` which writes a `Source` to a writer.
+- All decoders implement `try_seek()`.
+- Added `Source::bits_per_sample()` method for lossless formats (FLAC, WAV).
+- Added `SeekMode` enum (`Fastest`/`Nearest`) and DecoderBuilder methods:
+  - `with_seek_mode()` - Configure seeking precision.
+  - `with_total_duration()` - Provide pre-computed duration to avoid scanning.
+  - `with_scan_duration()` - Enable file scanning for duration computation.
+- All alternative decoders now support `Settings` via `new_with_settings()`.
+- Symphonia decoder handles multi-track containers and chained Ogg streams.
+
+### Changed
+- `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
+- `Blue` noise generator uses uniform instead of Gaussian noise for better performance.
+- `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
+- Alternative decoders (`hound`, `claxon`, `lewton`, `minimp3`) now take  precedence over Symphonia
+  decoders when both features are enabled.
+- Breaking: `SeekError::NotSupported` renamed to `SeekError::SeekingNotSupported`.
+- Improved `size_hint()` accuracy across all decoders.
+- Improved decoder memory allocations and efficiency
+
+### Deprecated
+- `DecoderBuilder::with_coarse_seek()` in favor of `with_seek_mode(SeekMode::Fastest)`.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.
 - `Chirp::next` now returns `None` when the total duration has been reached, and will work
   correctly for a number of samples greater than 2^24.
 - `PeriodicAccess` is slightly more accurate for 44.1 kHz sample rate families.
+- Fixed Symphonia Ogg Vorbis decoder returning zero span length that broke buffered sources and
+  effects.
 
-### Changed
-- `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
-- `Blue` noise generator uses uniform instead of Gaussian noise for better performance.
-- `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
+### Removed
+- `WavDecoder` no longer implements `ExactSizeIterator`.
+- `Source::source_intact` removed.
 
 ## Version [0.21.1] (2025-07-14)
 

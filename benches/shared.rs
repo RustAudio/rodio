@@ -8,6 +8,7 @@ pub struct TestSource {
     samples: vec::IntoIter<Sample>,
     channels: ChannelCount,
     sample_rate: SampleRate,
+    bits_per_sample: Option<u32>,
     total_duration: Duration,
 }
 
@@ -47,6 +48,11 @@ impl Source for TestSource {
     fn total_duration(&self) -> Option<Duration> {
         Some(self.total_duration)
     }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.bits_per_sample
+    }
 }
 
 pub fn music_wav() -> TestSource {
@@ -62,6 +68,7 @@ pub fn music_wav() -> TestSource {
         channels: sound.channels(),
         sample_rate: sound.sample_rate(),
         total_duration: duration,
+        bits_per_sample: sound.bits_per_sample(),
         samples: sound.into_iter().collect::<Vec<_>>().into_iter(),
     }
 }

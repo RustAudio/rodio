@@ -138,6 +138,15 @@ where
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        if let Some(src) = &self.current_source {
+            src.bits_per_sample()
+        } else {
+            None
+        }
+    }
+
+    #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         if let Some(source) = self.current_source.as_mut() {
             source.try_seek(pos)

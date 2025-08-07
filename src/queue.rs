@@ -167,6 +167,11 @@ impl Source for SourcesQueueOutput {
         None
     }
 
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.current.bits_per_sample()
+    }
+
     /// Only seeks within the current source.
     // We can not go back to previous sources. We could implement seek such
     // that it advances the queue if the position is beyond the current song.

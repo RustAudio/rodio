@@ -107,6 +107,21 @@ where
 
         match (f1, f2) {
             (Some(f1), Some(f2)) => Some(cmp::max(f1, f2)),
+            (Some(f1), None) => Some(f1),
+            (None, Some(f2)) => Some(f2),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        let f1 = self.input1.bits_per_sample();
+        let f2 = self.input2.bits_per_sample();
+
+        match (f1, f2) {
+            (Some(f1), Some(f2)) => Some(cmp::max(f1, f2)),
+            (Some(f1), None) => Some(f1),
+            (None, Some(f2)) => Some(f2),
             _ => None,
         }
     }
@@ -114,12 +129,11 @@ where
     /// Will only attempt a seek if both underlying sources support seek.
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
+        Err(SeekError::SeekingNotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
 
         // uncomment when #510 is implemented (query position of playback)
-        // TODO use source_intact to check if rollback makes sense
 
         // let org_pos = self.input1.playback_pos();
         // self.input1.try_seek(pos)?;

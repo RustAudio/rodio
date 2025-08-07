@@ -79,6 +79,11 @@ impl Source for Zero {
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(f32::MANTISSA_DIGITS)
+    }
+
+    #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
         Ok(())
     }

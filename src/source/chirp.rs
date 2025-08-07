@@ -101,4 +101,9 @@ impl Source for Chirp {
         let secs = self.total_samples as f64 / self.sample_rate.get() as f64;
         Some(Duration::from_secs_f64(secs))
     }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(f32::MANTISSA_DIGITS)
+    }
 }

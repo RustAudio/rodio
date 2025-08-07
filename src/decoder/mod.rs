@@ -65,18 +65,19 @@ use crate::{
 pub mod builder;
 pub use builder::{DecoderBuilder, Settings};
 
-#[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+mod utils;
+
+#[cfg(feature = "claxon")]
 mod flac;
-#[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+#[cfg(feature = "minimp3")]
 mod mp3;
 #[cfg(feature = "symphonia")]
 mod read_seek_source;
 #[cfg(feature = "symphonia")]
-/// Symphonia decoders types
-pub mod symphonia;
-#[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+mod symphonia;
+#[cfg(feature = "lewton")]
 mod vorbis;
-#[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+#[cfg(feature = "hound")]
 mod wav;
 
 /// Source of audio samples decoded from an input stream.
@@ -89,6 +90,11 @@ pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 /// A `LoopedDecoder` will attempt to seek back to the start of the stream when it reaches
 /// the end. If seeking fails for any reason (like IO errors), iteration will stop.
 ///
+/// For seekable sources with gapless playback enabled, this uses `try_seek(Duration::ZERO)`
+/// which is fast. For non-seekable sources or when gapless is disabled, it recreates the
+/// decoder but caches metadata from the first iteration to avoid expensive file scanning
+/// on subsequent loops.
+///
 /// # Examples
 ///
 /// ```no_run
@@ -98,46 +104,60 @@ pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 /// let file = File::open("audio.mp3").unwrap();
 /// let looped_decoder = Decoder::new_looped(file).unwrap();
 /// ```
+#[allow(dead_code)]
 pub struct LoopedDecoder<R: Read + Seek> {
     /// The underlying decoder implementation.
     inner: Option<DecoderImpl<R>>,
     /// Configuration settings for the decoder.
     settings: Settings,
+    /// Cached metadata from the first successful decoder creation.
+    /// Used to avoid expensive file scanning on subsequent loops.
+    cached_duration: Option<Duration>,
 }
 
 // Cannot really reduce the size of the VorbisDecoder. There are not any
-// arrays just a lot of struct fields.
+/// Internal enum representing different decoder implementations.
+///
+/// This enum dispatches to the appropriate decoder based on detected format
+/// and available features. Large enum variant size is acceptable here since
+/// these are infrequently created and moved.
 #[allow(clippy::large_enum_variant)]
 enum DecoderImpl<R: Read + Seek> {
-    #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+    /// WAV decoder using hound library
+    #[cfg(feature = "hound")]
     Wav(wav::WavDecoder<R>),
-    #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+    /// Ogg Vorbis decoder using lewton library
+    #[cfg(feature = "lewton")]
     Vorbis(vorbis::VorbisDecoder<R>),
-    #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+    /// FLAC decoder using claxon library
+    #[cfg(feature = "claxon")]
     Flac(flac::FlacDecoder<R>),
-    #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+    /// MP3 decoder using minimp3 library
+    #[cfg(feature = "minimp3")]
     Mp3(mp3::Mp3Decoder<R>),
+    /// Multi-format decoder using symphonia library
     #[cfg(feature = "symphonia")]
     Symphonia(symphonia::SymphoniaDecoder, PhantomData<R>),
-    // This variant is here just to satisfy the compiler when there are no decoders enabled.
-    // It is unreachable and should never be constructed.
+    /// Placeholder variant to satisfy compiler when no decoders are enabled.
+    /// This variant is unreachable and should never be constructed.
     #[allow(dead_code)]
     None(Unreachable, PhantomData<R>),
 }
 
+/// Placeholder type for the None variant that can never be instantiated.
 enum Unreachable {}
 
 impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
     fn next(&mut self) -> Option<Sample> {
         match self {
-            #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+            #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => source.next(),
-            #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+            #[cfg(feature = "lewton")]
             DecoderImpl::Vorbis(source) => source.next(),
-            #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+            #[cfg(feature = "claxon")]
             DecoderImpl::Flac(source) => source.next(),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            #[cfg(feature = "minimp3")]
             DecoderImpl::Mp3(source) => source.next(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.next(),
@@ -148,13 +168,13 @@ impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self {
-            #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+            #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => source.size_hint(),
-            #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+            #[cfg(feature = "lewton")]
             DecoderImpl::Vorbis(source) => source.size_hint(),
-            #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+            #[cfg(feature = "claxon")]
             DecoderImpl::Flac(source) => source.size_hint(),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            #[cfg(feature = "minimp3")]
             DecoderImpl::Mp3(source) => source.size_hint(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.size_hint(),
@@ -165,13 +185,13 @@ impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         match self {
-            #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+            #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => source.current_span_len(),
-            #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+            #[cfg(feature = "lewton")]
             DecoderImpl::Vorbis(source) => source.current_span_len(),
-            #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+            #[cfg(feature = "claxon")]
             DecoderImpl::Flac(source) => source.current_span_len(),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            #[cfg(feature = "minimp3")]
             DecoderImpl::Mp3(source) => source.current_span_len(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.current_span_len(),
@@ -182,13 +202,13 @@ impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
     fn channels(&self) -> ChannelCount {
         match self {
-            #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+            #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => source.channels(),
-            #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+            #[cfg(feature = "lewton")]
             DecoderImpl::Vorbis(source) => source.channels(),
-            #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+            #[cfg(feature = "claxon")]
             DecoderImpl::Flac(source) => source.channels(),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            #[cfg(feature = "minimp3")]
             DecoderImpl::Mp3(source) => source.channels(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.channels(),
@@ -199,13 +219,13 @@ impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
     fn sample_rate(&self) -> SampleRate {
         match self {
-            #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+            #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => source.sample_rate(),
-            #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+            #[cfg(feature = "lewton")]
             DecoderImpl::Vorbis(source) => source.sample_rate(),
-            #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+            #[cfg(feature = "claxon")]
             DecoderImpl::Flac(source) => source.sample_rate(),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            #[cfg(feature = "minimp3")]
             DecoderImpl::Mp3(source) => source.sample_rate(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.sample_rate(),
@@ -222,13 +242,13 @@ impl<R: Read + Seek> DecoderImpl<R> {
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         match self {
-            #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+            #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => source.total_duration(),
-            #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+            #[cfg(feature = "lewton")]
             DecoderImpl::Vorbis(source) => source.total_duration(),
-            #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+            #[cfg(feature = "claxon")]
             DecoderImpl::Flac(source) => source.total_duration(),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            #[cfg(feature = "minimp3")]
             DecoderImpl::Mp3(source) => source.total_duration(),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.total_duration(),
@@ -236,16 +256,36 @@ impl<R: Read + Seek> DecoderImpl<R> {
         }
     }
 
+    /// Returns the bits per sample of this audio source.
+    ///
+    /// For lossy formats this should always return `None`.
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        match self {
+            #[cfg(feature = "hound")]
+            DecoderImpl::Wav(source) => source.bits_per_sample(),
+            #[cfg(feature = "lewton")]
+            DecoderImpl::Vorbis(source) => source.bits_per_sample(),
+            #[cfg(feature = "claxon")]
+            DecoderImpl::Flac(source) => source.bits_per_sample(),
+            #[cfg(feature = "minimp3")]
+            DecoderImpl::Mp3(source) => source.bits_per_sample(),
+            #[cfg(feature = "symphonia")]
+            DecoderImpl::Symphonia(source, PhantomData) => source.bits_per_sample(),
+            DecoderImpl::None(_, _) => unreachable!(),
+        }
+    }
+
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         match self {
-            #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+            #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => source.try_seek(pos),
-            #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+            #[cfg(feature = "lewton")]
             DecoderImpl::Vorbis(source) => source.try_seek(pos),
-            #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+            #[cfg(feature = "claxon")]
             DecoderImpl::Flac(source) => source.try_seek(pos),
-            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            #[cfg(feature = "minimp3")]
             DecoderImpl::Mp3(source) => source.try_seek(pos),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.try_seek(pos),
@@ -290,6 +330,7 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
             .with_data(BufReader::new(file))
             .with_byte_len(len)
             .with_seekable(true)
+            .with_scan_duration(true)
             .build()
     }
 }
@@ -377,7 +418,9 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
 
     /// Builds a new decoder with default settings.
     ///
-    /// Attempts to automatically detect the format of the source of data.
+    /// Attempts to automatically detect the format of the source of data, but does not determine
+    /// byte length or enable seeking by default. If you are working with a `File`, then you will
+    /// probably want to use `Decoder::try_from(file)` instead.
     ///
     /// # Errors
     ///
@@ -389,7 +432,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
 
     /// Builds a new looped decoder with default settings.
     ///
-    /// Attempts to automatically detect the format of the source of data.
+    /// Attempts to automatically detect the format of the source of data, but does not determine
+    /// byte length or enable seeking by default. If you are working with a `File`, then you will
+    /// probably want to use `Decoder::try_from(file)` instead.
+    ///
     /// The decoder will restart from the beginning when it reaches the end.
     ///
     /// # Errors
@@ -418,7 +464,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// let file = File::open("audio.wav").unwrap();
     /// let decoder = Decoder::new_wav(file).unwrap();
     /// ```
-    #[cfg(any(feature = "hound", feature = "symphonia-wav"))]
+    #[cfg(any(
+        feature = "hound",
+        all(feature = "symphonia-pcm", feature = "symphonia-wav")
+    ))]
     pub fn new_wav(data: R) -> Result<Self, DecoderError> {
         DecoderBuilder::new()
             .with_data(data)
@@ -470,7 +519,10 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// let file = File::open("audio.ogg").unwrap();
     /// let decoder = Decoder::new_vorbis(file).unwrap();
     /// ```
-    #[cfg(any(feature = "lewton", feature = "symphonia-vorbis"))]
+    #[cfg(any(
+        feature = "lewton",
+        all(feature = "symphonia-ogg", feature = "symphonia-vorbis")
+    ))]
     pub fn new_vorbis(data: R) -> Result<Self, DecoderError> {
         DecoderBuilder::new()
             .with_data(data)
@@ -522,7 +574,7 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// let file = File::open("audio.aac").unwrap();
     /// let decoder = Decoder::new_aac(file).unwrap();
     /// ```
-    #[cfg(feature = "symphonia-aac")]
+    #[cfg(all(feature = "symphonia-aac", feature = "symphonia-isomp4"))]
     pub fn new_aac(data: R) -> Result<Self, DecoderError> {
         DecoderBuilder::new()
             .with_data(data)
@@ -548,7 +600,7 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     /// let file = File::open("audio.m4a").unwrap();
     /// let decoder = Decoder::new_mp4(file).unwrap();
     /// ```
-    #[cfg(feature = "symphonia-isomp4")]
+    #[cfg(all(feature = "symphonia-aac", feature = "symphonia-isomp4"))]
     pub fn new_mp4(data: R) -> Result<Self, DecoderError> {
         DecoderBuilder::new()
             .with_data(data)
@@ -598,8 +650,79 @@ where
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.0.bits_per_sample()
+    }
+
+    #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.0.try_seek(pos)
+    }
+}
+
+impl<R> LoopedDecoder<R>
+where
+    R: Read + Seek,
+{
+    /// Recreate decoder with cached metadata to avoid expensive file scanning.
+    fn recreate_decoder_with_cache(
+        &mut self,
+        decoder: DecoderImpl<R>,
+    ) -> Option<(DecoderImpl<R>, Option<Sample>)> {
+        // Create settings with cached metadata for fast recreation.
+        // Note: total_duration is important even though LoopedDecoder::total_duration()  returns
+        // None, because the individual decoder's total_duration() is used for seek saturation
+        // (clamping seeks beyond the end to the end position).
+        let mut fast_settings = self.settings.clone();
+        fast_settings.total_duration = self.cached_duration;
+
+        let (new_decoder, sample) = match decoder {
+            #[cfg(feature = "hound")]
+            DecoderImpl::Wav(source) => {
+                let mut reader = source.into_inner();
+                reader.rewind().ok()?;
+                let mut source = wav::WavDecoder::new_with_settings(reader, &fast_settings).ok()?;
+                let sample = source.next();
+                (DecoderImpl::Wav(source), sample)
+            }
+            #[cfg(feature = "lewton")]
+            DecoderImpl::Vorbis(source) => {
+                let mut reader = source.into_inner().into_inner().into_inner();
+                reader.rewind().ok()?;
+                let mut source =
+                    vorbis::VorbisDecoder::new_with_settings(reader, &fast_settings).ok()?;
+                let sample = source.next();
+                (DecoderImpl::Vorbis(source), sample)
+            }
+            #[cfg(feature = "claxon")]
+            DecoderImpl::Flac(source) => {
+                let mut reader = source.into_inner();
+                reader.rewind().ok()?;
+                let mut source =
+                    flac::FlacDecoder::new_with_settings(reader, &fast_settings).ok()?;
+                let sample = source.next();
+                (DecoderImpl::Flac(source), sample)
+            }
+            #[cfg(feature = "minimp3")]
+            DecoderImpl::Mp3(source) => {
+                let mut reader = source.into_inner();
+                reader.rewind().ok()?;
+                let mut source = mp3::Mp3Decoder::new_with_settings(reader, &fast_settings).ok()?;
+                let sample = source.next();
+                (DecoderImpl::Mp3(source), sample)
+            }
+            #[cfg(feature = "symphonia")]
+            DecoderImpl::Symphonia(source, PhantomData) => {
+                let mut reader = source.into_inner();
+                reader.rewind().ok()?;
+                let mut source =
+                    symphonia::SymphoniaDecoder::new_with_settings(reader, &fast_settings).ok()?;
+                let sample = source.next();
+                (DecoderImpl::Symphonia(source, PhantomData), sample)
+            }
+            DecoderImpl::None(_, _) => return None,
+        };
+        Some((new_decoder, sample))
     }
 }
 
@@ -611,63 +734,33 @@ where
 
     /// Returns the next sample in the audio stream.
     ///
-    /// When the end of the stream is reached, attempts to seek back to the start
-    /// and continue playing. If seeking fails, or if no decoder is available,
-    /// returns `None`.
+    /// When the end of the stream is reached, attempts to seek back to the start and continue
+    /// playing. For seekable sources with gapless playback, this uses fast seeking. For
+    /// non-seekable sources or when gapless is disabled, recreates the decoder using cached
+    /// metadata to avoid expensive file scanning.
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(inner) = &mut self.inner {
             if let Some(sample) = inner.next() {
                 return Some(sample);
             }
 
-            // Take ownership of the decoder to reset it
+            // Cache duration from current decoder before resetting (first time only)
+            if self.cached_duration.is_none() {
+                self.cached_duration = inner.total_duration();
+            }
+
+            // Try seeking first for seekable sources - this is fast and gapless
+            // Only use fast seeking when gapless=true, otherwise recreate normally
+            if self.settings.gapless
+                && self.settings.is_seekable
+                && inner.try_seek(Duration::ZERO).is_ok()
+            {
+                return inner.next();
+            }
+
+            // Fall back to recreation with cached metadata to avoid expensive scanning
             let decoder = self.inner.take()?;
-            let (new_decoder, sample) = match decoder {
-                #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
-                DecoderImpl::Wav(source) => {
-                    let mut reader = source.into_inner();
-                    reader.seek(SeekFrom::Start(0)).ok()?;
-                    let mut source = wav::WavDecoder::new(reader).ok()?;
-                    let sample = source.next();
-                    (DecoderImpl::Wav(source), sample)
-                }
-                #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
-                DecoderImpl::Vorbis(source) => {
-                    use lewton::inside_ogg::OggStreamReader;
-                    let mut reader = source.into_inner().into_inner();
-                    reader.seek_bytes(SeekFrom::Start(0)).ok()?;
-                    let mut source = vorbis::VorbisDecoder::from_stream_reader(
-                        OggStreamReader::from_ogg_reader(reader).ok()?,
-                    );
-                    let sample = source.next();
-                    (DecoderImpl::Vorbis(source), sample)
-                }
-                #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
-                DecoderImpl::Flac(source) => {
-                    let mut reader = source.into_inner();
-                    reader.seek(SeekFrom::Start(0)).ok()?;
-                    let mut source = flac::FlacDecoder::new(reader).ok()?;
-                    let sample = source.next();
-                    (DecoderImpl::Flac(source), sample)
-                }
-                #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
-                DecoderImpl::Mp3(source) => {
-                    let mut reader = source.into_inner();
-                    reader.seek(SeekFrom::Start(0)).ok()?;
-                    let mut source = mp3::Mp3Decoder::new(reader).ok()?;
-                    let sample = source.next();
-                    (DecoderImpl::Mp3(source), sample)
-                }
-                #[cfg(feature = "symphonia")]
-                DecoderImpl::Symphonia(source, PhantomData) => {
-                    let mut reader = source.into_inner();
-                    reader.seek(SeekFrom::Start(0)).ok()?;
-                    let mut source =
-                        symphonia::SymphoniaDecoder::new(reader, &self.settings).ok()?;
-                    let sample = source.next();
-                    (DecoderImpl::Symphonia(source, PhantomData), sample)
-                }
-            };
+            let (new_decoder, sample) = self.recreate_decoder_with_cache(decoder)?;
             self.inner = Some(new_decoder);
             sample
         } else {
@@ -678,14 +771,14 @@ where
     /// Returns the size hint for this iterator.
     ///
     /// The lower bound is:
-    /// - The minimum number of samples remaining in the current iteration if there is an active decoder
+    /// - The minimum number of samples remaining in the current iteration if there is an active
+    ///   decoder
     /// - 0 if there is no active decoder (inner is None)
     ///
     /// The upper bound is always `None` since the decoder loops indefinitely.
-    /// This differs from non-looped decoders which may provide a finite upper bound.
     ///
-    /// Note that even with an active decoder, reaching the end of the stream may result
-    /// in the decoder becoming inactive if seeking back to the start fails.
+    /// Note that even with an active decoder, reaching the end of the stream may result in the
+    /// decoder becoming inactive if seeking back to the start fails.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         (
@@ -733,6 +826,12 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    /// Returns the bits per sample of the underlying decoder, if available.
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.inner.as_ref()?.bits_per_sample()
     }
 
     /// Attempts to seek to a specific position in the audio stream.

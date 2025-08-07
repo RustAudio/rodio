@@ -140,9 +140,7 @@ mod test {
     /// - Extended range (-100dB to +100dB): max errors ~2.3x ε
     /// - Extreme edge cases beyond ±100dB have larger errors but are rarely used
     ///
-    /// Based on [Wikipedia's Decibel article].
-    ///
-    /// [Wikipedia's Decibel article]: https://web.archive.org/web/20230810185300/https://en.wikipedia.org/wiki/Decibel
+    /// Based on [Wikipedia's Decibel article]( https://web.archive.org/web/20230810185300/https://en.wikipedia.org/wiki/Decibel)
     const DECIBELS_LINEAR_TABLE: [(f32, f32); 27] = [
         (100., 100000.),
         (90., 31623.),

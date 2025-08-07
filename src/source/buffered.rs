@@ -62,6 +62,7 @@ where
     data: Vec<I::Item>,
     channels: ChannelCount,
     rate: SampleRate,
+    bits_per_sample: Option<u32>,
     next: Mutex<Arc<Span<I>>>,
 }
 
@@ -107,6 +108,7 @@ where
 
     let channels = input.channels();
     let rate = input.sample_rate();
+    let bits_per_sample = input.bits_per_sample();
     let data: Vec<I::Item> = input
         .by_ref()
         .take(cmp::min(span_len.unwrap_or(32768), 32768))
@@ -120,6 +122,7 @@ where
         data,
         channels,
         rate,
+        bits_per_sample,
         next: Mutex::new(Arc::new(Span::Input(Mutex::new(Some(input))))),
     }))
 }
@@ -234,11 +237,22 @@ where
         self.total_duration
     }
 
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        match *self.current_span {
+            Span::Data(SpanData {
+                bits_per_sample, ..
+            }) => bits_per_sample,
+            Span::End => None,
+            Span::Input(_) => unreachable!(),
+        }
+    }
+
     /// Can not support seek, in the end state we lose the underlying source
     /// which makes seeking back impossible.
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
+        Err(SeekError::SeekingNotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
     }

@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
-
 - `Chirp` and `Empty` now implement `Iterator::size_hint` and `ExactSizeIterator`.
 - `SamplesBuffer` now implements `ExactSizeIterator`.
 - `Zero` now implements `try_seek`, `total_duration` and `Copy`.
@@ -19,9 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `std_dev()` to `WhiteUniform` and `WhiteTriangular`.
 - Added a macro `nz!` which facilitates creating NonZero's for `SampleRate` and
   `ChannelCount`.
-- Adds a new input source: Microphone.
-- Adds a new method on source: record which collects all samples into a
-  SamplesBuffer.
+- Adds a new input source: `Microphone`.
+- Adds a new method on source: `record` which collects all samples into a
+  `SamplesBuffer`.
 - Adds `wav_to_writer` which writes a `Source` to a writer.
 - Added supported for `I24` output (24-bit samples on 4 bytes storage).
 - Added audio dithering support with `dither` feature (enabled by default):
@@ -29,12 +28,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `DitherAlgorithm` enum for algorithm selection
   - `Source::dither()` function for applying dithering
 - Added `64bit` feature to opt-in to 64-bit sample precision (`f64`).
+- All decoders implement `try_seek()`.
+- Added `Source::bits_per_sample()` method for lossless formats (FLAC, WAV).
+- Added `SeekMode` enum (`Fastest`/`Nearest`) and DecoderBuilder methods:
+  - `with_seek_mode()` - Configure seeking precision.
+  - `with_total_duration()` - Provide pre-computed duration to avoid scanning.
+  - `with_scan_duration()` - Enable file scanning for duration computation.
+- All alternative decoders now support `Settings` via `new_with_settings()`.
+- Symphonia decoder handles multi-track containers and chained Ogg streams.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.
 - `Chirp::next` now returns `None` when the total duration has been reached, and will work
   correctly for a number of samples greater than 2^24.
 - `PeriodicAccess` is slightly more accurate for 44.1 kHz sample rate families.
+- Fixed Symphonia Ogg Vorbis decoder returning zero span length that broke buffered sources and
+  effects.
 - Fixed audio distortion when queueing sources with different sample rates/channel counts or transitioning from empty queue.
 - Fixed `SamplesBuffer` to correctly report exhaustion and remaining samples.
 - Improved precision in `SkipDuration` to avoid off-by-a-few-samples errors.
@@ -62,6 +71,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `cpal` to v0.17.
 - Clarified `Source::current_span_len()` contract documentation.
 - Improved queue, mixer and sample rate conversion performance.
+- Alternative decoders (`hound`, `claxon`, `lewton`, `minimp3`) now take precedence over Symphonia
+  decoders when both features are enabled.
+- Breaking: `SeekError::NotSupported` renamed to `SeekError::SeekingNotSupported`.
+- Improved `size_hint()` accuracy across all decoders.
+- Improved decoder memory allocations and efficiency
+
+### Deprecated
+- `DecoderBuilder::with_coarse_seek()` in favor of `with_seek_mode(SeekMode::Fastest)`.
+
+### Removed
+- `WavDecoder` no longer implements `ExactSizeIterator`.
+- `Source::source_intact` removed.
 
 ## Version [0.21.1] (2025-07-14)
 

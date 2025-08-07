@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .speed(0.8);
 
     let wav_path = "music_mp3_converted.wav";
-    println!("Storing converted audio into {}", wav_path);
+    println!("Storing converted audio into {wav_path}");
     wav_to_file(&mut audio, wav_path)?;
 
     Ok(())

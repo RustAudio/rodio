@@ -597,6 +597,11 @@ where
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.0.bits_per_sample()
+    }
+
+    #[inline]
     fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
         self.0.try_seek(position)
     }
@@ -1084,6 +1089,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.inner().total_duration()
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.inner().bits_per_sample()
     }
 
     /// Attempts to seek to the specified position.

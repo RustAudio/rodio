@@ -210,6 +210,11 @@ impl Source for SourcesQueueOutput {
         None
     }
 
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.current.bits_per_sample()
+    }
+
     /// Only seeks within the current source.
     // We can not go back to previous sources. We could implement seek such
     // that it advances the queue if the position is beyond the current song.
@@ -518,12 +523,16 @@ mod tests {
             self.sample_rate
         }
 
+        fn bits_per_sample(&self) -> Option<u32> {
+            Some(Sample::MANTISSA_DIGITS)
+        }
+
         fn total_duration(&self) -> Option<Duration> {
             None
         }
 
         fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-            Err(SeekError::NotSupported {
+            Err(SeekError::SeekingNotSupported {
                 underlying_source: std::any::type_name::<Self>(),
             })
         }

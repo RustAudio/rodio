@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::nz;
-use crate::Source;
+use crate::math::{duration_to_float, nz, secs_to_duration};
+use crate::{Float, Source};
 
 /// Internal function that builds a `TrackPosition` object. See trait docs for
 /// details
@@ -23,7 +23,7 @@ pub fn track_position<I>(source: I) -> TrackPosition<I> {
 pub struct TrackPosition<I> {
     input: I,
     samples_counted: usize,
-    offset_duration: f64,
+    offset_duration: Float,
     current_span_sample_rate: SampleRate,
     current_span_channels: ChannelCount,
     current_span_len: Option<usize>,
@@ -65,11 +65,11 @@ where
     /// track_position after speedup's and delay's.
     #[inline]
     pub fn get_pos(&self) -> Duration {
-        let seconds = self.samples_counted as f64
-            / self.input.sample_rate().get() as f64
-            / self.input.channels().get() as f64
+        let seconds = self.samples_counted as Float
+            / self.input.sample_rate().get() as Float
+            / self.input.channels().get() as Float
             + self.offset_duration;
-        Duration::from_secs_f64(seconds)
+        secs_to_duration(seconds)
     }
 
     #[inline]
@@ -100,9 +100,9 @@ where
             // At the end of a span add the duration of this span to
             // offset_duration and start collecting samples again.
             if Some(self.samples_counted) == self.current_span_len() {
-                self.offset_duration += self.samples_counted as f64
-                    / self.current_span_sample_rate.get() as f64
-                    / self.current_span_channels.get() as f64;
+                self.offset_duration += self.samples_counted as Float
+                    / self.current_span_sample_rate.get() as Float
+                    / self.current_span_channels.get() as Float;
 
                 // Reset.
                 self.samples_counted = 0;
@@ -143,10 +143,15 @@ where
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.input.bits_per_sample()
+    }
+
+    #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let result = self.input.try_seek(pos);
         if result.is_ok() {
-            self.offset_duration = pos.as_secs_f64();
+            self.offset_duration = duration_to_float(pos);
             // This assumes that the seek implementation of the codec always
             // starts again at the beginning of a span. Which is the case with
             // symphonia.

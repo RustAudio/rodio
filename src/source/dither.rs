@@ -175,7 +175,7 @@ where
         // Using f64 intermediate prevents precision loss and u64 handles all bit depths without
         // overflow (64-bit being the theoretical maximum for audio samples). Values stay well
         // above f32 denormal threshold, avoiding denormal arithmetic performance penalty.
-        let lsb_amplitude = (1.0 / (1_u64 << (target_bits.get() - 1)) as f64) as Float;
+        let lsb_amplitude = (1.0 / (1_u64 << (target_bits.get() - 1)) as Float) as Float;
 
         let sample_rate = input.sample_rate();
         let channels = input.channels();
@@ -267,6 +267,11 @@ where
     #[inline]
     fn sample_rate(&self) -> SampleRate {
         self.input.sample_rate()
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.input.bits_per_sample()
     }
 
     #[inline]

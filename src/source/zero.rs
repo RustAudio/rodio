@@ -99,6 +99,11 @@ impl Source for Zero {
         })
     }
 
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(Sample::MANTISSA_DIGITS)
+    }
+
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         if let (Some(total_samples), Some(total_duration)) =
             (self.total_samples, self.total_duration())

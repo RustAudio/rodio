@@ -87,6 +87,14 @@ where
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        match self.inner.current_span_len() {
+            Some(0) => self.next.bits_per_sample(),
+            _ => self.inner.bits_per_sample(),
+        }
+    }
+
+    #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.inner.try_seek(pos)
     }

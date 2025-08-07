@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{
     common::{ChannelCount, SampleRate},
-    math::{nz, TAU},
+    math::{duration_to_float, nz, secs_to_duration, TAU},
     source::SeekError,
     Float, Sample, Source,
 };
@@ -42,14 +42,14 @@ impl Chirp {
             sample_rate,
             start_frequency,
             end_frequency,
-            total_samples: (duration.as_secs_f64() * sample_rate.get() as f64) as u64,
+            total_samples: (duration_to_float(duration) * sample_rate.get() as Float) as u64,
             elapsed_samples: 0,
         }
     }
 
     #[allow(dead_code)]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        let mut target = (pos.as_secs_f64() * self.sample_rate.get() as f64) as u64;
+        let mut target = (duration_to_float(pos) * self.sample_rate.get() as Float) as u64;
         if target >= self.total_samples {
             target = self.total_samples;
         }
@@ -68,9 +68,9 @@ impl Iterator for Chirp {
             return None; // Exhausted
         }
 
-        let ratio = (i as f64 / self.total_samples as f64) as Float;
+        let ratio = (i as Float / self.total_samples as Float) as Float;
         let freq = self.start_frequency * (1.0 - ratio) + self.end_frequency * ratio;
-        let t = (i as f64 / self.sample_rate().get() as f64) as Float * TAU * freq;
+        let t = (i as Float / self.sample_rate().get() as Float) as Float * TAU * freq;
 
         self.elapsed_samples += 1;
         Some(t.sin())
@@ -98,7 +98,12 @@ impl Source for Chirp {
     }
 
     fn total_duration(&self) -> Option<Duration> {
-        let secs = self.total_samples as f64 / self.sample_rate.get() as f64;
-        Some(Duration::from_secs_f64(secs))
+        let secs = self.total_samples as Float / self.sample_rate.get() as Float;
+        Some(secs_to_duration(secs))
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(Sample::MANTISSA_DIGITS)
     }
 }

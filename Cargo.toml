@@ -96,10 +96,10 @@ symphonia-wav = ["symphonia/wav"]
 symphonia-simd = ["symphonia/opt-simd"]
 
 # Alternative decoders and demuxers
-claxon = ["dep:claxon"]         # FLAC
-hound = ["dep:hound"]           # WAV
-minimp3 = ["dep:minimp3_fixed"] # MP3
-lewton = ["dep:lewton"]         # Ogg Vorbis
+claxon = ["dep:claxon"]                             # FLAC
+hound = ["dep:hound"]                               # WAV
+minimp3 = ["dep:minimp3_fixed", "dep:mp3-duration"] # MP3
+lewton = ["dep:lewton", "dep:ogg"]                  # Ogg Vorbis
 
 [package.metadata.docs.rs]
 all-features = true
@@ -111,7 +111,9 @@ dasp_sample = "0.11.0"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.5", optional = true }
 lewton = { version = "0.10", optional = true }
+ogg = { version = "0.9.2", optional = true }
 minimp3_fixed = { version = "0.5.4", optional = true }
+mp3-duration = { version = "0.1", optional = true }
 symphonia = { version = "0.5.4", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.15", optional = true }
 thiserror = "2"

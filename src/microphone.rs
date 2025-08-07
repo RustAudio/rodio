@@ -197,6 +197,10 @@ impl Source for Microphone {
         self.config.sample_rate
     }
 
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(16)
+    }
+
     fn total_duration(&self) -> Option<std::time::Duration> {
         None
     }

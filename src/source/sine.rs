@@ -60,6 +60,11 @@ impl Source for SineWave {
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(Sample::MANTISSA_DIGITS)
+    }
+
+    #[inline]
     fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
         self.test_sine.try_seek(duration)
     }

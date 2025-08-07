@@ -126,6 +126,20 @@ pub(crate) fn duration_to_float(duration: Duration) -> Float {
     }
 }
 
+/// Convert seconds in Float to Duration with appropriate precision for the Sample type.
+#[inline]
+#[must_use]
+pub(crate) fn secs_to_duration(secs: Float) -> Duration {
+    #[cfg(not(feature = "64bit"))]
+    {
+        Duration::from_secs_f32(secs)
+    }
+    #[cfg(feature = "64bit")]
+    {
+        Duration::from_secs_f64(secs)
+    }
+}
+
 /// Utility macro for getting a `NonZero` from a literal. Especially
 /// useful for passing in `ChannelCount` and `Samplerate`.
 /// Equivalent to: `const { core::num::NonZero::new($n).unwrap() }`
@@ -171,9 +185,9 @@ mod test {
             // Reduce max numerator to avoid floating-point error accumulation with large ratios
             if numerator > 1000 { return TestResult::discard(); }
 
-            let a = first as f64;
-            let b = second as f64;
-            let c = numerator as f64 / denominator as f64;
+            let a = first as Float;
+            let b = second as Float;
+            let c = numerator as Float / denominator as Float;
             if !(0.0..=1.0).contains(&c) { return TestResult::discard(); };
 
             let reference = a * (1.0 - c) + b * c;
@@ -183,7 +197,7 @@ mod test {
             // f32 has ~7 decimal digits, so 1e-6 tolerance is reasonable
             // This is well below 16-bit audio precision (~1.5e-5)
             let tolerance = 1e-6;
-            TestResult::from_bool((x as f64 - reference).abs() < tolerance)
+            TestResult::from_bool((x as Float - reference).abs() < tolerance)
         }
     }
 

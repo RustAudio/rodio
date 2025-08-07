@@ -86,6 +86,10 @@ macro_rules! impl_noise_source {
                 None
             }
 
+            fn bits_per_sample(&self) -> Option<u32> {
+                Some(Sample::MANTISSA_DIGITS)
+            }
+
             fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
                 // Stateless noise generators can seek to any position since all positions
                 // are equally random and don't depend on previous state
@@ -743,6 +747,10 @@ impl<R: Rng> Source for Brownian<R> {
         None
     }
 
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.inner.white_noise.bits_per_sample()
+    }
+
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
         // Stateless noise generators can seek to any position since all positions
         // are equally random and don't depend on previous state
@@ -818,6 +826,10 @@ impl<R: Rng> Source for Red<R> {
 
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.inner.white_noise.bits_per_sample()
     }
 
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
@@ -1059,7 +1071,7 @@ mod tests {
             .collect();
         let out_of_bounds = samples.iter().filter(|&&s| s.abs() > 1.0).count();
         let within_bounds_percentage =
-            ((samples.len() - out_of_bounds) as f64 / samples.len() as f64) * 100.0;
+            ((samples.len() - out_of_bounds) as Float / samples.len() as Float) * 100.0;
 
         assert!(
  within_bounds_percentage > 85.0,

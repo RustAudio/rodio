@@ -131,6 +131,11 @@ where
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.input.bits_per_sample()
+    }
+
+    #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.elapsed = pos;
         self.input.try_seek(pos)

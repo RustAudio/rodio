@@ -96,6 +96,11 @@ impl Source for SamplesBuffer {
         Some(self.duration)
     }
 
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        None
+    }
+
     /// This jumps in memory till the sample for `pos`.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {

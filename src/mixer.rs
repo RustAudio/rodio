@@ -106,8 +106,16 @@ impl Source for MixerSource {
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.current_sources
+            .iter()
+            .flat_map(|s| s.bits_per_sample())
+            .max()
+    }
+
+    #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
+        Err(SeekError::SeekingNotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
 

@@ -111,6 +111,11 @@ where
             .map(|val| val + self.requested_duration)
     }
 
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.input.bits_per_sample()
+    }
+
     /// Pos is seen from the perspective of the api user.
     ///
     /// # Example

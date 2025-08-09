@@ -204,7 +204,7 @@ impl Source for SymphoniaDecoder {
         }
 
         // Remember the current channel, so we can restore it after seeking.
-        let active_channel = self.current_span_offset % self.channels() as usize;
+        let active_channel = self.current_span_offset % self.channels().get() as usize;
 
         let seek_res = match self.format.seek(
             self.seek_mode,
@@ -302,30 +302,18 @@ impl SymphoniaDecoder {
                 .calc_time(seek_res.required_ts.saturating_sub(seek_res.actual_ts)),
         )
         .as_secs_f32()
-            * self.sample_rate() as f32
-            * self.channels() as f32)
+            * self.sample_rate().get() as f32
+            * self.channels().get() as f32)
             .ceil() as usize;
 
         // Re-align the seek position to the first channel.
-        samples_to_skip -= samples_to_skip % self.channels() as usize;
+        samples_to_skip -= samples_to_skip % self.channels().get() as usize;
 
         // Skip ahead to the precise position.
         for _ in 0..samples_to_skip {
             self.next();
         }
 
-<<<<<<< HEAD
-||||||| parent of 3fb371d (This makes ChannelCount NonZero<u16> and channels not zero asserts)
-        let decoded = decoded.map_err(SeekError::Decoding)?;
-        decoded.spec().clone_into(&mut self.spec);
-        self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
-        self.current_span_offset = samples_to_pass as usize * self.channels() as usize;
-=======
-        let decoded = decoded.map_err(SeekError::Decoding)?;
-        decoded.spec().clone_into(&mut self.spec);
-        self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
-        self.current_span_offset = samples_to_pass as usize * self.channels().get() as usize;
->>>>>>> 3fb371d (This makes ChannelCount NonZero<u16> and channels not zero asserts)
         Ok(())
     }
 }

@@ -481,7 +481,7 @@ pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
     let sample_rate = input.sample_rate();
     let attack = duration_to_coefficient(settings.attack, sample_rate);
     let release = duration_to_coefficient(settings.release, sample_rate);
-    let channels = input.channels() as usize;
+    let channels = input.channels().get() as usize;
 
     let base = LimitBase::new(settings.threshold, settings.knee_width, attack, release);
 
@@ -1136,39 +1136,48 @@ where
 /// Smoothing coefficient in the range [0.0, 1.0] for use in exponential filters
 #[must_use]
 fn duration_to_coefficient(duration: Duration, sample_rate: SampleRate) -> f32 {
-    f32::exp(-1.0 / (duration.as_secs_f32() * sample_rate as f32))
+    f32::exp(-1.0 / (duration.as_secs_f32() * sample_rate.get() as f32))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::buffer::SamplesBuffer;
+    use crate::math::nz;
     use crate::source::{SineWave, Source};
     use std::time::Duration;
 
-    fn create_test_buffer(samples: Vec<f32>, channels: u16, sample_rate: u32) -> SamplesBuffer {
+    fn create_test_buffer(
+        samples: Vec<f32>,
+        channels: ChannelCount,
+        sample_rate: SampleRate,
+    ) -> SamplesBuffer {
         SamplesBuffer::new(channels, sample_rate, samples)
     }
 
     #[test]
     fn test_limiter_creation() {
         // Test mono
-        let buffer = create_test_buffer(vec![0.5, 0.8, 1.0, 0.3], 1, 44100);
+        let buffer = create_test_buffer(vec![0.5, 0.8, 1.0, 0.3], nz!(1), nz!(44100));
         let limiter = limit(buffer, LimitSettings::default());
-        assert_eq!(limiter.channels(), 1);
-        assert_eq!(limiter.sample_rate(), 44100);
+        assert_eq!(limiter.channels(), nz!(1));
+        assert_eq!(limiter.sample_rate(), nz!(44100));
         matches!(limiter.0, LimitInner::Mono(_));
 
         // Test stereo
-        let buffer = create_test_buffer(vec![0.5, 0.8, 1.0, 0.3, 0.2, 0.6, 0.9, 0.4], 2, 44100);
+        let buffer = create_test_buffer(
+            vec![0.5, 0.8, 1.0, 0.3, 0.2, 0.6, 0.9, 0.4],
+            nz!(2),
+            nz!(44100),
+        );
         let limiter = limit(buffer, LimitSettings::default());
-        assert_eq!(limiter.channels(), 2);
+        assert_eq!(limiter.channels(), nz!(2));
         matches!(limiter.0, LimitInner::Stereo(_));
 
         // Test multichannel
-        let buffer = create_test_buffer(vec![0.5; 12], 3, 44100);
+        let buffer = create_test_buffer(vec![0.5; 12], nz!(3), nz!(44100));
         let limiter = limit(buffer, LimitSettings::default());
-        assert_eq!(limiter.channels(), 3);
+        assert_eq!(limiter.channels(), nz!(3));
         matches!(limiter.0, LimitInner::MultiChannel(_));
     }
 }

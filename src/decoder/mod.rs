@@ -56,10 +56,9 @@ use std::{
 #[allow(unused_imports)]
 use std::io::SeekFrom;
 
-use crate::math::ch;
-use crate::math::nz;
 use crate::{
     common::{ChannelCount, SampleRate},
+    math::nz,
     source::{SeekError, Source},
     Sample,
 };
@@ -714,9 +713,7 @@ where
     /// Returns the default channel count if there is no active decoder.
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.inner
-            .as_ref()
-            .map_or(ChannelCount::default(), |inner| inner.channels())
+        self.inner.as_ref().map_or(nz!(1), |inner| inner.channels())
     }
 
     /// Returns the sample rate of the audio stream.
@@ -726,7 +723,7 @@ where
     fn sample_rate(&self) -> SampleRate {
         self.inner
             .as_ref()
-            .map_or(SampleRate::default(), |inner| inner.sample_rate())
+            .map_or(nz!(44100), |inner| inner.sample_rate())
     }
 
     /// Returns the total duration of this audio source.

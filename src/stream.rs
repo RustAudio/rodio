@@ -342,7 +342,7 @@ impl OutputStream {
             stream.play().map_err(StreamError::PlayStreamError)?;
             Ok(Self {
                 _stream: stream,
-                mixer: controller,
+                mixer: Arc::new(controller),
             })
         })
     }

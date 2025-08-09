@@ -46,14 +46,20 @@
 //! if the corresponding features are enabled.
 
 use std::{
-    io::{BufReader, Read, Seek}, marker::PhantomData, sync::Arc, time::Duration
+    io::{BufReader, Read, Seek},
+    marker::PhantomData,
+    sync::Arc,
+    time::Duration,
 };
 
 #[allow(unused_imports)]
 use std::io::SeekFrom;
 
 use crate::{
-    common::{assert_error_traits, ChannelCount, SampleRate}, math::nz, source::{SeekError, Source}, Sample
+    common::{assert_error_traits, ChannelCount, SampleRate},
+    math::nz,
+    source::{SeekError, Source},
+    Sample,
 };
 
 pub mod builder;

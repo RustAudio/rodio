@@ -12,10 +12,10 @@ use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Sample, SampleFormat, StreamConfig};
+use std::fmt;
 use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::num::NonZero;
-use std::fmt;
 
 const HZ_44100: SampleRate = nz!(44_100);
 

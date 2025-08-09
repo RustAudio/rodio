@@ -1,4 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
+use std::num::NonZero;
 use std::time::Duration;
 
 use crate::common::{ChannelCount, Sample, SampleRate};
@@ -62,12 +63,12 @@ where
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.current_span.channels as _
+        NonZero::new(self.current_span.channels as _).expect("mp3's have at least one channel")
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.current_span.sample_rate
+        NonZero::new(self.current_span.sample_rate as _).expect("mp3's have a non zero sample rate")
     }
 
     #[inline]

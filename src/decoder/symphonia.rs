@@ -1,5 +1,5 @@
-use core::fmt;
 use core::time::Duration;
+use std::sync::Arc;
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
@@ -16,7 +16,7 @@ use symphonia::{
 
 use super::{DecoderError, Settings};
 use crate::{
-    common::{ChannelCount, Sample, SampleRate},
+    common::{assert_error_traits, ChannelCount, Sample, SampleRate},
     source, Source,
 };
 
@@ -218,7 +218,7 @@ impl Source for SymphoniaDecoder {
                     SeekError::RandomAccessNotSupported,
                 ));
             }
-            other => other.map_err(SeekError::Demuxer),
+            other => other.map_err(Arc::new).map_err(SeekError::Demuxer),
         }?;
 
         // Seeking is a demuxer operation without the decoder knowing about it,
@@ -246,49 +246,24 @@ impl Source for SymphoniaDecoder {
 }
 
 /// Error returned when the try_seek implementation of the symphonia decoder fails.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum SeekError {
     /// Accurate seeking is not supported
     ///
     /// This error occurs when the decoder cannot extract time base information from the source.
     /// You may catch this error to try a coarse seek instead.
+    #[error("Accurate seeking is not supported on this file/byte stream that lacks time base information")]
     AccurateSeekNotSupported,
     /// The decoder does not support random access seeking
     ///
     /// This error occurs when the source is not seekable or does not have a known byte length.
+    #[error("The decoder needs to know the length of the file/byte stream to be able to seek backwards. You can set that by using the `DecoderBuilder` or creating a decoder using `Decoder::try_from(some_file)`.")]
     RandomAccessNotSupported,
     /// Demuxer failed to seek
-    Demuxer(symphonia::core::errors::Error),
+    #[error("Demuxer failed to seek")]
+    Demuxer(#[source] Arc<symphonia::core::errors::Error>),
 }
-
-impl fmt::Display for SeekError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SeekError::AccurateSeekNotSupported => {
-                write!(
-                    f,
-                    "Accurate seeking is not supported on this file/byte stream that lacks time base information"
-                )
-            }
-            SeekError::RandomAccessNotSupported => {
-                write!(f, "The decoder needs to know the length of the file/byte stream to be able to seek backwards. You can set that by using the `DecoderBuilder` or creating a decoder using `Decoder::try_from(some_file)`.")
-            }
-            SeekError::Demuxer(err) => {
-                write!(f, "Demuxer failed to seek: {err:?}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for SeekError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            SeekError::AccurateSeekNotSupported => None,
-            SeekError::RandomAccessNotSupported => None,
-            SeekError::Demuxer(err) => Some(err),
-        }
-    }
-}
+assert_error_traits!(SeekError);
 
 impl SymphoniaDecoder {
     /// Note span offset must be set after

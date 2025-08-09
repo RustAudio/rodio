@@ -1,4 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::source::SeekError;
@@ -182,6 +183,7 @@ where
         self.reader
             .reader
             .seek(new_pos)
+            .map_err(Arc::new)
             .map_err(SeekError::HoundDecoder)?;
         self.reader.samples_read = new_pos * self.channels().get() as u32;
 

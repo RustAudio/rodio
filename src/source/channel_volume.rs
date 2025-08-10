@@ -24,10 +24,7 @@ where
     /// Wrap the input source and make it mono. Play that mono sound to each
     /// channel at the volume set by the user. The volume can be changed using
     /// [`ChannelVolume::set_volume`].
-    pub fn new(input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I>
-    where
-        I: Source,
-    {
+    pub fn new(input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I> {
         let channel_count = channel_volumes.len(); // See next() implementation.
         ChannelVolume {
             input,
@@ -75,12 +72,12 @@ where
             self.current_channel = 0;
             self.current_sample = None;
             let num_channels = self.input.channels();
-            for _ in 0..num_channels {
+            for _ in 0..num_channels.get() {
                 if let Some(s) = self.input.next() {
                     self.current_sample = Some(self.current_sample.unwrap_or(0.0) + s);
                 }
             }
-            self.current_sample.map(|s| s / num_channels as f32);
+            self.current_sample.map(|s| s / num_channels.get() as f32);
         }
         let result = self
             .current_sample
@@ -108,7 +105,8 @@ where
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.channel_volumes.len() as ChannelCount
+        ChannelCount::new(self.channel_volumes.len() as u16)
+            .expect("checked to be non-empty in new implementation")
     }
 
     #[inline]

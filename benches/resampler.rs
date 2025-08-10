@@ -4,7 +4,7 @@ use rodio::source::UniformSourceIterator;
 mod shared;
 use shared::music_wav;
 
-use rodio::Source;
+use rodio::{SampleRate, Source};
 
 fn main() {
     divan::main();
@@ -31,6 +31,7 @@ const COMMON_SAMPLE_RATES: [u32; 12] = [
 
 #[divan::bench(args = COMMON_SAMPLE_RATES)]
 fn resample_to(bencher: Bencher, target_sample_rate: u32) {
+    let target_sample_rate = SampleRate::new(target_sample_rate).expect("Is not zero");
     bencher
         .with_inputs(|| {
             let source = music_wav();

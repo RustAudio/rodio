@@ -128,7 +128,8 @@ where
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        (self.input.sample_rate() as f32 * self.factor) as u32
+        SampleRate::new((self.input.sample_rate().get() as f32 * self.factor).max(1.0) as u32)
+            .expect("minimum is 1.0 > 0")
     }
 
     #[inline]

@@ -45,7 +45,7 @@ impl<I> LinearGainRamp<I>
 where
     I: Source,
 {
-    /// Returns a reference to the innner source.
+    /// Returns a reference to the inner source.
     #[inline]
     pub fn inner(&self) -> &I {
         &self.input
@@ -88,8 +88,8 @@ where
             factor = self.start_gain * (1.0f32 - p) + self.end_gain * p;
         }
 
-        if self.sample_idx % (self.channels() as u64) == 0 {
-            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate() as f32);
+        if self.sample_idx % (self.channels().get() as u64) == 0 {
+            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate().get() as f32);
         }
 
         self.input.next().map(|value| value * factor)
@@ -140,13 +140,14 @@ mod tests {
 
     use super::*;
     use crate::buffer::SamplesBuffer;
+    use crate::math::nz;
     use crate::Sample;
 
     /// Create a SamplesBuffer of identical samples with value `value`.
     /// Returned buffer is one channel and has a sample rate of 1 hz.
     fn const_source(length: u8, value: Sample) -> SamplesBuffer {
         let data: Vec<f32> = (1..=length).map(|_| value).collect();
-        SamplesBuffer::new(1, 1, data)
+        SamplesBuffer::new(nz!(1), nz!(1), data)
     }
 
     /// Create a SamplesBuffer of repeating sample values from `values`.
@@ -156,7 +157,7 @@ mod tests {
             .map(|(i, _)| values[i % values.len()])
             .collect();
 
-        SamplesBuffer::new(1, 1, data)
+        SamplesBuffer::new(nz!(1), nz!(1), data)
     }
 
     #[test]

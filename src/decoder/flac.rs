@@ -60,8 +60,14 @@ where
             current_block_channel_len: 1,
             current_block_off: 0,
             bits_per_sample: spec.bits_per_sample,
-            sample_rate,
-            channels: spec.channels as ChannelCount,
+            sample_rate: SampleRate::new(sample_rate)
+                .expect("flac data should never have a zero sample rate"),
+            channels: ChannelCount::new(
+                spec.channels
+                    .try_into()
+                    .expect("rodio supports only up to u16::MAX (65_535) channels"),
+            )
+            .expect("flac should never have zero channels"),
             total_duration,
         })
     }
@@ -115,9 +121,9 @@ where
         loop {
             if self.current_block_off < self.current_block.len() {
                 // Read from current block.
-                let real_offset = (self.current_block_off % self.channels as usize)
+                let real_offset = (self.current_block_off % self.channels.get() as usize)
                     * self.current_block_channel_len
-                    + self.current_block_off / self.channels as usize;
+                    + self.current_block_off / self.channels.get() as usize;
                 let raw_val = self.current_block[real_offset];
                 self.current_block_off += 1;
                 let bits = self.bits_per_sample;

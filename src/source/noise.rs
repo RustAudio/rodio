@@ -16,17 +16,25 @@
 //! ## Basic Usage
 //!
 //! ```rust
+//! use std::num::NonZero;
 //! use rodio::source::noise::{WhiteUniform, Pink, WhiteTriangular, Blue};
 //!
+//! let sample_rate = NonZero::new(44100).unwrap();
+//!
 //! // Simple usage - creates generators with `SmallRng`
-//! let white = WhiteUniform::new(44100);          // For testing equipment linearly
-//! let pink = Pink::new(44100);                   // For pleasant background sound
-//! let triangular = WhiteTriangular::new(44100);  // For TPDF dithering
-//! let blue = Blue::new(44100);                   // For high-passed dithering applications
+//!
+//! // For testing equipment linearly
+//! let white = WhiteUniform::new(sample_rate);
+//! // For pleasant background sound
+//! let pink = Pink::new(sample_rate);
+//! // For TPDF dithering
+//! let triangular = WhiteTriangular::new(sample_rate);
+//! // For high-passed dithering applications
+//! let blue = Blue::new(sample_rate);
 //!
 //! // Advanced usage - specify your own RNG type
 //! use rand::{rngs::StdRng, SeedableRng};
-//! let white_custom = WhiteUniform::<StdRng>::new_with_rng(44100, StdRng::seed_from_u64(12345));
+//! let white_custom = WhiteUniform::<StdRng>::new_with_rng(sample_rate, StdRng::seed_from_u64(12345));
 //! ```
 
 use std::time::Duration;
@@ -38,6 +46,7 @@ use rand::{
 };
 use rand_distr::{Normal, Triangular};
 
+use crate::math::nz;
 use crate::{ChannelCount, Sample, SampleRate, Source};
 
 /// Convenience function to create a new `WhiteUniform` noise source.
@@ -62,7 +71,7 @@ macro_rules! impl_noise_source {
             }
 
             fn channels(&self) -> ChannelCount {
-                1
+                nz!(1)
             }
 
             fn sample_rate(&self) -> SampleRate {
@@ -227,7 +236,7 @@ impl<R: Rng + SeedableRng> Velvet<R> {
     /// Create a new velvet noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, mut rng: R) -> Self {
         let density = VELVET_DEFAULT_DENSITY;
-        let grid_size = sample_rate as f32 / density;
+        let grid_size = sample_rate.get() as f32 / density;
         let impulse_pos = rng.random::<f32>() * grid_size;
 
         Self {
@@ -251,7 +260,7 @@ impl<R: Rng + SeedableRng> Velvet<R> {
     pub fn new_with_density(sample_rate: SampleRate, density: f32) -> Self {
         let mut rng = R::from_os_rng();
         let density = density.max(f32::MIN_POSITIVE);
-        let grid_size = sample_rate as f32 / density;
+        let grid_size = sample_rate.get() as f32 / density;
         let impulse_pos = rng.random::<f32>() * grid_size;
 
         Self {
@@ -603,7 +612,7 @@ impl<R: Rng + SeedableRng> Brownian<R> {
         // while preventing excessive low-frequency buildup across common sample rates.
         let center_freq_hz = 5.0;
         let leak_factor =
-            1.0 - ((2.0 * std::f32::consts::PI * center_freq_hz) / sample_rate as f32);
+            1.0 - ((2.0 * std::f32::consts::PI * center_freq_hz) / sample_rate.get() as f32);
 
         // Calculate the scaling factor to normalize output based on leak factor.
         // This ensures consistent output level regardless of the leak factor value.
@@ -648,7 +657,7 @@ mod tests {
     use rstest_reuse::{self, *};
 
     // Test constants
-    const TEST_SAMPLE_RATE: u32 = 44100;
+    const TEST_SAMPLE_RATE: SampleRate = nz!(44100);
     const TEST_SAMPLES_SMALL: usize = 100;
     const TEST_SAMPLES_MEDIUM: usize = 1000;
 
@@ -760,7 +769,7 @@ mod tests {
         let source = create_generator_source(generator_name);
 
         // All noise generators should be mono (1 channel)
-        assert_eq!(source.channels(), 1, "{generator_name} should be mono");
+        assert_eq!(source.channels(), nz!(1), "{generator_name} should be mono");
 
         // All should have the expected sample rate
         assert_eq!(
@@ -920,7 +929,7 @@ mod tests {
     fn test_brownian_noise_properties() {
         // Test that brownian noise doesn't accumulate DC indefinitely
         let mut generator = Brownian::new(TEST_SAMPLE_RATE);
-        let samples: Vec<f32> = (0..TEST_SAMPLE_RATE * 10)
+        let samples: Vec<f32> = (0..TEST_SAMPLE_RATE.get() * 10)
             .map(|_| generator.next().unwrap())
             .collect(); // 10 seconds
 
@@ -949,7 +958,7 @@ mod tests {
         let mut generator = Velvet::new(TEST_SAMPLE_RATE);
         let mut impulse_count = 0;
 
-        for _ in 0..TEST_SAMPLE_RATE {
+        for _ in 0..TEST_SAMPLE_RATE.get() {
             let sample = generator.next().unwrap();
             if sample != 0.0 {
                 impulse_count += 1;
@@ -971,7 +980,7 @@ mod tests {
         let mut generator = Velvet::<SmallRng>::new_with_density(TEST_SAMPLE_RATE, density);
 
         let mut impulse_count = 0;
-        for _ in 0..TEST_SAMPLE_RATE {
+        for _ in 0..TEST_SAMPLE_RATE.get() {
             if generator.next().unwrap() != 0.0 {
                 impulse_count += 1;
             }

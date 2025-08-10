@@ -165,12 +165,19 @@ impl Source for SymphoniaDecoder {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.spec.channels.count() as ChannelCount
+        ChannelCount::new(
+            self.spec
+                .channels
+                .count()
+                .try_into()
+                .expect("rodio only support up to u16::MAX channels (65_535)"),
+        )
+        .expect("audio should always have at least one channel")
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.spec.rate
+        SampleRate::new(self.spec.rate).expect("audio should always have a non zero SampleRate")
     }
 
     #[inline]
@@ -197,7 +204,7 @@ impl Source for SymphoniaDecoder {
         }
 
         // Remember the current channel, so we can restore it after seeking.
-        let active_channel = self.current_span_offset % self.channels() as usize;
+        let active_channel = self.current_span_offset % self.channels().get() as usize;
 
         let seek_res = match self.format.seek(
             self.seek_mode,
@@ -295,12 +302,12 @@ impl SymphoniaDecoder {
                 .calc_time(seek_res.required_ts.saturating_sub(seek_res.actual_ts)),
         )
         .as_secs_f32()
-            * self.sample_rate() as f32
-            * self.channels() as f32)
+            * self.sample_rate().get() as f32
+            * self.channels().get() as f32)
             .ceil() as usize;
 
         // Re-align the seek position to the first channel.
-        samples_to_skip -= samples_to_skip % self.channels() as usize;
+        samples_to_skip -= samples_to_skip % self.channels().get() as usize;
 
         // Skip ahead to the precise position.
         for _ in 0..samples_to_skip {

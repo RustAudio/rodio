@@ -11,7 +11,7 @@ where
     from: ChannelCount,
     to: ChannelCount,
     sample_repeat: Option<Sample>,
-    next_output_sample_pos: ChannelCount,
+    next_output_sample_pos: u16,
 }
 
 impl<I> ChannelCountConverter<I>
@@ -26,9 +26,6 @@ where
     ///
     #[inline]
     pub fn new(input: I, from: ChannelCount, to: ChannelCount) -> ChannelCountConverter<I> {
-        assert!(from >= 1);
-        assert!(to >= 1);
-
         ChannelCountConverter {
             input,
             from,
@@ -65,7 +62,7 @@ where
                 self.sample_repeat = value;
                 value
             }
-            x if x < self.from => self.input.next(),
+            x if x < self.from.get() => self.input.next(),
             1 => self.sample_repeat,
             _ => Some(0.0),
         };
@@ -74,11 +71,11 @@ where
             self.next_output_sample_pos += 1;
         }
 
-        if self.next_output_sample_pos == self.to {
+        if self.next_output_sample_pos == self.to.get() {
             self.next_output_sample_pos = 0;
 
             if self.from > self.to {
-                for _ in self.to..self.from {
+                for _ in self.to.get()..self.from.get() {
                     self.input.next(); // discarding extra input
                 }
             }
@@ -91,13 +88,13 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (min, max) = self.input.size_hint();
 
-        let consumed = std::cmp::min(self.from, self.next_output_sample_pos) as usize;
+        let consumed = std::cmp::min(self.from.get(), self.next_output_sample_pos) as usize;
 
-        let min = ((min + consumed) / self.from as usize * self.to as usize)
+        let min = ((min + consumed) / self.from.get() as usize * self.to.get() as usize)
             .saturating_sub(self.next_output_sample_pos as usize);
 
         let max = max.map(|max| {
-            ((max + consumed) / self.from as usize * self.to as usize)
+            ((max + consumed) / self.from.get() as usize * self.to.get() as usize)
                 .saturating_sub(self.next_output_sample_pos as usize)
         });
 
@@ -111,31 +108,37 @@ impl<I> ExactSizeIterator for ChannelCountConverter<I> where I: ExactSizeIterato
 mod test {
     use super::ChannelCountConverter;
     use crate::common::ChannelCount;
+    use crate::math::nz;
     use crate::Sample;
 
     #[test]
     fn remove_channels() {
         let input = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let output = ChannelCountConverter::new(input.into_iter(), 3, 2).collect::<Vec<_>>();
+        let output =
+            ChannelCountConverter::new(input.into_iter(), nz!(3), nz!(2)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 2.0, 4.0, 5.0]);
 
         let input = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        let output = ChannelCountConverter::new(input.into_iter(), 4, 1).collect::<Vec<_>>();
+        let output =
+            ChannelCountConverter::new(input.into_iter(), nz!(4), nz!(1)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 5.0]);
     }
 
     #[test]
     fn add_channels() {
         let input = vec![1.0, 2.0, 3.0, 4.0];
-        let output = ChannelCountConverter::new(input.into_iter(), 1, 2).collect::<Vec<_>>();
+        let output =
+            ChannelCountConverter::new(input.into_iter(), nz!(1), nz!(2)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]);
 
         let input = vec![1.0, 2.0];
-        let output = ChannelCountConverter::new(input.into_iter(), 1, 4).collect::<Vec<_>>();
+        let output =
+            ChannelCountConverter::new(input.into_iter(), nz!(1), nz!(4)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 1.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0]);
 
         let input = vec![1.0, 2.0, 3.0, 4.0];
-        let output = ChannelCountConverter::new(input.into_iter(), 2, 4).collect::<Vec<_>>();
+        let output =
+            ChannelCountConverter::new(input.into_iter(), nz!(2), nz!(4)).collect::<Vec<_>>();
         assert_eq!(output, [1.0, 2.0, 0.0, 0.0, 3.0, 4.0, 0.0, 0.0]);
     }
 
@@ -152,24 +155,24 @@ mod test {
             assert_eq!(converter.size_hint(), (0, Some(0)));
         }
 
-        test(&[1.0, 2.0, 3.0], 1, 2);
-        test(&[1.0, 2.0, 3.0, 4.0], 2, 4);
-        test(&[1.0, 2.0, 3.0, 4.0], 4, 2);
-        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 3, 8);
-        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], 4, 1);
+        test(&[1.0, 2.0, 3.0], nz!(1), nz!(2));
+        test(&[1.0, 2.0, 3.0, 4.0], nz!(2), nz!(4));
+        test(&[1.0, 2.0, 3.0, 4.0], nz!(4), nz!(2));
+        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], nz!(3), nz!(8));
+        test(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], nz!(4), nz!(1));
     }
 
     #[test]
     fn len_more() {
         let input = vec![1.0, 2.0, 3.0, 4.0];
-        let output = ChannelCountConverter::new(input.into_iter(), 2, 3);
+        let output = ChannelCountConverter::new(input.into_iter(), nz!(2), nz!(3));
         assert_eq!(output.len(), 6);
     }
 
     #[test]
     fn len_less() {
         let input = vec![1.0, 2.0, 3.0, 4.0];
-        let output = ChannelCountConverter::new(input.into_iter(), 2, 1);
+        let output = ChannelCountConverter::new(input.into_iter(), nz!(2), nz!(1));
         assert_eq!(output.len(), 2);
     }
 }

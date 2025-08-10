@@ -1,4 +1,5 @@
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::nz;
 use crate::source::{Function, SignalGenerator};
 use crate::Source;
 use std::time::Duration;
@@ -17,7 +18,7 @@ pub struct SawtoothWave {
 }
 
 impl SawtoothWave {
-    const SAMPLE_RATE: SampleRate = 48000;
+    const SAMPLE_RATE: SampleRate = nz!(48000);
 
     /// The frequency of the sine.
     #[inline]
@@ -45,7 +46,7 @@ impl Source for SawtoothWave {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        1
+        nz!(1)
     }
 
     #[inline]

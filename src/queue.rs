@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::math::nz;
 use crate::source::{Empty, SeekError, Source, Zero};
 use crate::Sample;
 
@@ -220,7 +221,7 @@ impl SourcesQueueOutput {
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.is_empty() {
-                let silence = Box::new(Zero::new_samples(1, 44100, THRESHOLD)) as Box<_>;
+                let silence = Box::new(Zero::new_samples(nz!(1), nz!(44100), THRESHOLD)) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
                     (silence, None)
@@ -241,6 +242,7 @@ impl SourcesQueueOutput {
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
+    use crate::math::nz;
     use crate::queue;
     use crate::source::Source;
 
@@ -249,17 +251,25 @@ mod tests {
     fn basic() {
         let (tx, mut rx) = queue::queue(false);
 
-        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
-        tx.append(SamplesBuffer::new(2, 96000, vec![5.0, 5.0, 5.0, 5.0]));
+        tx.append(SamplesBuffer::new(
+            nz!(1),
+            nz!(48000),
+            vec![10.0, -10.0, 10.0, -10.0],
+        ));
+        tx.append(SamplesBuffer::new(
+            nz!(2),
+            nz!(96000),
+            vec![5.0, 5.0, 5.0, 5.0],
+        ));
 
-        assert_eq!(rx.channels(), 1);
-        assert_eq!(rx.sample_rate(), 48000);
+        assert_eq!(rx.channels(), nz!(1));
+        assert_eq!(rx.sample_rate().get(), 48000);
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));
-        assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.sample_rate(), 96000);
+        assert_eq!(rx.channels(), nz!(2));
+        assert_eq!(rx.sample_rate().get(), 96000);
         assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), Some(5.0));
@@ -276,7 +286,11 @@ mod tests {
     #[test]
     fn keep_alive() {
         let (tx, mut rx) = queue::queue(true);
-        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.append(SamplesBuffer::new(
+            nz!(1),
+            nz!(48000),
+            vec![10.0, -10.0, 10.0, -10.0],
+        ));
 
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));
@@ -297,7 +311,11 @@ mod tests {
             assert_eq!(rx.next(), Some(0.0));
         }
 
-        tx.append(SamplesBuffer::new(1, 48000, vec![10.0, -10.0, 10.0, -10.0]));
+        tx.append(SamplesBuffer::new(
+            nz!(1),
+            nz!(48000),
+            vec![10.0, -10.0, 10.0, -10.0],
+        ));
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));
         assert_eq!(rx.next(), Some(10.0));

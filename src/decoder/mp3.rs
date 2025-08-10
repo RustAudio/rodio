@@ -1,4 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
+use std::num::NonZero;
 use std::time::Duration;
 
 use crate::common::{ChannelCount, Sample, SampleRate};
@@ -62,12 +63,12 @@ where
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.current_span.channels as _
+        NonZero::new(self.current_span.channels as _).expect("mp3's have at least one channel")
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.current_span.sample_rate as _
+        NonZero::new(self.current_span.sample_rate as _).expect("mp3's have a non zero sample rate")
     }
 
     #[inline]
@@ -78,7 +79,7 @@ where
     fn try_seek(&mut self, _pos: Duration) -> Result<(), SeekError> {
         // TODO waiting for PR in minimp3_fixed or minimp3
 
-        // let pos = (pos.as_secs_f32() * self.sample_rate() as f32) as u64;
+        // let pos = (pos.as_secs_f32() * self.sample_rate().get() as f32) as u64;
         // // do not trigger a sample_rate, channels and frame/span len update
         // // as the seek only takes effect after the current frame/span is done
         // self.decoder.seek_samples(pos)?;

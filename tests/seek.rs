@@ -201,18 +201,20 @@ fn seek_does_not_break_channel_order(
 
     let mut source = get_rl(format);
     let channels = source.channels();
-    assert_eq!(channels, 2, "test needs a stereo beep file");
+    assert_eq!(channels.get(), 2, "test needs a stereo beep file");
 
     let beep_range = second_channel_beep_range(&mut source);
     let beep_start = Duration::from_secs_f32(
-        beep_range.start as f32 / source.channels() as f32 / source.sample_rate() as f32,
+        beep_range.start as f32
+            / source.channels().get() as f32
+            / source.sample_rate().get() as f32,
     );
 
     let mut source = get_rl(format);
 
     let mut channel_offset = 0;
     for offset in [1, 4, 7, 40, 41, 120, 179]
-        .map(|offset| offset as f32 / (source.sample_rate() as f32))
+        .map(|offset| offset as f32 / (source.sample_rate().get() as f32))
         .map(Duration::from_secs_f32)
     {
         source.next(); // WINDOW is even, make the amount of calls to next
@@ -274,7 +276,7 @@ fn random_access_seeks() {
 }
 
 fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize> {
-    let channels = source.channels() as usize;
+    let channels = source.channels().get() as usize;
     let samples: Vec<f32> = source.by_ref().collect();
 
     const WINDOW: usize = 50;
@@ -312,11 +314,11 @@ fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Rang
 
     let samples = &samples[beep_starts..beep_starts + 100];
     assert!(
-        is_silent(samples, channels as ChannelCount, 0),
+        is_silent(samples, ChannelCount::new(channels as u16).unwrap(), 0),
         "{samples:?}"
     );
     assert!(
-        !is_silent(samples, channels as ChannelCount, 1),
+        !is_silent(samples, ChannelCount::new(channels as u16).unwrap(), 1),
         "{samples:?}"
     );
 
@@ -325,16 +327,20 @@ fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Rang
 
 fn is_silent(samples: &[f32], channels: ChannelCount, channel: usize) -> bool {
     assert_eq!(samples.len(), 100);
-    let channel = samples.iter().skip(channel).step_by(channels as usize);
-    let volume = channel.map(|s| s.abs()).sum::<f32>() / samples.len() as f32 * channels as f32;
+    let channel = samples
+        .iter()
+        .skip(channel)
+        .step_by(channels.get() as usize);
+    let volume =
+        channel.map(|s| s.abs()).sum::<f32>() / samples.len() as f32 * channels.get() as f32;
 
     const BASICALLY_ZERO: f32 = 0.0001;
     volume < BASICALLY_ZERO
 }
 
 fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
-    let rate = decoder.sample_rate() as f64;
-    let n_channels = decoder.channels() as f64;
+    let rate = decoder.sample_rate().get() as f64;
+    let n_channels = decoder.channels().get() as f64;
     let n_samples = decoder.into_iter().count() as f64;
     Duration::from_secs_f64(n_samples / rate / n_channels)
 }

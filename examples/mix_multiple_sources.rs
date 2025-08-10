@@ -1,11 +1,12 @@
 use rodio::mixer;
 use rodio::source::{SineWave, Source};
 use std::error::Error;
+use std::num::NonZero;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Construct a dynamic controller and mixer, stream_handle, and sink.
-    let (controller, mixer) = mixer::mixer(2, 44_100);
+    let (controller, mixer) = mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(44_100).unwrap());
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let sink = rodio::Sink::connect_new(stream_handle.mixer());
 

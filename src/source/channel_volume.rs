@@ -24,10 +24,7 @@ where
     /// Wrap the input source and make it mono. Play that mono sound to each
     /// channel at the volume set by the user. The volume can be changed using
     /// [`ChannelVolume::set_volume`].
-    ///
-    /// # Panics if channel_volumes is empty
     pub fn new(input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I> {
-        assert!(!channel_volumes.is_empty());
         let channel_count = channel_volumes.len(); // See next() implementation.
         ChannelVolume {
             input,

@@ -292,7 +292,7 @@ mod test {
             };
 
             let output =
-                SampleRateConverter::new(input.clone().into_iter(), SampleRate::new(from).unwrap(), to, channels)
+                SampleRateConverter::new(input.clone().into_iter(), SampleRate::new(from).expect("to is nonzero and k is nonzero"), to, channels)
                   .collect::<Vec<_>>();
 
             TestResult::from_bool(input.chunks_exact(channels.get().into())

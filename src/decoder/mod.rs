@@ -46,10 +46,9 @@
 //! if the corresponding features are enabled.
 
 use std::{
-    error::Error,
-    fmt,
     io::{BufReader, Read, Seek},
     marker::PhantomData,
+    sync::Arc,
     time::Duration,
 };
 
@@ -57,7 +56,7 @@ use std::{
 use std::io::SeekFrom;
 
 use crate::{
-    common::{ChannelCount, SampleRate},
+    common::{assert_error_traits, ChannelCount, SampleRate},
     math::nz,
     source::{SeekError, Source},
     Sample,
@@ -754,7 +753,7 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         match &mut self.inner {
             Some(inner) => inner.try_seek(pos),
-            None => Err(SeekError::Other(Box::new(DecoderError::IoError(
+            None => Err(SeekError::Other(Arc::new(DecoderError::IoError(
                 "Looped source ended when it failed to loop back".to_string(),
             )))),
         }
@@ -762,48 +761,38 @@ where
 }
 
 /// Errors that can occur when creating a decoder.
-#[derive(Debug, Clone)]
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum DecoderError {
     /// The format of the data has not been recognized.
+    #[error("The format of the data has not been recognized.")]
     UnrecognizedFormat,
 
     /// An IO error occurred while reading, writing, or seeking the stream.
+    #[error("An IO error occurred while reading, writing, or seeking the stream.")]
     IoError(String),
 
     /// The stream contained malformed data and could not be decoded or demuxed.
+    #[error("The stream contained malformed data and could not be decoded or demuxed: {0}")]
     #[cfg(feature = "symphonia")]
     DecodeError(&'static str),
 
-    /// A default or user-defined limit was reached while decoding or demuxing the stream. Limits
-    /// are used to prevent denial-of-service attacks from malicious streams.
+    /// A default or user-defined limit was reached while decoding or demuxing
+    /// the stream. Limits are used to prevent denial-of-service attacks from
+    /// malicious streams.
+    #[error(
+        "A default or user-defined limit was reached while decoding or demuxing the stream: {0}"
+    )]
     #[cfg(feature = "symphonia")]
     LimitError(&'static str),
 
     /// The demuxer or decoder needs to be reset before continuing.
+    #[error("The demuxer or decoder needs to be reset before continuing.")]
     #[cfg(feature = "symphonia")]
     ResetRequired,
 
     /// No streams were found by the decoder.
+    #[error("No streams were found by the decoder.")]
     #[cfg(feature = "symphonia")]
     NoStreams,
 }
-
-impl fmt::Display for DecoderError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let text = match self {
-            DecoderError::UnrecognizedFormat => "Unrecognized format",
-            DecoderError::IoError(msg) => &msg[..],
-            #[cfg(feature = "symphonia")]
-            DecoderError::DecodeError(msg) => msg,
-            #[cfg(feature = "symphonia")]
-            DecoderError::LimitError(msg) => msg,
-            #[cfg(feature = "symphonia")]
-            DecoderError::ResetRequired => "Reset required",
-            #[cfg(feature = "symphonia")]
-            DecoderError::NoStreams => "No streams",
-        };
-        write!(f, "{text}")
-    }
-}
-
-impl Error for DecoderError {}
+assert_error_traits!(DecoderError);

@@ -1,25 +1,48 @@
+use crate::common::assert_error_traits;
 use crate::Source;
 use hound::{SampleFormat, WavSpec};
 use std::path;
+use std::sync::Arc;
+
+#[derive(Debug, thiserror::Error, Clone)]
+pub enum ToWavError {
+    #[error("Could not create wav file")]
+    Creating(#[source] Arc<hound::Error>),
+    #[error("Failed to write samples to wav file")]
+    Writing(#[source] Arc<hound::Error>),
+    #[error("Failed to update the wav header")]
+    Finishing(#[source] Arc<hound::Error>),
+}
+assert_error_traits!(ToWavError);
 
 /// This procedure saves Source's output into a wav file. The output samples format is 32-bit float.
 /// This function is intended primarily for testing and diagnostics. It can be used to see
 /// the output without opening output stream to a real audio device.
+///
+/// If the file already exists it will be overwritten.
 pub fn output_to_wav(
     source: &mut impl Source,
     wav_file: impl AsRef<path::Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), ToWavError> {
     let format = WavSpec {
         channels: source.channels().get(),
         sample_rate: source.sample_rate().get(),
         bits_per_sample: 32,
         sample_format: SampleFormat::Float,
     };
-    let mut writer = hound::WavWriter::create(wav_file, format)?;
+    let mut writer = hound::WavWriter::create(wav_file, format)
+        .map_err(Arc::new)
+        .map_err(ToWavError::Creating)?;
     for sample in source {
-        writer.write_sample(sample)?;
+        writer
+            .write_sample(sample)
+            .map_err(Arc::new)
+            .map_err(ToWavError::Writing)?;
     }
-    writer.finalize()?;
+    writer
+        .finalize()
+        .map_err(Arc::new)
+        .map_err(ToWavError::Finishing)?;
     Ok(())
 }
 

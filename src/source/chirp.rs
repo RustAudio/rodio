@@ -1,9 +1,12 @@
 //! Chirp/sweep source.
 
-use crate::common::{ChannelCount, SampleRate};
-use crate::math::nz;
-use crate::Source;
 use std::{f32::consts::TAU, time::Duration};
+
+use crate::{
+    common::{ChannelCount, SampleRate},
+    math::nz,
+    Source,
+};
 
 /// Convenience function to create a new `Chirp` source.
 #[inline]
@@ -38,7 +41,7 @@ impl Chirp {
             sample_rate,
             start_frequency,
             end_frequency,
-            total_samples: (duration.as_secs_f64() * (sample_rate.get() as f64)) as u64,
+            total_samples: (duration.as_secs_f64() * sample_rate.get() as f64) as u64,
             elapsed_samples: 0,
         }
     }
@@ -49,13 +52,25 @@ impl Iterator for Chirp {
 
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.elapsed_samples;
-        let ratio = self.elapsed_samples as f32 / self.total_samples as f32;
-        self.elapsed_samples += 1;
+        if i >= self.total_samples {
+            return None; // Exhausted
+        }
+
+        let ratio = (i as f64 / self.total_samples as f64) as f32;
         let freq = self.start_frequency * (1.0 - ratio) + self.end_frequency * ratio;
-        let t = (i as f32 / self.sample_rate().get() as f32) * TAU * freq;
+        let t = (i as f64 / self.sample_rate().get() as f64) as f32 * TAU * freq;
+
+        self.elapsed_samples += 1;
         Some(t.sin())
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.total_samples - self.elapsed_samples;
+        (remaining as usize, Some(remaining as usize))
+    }
 }
+
+impl ExactSizeIterator for Chirp {}
 
 impl Source for Chirp {
     fn current_span_len(&self) -> Option<usize> {
@@ -71,7 +86,7 @@ impl Source for Chirp {
     }
 
     fn total_duration(&self) -> Option<Duration> {
-        let secs: f64 = self.total_samples as f64 / self.sample_rate.get() as f64;
-        Some(Duration::new(1, 0).mul_f64(secs))
+        let secs = self.total_samples as f64 / self.sample_rate.get() as f64;
+        Some(Duration::from_secs_f64(secs))
     }
 }

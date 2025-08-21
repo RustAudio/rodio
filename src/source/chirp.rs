@@ -5,6 +5,7 @@ use std::{f32::consts::TAU, time::Duration};
 use crate::{
     common::{ChannelCount, SampleRate},
     math::nz,
+    source::SeekError,
     Source,
 };
 
@@ -44,6 +45,17 @@ impl Chirp {
             total_samples: (duration.as_secs_f64() * sample_rate.get() as f64) as u64,
             elapsed_samples: 0,
         }
+    }
+
+    #[allow(dead_code)]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        let mut target = (pos.as_secs_f64() * self.sample_rate.get() as f64) as u64;
+        if target >= self.total_samples {
+            target = self.total_samples;
+        }
+
+        self.elapsed_samples = target;
+        Ok(())
     }
 }
 

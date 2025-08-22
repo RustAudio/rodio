@@ -48,4 +48,5 @@ macro_rules! assert_error_traits {
 }
 
 pub(crate) use assert_error_traits;
+#[allow(dead_code)]
 pub(crate) const fn use_required_traits<T: Send + Sync + 'static + Display + Debug + Clone>() {}

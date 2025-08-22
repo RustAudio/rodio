@@ -1,9 +1,11 @@
 use core::fmt;
 use std::{thread, time::Duration};
 
+use crate::common::assert_error_traits;
 use crate::conversions::SampleTypeConverter;
 use crate::{microphone::config::InputConfig, ChannelCount, Sample, SampleRate, Source};
 
+/// Builder for microphone configuration.
 pub mod builder;
 mod config;
 pub use builder::MicrophoneBuilder;
@@ -13,23 +15,20 @@ use cpal::{
 };
 use rtrb::RingBuffer;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("")]
-    DefaultInputConfig(cpal::DefaultStreamConfigError),
-}
-
-#[derive(Debug, thiserror::Error)]
+/// Error that can occur when we can not list the input devices
+#[derive(Debug, thiserror::Error, Clone)]
 #[error("Could not list input devices")]
 pub struct ListError(#[source] cpal::DevicesError);
+assert_error_traits! {ListError}
 
+/// An input device
 pub struct Input {
     inner: cpal::Device,
 }
 
-impl Into<cpal::Device> for Input {
-    fn into(self) -> cpal::Device {
-        self.inner
+impl From<Input> for cpal::Device {
+    fn from(val: Input) -> Self {
+        val.inner
     }
 }
 
@@ -47,6 +46,7 @@ impl fmt::Display for Input {
     }
 }
 
+/// Returns a list of available input devices on the system.
 pub fn available_inputs() -> Result<Vec<Input>, ListError> {
     let host = cpal::default_host();
     let devices = host
@@ -56,6 +56,7 @@ pub fn available_inputs() -> Result<Vec<Input>, ListError> {
     Ok(devices.collect())
 }
 
+/// A microphone input stream that can be used as an audio source.
 pub struct Microphone {
     _stream_handle: cpal::Stream,
     buffer: rtrb::Consumer<Sample>,
@@ -96,15 +97,20 @@ impl Iterator for Microphone {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+/// Errors that can occur when opening a microphone source.
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum OpenError {
+    /// Failed to build the input stream.
     #[error("Could not open microphone")]
     BuildStream(#[source] cpal::BuildStreamError),
+    /// The sample format is not supported.
     #[error("This is a bug, please report it")]
     UnsupportedSampleFormat,
+    /// Failed to start the input stream.
     #[error("Could not start the input stream")]
     Play(#[source] cpal::PlayStreamError),
 }
+assert_error_traits! {OpenError}
 
 impl Microphone {
     fn open(

@@ -5,34 +5,57 @@ use cpal::{
     SupportedStreamConfigRange,
 };
 
-use crate::{microphone::config::InputConfig, ChannelCount, SampleRate};
+use crate::{
+    common::assert_error_traits, microphone::config::InputConfig, ChannelCount, SampleRate,
+};
 
 use super::Microphone;
 
-#[derive(Debug, thiserror::Error)]
+/// Error configuring or opening microphone input
+#[allow(missing_docs)]
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum Error {
-    #[error("")]
+    /// No input device is available on the system.
+    #[error("There is no output device")]
     NoDevice,
-    #[error("")]
-    DefaultInputConfig(#[source] cpal::DefaultStreamConfigError),
-    #[error("")]
-    InputConfigs(#[source] cpal::SupportedStreamConfigsError),
-    #[error("")]
-    UnsupportedByDevice,
+    /// Failed to get the default input configuration for the device.
+    #[error("Could not get default input configuration for input device: '{device_name}'")]
+    DefaultInputConfig {
+        #[source]
+        source: cpal::DefaultStreamConfigError,
+        device_name: String,
+    },
+    /// Failed to get the supported input configurations for the device.
+    #[error("Could not get supported input configurations for input device: '{device_name}'")]
+    InputConfigs {
+        #[source]
+        source: cpal::SupportedStreamConfigsError,
+        device_name: String,
+    },
+    /// The requested input configuration is not supported by the device.
+    #[error("The input configuration is not supported by input device: '{device_name}'")]
+    UnsupportedByDevice { device_name: String },
 }
+assert_error_traits! {Error}
 
+#[allow(missing_docs)]
 pub trait ToAssign {}
 
+#[allow(missing_docs)]
 pub struct DeviceIsSet;
+#[allow(missing_docs)]
 pub struct DeviceNotSet;
 impl ToAssign for DeviceIsSet {}
 impl ToAssign for DeviceNotSet {}
 
+#[allow(missing_docs)]
 pub struct ConfigIsSet;
+#[allow(missing_docs)]
 pub struct ConfigNotSet;
 impl ToAssign for ConfigIsSet {}
 impl ToAssign for ConfigNotSet {}
 
+/// Builder for configuring and opening microphone input streams.
 #[must_use]
 pub struct MicrophoneBuilder<Device, Config, E = fn(cpal::StreamError)>
 where
@@ -75,8 +98,8 @@ impl Default for MicrophoneBuilder<DeviceNotSet, ConfigNotSet> {
             config: None,
             error_callback: default_error_callback,
 
-            device_set: PhantomData::default(),
-            config_set: PhantomData::default(),
+            device_set: PhantomData,
+            config_set: PhantomData,
         }
     }
 }
@@ -89,6 +112,12 @@ fn default_error_callback(err: cpal::StreamError) {
 }
 
 impl MicrophoneBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::StreamError)> {
+    /// Creates a new microphone builder.
+    ///
+    /// # Example
+    /// ```no_run
+    /// let builder = rodio::microphone::MicrophoneBuilder::new();
+    /// ```
     pub fn new() -> MicrophoneBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::StreamError)> {
         Self::default()
     }
@@ -100,7 +129,14 @@ where
     Config: ToAssign,
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
-    /// Sets output device and its default parameters.
+    /// Sets the input device to use.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new().device(input_device)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn device(
         self,
         device: impl Into<cpal::Device>,
@@ -108,31 +144,47 @@ where
         let device = device.into();
         let supported_configs = device
             .supported_input_configs()
-            .map_err(Error::InputConfigs)?
+            .map_err(|source| Error::InputConfigs {
+                source,
+                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+            })?
             .collect();
         Ok(MicrophoneBuilder {
             device: Some((device, supported_configs)),
             config: self.config,
             error_callback: self.error_callback,
-            device_set: PhantomData::default(),
-            config_set: PhantomData::default(),
+            device_set: PhantomData,
+            config_set: PhantomData,
         })
     }
 
+    /// Uses the system's default input device.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new().default_device()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn default_device(self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
         let default_device = cpal::default_host()
             .default_output_device()
             .ok_or(Error::NoDevice)?;
         let supported_configs = default_device
             .supported_input_configs()
-            .map_err(Error::InputConfigs)?
+            .map_err(|source| Error::InputConfigs {
+                source,
+                device_name: default_device
+                    .name()
+                    .unwrap_or_else(|_| "unknown".to_string()),
+            })?
             .collect();
         Ok(MicrophoneBuilder {
             device: Some((default_device, supported_configs)),
             config: self.config,
             error_callback: self.error_callback,
-            device_set: PhantomData::default(),
-            config_set: PhantomData::default(),
+            device_set: PhantomData,
+            config_set: PhantomData,
         })
     }
 }
@@ -142,23 +194,50 @@ where
     Config: ToAssign,
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
+    /// Uses the device's default input configuration.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn default_config(self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
-        let default_config = self
-            .device
-            .as_ref()
-            .expect("DeviceIsSet")
-            .0
-            .default_input_config()
-            .map_err(Error::DefaultInputConfig)?;
+        let device = &self.device.as_ref().expect("DeviceIsSet").0;
+        let default_config =
+            device
+                .default_input_config()
+                .map_err(|source| Error::DefaultInputConfig {
+                    source,
+                    device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+                })?;
         Ok(MicrophoneBuilder {
             device: self.device,
             config: Some(default_config.into()),
             error_callback: self.error_callback,
-            device_set: PhantomData::default(),
-            config_set: PhantomData::default(),
+            device_set: PhantomData,
+            config_set: PhantomData,
         })
     }
 
+    /// Sets a custom input configuration.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::{MicrophoneBuilder, InputConfig};
+    /// # use std::num::NonZero;
+    /// let config = InputConfig::new(
+    ///     NonZero::new(44_100).unwrap(),
+    ///     NonZero::new(2).unwrap(),
+    ///     cpal::SampleFormat::U16,
+    /// );
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .config(config)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn config(
         self,
         config: InputConfig,
@@ -169,26 +248,36 @@ where
             device: self.device,
             config: Some(config),
             error_callback: self.error_callback,
-            device_set: PhantomData::default(),
-            config_set: PhantomData::default(),
+            device_set: PhantomData,
+            config_set: PhantomData,
         })
     }
 
     fn check_config(&self, config: &InputConfig) -> Result<(), Error> {
-        if !self
-            .device
-            .as_ref()
-            .expect("DeviceIsSet")
-            .1
+        let (device, supported_configs) = self.device.as_ref().expect("DeviceIsSet");
+        if !supported_configs
             .iter()
             .any(|range| config.supported_given(range))
         {
-            return Err(Error::UnsupportedByDevice);
+            Err(Error::UnsupportedByDevice {
+                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+            })
         } else {
             Ok(())
         }
     }
 
+    /// Sets the sample rate for input.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .samplerate(44_100.try_into()?)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn samplerate(
         self,
         sample_rate: SampleRate,
@@ -201,11 +290,22 @@ where
             device: self.device,
             config: Some(new_config),
             error_callback: self.error_callback,
-            device_set: PhantomData::default(),
-            config_set: PhantomData::default(),
+            device_set: PhantomData,
+            config_set: PhantomData,
         })
     }
 
+    /// Sets the number of input channels.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .channels(2.try_into()?)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn channels(
         self,
         channel_count: ChannelCount,
@@ -218,11 +318,22 @@ where
             device: self.device,
             config: Some(new_config),
             error_callback: self.error_callback,
-            device_set: PhantomData::default(),
-            config_set: PhantomData::default(),
+            device_set: PhantomData,
+            config_set: PhantomData,
         })
     }
 
+    /// Sets the buffer size for input.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .buffer_size(1024)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn buffer_size(
         self,
         buffer_size: u32,
@@ -235,8 +346,8 @@ where
             device: self.device,
             config: Some(new_config),
             error_callback: self.error_callback,
-            device_set: PhantomData::default(),
-            config_set: PhantomData::default(),
+            device_set: PhantomData,
+            config_set: PhantomData,
         })
     }
 }
@@ -245,10 +356,24 @@ impl<E> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
+    /// Opens the microphone input stream.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// # use rodio::Source;
+    /// # use std::time::Duration;
+    /// let mic = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .open_stream()?;
+    /// let recording = mic.take_duration(Duration::from_secs(3)).record();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn open_stream(&self) -> Result<Microphone, super::OpenError> {
         Microphone::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
-            self.config.as_ref().expect("ConfigIsSet").clone(),
+            *self.config.as_ref().expect("ConfigIsSet"),
             self.error_callback.clone(),
         )
     }

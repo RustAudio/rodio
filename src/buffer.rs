@@ -59,9 +59,9 @@ impl SamplesBuffer {
     }
 
     pub(crate) fn record_source(source: impl Source) -> Self {
-        // let channel_count = source.channels();
-        // let sample_rate = source.sample_rate();
-        // let source = UniformSourceIterator::new(source, channel_count, sample_rate);
+        let channel_count = source.channels();
+        let sample_rate = source.sample_rate();
+        let source = UniformSourceIterator::new(source, channel_count, sample_rate);
         Self::new(
             source.channels(),
             source.sample_rate(),

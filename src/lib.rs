@@ -181,6 +181,7 @@ pub mod buffer;
 pub mod conversions;
 pub mod decoder;
 pub mod math;
+/// Microphone input support for audio recording.
 pub mod microphone;
 pub mod mixer;
 pub mod queue;

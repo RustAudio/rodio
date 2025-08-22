@@ -4,6 +4,7 @@ use core::time::Duration;
 use std::sync::Arc;
 
 use crate::{
+    buffer::SamplesBuffer,
     common::{assert_error_traits, ChannelCount, SampleRate},
     math, Sample,
 };
@@ -526,6 +527,16 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
     {
         speed::speed(self, ratio)
+    }
+
+    /// Use take_duration on source before passing it in to limit the record time
+    /// The initial samplerate and channel count is used any new span is resampled
+    /// down/up channeled to match that
+    fn record(self) -> SamplesBuffer
+    where
+        Self: Sized,
+    {
+        SamplesBuffer::record_source(self)
     }
 
     /// Adds a basic reverb effect.

@@ -114,6 +114,7 @@ rstest = "0.25"
 rstest_reuse = "0.7"
 approx = "0.5.1"
 divan = "0.1.14"
+inquire = "0.7.5"
 
 [[bench]]
 name = "effects"
@@ -182,6 +183,10 @@ required-features = ["playback", "wav"]
 [[example]]
 name = "low_pass"
 required-features = ["playback", "wav"]
+
+[[example]]
+name = "microphone"
+required-features = ["playback", "wav_output"]
 
 [[example]]
 name = "mix_multiple_sources"

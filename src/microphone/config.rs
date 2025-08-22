@@ -2,12 +2,17 @@ use std::num::NonZero;
 
 use crate::{math::nz, ChannelCount, SampleRate};
 
-/// Describes the output stream's configuration
+/// Describes the input stream's configuration
 #[derive(Copy, Clone, Debug)]
 pub struct InputConfig {
+    /// The number of channels (usually this should be one)
     pub channel_count: ChannelCount,
+    /// The sample rate the microphone will be recording at
     pub sample_rate: SampleRate,
+    /// The buffersize, see a thorough explanation in MicrophoneBuilder::with_buffer_size
     pub buffer_size: cpal::BufferSize,
+    /// The sample format used by the microphone.
+    /// Note we will always convert it to f32
     pub sample_format: cpal::SampleFormat,
 }
 impl InputConfig {

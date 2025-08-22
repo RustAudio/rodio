@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `std_dev()` to `WhiteUniform` and `WhiteTriangular`.
 - Added a macro `nz!` which facilitates creating NonZero's for `SampleRate` and
   `ChannelCount`.
+- Adds a new input source: Microphone.
+- Adds a new method on source: record which collects all samples into a
+  SamplesBuffer.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.

@@ -181,6 +181,7 @@ pub mod buffer;
 pub mod conversions;
 pub mod decoder;
 pub mod math;
+pub mod microphone;
 pub mod mixer;
 pub mod queue;
 pub mod source;

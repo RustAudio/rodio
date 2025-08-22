@@ -246,7 +246,6 @@ where
     ///     channel_count: NonZero::new(2).expect("2 is not zero"),
     ///     buffer_size: cpal::BufferSize::Fixed(42_000),
     ///     sample_format: cpal::SampleFormat::U16,
-    ///     bits_per_sample: NonZero::new(16).expect("16 is not zero"),
     /// };
     /// let builder = MicrophoneBuilder::new()
     ///     .default_device()?

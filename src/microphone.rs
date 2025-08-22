@@ -197,8 +197,18 @@ impl Source for Microphone {
         self.config.sample_rate
     }
 
+    // TODO: use cpal::SampleFormat::bits_per_sample() when cpal v0.17 is released
     fn bits_per_sample(&self) -> Option<u32> {
-        Some(16)
+        let bits = match self.config.sample_format {
+            cpal::SampleFormat::I8 | cpal::SampleFormat::U8 => 8,
+            cpal::SampleFormat::I16 | cpal::SampleFormat::U16 => 16,
+            cpal::SampleFormat::I24 => 24,
+            cpal::SampleFormat::I32 | cpal::SampleFormat::U32 | cpal::SampleFormat::F32 => 32,
+            cpal::SampleFormat::I64 | cpal::SampleFormat::U64 | cpal::SampleFormat::F64 => 64,
+            _ => return None,
+        };
+
+        Some(bits)
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {

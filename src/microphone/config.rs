@@ -1,6 +1,6 @@
 use std::num::NonZero;
 
-use crate::{math::nz, BitDepth, ChannelCount, SampleRate};
+use crate::{math::nz, ChannelCount, SampleRate};
 
 /// Describes the input stream's configuration
 #[derive(Copy, Clone, Debug)]
@@ -14,9 +14,8 @@ pub struct InputConfig {
     /// The sample format used by the microphone.
     /// Note we will always convert it to `Sample`
     pub sample_format: cpal::SampleFormat,
-    /// The bits per sample used by the microphone
-    pub bits_per_sample: BitDepth,
 }
+
 impl InputConfig {
     pub(crate) fn supported_given(&self, supported: &cpal::SupportedStreamConfigRange) -> bool {
         let buffer_ok = match (self.buffer_size, supported.buffer_size()) {
@@ -68,8 +67,6 @@ impl From<cpal::SupportedStreamConfig> for InputConfig {
                 .expect("A supported config produces samples"),
             buffer_size,
             sample_format: value.sample_format(),
-            bits_per_sample: NonZero::new(value.sample_format().bits_per_sample())
-                .expect("A supported config has bits per sample"),
         }
     }
 }
@@ -81,7 +78,6 @@ impl Default for InputConfig {
             sample_rate: nz!(44_100),
             buffer_size: cpal::BufferSize::Default,
             sample_format: cpal::SampleFormat::F32,
-            bits_per_sample: NonZero::new(f32::MANTISSA_DIGITS).unwrap(),
         }
     }
 }

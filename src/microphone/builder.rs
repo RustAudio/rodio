@@ -133,8 +133,9 @@ where
     ///
     /// # Example
     /// ```no_run
-    /// # use rodio::microphone::MicrophoneBuilder;
-    /// let builder = MicrophoneBuilder::new().device(input_device)?;
+    /// # use rodio::microphone::{MicrophoneBuilder, available_inputs};
+    /// let input = available_inputs()?.remove(2);
+    /// let builder = MicrophoneBuilder::new().device(input)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn device(
@@ -323,7 +324,43 @@ where
         })
     }
 
-    /// Sets the buffer size for input.
+    /// Sets the buffer size for the input.
+    ///
+    /// To record sound without any glitches the audio card/chip must always
+    /// have a place to put a newly recorded sample. Unfortunately some samples
+    /// might take longer to consume then others. For example because the OS
+    /// preempts the thread running the microphone input. This happens more
+    /// often if the computer is under high load. That is why the OS has an
+    /// input buffer. This governs the size of that buffer.
+    ///
+    /// Note there is a large buffer between the thread running the microphone
+    /// input and the rest of rodio. Slow audio processing in your rodio code
+    /// should not easily cause us to miss samples.
+    ///
+    /// There is a minimum delay (latency) of `<buffer
+    /// size>/<sample_rate*channel_count>` seconds before a sample is made
+    /// available to Rodio.
+    ///
+    /// # Large vs Small buffer
+    /// - A larger buffer size results in high latency. This can be an issue
+    ///   voip and other real time applications.
+    /// - A small buffer might cause:
+    ///   - Higher CPU usage
+    ///   - Recording interruptions such as buffer underruns.
+    ///   - Rodio to log errors like: `alsa::poll() returned POLLERR`
+    ///
+    /// # Recommendation
+    /// If low latency is important to you consider offering the user a method
+    /// to find the minimum buffer size that works well on their system under
+    /// expected conditions. A good example of this approach can be seen in
+    /// [mumble](https://www.mumble.info/documentation/user/audio-settings/)
+    /// (specifically the *Output Delay* & *Jitter buffer*.
+    ///
+    /// These are some typical values that are a good starting point. They may also
+    /// break audio completely, it depends on the system.
+    /// - Low-latency (audio production, live monitoring): 512-1024
+    /// - General use (games, media playback): 1024-2048
+    /// - Stability-focused (background music, non-interactive): 2048-4096
     ///
     /// # Example
     /// ```no_run

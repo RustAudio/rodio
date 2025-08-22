@@ -3,12 +3,12 @@ use std::{thread, time::Duration};
 
 use crate::common::assert_error_traits;
 use crate::conversions::SampleTypeConverter;
-use crate::{microphone::config::InputConfig, ChannelCount, Sample, SampleRate, Source};
+use crate::{ChannelCount, Sample, SampleRate, Source};
 
-/// Builder for microphone configuration.
-pub mod builder;
+mod builder;
 mod config;
 pub use builder::MicrophoneBuilder;
+pub use config::InputConfig;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device,
@@ -22,6 +22,7 @@ pub struct ListError(#[source] cpal::DevicesError);
 assert_error_traits! {ListError}
 
 /// An input device
+#[derive(Clone)]
 pub struct Input {
     inner: cpal::Device,
 }
@@ -56,7 +57,7 @@ pub fn available_inputs() -> Result<Vec<Input>, ListError> {
     Ok(devices.collect())
 }
 
-/// A microphone input stream that can be used as an audio source.
+/// A microphone input stream that can be used as `Source`.
 pub struct Microphone {
     _stream_handle: cpal::Stream,
     buffer: rtrb::Consumer<Sample>,
@@ -103,7 +104,7 @@ pub enum OpenError {
     /// Failed to build the input stream.
     #[error("Could not open microphone")]
     BuildStream(#[source] cpal::BuildStreamError),
-    /// The sample format is not supported.
+    /// This is a bug please report it
     #[error("This is a bug, please report it")]
     UnsupportedSampleFormat,
     /// Failed to start the input stream.

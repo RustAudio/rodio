@@ -1,3 +1,75 @@
+//! A microphone Source
+//!
+//! # Basic Usage
+//!
+//! ```no_run
+//! use rodio::microphone::MicrophoneBuilder;
+//! use rodio::Source;
+//! use std::time::Duration;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mic = MicrophoneBuilder::new()
+//!     .default_device()?
+//!     .default_config()?
+//!     .open_stream()?;
+//!
+//! // Record audio for 3 seconds
+//! let recording = mic.take_duration(Duration::from_secs(3));
+//!
+//! // You can now use this like any other Source
+//! // For example, play it back or process it further
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Configuration with Error Handling
+//! Attempt to set a specific channel count but fall back to the default if
+//! the device doesn't support it:
+//!
+//! ```no_run
+//! use rodio::microphone::MicrophoneBuilder;
+//! use rodio::Source;
+//! use std::time::Duration;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut builder = MicrophoneBuilder::new()
+//!     .default_device()?
+//!     .default_config()?;
+//!
+//! // Try to set stereo recording (2 channels), but continue with default if unsupported
+//! if let Ok(configured_builder) = builder.channels(2.try_into()?) {
+//!     builder = configured_builder;
+//! } else {
+//!     println!("Stereo recording not supported, using default channel configuration");
+//!     // builder remains unchanged with default configuration
+//! }
+//!
+//! let mic = builder.open_stream()?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Device Selection
+//!
+//! ```no_run
+//! use rodio::microphone::{MicrophoneBuilder, available_inputs};
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // List all available input devices
+//! let inputs = available_inputs()?;
+//! for (i, input) in inputs.iter().enumerate() {
+//!     println!("Input {}: {}", i, input);
+//! }
+//!
+//! // Use a specific device (e.g., the second one)
+//! let mic = MicrophoneBuilder::new()
+//!     .device(inputs[1].clone())?
+//!     .default_config()?
+//!     .open_stream()?;
+//! # Ok(())
+//! # }
+//! ```
+
 use core::fmt;
 use std::{thread, time::Duration};
 

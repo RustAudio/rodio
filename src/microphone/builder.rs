@@ -229,11 +229,12 @@ where
     /// ```no_run
     /// # use rodio::microphone::{MicrophoneBuilder, InputConfig};
     /// # use std::num::NonZero;
-    /// let config = InputConfig::new(
-    ///     NonZero::new(44_100).unwrap(),
-    ///     NonZero::new(2).unwrap(),
-    ///     cpal::SampleFormat::U16,
-    /// );
+    /// let config = InputConfig {
+    ///     sample_rate: NonZero::new(44_100).expect("44100 is not zero"),
+    ///     channel_count: NonZero::new(2).expect("2 is not zero"),
+    ///     buffer_size: cpal::BufferSize::Fixed(42_000),
+    ///     sample_format: cpal::SampleFormat::U16,
+    /// };
     /// let builder = MicrophoneBuilder::new()
     ///     .default_device()?
     ///     .config(config)?;

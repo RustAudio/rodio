@@ -529,9 +529,25 @@ pub trait Source: Iterator<Item = Sample> {
         speed::speed(self, ratio)
     }
 
-    /// Use take_duration on source before passing it in to limit the record time
-    /// The initial samplerate and channel count is used any new span is resampled
-    /// down/up channeled to match that
+    /// Consumes the source and returns a SamplesBuffer
+    ///
+    /// Use `take_duration` on infinite sources (like the microphone source) before
+    /// calling `record` to prevent this from hanging forever.
+    ///
+    /// # Note
+    /// As `SamplesBuffer` only supports a single *samplerate* and *channel count*
+    /// all samples are resampled to the initial samplerate and channel count is.
+    ///
+    /// # Example
+    /// ```no_run
+    ///
+    /// # use rodio::source::SineWave;
+    ////# use rodio::Source;
+    /// let wave = SineWave::new(740.0)
+    ///     .amplify(0.2)
+    ///     .take_duration(Duration::from_secs(3));
+    /// let wave = wave.record();
+    /// ```
     fn record(self) -> SamplesBuffer
     where
         Self: Sized,

@@ -139,7 +139,7 @@ where
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn device(
-        self,
+        &self,
         device: impl Into<cpal::Device>,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
         let device = device.into();
@@ -153,7 +153,7 @@ where
         Ok(MicrophoneBuilder {
             device: Some((device, supported_configs)),
             config: self.config,
-            error_callback: self.error_callback,
+            error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -167,7 +167,7 @@ where
     /// let builder = MicrophoneBuilder::new().default_device()?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn default_device(self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
+    pub fn default_device(&self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
         let default_device = cpal::default_host()
             .default_output_device()
             .ok_or(Error::NoDevice)?;
@@ -183,7 +183,7 @@ where
         Ok(MicrophoneBuilder {
             device: Some((default_device, supported_configs)),
             config: self.config,
-            error_callback: self.error_callback,
+            error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -205,7 +205,7 @@ where
     ///     .default_config()?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn default_config(self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
+    pub fn default_config(&self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
         let device = &self.device.as_ref().expect("DeviceIsSet").0;
         let default_config =
             device
@@ -215,9 +215,9 @@ where
                     device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
                 })?;
         Ok(MicrophoneBuilder {
-            device: self.device,
+            device: self.device.clone(),
             config: Some(default_config.into()),
-            error_callback: self.error_callback,
+            error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -240,15 +240,15 @@ where
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn config(
-        self,
+        &self,
         config: InputConfig,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
         self.check_config(&config)?;
 
         Ok(MicrophoneBuilder {
-            device: self.device,
+            device: self.device.clone(),
             config: Some(config),
-            error_callback: self.error_callback,
+            error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -280,7 +280,7 @@ where
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn samplerate(
-        self,
+        &self,
         sample_rate: SampleRate,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
         let mut new_config = self.config.expect("ConfigIsSet");
@@ -288,9 +288,9 @@ where
         self.check_config(&new_config)?;
 
         Ok(MicrophoneBuilder {
-            device: self.device,
+            device: self.device.clone(),
             config: Some(new_config),
-            error_callback: self.error_callback,
+            error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -308,7 +308,7 @@ where
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn channels(
-        self,
+        &self,
         channel_count: ChannelCount,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
         let mut new_config = self.config.expect("ConfigIsSet");
@@ -316,9 +316,9 @@ where
         self.check_config(&new_config)?;
 
         Ok(MicrophoneBuilder {
-            device: self.device,
+            device: self.device.clone(),
             config: Some(new_config),
-            error_callback: self.error_callback,
+            error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -372,7 +372,7 @@ where
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn buffer_size(
-        self,
+        &self,
         buffer_size: u32,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
         let mut new_config = self.config.expect("ConfigIsSet");
@@ -380,9 +380,9 @@ where
         self.check_config(&new_config)?;
 
         Ok(MicrophoneBuilder {
-            device: self.device,
+            device: self.device.clone(),
             config: Some(new_config),
-            error_callback: self.error_callback,
+            error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
         })

@@ -542,7 +542,8 @@ pub trait Source: Iterator<Item = Sample> {
     /// ```no_run
     ///
     /// # use rodio::source::SineWave;
-    ////# use rodio::Source;
+    /// # use rodio::Source;
+    /// # use std::time::Duration;
     /// let wave = SineWave::new(740.0)
     ///     .amplify(0.2)
     ///     .take_duration(Duration::from_secs(3));

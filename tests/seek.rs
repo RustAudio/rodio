@@ -244,7 +244,11 @@ fn seek_does_not_break_channel_order(
     case("mp3", "symphonia")
 )]
 #[cfg_attr(
-    all(feature = "symphonia-ogg", feature = "symphonia-vorbis",),
+    all(
+        feature = "symphonia-ogg",
+        feature = "symphonia-vorbis",
+        not(feature = "lewton")
+    ),
     case("ogg", "symphonia")
 )]
 fn random_access_seeks(#[case] format: &'static str, #[case] decoder_name: &'static str) {

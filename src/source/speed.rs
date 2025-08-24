@@ -138,6 +138,11 @@ where
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        self.input.bits_per_sample()
+    }
+
+    #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let pos_accounting_for_speedup = pos.mul_f32(self.factor);
         self.input.try_seek(pos_accounting_for_speedup)

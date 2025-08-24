@@ -159,6 +159,11 @@ impl Source for SignalGenerator {
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        Some(f32::MANTISSA_DIGITS)
+    }
+
+    #[inline]
     fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
         let seek = duration.as_secs_f32() * (self.sample_rate.get() as f32) / self.period;
         self.phase = seek.rem_euclid(1.0f32);

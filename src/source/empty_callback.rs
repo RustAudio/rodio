@@ -49,12 +49,17 @@ impl Source for EmptyCallback {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        Some(Duration::new(0, 0))
+        Some(Duration::ZERO)
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<u32> {
+        None
     }
 
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
+        Err(SeekError::SeekingNotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
     }

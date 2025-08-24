@@ -447,7 +447,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "777b48df9aaab155475a83a7df3070395ea1ac6902f5cd062b8f2b028075c030"
 dependencies = [
  "byteorder",
- "ogg",
+ "ogg 0.8.0",
  "tinyvec",
 ]
 
@@ -507,6 +507,15 @@ checksum = "42b0f14e7e75da97ae396c2656b10262a3d4afa2ec98f35795630eff0c8b951b"
 dependencies = [
  "minimp3-sys",
  "slice-ring-buffer",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "mp3-duration"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "348bdc7300502f0801e5b57c448815713cd843b744ef9bda252a2698fdf90a0f"
+dependencies = [
  "thiserror 1.0.69",
 ]
 
@@ -689,6 +698,15 @@ name = "ogg"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6951b4e8bf21c8193da321bcce9c9dd2e13c858fe078bf9054a288b419ae5d6e"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
+name = "ogg"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdab8dcd8d4052eaacaf8fb07a3ccd9a6e26efadb42878a413c68fc4af1dee2b"
 dependencies = [
  "byteorder",
 ]
@@ -894,7 +912,9 @@ dependencies = [
  "hound",
  "lewton",
  "minimp3_fixed",
+ "mp3-duration",
  "num-rational",
+ "ogg 0.9.2",
  "quickcheck",
  "rand 0.9.1",
  "rand_distr",

@@ -912,6 +912,10 @@ where
 {
     utils::probe_format(data, |reader| {
         let mut decoder = Decoder::new(reader);
-        decoder.next_frame().is_ok()
+        decoder.next_frame().is_ok_and(|frame| {
+            // Without this check, minimp3 will think it can decode WAV files. This will trigger by
+            // running the test suite with features `minimp3` and (Symphonia) `wav` enabled.
+            frame.bitrate != 0
+        })
     })
 }

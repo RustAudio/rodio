@@ -41,6 +41,7 @@ const fn power_of_two(n: usize) -> usize {
 const RMS_WINDOW_SIZE: usize = power_of_two(8192);
 
 #[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 /// Automatic Gain Control filter for maintaining consistent output levels.
 ///
 /// This struct implements an AGC algorithm that dynamically adjusts audio levels

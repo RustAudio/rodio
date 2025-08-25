@@ -1174,6 +1174,7 @@ pub enum DecoderError {
     /// The stream contained malformed data and could not be decoded or demuxed.
     #[error("The stream contained malformed data and could not be decoded or demuxed: {0}")]
     #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
     DecodeError(&'static str),
 
     /// A default or user-defined limit was reached while decoding or demuxing
@@ -1183,16 +1184,19 @@ pub enum DecoderError {
         "A default or user-defined limit was reached while decoding or demuxing the stream: {0}"
     )]
     #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
     LimitError(&'static str),
 
     /// The demuxer or decoder needs to be reset before continuing.
     #[error("The demuxer or decoder needs to be reset before continuing.")]
     #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
     ResetRequired,
 
     /// No streams were found by the decoder.
     #[error("No streams were found by the decoder.")]
     #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
     NoStreams,
 }
 assert_error_traits!(DecoderError);

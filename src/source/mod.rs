@@ -4,6 +4,7 @@ use core::time::Duration;
 use std::sync::Arc;
 
 use crate::{
+    buffer::SamplesBuffer,
     common::{assert_error_traits, ChannelCount, SampleRate},
     math, Sample,
 };
@@ -526,6 +527,33 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
     {
         speed::speed(self, ratio)
+    }
+
+    /// Consumes the source and returns a SamplesBuffer
+    ///
+    /// Use `take_duration` on infinite sources (like the microphone source) before
+    /// calling `record` to prevent this from hanging forever.
+    ///
+    /// # Note
+    /// As `SamplesBuffer` only supports a single *samplerate* and *channel count*
+    /// all samples are resampled to the initial samplerate and channel count is.
+    ///
+    /// # Example
+    /// ```no_run
+    ///
+    /// # use rodio::source::SineWave;
+    /// # use rodio::Source;
+    /// # use std::time::Duration;
+    /// let wave = SineWave::new(740.0)
+    ///     .amplify(0.2)
+    ///     .take_duration(Duration::from_secs(3));
+    /// let wave = wave.record();
+    /// ```
+    fn record(self) -> SamplesBuffer
+    where
+        Self: Sized,
+    {
+        SamplesBuffer::record_source(self)
     }
 
     /// Adds a basic reverb effect.

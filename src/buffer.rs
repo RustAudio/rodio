@@ -12,7 +12,7 @@
 //!
 
 use crate::common::{ChannelCount, SampleRate};
-use crate::source::SeekError;
+use crate::source::{SeekError, UniformSourceIterator};
 use crate::{Sample, Source};
 use std::sync::Arc;
 use std::time::Duration;
@@ -36,7 +36,7 @@ impl SamplesBuffer {
     /// - Panics if the length of the buffer is larger than approximately 16 billion elements.
     ///   This is because the calculation of the duration would overflow.
     ///
-    pub fn new<D>(channels: ChannelCount, sample_rate: SampleRate, data: D) -> SamplesBuffer
+    pub fn new<D>(channels: ChannelCount, sample_rate: SampleRate, data: D) -> Self
     where
         D: Into<Vec<Sample>>,
     {
@@ -49,13 +49,24 @@ impl SamplesBuffer {
             (duration_ns % 1_000_000_000) as u32,
         );
 
-        SamplesBuffer {
+        Self {
             data,
             pos: 0,
             channels,
             sample_rate,
             duration,
         }
+    }
+
+    pub(crate) fn record_source(source: impl Source) -> Self {
+        let channel_count = source.channels();
+        let sample_rate = source.sample_rate();
+        let source = UniformSourceIterator::new(source, channel_count, sample_rate);
+        Self::new(
+            source.channels(),
+            source.sample_rate(),
+            source.into_iter().collect::<Vec<_>>(),
+        )
     }
 }
 

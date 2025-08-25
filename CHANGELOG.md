@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chirp` now implements `Iterator::size_hint` and `ExactSizeIterator`.
 - Added `Red` noise generator that is more practical than `Brownian` noise.
 - Added `std_dev()` to `WhiteUniform` and `WhiteTriangular`.
+- Adds a new input source: Microphone.
+- Adds a new method on source: record which collects all samples into a
+  SamplesBuffer.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.

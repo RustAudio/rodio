@@ -294,27 +294,25 @@ impl<R: Read + Seek> DecoderImpl<R> {
     }
 }
 
-/// Converts a `File` into a `Decoder` with automatic optimizations.
-/// This is the preferred way to decode files as it enables seeking optimizations
-/// and accurate duration calculations.
+/// Converts a `File` into a `Decoder`.
 ///
-/// This implementation:
-/// - Wraps the file in a `BufReader` for better performance
-/// - Gets the file length from metadata to improve seeking operations and duration accuracy
-/// - Enables seeking by default
+/// This is the recommended way to decode audio files from the filesystem. The file is
+/// automatically wrapped in a `BufReader` for efficient I/O, and the decoder will know the exact
+/// file size for optimal seeking performance.
 ///
 /// # Errors
 ///
-/// Returns an error if:
-/// - The file metadata cannot be read
-/// - The audio format cannot be recognized or is not supported
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// Returns `DecoderError::IoError` if the file metadata cannot be read.
 ///
 /// # Examples
 /// ```no_run
 /// use std::fs::File;
 /// use rodio::Decoder;
 ///
-/// let file = File::open("audio.mp3").unwrap();
+/// let file = File::open("music.mp3").unwrap();
 /// let decoder = Decoder::try_from(file).unwrap();
 /// ```
 impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
@@ -330,19 +328,20 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
             .with_data(BufReader::new(file))
             .with_byte_len(len)
             .with_seekable(true)
-            .with_scan_duration(true)
             .build()
     }
 }
 
-/// Converts a `BufReader` into a `Decoder`.
-/// When working with files, prefer `TryFrom<File>` as it will automatically set byte_len
-/// for better seeking performance.
+/// Converts a `BufReader<R>` into a `Decoder`.
+///
+/// This is useful for decoding from any readable and seekable source wrapped in a `BufReader`.
+/// When working with files specifically, prefer `TryFrom<File>` as it automatically determines the
+/// file size for better seeking performance.
 ///
 /// # Errors
 ///
-/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
-/// or is not supported.
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
 ///
 /// # Examples
 /// ```no_run
@@ -361,20 +360,22 @@ where
     type Error = DecoderError;
 
     fn try_from(data: BufReader<R>) -> Result<Self, Self::Error> {
-        Self::new(data)
+        Self::builder().with_data(data).with_seekable(true).build()
     }
 }
 
-/// Converts a `Cursor` into a `Decoder`.
-/// When working with files, prefer `TryFrom<File>` as it will automatically set byte_len
-/// for better seeking performance.
+/// Converts a `Cursor<T>` into a `Decoder`.
 ///
-/// This is useful for decoding audio data that's already in memory.
+/// This is useful for decoding audio data that's already wrapped in a `Cursor`. The decoder will
+/// know the exact size of the data for efficient seeking and duration calculation.
+///
+/// For unwrapped byte containers, prefer the direct `TryFrom` implementations for `Vec<u8>`,
+/// `Box<[u8]>`, `Arc<[u8]>`, or `bytes::Bytes`.
 ///
 /// # Errors
 ///
-/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
-/// or is not supported.
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
 ///
 /// # Examples
 /// ```no_run
@@ -392,7 +393,307 @@ where
     type Error = DecoderError;
 
     fn try_from(data: std::io::Cursor<T>) -> Result<Self, Self::Error> {
-        Self::new(data)
+        let len = data.get_ref().as_ref().len() as u64;
+
+        Self::builder()
+            .with_data(data)
+            .with_byte_len(len)
+            .with_seekable(true)
+            .build()
+    }
+}
+
+/// Helper function to create a decoder from data that can be converted to bytes.
+///
+/// This function wraps the data in a `Cursor` and configures the decoder with optimal settings for
+/// in-memory audio data: known byte length and seeking enabled for better performance.
+fn decoder_from_bytes<T>(data: T) -> Result<Decoder<std::io::Cursor<T>>, DecoderError>
+where
+    T: AsRef<[u8]> + Send + Sync + 'static,
+{
+    let len = data.as_ref().len() as u64;
+    let cursor = std::io::Cursor::new(data);
+
+    Decoder::builder()
+        .with_data(cursor)
+        .with_byte_len(len)
+        .with_seekable(true)
+        .build()
+}
+
+/// Converts a `Vec<u8>` into a `Decoder`.
+///
+/// This is useful for decoding audio data that's loaded into memory as a vector. The data is
+/// wrapped in a `Cursor` to provide seeking capabilities. The decoder will know the exact size of
+/// the audio data, enabling efficient seeking.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// # Examples
+/// ```no_run
+/// use rodio::Decoder;
+///
+/// // Load audio file into memory
+/// let audio_data = std::fs::read("music.mp3").unwrap();
+/// let decoder = Decoder::try_from(audio_data).unwrap();
+/// ```
+impl TryFrom<Vec<u8>> for Decoder<std::io::Cursor<Vec<u8>>> {
+    type Error = DecoderError;
+
+    fn try_from(data: Vec<u8>) -> Result<Self, Self::Error> {
+        decoder_from_bytes(data)
+    }
+}
+
+/// Converts a `Box<[u8]>` into a `Decoder`.
+///
+/// This is useful for decoding audio data with exact memory allocation (no extra capacity like
+/// `Vec<u8>` might have). The boxed slice is memory-efficient and signals that the audio data is
+/// immutable and final.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// # Examples
+/// ```no_run
+/// use rodio::Decoder;
+///
+/// let audio_vec = std::fs::read("audio.flac").unwrap();
+/// let audio_box: Box<[u8]> = audio_vec.into_boxed_slice();
+/// let decoder = Decoder::try_from(audio_box).unwrap();
+/// ```
+impl TryFrom<Box<[u8]>> for Decoder<std::io::Cursor<Box<[u8]>>> {
+    type Error = DecoderError;
+
+    fn try_from(data: Box<[u8]>) -> Result<Self, Self::Error> {
+        decoder_from_bytes(data)
+    }
+}
+
+/// Converts an `Arc<[u8]>` into a `Decoder`.
+///
+/// This is useful for sharing audio data across multiple decoders or threads without copying the
+/// underlying bytes. Perfect for scenarios where you need multiple decoders for the same audio
+/// data (e.g., playing overlapping sound effects in games).
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// # Examples
+/// ```no_run
+/// use std::sync::Arc;
+/// use rodio::Decoder;
+///
+/// let audio_data: Arc<[u8]> = Arc::from(std::fs::read("sound.wav").unwrap());
+///
+/// // Create multiple decoders sharing the same data (no copying!)
+/// let decoder1 = Decoder::try_from(audio_data.clone()).unwrap();
+/// let decoder2 = Decoder::try_from(audio_data).unwrap();
+/// ```
+impl TryFrom<std::sync::Arc<[u8]>> for Decoder<std::io::Cursor<std::sync::Arc<[u8]>>> {
+    type Error = DecoderError;
+
+    fn try_from(data: std::sync::Arc<[u8]>) -> Result<Self, Self::Error> {
+        decoder_from_bytes(data)
+    }
+}
+
+/// Converts a `bytes::Bytes` into a `Decoder`.
+///
+/// This is particularly useful in async/web applications where audio data is received from HTTP
+/// clients, message queues, or other network sources. `Bytes` provides efficient, reference-counted
+/// sharing of byte data.
+///
+/// This implementation is only available when the `bytes` feature is enabled.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// # Examples
+/// ```ignore
+/// use rodio::Decoder;
+/// use bytes::Bytes;
+///
+/// // Common in web applications
+/// let audio_response = reqwest::get("https://example.com/audio.mp3").await.unwrap();
+/// let audio_bytes: Bytes = audio_response.bytes().await.unwrap();
+/// let decoder = Decoder::try_from(audio_bytes).unwrap();
+/// ```
+#[cfg(feature = "bytes")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bytes")))]
+impl TryFrom<bytes::Bytes> for Decoder<std::io::Cursor<bytes::Bytes>> {
+    type Error = DecoderError;
+
+    fn try_from(data: bytes::Bytes) -> Result<Self, Self::Error> {
+        decoder_from_bytes(data)
+    }
+}
+
+/// Converts a `&'static [u8]` into a `Decoder`.
+///
+/// This is useful for decoding audio data that's embedded directly in the binary, such as sound
+/// effects in games or applications. The static lifetime ensures the data remains valid for the
+/// decoder's lifetime.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// # Examples
+/// ```no_run
+/// use rodio::Decoder;
+///
+/// // Embedded audio data (e.g., from include_bytes!)
+/// static AUDIO_DATA: &[u8] = include_bytes!("music.wav");
+/// let decoder = Decoder::try_from(AUDIO_DATA).unwrap();
+/// ```
+impl TryFrom<&'static [u8]> for Decoder<std::io::Cursor<&'static [u8]>> {
+    type Error = DecoderError;
+
+    fn try_from(data: &'static [u8]) -> Result<Self, Self::Error> {
+        decoder_from_bytes(data)
+    }
+}
+
+/// Converts a `Cow<'static, [u8]>` into a `Decoder`.
+///
+/// This is useful for APIs that want to accept either borrowed static data or owned data without
+/// requiring callers to choose upfront. The cow can contain either embedded audio data or
+/// dynamically loaded data.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// # Examples
+/// ```no_run
+/// use rodio::Decoder;
+/// use rodio::decoder::DecoderError;
+/// use std::borrow::Cow;
+///
+/// // Can accept both owned and borrowed data
+/// fn decode_audio(data: Cow<'static, [u8]>) -> Result<Decoder<std::io::Cursor<std::borrow::Cow<'static, [u8]>>>, DecoderError> {
+///     Decoder::try_from(data)
+/// }
+///
+/// static EMBEDDED: &[u8] = include_bytes!("music.wav");
+/// let decoder1 = decode_audio(Cow::Borrowed(EMBEDDED)).unwrap();
+/// let owned_data = std::fs::read("music.wav").unwrap();
+/// let decoder2 = decode_audio(Cow::Owned(owned_data)).unwrap();
+/// ```
+impl TryFrom<std::borrow::Cow<'static, [u8]>>
+    for Decoder<std::io::Cursor<std::borrow::Cow<'static, [u8]>>>
+{
+    type Error = DecoderError;
+
+    fn try_from(data: std::borrow::Cow<'static, [u8]>) -> Result<Self, Self::Error> {
+        decoder_from_bytes(data)
+    }
+}
+
+/// Converts a `PathBuf` into a `Decoder`.
+///
+/// This is a convenience method for loading audio files from filesystem paths. The file is opened
+/// and automatically configured with optimal settings including file size detection and seeking
+/// support.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// Returns `DecoderError::IoError` if the file cannot be opened or its metadata cannot be read.
+///
+/// # Examples
+/// ```no_run
+/// use rodio::Decoder;
+/// use std::path::PathBuf;
+///
+/// let path = PathBuf::from("music.mp3");
+/// let decoder = Decoder::try_from(path).unwrap();
+/// ```
+impl TryFrom<std::path::PathBuf> for Decoder<BufReader<std::fs::File>> {
+    type Error = DecoderError;
+
+    fn try_from(path: std::path::PathBuf) -> Result<Self, Self::Error> {
+        let file = std::fs::File::open(path).map_err(|e| Self::Error::IoError(e.to_string()))?;
+        Self::try_from(file)
+    }
+}
+
+/// Converts a `&Path` into a `Decoder`.
+///
+/// This is a convenience method for loading audio files from filesystem paths. The file is opened
+/// and automatically configured with optimal settings including file size detection and seeking
+/// support.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// Returns `DecoderError::IoError` if the file cannot be opened or its metadata cannot be read.
+///
+/// # Examples
+/// ```no_run
+/// use rodio::Decoder;
+/// use std::path::Path;
+///
+/// let path = Path::new("music.mp3");
+/// let decoder = Decoder::try_from(path).unwrap();
+/// ```
+impl TryFrom<&std::path::Path> for Decoder<BufReader<std::fs::File>> {
+    type Error = DecoderError;
+
+    fn try_from(path: &std::path::Path) -> Result<Self, Self::Error> {
+        let file = std::fs::File::open(path).map_err(|e| Self::Error::IoError(e.to_string()))?;
+        Self::try_from(file)
+    }
+}
+
+impl Decoder<BufReader<std::fs::File>> {
+    /// Creates a `Decoder` from any path-like type.
+    ///
+    /// This is a convenience method that accepts anything that can be converted to a `Path`,
+    /// including `&str`, `String`, `&Path`, `PathBuf`, etc. The file is opened and automatically
+    /// configured with optimal settings including file size detection and seeking support.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
+    /// or is not supported.
+    ///
+    /// Returns `DecoderError::IoError` if the file cannot be opened or its metadata cannot be read.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use rodio::Decoder;
+    /// use std::path::Path;
+    ///
+    /// // Works with &str
+    /// let decoder = Decoder::from_path("music.mp3").unwrap();
+    ///
+    /// // Works with String
+    /// let path = String::from("music.mp3");
+    /// let decoder = Decoder::from_path(path).unwrap();
+    ///
+    /// // Works with Path and PathBuf
+    /// let decoder = Decoder::from_path(Path::new("music.mp3")).unwrap();
+    /// ```
+    pub fn from_path(path: impl AsRef<std::path::Path>) -> Result<Self, DecoderError> {
+        let file = std::fs::File::open(path).map_err(|e| DecoderError::IoError(e.to_string()))?;
+        Self::try_from(file)
     }
 }
 

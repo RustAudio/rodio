@@ -2,7 +2,7 @@ use std::num::NonZero;
 
 use crate::{math::nz, ChannelCount, SampleRate};
 
-/// Describes the output stream's configuration
+/// Describes the input stream's configuration
 #[derive(Copy, Clone, Debug)]
 pub struct InputConfig {
     /// The number of channels (usually this should be one)

@@ -9,8 +9,8 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mic = MicrophoneBuilder::new()
-//!     .default_device()?
-//!     .default_config()?
+//!     .with_default_device()?
+//!     .with_default_config()?
 //!     .open_stream()?;
 //!
 //! // Record audio for 3 seconds
@@ -33,11 +33,11 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut builder = MicrophoneBuilder::new()
-//!     .default_device()?
-//!     .default_config()?;
+//!     .with_default_device()?
+//!     .with_default_config()?;
 //!
 //! // Try to set stereo recording (2 channels), but continue with default if unsupported
-//! if let Ok(configured_builder) = builder.channels(2.try_into()?) {
+//! if let Ok(configured_builder) = builder.with_channels(2.try_into()?) {
 //!     builder = configured_builder;
 //! } else {
 //!     println!("Stereo recording not supported, using default channel configuration");
@@ -63,14 +63,16 @@
 //!
 //! // Use a specific device (e.g., the second one)
 //! let mic = MicrophoneBuilder::new()
-//!     .device(inputs[1].clone())?
-//!     .default_config()?
+//!     .with_device(inputs[1].clone())?
+//!     .with_default_config()?
 //!     .open_stream()?;
 //! # Ok(())
 //! # }
 //! ```
 
 use core::fmt;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::{thread, time::Duration};
 
 use crate::common::assert_error_traits;
@@ -135,7 +137,8 @@ pub struct Microphone {
     buffer: rtrb::Consumer<Sample>,
     channels: ChannelCount,
     sample_rate: SampleRate,
-    time_between_20_frames: Duration,
+    poll_interval: Duration,
+    error_occured: Arc<AtomicBool>,
 }
 
 impl Source for Microphone {
@@ -163,8 +166,10 @@ impl Iterator for Microphone {
         loop {
             if let Ok(sample) = self.buffer.pop() {
                 return Some(sample);
+            } else if self.error_occured.load(Ordering::Relaxed) {
+                return None;
             } else {
-                thread::sleep(self.time_between_20_frames)
+                thread::sleep(self.poll_interval)
             }
         }
     }
@@ -189,10 +194,20 @@ impl Microphone {
     fn open(
         device: Device,
         config: InputConfig,
-        error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
+        mut error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
     ) -> Result<Self, OpenError> {
         let timeout = Some(Duration::from_millis(100));
-        let (mut tx, rx) = RingBuffer::new(20_000);
+        let hunderd_ms_of_samples =
+            config.channel_count.get() as u32 * config.sample_rate.get() / 10;
+        let (mut tx, rx) = RingBuffer::new(hunderd_ms_of_samples as usize);
+        let error_occured = Arc::new(AtomicBool::new(false));
+        let error_callback = {
+            let error_occured = error_occured.clone();
+            move |source| {
+                error_occured.store(true, Ordering::Relaxed);
+                error_callback(source);
+            }
+        };
 
         macro_rules! build_input_streams {
         ($($sample_format:tt, $generic:ty);+) => {
@@ -234,7 +249,8 @@ impl Microphone {
             buffer: rx,
             channels: config.channel_count,
             sample_rate: config.sample_rate,
-            time_between_20_frames: Duration::from_secs_f64(1.0 / config.sample_rate.get() as f64),
+            poll_interval: Duration::from_millis(5),
+            error_occured,
         })
     }
 }

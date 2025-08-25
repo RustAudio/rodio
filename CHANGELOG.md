@@ -39,8 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.
-- `Chirp::next` now returns `None` when the total duration has been reached, and will work
-  correctly for a number of samples greater than 2^24.
+- `Chirp::next` now returns `None` when the total duration has been reached.
 - `PeriodicAccess` is slightly more accurate for 44.1 kHz sample rate families.
 - Fixed Symphonia Ogg Vorbis decoder returning zero span length that broke buffered sources and
   effects.

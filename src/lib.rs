@@ -171,6 +171,7 @@
 )]
 
 #[cfg(feature = "playback")]
+#[cfg_attr(docsrs, doc(cfg(feature = "playback")))]
 pub use cpal::{
     self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,
     SupportedStreamConfig,
@@ -182,6 +183,7 @@ mod spatial_player;
 #[cfg(all(feature = "playback", feature = "experimental"))]
 pub mod speakers;
 #[cfg(feature = "playback")]
+#[cfg_attr(docsrs, doc(cfg(feature = "playback")))]
 pub mod stream;
 #[cfg(feature = "wav_output")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
@@ -205,6 +207,7 @@ pub use crate::player::Player;
 pub use crate::source::Source;
 pub use crate::spatial_player::SpatialPlayer;
 #[cfg(feature = "playback")]
+#[cfg_attr(docsrs, doc(cfg(feature = "playback")))]
 pub use crate::stream::{play, DeviceSinkBuilder, DeviceSinkError, MixerDeviceSink, PlayError};
 #[cfg(feature = "wav_output")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]

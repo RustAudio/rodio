@@ -80,6 +80,7 @@ impl Default for AutomaticGainControlSettings {
 }
 
 #[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 /// Automatic Gain Control filter for maintaining consistent output levels.
 ///
 /// This struct implements an AGC algorithm that dynamically adjusts audio levels

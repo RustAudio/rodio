@@ -554,7 +554,7 @@ impl TryFrom<bytes::Bytes> for Decoder<std::io::Cursor<bytes::Bytes>> {
 /// use rodio::Decoder;
 ///
 /// // Embedded audio data (e.g., from include_bytes!)
-/// static AUDIO_DATA: &[u8] = include_bytes!("music.wav");
+/// static AUDIO_DATA: &[u8] = include_bytes!("../../assets/music.wav");
 /// let decoder = Decoder::try_from(AUDIO_DATA).unwrap();
 /// ```
 impl TryFrom<&'static [u8]> for Decoder<std::io::Cursor<&'static [u8]>> {
@@ -587,7 +587,7 @@ impl TryFrom<&'static [u8]> for Decoder<std::io::Cursor<&'static [u8]>> {
 ///     Decoder::try_from(data)
 /// }
 ///
-/// static EMBEDDED: &[u8] = include_bytes!("music.wav");
+/// static EMBEDDED: &[u8] = include_bytes!("../../assets/music.wav");
 /// let decoder1 = decode_audio(Cow::Borrowed(EMBEDDED)).unwrap();
 /// let owned_data = std::fs::read("music.wav").unwrap();
 /// let decoder2 = decode_audio(Cow::Owned(owned_data)).unwrap();
@@ -1174,6 +1174,7 @@ pub enum DecoderError {
     /// The stream contained malformed data and could not be decoded or demuxed.
     #[error("The stream contained malformed data and could not be decoded or demuxed: {0}")]
     #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
     DecodeError(&'static str),
 
     /// A default or user-defined limit was reached while decoding or demuxing
@@ -1183,16 +1184,19 @@ pub enum DecoderError {
         "A default or user-defined limit was reached while decoding or demuxing the stream: {0}"
     )]
     #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
     LimitError(&'static str),
 
     /// The demuxer or decoder needs to be reset before continuing.
     #[error("The demuxer or decoder needs to be reset before continuing.")]
     #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
     ResetRequired,
 
     /// No streams were found by the decoder.
     #[error("No streams were found by the decoder.")]
     #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
     NoStreams,
 }
 assert_error_traits!(DecoderError);

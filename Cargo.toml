@@ -25,6 +25,8 @@ wav_output = ["dep:hound"]
 tracing = ["dep:tracing"]
 # Experimental features using atomic floating-point operations
 experimental = ["dep:atomic_float"]
+# Enable support for bytes::Bytes type in audio sources
+bytes = ["dep:bytes"]
 
 # Audio generation features
 #
@@ -92,6 +94,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+bytes = { version = "1", optional = true }
 cpal = { version = "0.16", optional = true }
 dasp_sample = "0.11.0"
 claxon = { version = "0.4.2", optional = true }

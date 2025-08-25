@@ -1040,6 +1040,7 @@ version = "0.21.1"
 dependencies = [
  "approx",
  "atomic_float",
+ "bytes",
  "claxon",
  "cpal",
  "crossbeam-channel",

@@ -385,7 +385,7 @@ impl Default for Settings {
             mime_type: None,
             is_seekable: false,
             total_duration: None,
-            scan_duration: false,
+            scan_duration: true,
         }
     }
 }

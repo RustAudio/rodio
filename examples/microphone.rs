@@ -13,8 +13,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     .prompt()?;
 
     let input = MicrophoneBuilder::new()
-        .with_device(input)?
-        .with_default_config()?
+        .device(input)?
+        .default_config()?
         .open_stream()?;
 
     println!("Recording 5 seconds of input to play back");

@@ -128,10 +128,10 @@ where
     /// ```no_run
     /// # use rodio::microphone::{MicrophoneBuilder, available_inputs};
     /// let input = available_inputs()?.remove(2);
-    /// let builder = MicrophoneBuilder::new().with_device(input)?;
+    /// let builder = MicrophoneBuilder::new().device(input)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn with_device(
+    pub fn device(
         &self,
         device: impl Into<cpal::Device>,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
@@ -157,12 +157,10 @@ where
     /// # Example
     /// ```no_run
     /// # use rodio::microphone::MicrophoneBuilder;
-    /// let builder = MicrophoneBuilder::new().with_default_device()?;
+    /// let builder = MicrophoneBuilder::new().default_device()?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn with_default_device(
-        &self,
-    ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
+    pub fn default_device(&self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
         let default_device = cpal::default_host()
             .default_output_device()
             .ok_or(Error::NoDevice)?;
@@ -195,13 +193,11 @@ where
     /// ```no_run
     /// # use rodio::microphone::MicrophoneBuilder;
     /// let builder = MicrophoneBuilder::new()
-    ///     .with_default_device()?
-    ///     .with_default_config()?;
+    ///     .default_device()?
+    ///     .default_config()?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn with_default_config(
-        &self,
-    ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
+    pub fn default_config(&self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
         let device = &self.device.as_ref().expect("DeviceIsSet").0;
         let default_config: InputConfig = device
             .default_input_config()
@@ -244,11 +240,11 @@ where
     ///     sample_format: cpal::SampleFormat::U16,
     /// };
     /// let builder = MicrophoneBuilder::new()
-    ///     .with_default_device()?
-    ///     .with_config(config)?;
+    ///     .default_device()?
+    ///     .config(config)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn with_config(
+    pub fn config(
         &self,
         config: InputConfig,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
@@ -283,12 +279,12 @@ where
     /// ```no_run
     /// # use rodio::microphone::MicrophoneBuilder;
     /// let builder = MicrophoneBuilder::new()
-    ///     .with_default_device()?
-    ///     .with_default_config()?
-    ///     .with_sample_rate(44_100.try_into()?)?;
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .sample_rate(44_100.try_into()?)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn with_sample_rate(
+    pub fn sample_rate(
         &self,
         sample_rate: SampleRate,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
@@ -311,12 +307,12 @@ where
     /// ```no_run
     /// # use rodio::microphone::MicrophoneBuilder;
     /// let builder = MicrophoneBuilder::new()
-    ///     .with_default_device()?
-    ///     .with_default_config()?
-    ///     .with_channels(2.try_into()?)?;
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .channels(2.try_into()?)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn with_channels(
+    pub fn channels(
         &self,
         channel_count: ChannelCount,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
@@ -376,12 +372,12 @@ where
     /// ```no_run
     /// # use rodio::microphone::MicrophoneBuilder;
     /// let builder = MicrophoneBuilder::new()
-    ///     .with_default_device()?
-    ///     .with_default_config()?
-    ///     .with_buffer_size(1024)?;
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .buffer_size(1024)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn with_buffer_size(
+    pub fn buffer_size(
         &self,
         buffer_size: u32,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
@@ -411,8 +407,8 @@ where
     /// # use rodio::Source;
     /// # use std::time::Duration;
     /// let mic = MicrophoneBuilder::new()
-    ///     .with_default_device()?
-    ///     .with_default_config()?
+    ///     .default_device()?
+    ///     .default_config()?
     ///     .open_stream()?;
     /// let recording = mic.take_duration(Duration::from_secs(3)).record();
     /// # Ok::<(), Box<dyn std::error::Error>>(())

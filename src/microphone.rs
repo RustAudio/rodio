@@ -9,8 +9,8 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mic = MicrophoneBuilder::new()
-//!     .with_default_device()?
-//!     .with_default_config()?
+//!     .default_device()?
+//!     .default_config()?
 //!     .open_stream()?;
 //!
 //! // Record audio for 3 seconds
@@ -33,11 +33,11 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut builder = MicrophoneBuilder::new()
-//!     .with_default_device()?
-//!     .with_default_config()?;
+//!     .default_device()?
+//!     .default_config()?;
 //!
 //! // Try to set stereo recording (2 channels), but continue with default if unsupported
-//! if let Ok(configured_builder) = builder.with_channels(2.try_into()?) {
+//! if let Ok(configured_builder) = builder.channels(2.try_into()?) {
 //!     builder = configured_builder;
 //! } else {
 //!     println!("Stereo recording not supported, using default channel configuration");
@@ -63,8 +63,8 @@
 //!
 //! // Use a specific device (e.g., the second one)
 //! let mic = MicrophoneBuilder::new()
-//!     .with_device(inputs[1].clone())?
-//!     .with_default_config()?
+//!     .device(inputs[1].clone())?
+//!     .default_config()?
 //!     .open_stream()?;
 //! # Ok(())
 //! # }

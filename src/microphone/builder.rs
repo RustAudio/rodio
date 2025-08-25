@@ -203,16 +203,28 @@ where
         &self,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
         let device = &self.device.as_ref().expect("DeviceIsSet").0;
-        let default_config =
-            device
-                .default_input_config()
-                .map_err(|source| Error::DefaultInputConfig {
-                    source,
-                    device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
-                })?;
+        let default_config: InputConfig = device
+            .default_input_config()
+            .map_err(|source| Error::DefaultInputConfig {
+                source,
+                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+            })?
+            .into();
+
+        // Lets try getting f32 output from the default config, as thats
+        // what rodio uses internally
+        let config = if self
+            .check_config(&default_config.with_f32_samples())
+            .is_ok()
+        {
+            default_config.with_f32_samples()
+        } else {
+            default_config
+        };
+
         Ok(MicrophoneBuilder {
             device: self.device.clone(),
-            config: Some(default_config.into()),
+            config: Some(config),
             error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
@@ -341,7 +353,7 @@ where
     ///
     /// # Large vs Small buffer
     /// - A larger buffer size results in high latency. This can be an issue
-    /// for voip and other real time applications.
+    ///   for voip and other real time applications.
     /// - A small buffer might cause:
     ///   - Higher CPU usage
     ///   - Recording interruptions such as buffer underruns.

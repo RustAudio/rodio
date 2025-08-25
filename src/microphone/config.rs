@@ -38,6 +38,12 @@ impl InputConfig {
             && self.sample_rate.get() >= supported.min_sample_rate().0
     }
 
+    pub(crate) fn with_f32_samples(&self) -> Self {
+        let mut this = *self;
+        this.sample_format = cpal::SampleFormat::F32;
+        this
+    }
+
     pub(crate) fn stream_config(&self) -> cpal::StreamConfig {
         cpal::StreamConfig {
             channels: self.channel_count.get(),

@@ -22,6 +22,34 @@
 //! # }
 //! ```
 //!
+//! # Use preferred parameters if supported
+//! Attempt to set a specific channel count, sample rate and buffer size but
+//! fall back to the default if the device does not support these
+//!
+//! ```no_run
+//! use rodio::microphone::MicrophoneBuilder;
+//! use rodio::Source;
+//! use std::time::Duration;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut builder = MicrophoneBuilder::new()
+//!     .default_device()?
+//!     .default_config()?
+//!     .prefer_channel_counts([
+//!         1.try_into().expect("not zero"),
+//!         2.try_into().expect("not zero"),
+//!     ])
+//!     .prefer_sample_rates([
+//!         16_000.try_into().expect("not zero"),
+//!         32_000.try_into().expect("not zero"),
+//!     ])
+//!     .prefer_buffer_sizes(512..);
+//!
+//! let mic = builder.open_stream()?;
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! # Configuration with Error Handling
 //! Attempt to set a specific channel count but fall back to the default if
 //! the device doesn't support it:
@@ -37,7 +65,7 @@
 //!     .default_config()?;
 //!
 //! // Try to set stereo recording (2 channels), but continue with default if unsupported
-//! if let Ok(configured_builder) = builder.channels(2.try_into()?) {
+//! if let Ok(configured_builder) = builder.try_channels(2.try_into()?) {
 //!     builder = configured_builder;
 //! } else {
 //!     println!("Stereo recording not supported, using default channel configuration");
@@ -138,7 +166,7 @@ pub struct Microphone {
     channels: ChannelCount,
     sample_rate: SampleRate,
     poll_interval: Duration,
-    error_occured: Arc<AtomicBool>,
+    error_occurred: Arc<AtomicBool>,
 }
 
 impl Source for Microphone {
@@ -166,7 +194,7 @@ impl Iterator for Microphone {
         loop {
             if let Ok(sample) = self.buffer.pop() {
                 return Some(sample);
-            } else if self.error_occured.load(Ordering::Relaxed) {
+            } else if self.error_occurred.load(Ordering::Relaxed) {
                 return None;
             } else {
                 thread::sleep(self.poll_interval)
@@ -201,14 +229,14 @@ impl Microphone {
         mut error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
     ) -> Result<Self, OpenError> {
         let timeout = Some(Duration::from_millis(100));
-        let hunderd_ms_of_samples =
+        let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
-        let (mut tx, rx) = RingBuffer::new(hunderd_ms_of_samples as usize);
-        let error_occured = Arc::new(AtomicBool::new(false));
+        let (mut tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
+        let error_occurred = Arc::new(AtomicBool::new(false));
         let error_callback = {
-            let error_occured = error_occured.clone();
+            let error_occurred = error_occurred.clone();
             move |source| {
-                error_occured.store(true, Ordering::Relaxed);
+                error_occurred.store(true, Ordering::Relaxed);
                 error_callback(source);
             }
         };
@@ -254,7 +282,7 @@ impl Microphone {
             channels: config.channel_count,
             sample_rate: config.sample_rate,
             poll_interval: Duration::from_millis(5),
-            error_occured,
+            error_occurred,
         })
     }
 }

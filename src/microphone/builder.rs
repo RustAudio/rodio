@@ -275,16 +275,20 @@ where
 
     /// Sets the sample rate for input.
     ///
+    /// # Error
+    /// Returns an error if the requested sample rate combined with the
+    /// other parameters can not be supported.
+    ///
     /// # Example
     /// ```no_run
     /// # use rodio::microphone::MicrophoneBuilder;
     /// let builder = MicrophoneBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     .sample_rate(44_100.try_into()?)?;
+    ///     .try_sample_rate(44_100.try_into()?)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn sample_rate(
+    pub fn try_sample_rate(
         &self,
         sample_rate: SampleRate,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
@@ -301,6 +305,57 @@ where
         })
     }
 
+    /// Try multiple sample rates, fall back to the default it non match. The
+    /// sample rates are in order of preference. If the first can be supported
+    /// the second will never be tried.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     // 16k or its double with can trivially be resampled to 16k
+    ///     .prefer_sample_rates([
+    ///         16_000.try_into().expect("not zero"),
+    ///         32_000.try_into().expect("not_zero"),
+    ///     ]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn prefer_sample_rates(
+        &self,
+        sample_rates: impl IntoIterator<Item = SampleRate>,
+    ) -> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E> {
+        self.set_preferred_if_supported(sample_rates, |config, sample_rate| {
+            config.sample_rate = sample_rate
+        })
+    }
+
+    fn set_preferred_if_supported<T>(
+        &self,
+        options: impl IntoIterator<Item = T>,
+        setter: impl Fn(&mut InputConfig, T),
+    ) -> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E> {
+        let mut config = self.config.expect("ConfigIsSet");
+        let mut final_config = config;
+
+        for option in options.into_iter() {
+            setter(&mut config, option);
+            if self.check_config(&config).is_ok() {
+                final_config = config;
+                break;
+            }
+        }
+
+        MicrophoneBuilder {
+            device: self.device.clone(),
+            config: Some(final_config),
+            error_callback: self.error_callback.clone(),
+            device_set: PhantomData,
+            config_set: PhantomData,
+        }
+    }
+
     /// Sets the number of input channels.
     ///
     /// # Example
@@ -309,10 +364,10 @@ where
     /// let builder = MicrophoneBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     .channels(2.try_into()?)?;
+    ///     .try_channels(2.try_into()?)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn channels(
+    pub fn try_channels(
         &self,
         channel_count: ChannelCount,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
@@ -326,6 +381,34 @@ where
             error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
+        })
+    }
+
+    /// Try multiple channel counts, fall back to the default it non match. The
+    /// channel counts are in order of preference. If the first can be supported
+    /// the second will never be tried.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     // We want mono, if thats not possible give
+    ///     // us the lowest channel count
+    ///     .prefer_channel_counts([
+    ///         1.try_into().expect("not zero"),
+    ///         2.try_into().expect("not_zero"),
+    ///         3.try_into().expect("not_zero"),
+    ///     ]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn prefer_channel_counts(
+        &self,
+        channel_counts: impl IntoIterator<Item = ChannelCount>,
+    ) -> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E> {
+        self.set_preferred_if_supported(channel_counts, |config, count| {
+            config.channel_count = count
         })
     }
 
@@ -374,10 +457,10 @@ where
     /// let builder = MicrophoneBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     .buffer_size(1024)?;
+    ///     .try_buffer_size(1024)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn buffer_size(
+    pub fn try_buffer_size(
         &self,
         buffer_size: u32,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
@@ -391,6 +474,54 @@ where
             error_callback: self.error_callback.clone(),
             device_set: PhantomData,
             config_set: PhantomData,
+        })
+    }
+
+    /// See the docs of [`try_buffer_size`](MicrophoneBuilder::try_buffer_size)
+    /// for more.
+    ///
+    /// Try multiple buffer sizes, fall back to the default it non match. The
+    /// buffer sizes are in order of preference. If the first can be supported
+    /// the second will never be tried.
+    ///
+    /// # Note
+    /// We will not try buffer sizes larger then 100_000 to prevent this
+    /// from hanging too long on open ranges.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     // We want mono, if thats not possible give
+    ///     // us the lowest channel count
+    ///     .prefer_buffer_sizes([
+    ///         512.try_into().expect("not zero"),
+    ///         1024.try_into().expect("not_zero"),
+    ///     ]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// Get the smallest buffer size larger then 512.
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     // We want mono, if thats not possible give
+    ///     // us the lowest channel count
+    ///     .prefer_buffer_sizes(512..);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn prefer_buffer_sizes(
+        &self,
+        buffer_sizes: impl IntoIterator<Item = u32>,
+    ) -> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E> {
+        let buffer_sizes = buffer_sizes.into_iter().take_while(|size| *size < 100_000);
+
+        self.set_preferred_if_supported(buffer_sizes, |config, size| {
+            config.buffer_size = cpal::BufferSize::Fixed(size)
         })
     }
 }

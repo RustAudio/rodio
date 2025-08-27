@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chirp` now implements `Iterator::size_hint` and `ExactSizeIterator`.
 - Added `Red` noise generator that is more practical than `Brownian` noise.
 - Added `std_dev()` to `WhiteUniform` and `WhiteTriangular`.
+- Added a macro `nz!` which facilitates creating NonZero's for `SampleRate` and
+  `ChannelCount`.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.

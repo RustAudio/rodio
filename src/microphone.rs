@@ -105,7 +105,7 @@ use std::{thread, time::Duration};
 
 use crate::common::assert_error_traits;
 use crate::conversions::SampleTypeConverter;
-use crate::{ChannelCount, Sample, SampleRate, Source};
+use crate::{Sample, Source};
 
 mod builder;
 mod config;
@@ -163,8 +163,7 @@ pub fn available_inputs() -> Result<Vec<Input>, ListError> {
 pub struct Microphone {
     _stream_handle: cpal::Stream,
     buffer: rtrb::Consumer<Sample>,
-    channels: ChannelCount,
-    sample_rate: SampleRate,
+    config: InputConfig,
     poll_interval: Duration,
     error_occurred: Arc<AtomicBool>,
 }
@@ -175,11 +174,11 @@ impl Source for Microphone {
     }
 
     fn channels(&self) -> crate::ChannelCount {
-        self.channels
+        self.config.channel_count
     }
 
     fn sample_rate(&self) -> crate::SampleRate {
-        self.sample_rate
+        self.config.sample_rate
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {
@@ -279,10 +278,30 @@ impl Microphone {
         Ok(Microphone {
             _stream_handle: stream,
             buffer: rx,
-            channels: config.channel_count,
-            sample_rate: config.sample_rate,
+            config,
             poll_interval: Duration::from_millis(5),
             error_occurred,
         })
+    }
+
+    /// Get the configuration.
+    ///
+    /// # Example
+    /// Print the sample rate and channel count.
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mic = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .open_stream()?;
+    /// let config = mic.config();
+    /// println!("Sample rate: {}", config.sample_rate.get());
+    /// println!("Channel count: {}", config.channel_count.get());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn config(&self) -> &InputConfig {
+        &self.config
     }
 }

@@ -526,6 +526,28 @@ where
     }
 }
 
+impl<Device, E> MicrophoneBuilder<Device, ConfigIsSet, E>
+where
+    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+{
+    /// Returns the current input configuration.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?;
+    /// let config = builder.get_config();
+    /// println!("Sample rate: {}", config.sample_rate.get());
+    /// println!("Channel count: {}", config.channel_count.get());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn get_config(&self) -> &InputConfig {
+        self.config.as_ref().expect("ConfigIsSet")
+    }
+}
+
 impl<E> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,

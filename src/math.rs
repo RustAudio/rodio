@@ -76,16 +76,27 @@ pub fn linear_to_db(linear: f32) -> f32 {
     linear.log2() * std::f32::consts::LOG10_2 * 20.0
 }
 
-/// short macro to generate a `NonZero`. It panics during compile if the
-/// passed in literal is zero. Used for `ChannelCount` and `Samplerate`
-/// constants
+/// Utility macro for getting a `NonZero` from a literal. Especially
+/// useful for passing in `ChannelCount` and `Samplerate`.
+/// Equivalent to: `const { core::num::NonZero::new($n).unwrap() }`
+///
+/// # Example
+/// ```
+/// use rodio::nz;
+/// use rodio::static_buffer::StaticSamplesBuffer;
+/// let buffer = StaticSamplesBuffer::new(nz!(2), nz!(44_100), &[0.0, 0.5, 0.0, 0.5]);
+/// ```
+///
+/// # Panics
+/// If the literal passed in is not zero this panicks.
+#[macro_export]
 macro_rules! nz {
     ($n:literal) => {
         const { core::num::NonZero::new($n).unwrap() }
     };
 }
 
-pub(crate) use nz;
+pub use nz;
 
 #[cfg(test)]
 mod test {

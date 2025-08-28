@@ -76,7 +76,7 @@ pub fn linear_to_db(linear: f32) -> f32 {
     linear.log2() * std::f32::consts::LOG10_2 * 20.0
 }
 
-/// Utility macro for getting a `NonZero` from a literal. Especially 
+/// Utility macro for getting a `NonZero` from a literal. Especially
 /// useful for passing in `ChannelCount` and `Samplerate`.
 /// Equivalent to: `const { core::num::NonZero::new($n).unwrap() }`
 ///

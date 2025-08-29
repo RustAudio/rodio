@@ -11,6 +11,7 @@
 //! ```
 //!
 
+use core::fmt;
 use std::slice::Iter as SliceIter;
 use std::time::Duration;
 
@@ -25,6 +26,16 @@ pub struct StaticSamplesBuffer {
     channels: ChannelCount,
     sample_rate: SampleRate,
     duration: Duration,
+}
+
+impl fmt::Debug for StaticSamplesBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticSamplesBuffer")
+            .field("channels", &self.channels)
+            .field("sample_rate", &self.sample_rate)
+            .field("duration", &self.duration)
+            .finish()
+    }
 }
 
 impl StaticSamplesBuffer {

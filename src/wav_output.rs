@@ -24,21 +24,37 @@ assert_error_traits!(ToWavError);
 ///
 /// If the file already exists it will be overwritten.
 pub fn output_to_wav(
-    source: &mut impl Source,
+    source: impl Source,
     wav_file: impl AsRef<path::Path>,
 ) -> Result<(), ToWavError> {
-    let file = std::fs::File::create(wav_file)
+    let mut file = std::fs::File::create(wav_file)
         .map_err(Arc::new)
         .map_err(ToWavError::OpenFile)?;
-    collect_to_wav(source, file)
+    collect_to_wav(source, &mut file)
 }
 
 /// Saves Source's output into a writer. The output samples format is 32-bit float. This function
 /// is intended primarily for testing and diagnostics. It can be used to see the output without
 /// opening output stream to a real audio device.
+///
+/// # Example
+/// ```rust
+/// # use rodio::static_buffer::StaticSamplesBuffer;
+/// # use rodio::collect_to_wav;
+/// # const SAMPLES: [rodio::Sample; 5] = [0.0, 1.0, 2.0, 3.0, 4.0];
+/// # let source = StaticSamplesBuffer::new(
+/// #     1.try_into().unwrap(), 
+/// #     1.try_into().unwrap(), 
+/// #     &SAMPLES
+/// # );
+/// let mut writer = std::io::Cursor::new(Vec::new());
+/// collect_to_wav(source, &mut writer)?;
+/// let wav_bytes: Vec<u8> = writer.into_inner();
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub fn collect_to_wav(
-    source: &mut impl Source,
-    writer: impl io::Write + io::Seek,
+    source: impl Source,
+    writer: &mut (impl io::Write + io::Seek),
 ) -> Result<(), ToWavError> {
     let format = WavSpec {
         channels: source.channels().get(),

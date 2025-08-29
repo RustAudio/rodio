@@ -199,3 +199,6 @@ pub use crate::stream::{play, OutputStream, OutputStreamBuilder, PlayError, Stre
 #[cfg(feature = "wav_output")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 pub use crate::wav_output::output_to_wav;
+#[cfg(feature = "wav_output")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
+pub use crate::wav_output::collect_to_wav;

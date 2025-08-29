@@ -88,7 +88,7 @@ pub fn linear_to_db(linear: f32) -> f32 {
 /// ```
 ///
 /// # Panics
-/// If the literal passed in is not zero this panicks.
+/// If the literal passed in is zero this panicks.
 #[macro_export]
 macro_rules! nz {
     ($n:literal) => {

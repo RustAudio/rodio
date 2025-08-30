@@ -92,20 +92,20 @@ pub fn wav_to_writer(
 
 #[cfg(test)]
 mod test {
-    use super::output_to_wav;
+    use super::wav_to_file;
     use crate::Source;
     use std::io::BufReader;
     use std::time::Duration;
 
     #[test]
-    fn test_output_to_wav() {
+    fn test_wav_to_file() {
         let make_source = || {
             crate::source::SineWave::new(745.0)
                 .amplify(0.1)
                 .take_duration(Duration::from_secs(1))
         };
         let wav_file_path = "target/tmp/save-to-wav-test.wav";
-        output_to_wav(&mut make_source(), wav_file_path).expect("output file can be written");
+        wav_to_file(&mut make_source(), wav_file_path).expect("output file can be written");
 
         let file = std::fs::File::open(wav_file_path).expect("output file can be opened");
         // Not using crate::Decoder bcause it is limited to i16 samples.

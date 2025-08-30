@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds a new input source: Microphone.
 - Adds a new method on source: record which collects all samples into a
   SamplesBuffer.
+- Adds `wav_to_writer` which writes a `Source` to a writer.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PeriodicAccess` is slightly more accurate for 44.1 kHz sample rate families.
 
 ### Changed
+- `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
 - `Blue` noise generator uses uniform instead of Gaussian noise for better performance.
 - `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
 

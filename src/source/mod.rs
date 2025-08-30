@@ -92,6 +92,8 @@ pub mod noise;
 #[cfg_attr(docsrs, doc(cfg(feature = "noise")))]
 pub use self::noise::{Pink, WhiteUniform};
 
+pub(crate) mod pausing;
+pub(crate) use pausing::{PauseControl, PauseHandle};
 /// A source of samples.
 ///
 /// # A quick lesson about sounds
@@ -180,6 +182,15 @@ pub trait Source: Iterator<Item = Sample> {
     ///
     /// `None` indicates at the same time "infinite" or "unknown".
     fn total_duration(&self) -> Option<Duration>;
+
+    #[expect(unused_variables)]
+    fn set_pause_handle(&mut self, pause_handle: PauseHandle) {
+        todo!()
+    }
+
+    fn is_paused(&self) -> bool {
+        todo!()
+    }
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
     #[inline]

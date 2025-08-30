@@ -140,6 +140,14 @@ impl Source for MixerSource {
         //     Ok(())
         // }
     }
+
+    fn set_pause_handle(&mut self, pause_handle: crate::source::PauseHandle) {
+        // TODO create MixerController in pausable. It will only set paused on this
+        // pause handle when all sources in the mixer have been paused
+        // Create one here, then call set_pause_handle on all sources in this 
+        // mixer with that mixercontroller.
+        todo!()
+    }
 }
 
 impl Iterator for MixerSource {

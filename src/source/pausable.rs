@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::source::pausing;
+use crate::source::PauseHandle;
 use crate::Source;
 
 /// Builds a `Pausable` object.
@@ -18,6 +20,7 @@ where
         input: source,
         paused_channels,
         remaining_paused_samples: 0,
+        pause_handle: None,
     }
 }
 
@@ -32,6 +35,7 @@ pub struct Pausable<I> {
     input: I,
     paused_channels: Option<ChannelCount>,
     remaining_paused_samples: u16,
+    pause_handle: Option<pausing::PauseHandle>,
 }
 
 impl<I> Pausable<I>
@@ -129,5 +133,13 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
+    }
+
+    fn set_pause_handle(&mut self, pause_handle: PauseHandle) {
+        self.pause_handle = Some(pause_handle)
+    }
+
+    fn is_paused(&self) -> bool {
+        self.paused_channels.is_some()
     }
 }

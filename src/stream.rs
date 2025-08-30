@@ -6,16 +6,18 @@
 //! There is also a convenience function `play` for using that output mixer to
 //! play a single sound.
 use crate::common::{assert_error_traits, ChannelCount, SampleRate};
-use crate::decoder;
 use crate::math::nz;
 use crate::mixer::{mixer, Mixer, MixerSource};
 use crate::sink::Sink;
+use crate::source::{pausing, PauseControl, PauseHandle};
+use crate::{decoder, Source};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Sample, SampleFormat, StreamConfig};
 use std::fmt;
 use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::num::NonZero;
+use std::sync::Arc;
 
 const HZ_44100: SampleRate = nz!(44_100);
 
@@ -46,7 +48,7 @@ pub struct OutputStream {
     config: OutputStreamConfig,
     mixer: Mixer,
     log_on_drop: bool,
-    _stream: cpal::Stream,
+    _stream: Arc<cpal::Stream>,
 }
 
 impl OutputStream {
@@ -450,9 +452,20 @@ impl OutputStream {
         E: FnMut(cpal::StreamError) + Send + 'static,
     {
         Self::validate_config(config);
-        let (controller, source) = mixer(config.channel_count, config.sample_rate);
+        let pause_handle = PauseHandle::new(PauseControl::StreamMixer(
+            pausing::StreamMixerControl::default(),
+        ));
+        let (controller, mut source) = mixer(config.channel_count, config.sample_rate);
+        source.set_pause_handle(pause_handle.clone());
         Self::init_stream(device, config, source, error_callback).and_then(|stream| {
             stream.play().map_err(StreamError::PlayStreamError)?;
+            let stream = Arc::new(stream);
+            #[expect(irrefutable_let_patterns, reason = "more controllers will follow")]
+            let PauseControl::StreamMixer(ref control) = *pause_handle.control
+            else {
+                unreachable!("just set pause_handle to StreamMixer")
+            };
+            control.set_stream(Arc::downgrade(&stream));
             Ok(Self {
                 _stream: stream,
                 mixer: controller,

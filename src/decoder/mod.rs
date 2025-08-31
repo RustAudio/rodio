@@ -63,7 +63,8 @@ use crate::{
 };
 
 pub mod builder;
-pub use builder::{DecoderBuilder, Settings};
+pub use builder::DecoderBuilder;
+use builder::Settings;
 
 mod utils;
 
@@ -148,6 +149,7 @@ enum DecoderImpl<R: Read + Seek> {
 enum Unreachable {}
 
 impl<R: Read + Seek> DecoderImpl<R> {
+    /// Advances the decoder and returns the next sample.
     #[inline]
     fn next(&mut self) -> Option<Sample> {
         match self {
@@ -165,6 +167,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
         }
     }
 
+    /// Returns the bounds on the remaining amount of samples.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self {
@@ -182,6 +185,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
         }
     }
 
+    /// Returns the number of samples before the current span ends.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         match self {
@@ -199,6 +203,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
         }
     }
 
+    /// Returns the number of audio channels.
     #[inline]
     fn channels(&self) -> ChannelCount {
         match self {
@@ -216,6 +221,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
         }
     }
 
+    /// Returns the sample rate in Hz.
     #[inline]
     fn sample_rate(&self) -> SampleRate {
         match self {
@@ -258,7 +264,10 @@ impl<R: Read + Seek> DecoderImpl<R> {
 
     /// Returns the bits per sample of this audio source.
     ///
-    /// For lossy formats this should always return `None`.
+    /// # Format Support
+    ///
+    /// For lossy formats this should always return `None` as bit depth is not a meaningful
+    /// concept for compressed audio.
     #[inline]
     fn bits_per_sample(&self) -> Option<u32> {
         match self {
@@ -276,6 +285,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
         }
     }
 
+    /// Attempts to seek to a given position in the current source.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         match self {
@@ -602,41 +612,11 @@ impl TryFrom<std::borrow::Cow<'static, [u8]>>
     }
 }
 
-/// Converts a `PathBuf` into a `Decoder`.
-///
-/// This is a convenience method for loading audio files from filesystem paths. The file is opened
-/// and automatically configured with optimal settings including file size detection and seeking
-/// support.
-///
-/// # Errors
-///
-/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
-/// not supported.
-///
-/// Returns `DecoderError::IoError` if the file cannot be opened or its metadata cannot be read.
-///
-/// # Examples
-/// ```no_run
-/// use rodio::Decoder;
-/// use std::path::PathBuf;
-///
-/// let path = PathBuf::from("music.mp3");
-/// let decoder = Decoder::try_from(path).unwrap();
-/// ```
-impl TryFrom<std::path::PathBuf> for Decoder<BufReader<std::fs::File>> {
-    type Error = DecoderError;
-
-    fn try_from(path: std::path::PathBuf) -> Result<Self, Self::Error> {
-        let file = std::fs::File::open(path).map_err(|e| Self::Error::IoError(e.to_string()))?;
-        Self::try_from(file)
-    }
-}
-
 /// Converts a `&Path` into a `Decoder`.
 ///
 /// This is a convenience method for loading audio files from filesystem paths. The file is opened
-/// and automatically configured with optimal settings including file size detection and seeking
-/// support.
+/// and automatically configured with optimal settings including file size detection, seeking
+/// support and format hint.
 ///
 /// # Errors
 ///
@@ -657,43 +637,63 @@ impl TryFrom<&std::path::Path> for Decoder<BufReader<std::fs::File>> {
     type Error = DecoderError;
 
     fn try_from(path: &std::path::Path) -> Result<Self, Self::Error> {
-        let file = std::fs::File::open(path).map_err(|e| Self::Error::IoError(e.to_string()))?;
-        Self::try_from(file)
+        path.to_path_buf().try_into()
     }
 }
 
-impl Decoder<BufReader<std::fs::File>> {
-    /// Creates a `Decoder` from any path-like type.
-    ///
-    /// This is a convenience method that accepts anything that can be converted to a `Path`,
-    /// including `&str`, `String`, `&Path`, `PathBuf`, etc. The file is opened and automatically
-    /// configured with optimal settings including file size detection and seeking support.
-    ///
-    /// # Errors
-    ///
-    /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
-    /// or is not supported.
-    ///
-    /// Returns `DecoderError::IoError` if the file cannot be opened or its metadata cannot be read.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use rodio::Decoder;
-    /// use std::path::Path;
-    ///
-    /// // Works with &str
-    /// let decoder = Decoder::from_path("music.mp3").unwrap();
-    ///
-    /// // Works with String
-    /// let path = String::from("music.mp3");
-    /// let decoder = Decoder::from_path(path).unwrap();
-    ///
-    /// // Works with Path and PathBuf
-    /// let decoder = Decoder::from_path(Path::new("music.mp3")).unwrap();
-    /// ```
-    pub fn from_path(path: impl AsRef<std::path::Path>) -> Result<Self, DecoderError> {
-        let file = std::fs::File::open(path).map_err(|e| DecoderError::IoError(e.to_string()))?;
-        Self::try_from(file)
+/// Converts a `PathBuf` into a `Decoder`.
+///
+/// This is a convenience method for loading audio files from filesystem paths. The file is opened
+/// and automatically configured with optimal settings including file size detection, seeking
+/// support and format hint.
+///
+/// # Errors
+///
+/// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined or is
+/// not supported.
+///
+/// Returns `DecoderError::IoError` if the file cannot be opened or its metadata cannot be read.
+///
+/// # Examples
+/// ```no_run
+/// use rodio::Decoder;
+/// use std::path::PathBuf;
+///
+/// let path = PathBuf::from("music.mp3");
+/// let decoder = Decoder::try_from(path).unwrap();
+/// ```
+impl TryFrom<std::path::PathBuf> for Decoder<BufReader<std::fs::File>> {
+    type Error = DecoderError;
+
+    fn try_from(path: std::path::PathBuf) -> Result<Self, Self::Error> {
+        let ext = path.extension().and_then(|e| e.to_str());
+        let file = std::fs::File::open(&path).map_err(|e| DecoderError::IoError(e.to_string()))?;
+
+        let len = file
+            .metadata()
+            .map_err(|e| DecoderError::IoError(e.to_string()))?
+            .len();
+
+        let mut builder = Self::builder()
+            .with_data(BufReader::new(file))
+            .with_byte_len(len)
+            .with_seekable(true);
+
+        if let Some(ext) = ext {
+            let hint = match ext {
+                "adif" | "adts" => "aac",
+                "caf" => "audio/x-caf",
+                "m4a" | "m4b" | "m4p" | "m4r" | "mp4" => "audio/mp4",
+                "bit" | "mpga" => "mp3",
+                "mka" | "mkv" => "audio/matroska",
+                "oga" | "ogm" | "ogv" | "ogx" | "spx" => "audio/ogg",
+                "wave" => "wav",
+                _ => ext,
+            };
+            builder = builder.with_hint(hint);
+        }
+
+        builder.build()
     }
 }
 

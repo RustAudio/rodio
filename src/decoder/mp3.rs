@@ -502,11 +502,6 @@ where
 
     /// Returns the sample rate in Hz.
     ///
-    /// MP3 supports specific sample rates based on MPEG version:
-    /// - **MPEG-1**: 32kHz, 44.1kHz, 48kHz
-    /// - **MPEG-2**: 16kHz, 22.05kHz, 24kHz
-    /// - **MPEG-2.5**: 8kHz, 11.025kHz, 12kHz
-    ///
     /// # Guarantees
     ///
     /// The sample rate is fixed for the entire MP3 stream and cannot change
@@ -531,6 +526,8 @@ where
     /// 2. Calculated via duration scanning (when enabled and prerequisites met)
     /// 3. Estimated from file size and average bitrate (when `byte_len` available)
     ///
+    /// # Returns
+    ///
     /// Returns `None` when insufficient information is available for estimation.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
@@ -539,17 +536,7 @@ where
 
     /// Returns the bit depth of the audio samples.
     ///
-    /// MP3 is a lossy compression format that doesn't preserve the original bit depth.
-    /// The decoded output is provided as floating-point samples regardless of the
-    /// original source material's bit depth.
-    ///
-    /// # Lossy Compression
-    ///
-    /// Unlike lossless formats like FLAC, MP3 uses psychoacoustic modeling to
-    /// remove audio information deemed less perceptible, making bit depth
-    /// information irrelevant for the decoded output.
-    ///
-    /// # Always Returns None
+    /// # Returns
     ///
     /// This method always returns `None` for MP3 streams as bit depth is not
     /// a meaningful concept for lossy compressed audio formats.
@@ -605,12 +592,6 @@ where
     /// // Quick seek to 30 seconds (may be approximate for VBR)
     /// decoder.try_seek(Duration::from_secs(30)).unwrap();
     /// ```
-    ///
-    /// # Implementation Details
-    ///
-    /// The seeking implementation preserves channel alignment to ensure that seeking
-    /// to a specific time position results in the correct channel being returned
-    /// for the first sample after the seek operation.
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         // Seeking should be "saturating", meaning: target positions beyond the end of the stream
         // are clamped to the end.
@@ -682,9 +663,9 @@ impl<R> Iterator for Mp3Decoder<R>
 where
     R: Read + Seek,
 {
-    /// The type of items yielded by the iterator.
+    /// The type of samples yielded by the iterator.
     ///
-    /// Returns `Sample` (typically `f32`) values representing individual audio samples.
+    /// Returns `Sample` values representing individual audio samples.
     /// Samples are interleaved across channels in the order: channel 0, channel 1, etc.
     type Item = Sample;
 
@@ -693,17 +674,6 @@ where
     /// This method implements efficient frame-based decoding by maintaining the current
     /// decoded MP3 frame and returning samples one at a time. It automatically decodes
     /// new frames as needed and adapts to changing stream characteristics.
-    ///
-    /// # Sample Format Conversion
-    ///
-    /// MP3 frames are decoded to PCM samples which are then converted to Rodio's
-    /// sample format (typically `f32`). The conversion preserves the dynamic range
-    /// and quality of the decoded audio.
-    ///
-    /// # Performance
-    ///
-    /// - **Hot path**: Returning samples from current frame (very fast)
-    /// - **Cold path**: Decoding new frames when buffer is exhausted (slower)
     ///
     /// # Adaptive Behavior
     ///
@@ -771,7 +741,7 @@ where
         None
     }
 
-    /// Returns bounds on the remaining length of the iterator.
+    /// Returns bounds on the remaining amount of samples.
     ///
     /// Provides size estimates based on MP3 metadata and current playback position.
     /// The accuracy depends on the availability and reliability of duration information.

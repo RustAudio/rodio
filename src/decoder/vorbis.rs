@@ -274,13 +274,12 @@ where
         }
 
         // Calculate total duration using the new settings approach (before consuming data)
-        let last_granule = if settings.total_duration.is_some() {
-            None // Use provided duration directly
-        } else if settings.scan_duration && settings.is_seekable && settings.byte_len.is_some() {
-            find_last_granule(&mut data, settings.byte_len.unwrap()) // Scan for duration
-        } else {
-            None // Either scanning disabled or prerequisites not met
-        };
+        let mut last_granule = None;
+        if settings.scan_duration && settings.is_seekable {
+            if let Some(byte_len) = settings.byte_len {
+                last_granule = find_last_granule(&mut data, byte_len);
+            }
+        }
 
         let mut stream_reader = OggStreamReader::new(data).expect("should still be vorbis");
         let current_data = read_next_non_empty_packet(&mut stream_reader);
@@ -422,13 +421,6 @@ where
     /// - **Seeking time**: O(log n) binary search through Ogg pages
     /// - **Accuracy**: Positions at or before target granule (requires fine-tuning)
     /// - **Optimal for**: Large files with frequent seeking requirements
-    ///
-    /// # Implementation
-    ///
-    /// Uses lewton's `seek_absgp_pg` function which performs binary search through
-    /// Ogg pages to find the page containing the target granule position. The
-    /// decoder may position slightly before the target, requiring sample skipping
-    /// for exact positioning.
     fn granule_seek(&mut self, target_granule_pos: u64) -> Result<u64, SeekError> {
         let reader = self
             .stream_reader
@@ -460,24 +452,17 @@ where
 {
     /// Returns the number of samples before parameters change.
     ///
-    /// For Ogg Vorbis, this returns `Some(packet_size)` when a packet is available,
-    /// representing the number of samples in the current packet. Returns `Some(0)`
-    /// when the stream is exhausted.
-    ///
     /// # Chained Streams
     ///
     /// Ogg supports chained streams where multiple Vorbis streams are concatenated.
     /// When stream parameters change (sample rate, channels), the span length
     /// reflects the current stream's characteristics.
     ///
-    /// # Packet Sizes
+    /// # Returns
     ///
-    /// Vorbis packets have variable sizes depending on:
-    /// - Audio content complexity
-    /// - Encoder settings and optimization
-    /// - Bitrate allocation decisions
-    ///
-    /// Typical packet sizes range from hundreds to thousands of samples.
+    /// This returns `Some(packet_size)` when a packet is available, representing the
+    /// number of samples in the current packet. Returns `Some(0)` when the stream is
+    /// exhausted.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         // Chained Ogg streams are supported by lewton, so parameters can change.
@@ -526,14 +511,6 @@ where
 
     /// Returns the sample rate in Hz.
     ///
-    /// Ogg Vorbis supports a wide range of sample rates from 8kHz to 192kHz:
-    /// - **8kHz-16kHz**: Speech and low-quality audio
-    /// - **22.05kHz**: Low-quality music
-    /// - **44.1kHz**: CD quality (most common)
-    /// - **48kHz**: Professional audio standard
-    /// - **96kHz**: High-resolution audio
-    /// - **192kHz**: Ultra high-resolution audio
-    ///
     /// # Chained Streams
     ///
     /// Sample rate can change between chained streams, though this is rare in
@@ -557,27 +534,12 @@ where
 
     /// Returns the total duration of the audio stream.
     ///
-    /// Duration accuracy depends on how it was calculated:
-    /// - **Provided explicitly**: Most accurate (when available from metadata)
-    /// - **Granule scanning**: Very accurate, calculated from final granule position
-    /// - **Not available**: Returns `None` when duration cannot be determined
-    ///
-    /// # Granule Position Method
-    ///
-    /// The most accurate method scans to the final granule position in the stream,
-    /// which represents the exact number of decoded samples. This provides
-    /// sample-accurate duration information.
-    ///
     /// # Chained Streams
     ///
     /// For chained streams, duration represents the total across all chains.
     /// Individual chain durations are not separately tracked.
     ///
-    /// # Availability
-    ///
-    /// Duration is available when:
-    /// 1. Explicitly provided via `total_duration` setting
-    /// 2. Calculated via granule position scanning (when enabled and prerequisites met)
+    /// # Returns
     ///
     /// Returns `None` when scanning is disabled or prerequisites are not met.
     #[inline]
@@ -587,22 +549,10 @@ where
 
     /// Returns the bit depth of the audio samples.
     ///
-    /// Ogg Vorbis is a lossy compression format that doesn't preserve the original
-    /// bit depth. The decoded output uses floating-point processing internally and
-    /// is provided as floating-point samples regardless of the original source
-    /// material's bit depth.
+    /// # Returns
     ///
-    /// # Lossy Compression
-    ///
-    /// Unlike lossless formats like FLAC, Vorbis uses advanced psychoacoustic
-    /// modeling to remove audio information deemed less perceptible, making
-    /// bit depth information irrelevant for the decoded output.
-    ///
-    /// # Always Returns None
-    ///
-    /// This method always returns `None` for Ogg Vorbis streams as bit depth is
-    /// not a meaningful concept for lossy compressed audio formats with
-    /// floating-point processing.
+    /// This method always returns `None` for Vorbis streams as bit depth is not
+    /// a meaningful concept for lossy compressed audio formats.
     #[inline]
     fn bits_per_sample(&self) -> Option<u32> {
         None
@@ -657,12 +607,6 @@ where
     /// // Fast granule-based seek to 30 seconds
     /// decoder.try_seek(Duration::from_secs(30)).unwrap();
     /// ```
-    ///
-    /// # Implementation Details
-    ///
-    /// The seeking implementation preserves channel alignment to ensure that seeking
-    /// to a specific time position results in the correct channel being returned
-    /// for the first sample after the seek operation.
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         // Seeking should be "saturating", meaning: target positions beyond the end of the stream
         // are clamped to the end.
@@ -709,9 +653,9 @@ impl<R> Iterator for VorbisDecoder<R>
 where
     R: Read + Seek,
 {
-    /// The type of items yielded by the iterator.
+    /// The type of samples yielded by the iterator.
     ///
-    /// Returns `Sample` (typically `f32`) values representing individual audio samples.
+    /// Returns `Sample` values representing individual audio samples.
     /// Samples are interleaved across channels in the order: channel 0, channel 1, etc.
     type Item = Sample;
 
@@ -720,12 +664,6 @@ where
     /// This method implements efficient packet-based decoding by maintaining the current
     /// decoded Vorbis packet and returning samples one at a time. It automatically decodes
     /// new packets as needed and handles various Ogg/Vorbis stream conditions.
-    ///
-    /// # Sample Format
-    ///
-    /// Vorbis packets are decoded to interleaved PCM samples using lewton's floating-point
-    /// processing. The samples are provided in Rodio's sample format (typically `f32`)
-    /// preserving the quality and dynamic range of the decoded audio.
     ///
     /// # Performance
     ///
@@ -791,7 +729,7 @@ where
         None
     }
 
-    /// Returns bounds on the remaining length of the iterator.
+    /// Returns bounds on the remaining amount of samples.
     ///
     /// Provides size estimates based on Ogg Vorbis stream characteristics and current
     /// playback position. The accuracy depends on the availability of duration information
@@ -860,19 +798,6 @@ where
 ///
 /// - `Some(samples)` - Vector of interleaved audio samples from the next valid packet
 /// - `None` - Stream exhausted or unrecoverable error occurred
-///
-/// # Error Handling
-///
-/// The function handles several error conditions gracefully:
-/// - **Header packets**: Skipped automatically (not audio data)
-/// - **Capture pattern errors**: Ignored for robustness during seeking
-/// - **Empty packets**: Skipped to find packets with actual audio
-/// - **Terminal errors**: Result in stream termination
-///
-/// # Performance
-///
-/// This function optimizes for the common case of valid audio packets while
-/// providing robust error recovery for edge cases and stream boundary conditions.
 fn read_next_non_empty_packet<R: Read + Seek>(
     stream_reader: &mut OggStreamReader<R>,
 ) -> Option<Vec<f32>> {

@@ -92,7 +92,8 @@ use symphonia::{
     default::get_probe,
 };
 
-use super::{DecoderError, Settings};
+use super::DecoderError;
+use crate::decoder::builder::Settings;
 use crate::{
     common::{ChannelCount, Sample, SampleRate},
     decoder::builder::SeekMode,
@@ -518,11 +519,6 @@ impl SymphoniaDecoder {
 impl Source for SymphoniaDecoder {
     /// Returns the number of samples before parameters change.
     ///
-    /// For Symphonia, this returns the number of samples in the current buffer
-    /// when available, or `Some(0)` when the stream is exhausted. Unlike formats
-    /// with fixed parameters, Symphonia streams may have parameter changes during
-    /// playback due to track switches or codec resets.
-    ///
     /// # Parameter Changes
     ///
     /// Symphonia may encounter parameter changes in several scenarios:
@@ -535,6 +531,11 @@ impl Source for SymphoniaDecoder {
     /// Buffer sizes are determined by the codec's maximum frame length and
     /// may vary between packets based on encoding complexity and format
     /// characteristics.
+    ///
+    /// # Returns
+    ///
+    /// This returns the number of samples in the current buffer when available, or
+    /// `Some(0)` when the stream is exhausted.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         // Audio spec remains stable for the length of the buffer. Return Some(0) when exhausted.
@@ -542,10 +543,6 @@ impl Source for SymphoniaDecoder {
     }
 
     /// Returns the number of audio channels.
-    ///
-    /// The channel count comes from Symphonia's signal specification which is
-    /// established during initialization and may change during playback if
-    /// codec parameters change or track switching occurs.
     ///
     /// # Dynamic Changes
     ///
@@ -580,10 +577,6 @@ impl Source for SymphoniaDecoder {
 
     /// Returns the sample rate in Hz.
     ///
-    /// The sample rate comes from Symphonia's signal specification which is
-    /// established during initialization and may change during playback if
-    /// codec parameters change.
-    ///
     /// # Dynamic Changes
     ///
     /// While most files have consistent sample rates, Symphonia handles cases
@@ -591,14 +584,6 @@ impl Source for SymphoniaDecoder {
     /// - **Multi-track files**: Different tracks with different sample rates
     /// - **Codec resets**: Parameter changes requiring decoder recreation
     /// - **Chained streams**: Concatenated streams with different sample rates
-    ///
-    /// # Format Support
-    ///
-    /// Supported sample rates depend on the underlying format and codec:
-    /// - **MP3**: 8kHz, 11.025kHz, 12kHz, 16kHz, 22.05kHz, 24kHz, 32kHz, 44.1kHz, 48kHz
-    /// - **AAC**: 8kHz to 96kHz (format-dependent)
-    /// - **FLAC**: 1Hz to 655.35kHz (though practical range is smaller)
-    /// - **Vorbis**: 8kHz to 192kHz (encoder-dependent)
     ///
     /// # Guarantees
     ///
@@ -612,10 +597,6 @@ impl Source for SymphoniaDecoder {
 
     /// Returns the total duration of the audio stream.
     ///
-    /// Duration is calculated from track metadata when available, providing accurate
-    /// timing information. The calculation uses timebase and frame count information
-    /// from the container or codec metadata.
-    ///
     /// # Availability
     ///
     /// Duration is available when:
@@ -623,22 +604,17 @@ impl Source for SymphoniaDecoder {
     /// 2. Container format provides duration information
     /// 3. Format reader successfully extracts timing metadata
     ///
-    /// Returns `None` for:
-    /// - Live streams without predetermined duration
-    /// - Malformed files missing duration metadata
-    /// - Streams where duration cannot be determined
-    ///
-    /// # Accuracy
-    ///
-    /// Duration accuracy depends on the source:
-    /// - **Metadata-based**: Exact duration from container or codec information
-    /// - **Calculated**: Derived from frame count and timebase (very accurate)
-    /// - **Missing**: No duration information available
-    ///
     /// # Multi-track Files
     ///
     /// For multi-track files, duration represents the length of the currently
     /// selected audio track, not the entire file duration.
+    ///
+    /// # Returns
+    ///
+    /// Returns `None` for:
+    /// - Live streams without predetermined duration
+    /// - Malformed files missing duration metadata
+    /// - Streams where duration cannot be determined
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.total_duration
@@ -646,25 +622,16 @@ impl Source for SymphoniaDecoder {
 
     /// Returns the bit depth of the audio samples.
     ///
-    /// The bit depth comes from the codec parameters when available. Not all
-    /// formats preserve or report original bit depth information, particularly
-    /// lossy formats that use different internal representations.
-    ///
     /// # Format Support
-    ///
-    /// Bit depth availability varies by format:
-    /// - **FLAC**: Always available (8, 16, 24, 32-bit)
-    /// - **WAV/PCM**: Always available (8, 16, 24, 32-bit integer/float)
-    /// - **ALAC**: Available (16, 20, 24, 32-bit)
-    /// - **MP3**: Not available (lossy compression)
-    /// - **AAC**: Not available (lossy compression)
-    /// - **Vorbis**: Not available (floating-point processing)
-    ///
-    /// # Implementation Note
     ///
     /// For lossy formats, bit depth is not meaningful as the audio undergoes
     /// compression that removes the original bit depth information. Lossless
     /// formats preserve and report the original bit depth.
+    ///
+    /// # Implementation Note
+    ///
+    /// Up to 24 bits of information is preserved from the original stream and
+    /// used for proper sample scaling during conversion to Rodio's sample format.
     ///
     /// # Returns
     ///
@@ -866,16 +833,15 @@ impl Source for SymphoniaDecoder {
 }
 
 impl Iterator for SymphoniaDecoder {
-    /// The type of items yielded by the iterator.
+    /// The type of samples yielded by the iterator.
     ///
-    /// Returns `Sample` (typically `f32`) values representing individual audio samples.
-    /// Samples are interleaved across channels in the order determined by the format's
-    /// channel mapping specification.
+    /// Returns `Sample` values representing individual audio samples. Samples are interleaved
+    /// across channels in the order determined by the format's channel mapping specification.
     type Item = Sample;
 
     /// Returns the next audio sample from the multi-format stream.
     ///
-    /// This method implements sophisticated packet-based decoding with robust error recovery.
+    /// This method implements packet-based decoding with robust error recovery.
     /// It automatically handles format-specific details, codec resets, track changes,
     /// and various error conditions while maintaining optimal performance.
     ///
@@ -1021,17 +987,11 @@ impl Iterator for SymphoniaDecoder {
         }
     }
 
-    /// Returns bounds on the remaining length of the iterator.
+    /// Returns bounds on the remaining amount of samples.
     ///
     /// Provides size estimates based on Symphonia's format analysis and current
     /// playback position. The accuracy depends on the availability and reliability
     /// of metadata from the underlying format.
-    ///
-    /// # Returns
-    ///
-    /// A tuple `(lower_bound, upper_bound)` where:
-    /// - `lower_bound`: Minimum number of samples guaranteed to be available
-    /// - `upper_bound`: Maximum number of samples that might be available (None if unknown)
     ///
     /// # Accuracy Levels
     ///
@@ -1044,7 +1004,7 @@ impl Iterator for SymphoniaDecoder {
     ///
     /// Different formats provide varying levels of size information:
     /// - **FLAC**: Exact frame count in metadata (highest accuracy)
-    /// - **WAV**: Sample count in header (perfect accuracy)
+    /// - **WAV**: Sample count in header (highest accuracy)
     /// - **MP4**: Duration-based estimation (good accuracy)
     /// - **MP3**: Variable accuracy depending on encoding type
     /// - **OGG**: Duration-based when available
@@ -1068,6 +1028,12 @@ impl Iterator for SymphoniaDecoder {
     ///
     /// For multi-track files, estimates represent the currently selected audio
     /// track, not the entire file duration or all tracks combined.
+    ///
+    /// # Returns
+    ///
+    /// A tuple `(lower_bound, upper_bound)` where:
+    /// - `lower_bound`: Minimum number of samples guaranteed to be available
+    /// - `upper_bound`: Maximum number of samples that might be available (None if unknown)
     fn size_hint(&self) -> (usize, Option<usize>) {
         // Samples already decoded and buffered (guaranteed available)
         let buffered_samples = self
@@ -1101,24 +1067,12 @@ impl Iterator for SymphoniaDecoder {
 /// * `current_track_id` - Optional current track ID for track switching logic
 /// * `spec` - Optional signal specification to update during recreation
 ///
-/// # Returns
-///
-/// - `Ok(track_id)` - ID of the newly selected track
-/// * `Err(Error)` - If no suitable track found or decoder creation failed
-///
 /// # Track Selection Strategy
 ///
 /// The function implements different strategies based on context:
 /// - **Initialization**: Selects first supported track (current_track_id is None)
 /// - **During playback**: Attempts to find next supported track after current one
 /// - **No fallback during playback**: Prevents unexpected track jumping
-///
-/// # Decoder Recreation Process
-///
-/// 1. **Track selection**: Find appropriate audio track with supported codec
-/// 2. **Decoder creation**: Create new decoder for selected track
-/// 3. **Specification update**: Update signal spec if provided
-/// 4. **State consistency**: Ensure new decoder is properly initialized
 ///
 /// # Error Handling
 ///
@@ -1128,15 +1082,10 @@ impl Iterator for SymphoniaDecoder {
 /// - **Track not found**: Handles missing track scenarios
 /// - **Specification updates**: Updates spec when track parameters available
 ///
-/// # Performance Considerations
+/// # Returns
 ///
-/// Decoder recreation is an expensive operation that involves:
-/// - Track list analysis
-/// - Codec instantiation
-/// - Parameter validation
-/// - State initialization
-///
-/// It should be used sparingly and only when required by Symphonia.
+/// - `Ok(track_id)` - ID of the newly selected track
+/// * `Err(Error)` - If no suitable track found or decoder creation failed
 fn recreate_decoder(
     format: &mut Box<dyn FormatReader>,
     decoder: &mut Box<dyn Decoder>,
@@ -1203,39 +1152,6 @@ fn recreate_decoder(
 ///
 /// - `true` if decoding should continue with the next packet
 /// - `false` if the error is terminal and decoding should stop
-///
-/// # Error Classification
-///
-/// - **Recoverable errors**: Can be handled by skipping the problematic packet
-///   - `DecodeError`: Corrupted or malformed packet data
-///   - `IoError`: Temporary I/O issues during packet reading
-///   - `ResetRequired`: Decoder parameter changes (handled with reset)
-/// - **Terminal errors**: Indicate unrecoverable conditions
-///   - `Unsupported`: Codec or format not supported
-///   - `LimitError`: Resource or format limits exceeded
-///   - Other unspecified errors
-///
-/// # Decoder Reset Handling
-///
-/// When `ResetRequired` is encountered, the function automatically resets
-/// the decoder state to handle parameter changes. This is essential for
-/// maintaining audio quality across parameter transitions.
-///
-/// # Performance Impact
-///
-/// Error handling is designed to be lightweight:
-/// - Quick error classification
-/// - Minimal decoder state changes
-/// - Efficient recovery strategies
-/// - No unnecessary processing for terminal errors
-///
-/// # Robustness Strategy
-///
-/// The function implements a conservative approach:
-/// - Favor continuation when safe
-/// - Reset decoder state when needed
-/// - Terminate only on truly unrecoverable errors
-/// - Preserve audio quality over maximum compatibility
 fn should_continue_on_decode_error(
     error: &symphonia::core::errors::Error,
     decoder: &mut Box<dyn Decoder>,

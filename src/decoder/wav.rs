@@ -356,9 +356,9 @@ impl<R> Iterator for SamplesIterator<R>
 where
     R: Read + Seek,
 {
-    /// The type of items yielded by the iterator.
+    /// The type of samples yielded by the iterator.
     ///
-    /// Returns `Sample` (typically `f32`) values representing individual audio samples.
+    /// Returns `Sample` values representing individual audio samples.
     /// Samples are interleaved across channels in the order: channel 0, channel 1, etc.
     type Item = Sample;
 
@@ -453,7 +453,7 @@ where
         next_sample
     }
 
-    /// Returns bounds on the remaining length of the iterator.
+    /// Returns bounds on the remaining amount of samples.
     ///
     /// For WAV files, this provides exact remaining sample count based on
     /// header information and current position. This enables accurate
@@ -522,18 +522,9 @@ where
 
     /// Returns the sample rate in Hz.
     ///
-    /// WAV supports a wide range of sample rates:
-    /// - **8kHz-16kHz**: Speech and telephone quality
-    /// - **22.05kHz**: Lower quality music
-    /// - **44.1kHz**: CD quality (most common)
-    /// - **48kHz**: Professional audio standard
-    /// - **96kHz/192kHz**: High-resolution audio
-    ///
     /// # Guarantees
     ///
-    /// The returned value is constant for the lifetime of the decoder and
-    /// matches the sample rate specified in the WAV file's fmt chunk.
-    /// This value is available immediately upon decoder creation.
+    /// The returned value is constant for the lifetime of the decoder.
     #[inline]
     fn sample_rate(&self) -> SampleRate {
         self.sample_rate
@@ -541,26 +532,9 @@ where
 
     /// Returns the total duration of the audio stream.
     ///
-    /// For WAV files, this is calculated directly from the header information
-    /// and is always available immediately upon decoder creation. The calculation
-    /// uses exact sample counts for perfect accuracy.
+    /// # Returns
     ///
-    /// # Accuracy
-    ///
-    /// WAV duration is sample-accurate because:
-    /// - Sample count is stored in the header
-    /// - Sample rate is fixed throughout the file
-    /// - No compression artifacts or estimation required
-    ///
-    /// # Always Available
-    ///
-    /// Unlike compressed formats that may require scanning, WAV duration is
-    /// instantly available from header information with no I/O overhead.
-    ///
-    /// # Guarantees
-    ///
-    /// Always returns `Some(duration)` for valid WAV files. The duration
-    /// represents the exact playback time based on sample count and rate.
+    /// Always returns `Some(duration)` for valid WAV files.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         Some(self.total_duration)
@@ -568,22 +542,15 @@ where
 
     /// Returns the bit depth of the audio samples.
     ///
-    /// WAV files preserve the original bit depth from the source material:
-    /// - **8-bit**: Basic quality, often used for legacy applications
-    /// - **16-bit**: CD quality, most common for music
-    /// - **24-bit**: High-resolution audio, professional recordings
-    /// - **32-bit integer**: Maximum precision integer samples
-    /// - **32-bit float**: Floating-point samples with extended dynamic range
+    /// # Implementation Note
     ///
-    /// # Guarantees
+    /// Up to 24 bits of information is preserved from the original WAV file and
+    /// used for proper sample scaling during conversion to Rodio's sample format.
+    ///
+    /// # Returns
     ///
     /// Always returns `Some(depth)` for valid WAV files. The bit depth is
     /// constant throughout the file and matches the fmt chunk specification.
-    ///
-    /// # Implementation Note
-    ///
-    /// The bit depth information is preserved from the original WAV file and
-    /// used for proper sample scaling during conversion to Rodio's sample format.
     #[inline]
     fn bits_per_sample(&self) -> Option<u32> {
         Some(self.reader.reader.spec().bits_per_sample as u32)
@@ -636,12 +603,6 @@ where
     /// // Instant seek to 30 seconds
     /// decoder.try_seek(Duration::from_secs(30)).unwrap();
     /// ```
-    ///
-    /// # Implementation Details
-    ///
-    /// The seeking implementation preserves channel alignment to ensure that seeking
-    /// to a specific time position results in the correct channel being returned
-    /// for the first sample after the seek operation.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let file_len = self.reader.reader.duration();
@@ -680,9 +641,9 @@ impl<R> Iterator for WavDecoder<R>
 where
     R: Read + Seek,
 {
-    /// The type of items yielded by the iterator.
+    /// The type of samples yielded by the iterator.
     ///
-    /// Returns `Sample` (typically `f32`) values representing individual audio samples.
+    /// Returns `Sample` values representing individual audio samples.
     /// Samples are interleaved across channels in the order: channel 0, channel 1, etc.
     type Item = Sample;
 
@@ -709,7 +670,7 @@ where
         self.reader.next()
     }
 
-    /// Returns bounds on the remaining length of the iterator.
+    /// Returns bounds on the remaining amount of samples.
     ///
     /// Delegates to the internal `SamplesIterator` which provides exact
     /// remaining sample count based on WAV header information.
@@ -719,12 +680,6 @@ where
     /// A tuple `(lower_bound, upper_bound)` where:
     /// - `lower_bound`: Always 0 (no samples guaranteed without I/O)
     /// - `upper_bound`: Exact remaining sample count from WAV header
-    ///
-    /// # Accuracy
-    ///
-    /// WAV files provide perfect size hint accuracy due to exact sample
-    /// counts in file headers, enabling optimal buffer allocation and
-    /// progress indication.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.reader.size_hint()

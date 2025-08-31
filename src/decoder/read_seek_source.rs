@@ -30,7 +30,7 @@ use std::io::{Read, Result, Seek, SeekFrom};
 
 use symphonia::core::io::MediaSource;
 
-use super::Settings;
+use crate::decoder::builder::Settings;
 
 /// A wrapper around a `Read + Seek` type that implements Symphonia's `MediaSource` trait.
 ///
@@ -145,10 +145,9 @@ impl<T: Read + Seek + Send + Sync> MediaSource for ReadSeekSource<T> {
     ///
     /// # Impact on Symphonia
     ///
-    /// When `false`, Symphonia will:
+    /// When `false`, Symphonia may:
     /// - Avoid backward seeking operations
-    /// - Use streaming-optimized algorithms
-    /// - May provide degraded seeking functionality
+    /// - Provide degraded seeking functionality
     #[inline]
     fn is_seekable(&self) -> bool {
         self.is_seekable
@@ -169,9 +168,7 @@ impl<T: Read + Seek + Send + Sync> MediaSource for ReadSeekSource<T> {
     ///
     /// Symphonia may use this information for:
     /// - **Seeking calculations**: Computing byte offsets for time-based seeks
-    /// - **Progress tracking**: Determining playback progress percentage
     /// - **Format detection**: Some formats benefit from knowing stream length
-    /// - **Buffer optimization**: Memory allocation decisions
     ///
     /// # Accuracy Requirements
     ///

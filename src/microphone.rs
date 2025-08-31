@@ -101,6 +101,7 @@
 use core::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::{f32, f64};
 use std::{thread, time::Duration};
 
 use crate::common::assert_error_traits;
@@ -213,6 +214,21 @@ impl Source for Microphone {
 
     fn total_duration(&self) -> Option<std::time::Duration> {
         None
+    }
+
+    fn bits_per_sample(&self) -> Option<u32> {
+        let bits = match self.config.sample_format {
+            cpal::SampleFormat::I8 | cpal::SampleFormat::U8 => 8,
+            cpal::SampleFormat::I16 | cpal::SampleFormat::U16 => 16,
+            cpal::SampleFormat::I24 => 24,
+            cpal::SampleFormat::I32 | cpal::SampleFormat::U32 => 32,
+            cpal::SampleFormat::I64 | cpal::SampleFormat::U64 => 64,
+            cpal::SampleFormat::F32 => f32::MANTISSA_DIGITS,
+            cpal::SampleFormat::F64 => f64::MANTISSA_DIGITS,
+            _ => return None,
+        };
+
+        Some(bits)
     }
 }
 

@@ -161,27 +161,44 @@ pub use self::noise::{Pink, WhiteUniform};
 /// channels can potentially change.
 ///
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends. `None` means "infinite" or
-    /// "until the sound ends". Sources that return `Some(x)` should return `Some(0)` if and
-    /// if when there's no more data.
+    /// Returns the number of samples before the current span ends.
     ///
     /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// whether the value of `channels()`, `sample_rate()` and/or `bits_per_sample()` have changed.
+    ///
+    /// # Returns
+    ///
+    /// `None` means "infinite" or "until the sound ends". Sources that return `Some(x)` should
+    /// return `Some(0)` if and only if when there's no more data.
     fn current_span_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
-    /// Should never be Zero
+    ///
+    /// Common configurations:
+    /// - 1 channel: Mono
+    /// - 2 channels: Stereo
+    /// - 6 channels: 5.1 surround
+    /// - 8 channels: 7.1 surround
     fn channels(&self) -> ChannelCount;
 
-    /// Returns the rate at which the source should be played. In number of samples per second.
+    /// Returns the sample rate in Hz at which the source should be played.
     fn sample_rate(&self) -> SampleRate;
 
     /// Returns the total duration of this source, if known.
+    ///
+    /// # Returns
     ///
     /// `None` indicates at the same time "infinite" or "unknown".
     fn total_duration(&self) -> Option<Duration>;
 
     /// Returns the number of bits per sample, if known.
+    ///
+    /// # Implementation Note
+    ///
+    /// This function returns the bit depth of the original audio stream when available,
+    /// not the bit depth of Rodio's internal sample representation. Up to 24 bits of
+    /// information is preserved from the original stream and used for proper sample
+    /// scaling during conversion to Rodio's sample format.
     fn bits_per_sample(&self) -> Option<u32>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.

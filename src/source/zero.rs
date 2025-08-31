@@ -80,7 +80,7 @@ impl Source for Zero {
 
     #[inline]
     fn bits_per_sample(&self) -> Option<u32> {
-        Some(f32::MANTISSA_DIGITS)
+        None
     }
 
     #[inline]

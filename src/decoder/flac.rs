@@ -6,7 +6,7 @@
 //!
 //! # Features
 //!
-//! - **Bit depths**: Full support for 8, 16, 24, and 32-bit audio (including 12 and 20-bit)
+//! - **Bit depths**: Full support for 8, 12, 16, 20, 24, and 32-bit audio
 //! - **Sample rates**: Supports all FLAC-compatible sample rates (1Hz to 655,350Hz)
 //! - **Channels**: Supports mono, stereo, and multi-channel audio (up to 8 channels)
 //! - **Seeking**: Full forward and backward seeking with sample-accurate positioning
@@ -80,7 +80,7 @@ use crate::{
 
 /// Reader options for `claxon` FLAC decoder.
 ///
-/// Configured to skip metadata parsing and vorbis comments for faster initialization.
+/// Configured to skip metadata parsing and Vorbis comments for faster initialization.
 /// This improves decoder creation performance by only parsing essential stream information
 /// needed for audio playback.
 ///
@@ -139,7 +139,7 @@ where
     ///
     /// Used for calculating the correct memory layout when accessing interleaved samples.
     /// FLAC blocks can have variable sizes, so this changes per block.
-    current_block_channel_len: usize,
+    current_block_samples_per_channel: usize,
 
     /// Current position within the current block.
     ///
@@ -297,7 +297,7 @@ where
         Ok(Self {
             reader: Some(reader),
             current_block: Vec::with_capacity(max_block_size),
-            current_block_channel_len: 1,
+            current_block_samples_per_channel: 1,
             current_block_off: 0,
             bits_per_sample: spec.bits_per_sample,
             sample_rate: SampleRate::new(sample_rate)
@@ -350,15 +350,10 @@ where
 {
     /// Returns the number of samples before parameters change.
     ///
+    /// # Returns
+    ///
     /// For FLAC, this always returns `None` because audio parameters (sample rate, channels, bit
-    /// depth) never change during the stream. This allows Rodio to optimize by not frequently
-    /// checking for parameter changes.
-    ///
-    /// # Implementation Note
-    ///
-    /// FLAC streams have fixed parameters throughout their duration, unlike some formats
-    /// that may have parameter changes at specific points. This enables optimizations
-    /// in the audio pipeline by avoiding frequent parameter validation.
+    /// depth) never change during the stream.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         None
@@ -374,8 +369,7 @@ where
     ///
     /// # Guarantees
     ///
-    /// The returned value is constant for the lifetime of the decoder and matches
-    /// the channel count specified in the FLAC stream metadata.
+    /// The returned value is constant for the lifetime of the decoder.
     #[inline]
     fn channels(&self) -> ChannelCount {
         self.channels
@@ -383,17 +377,9 @@ where
 
     /// Returns the sample rate in Hz.
     ///
-    /// Common rates that FLAC supports are:
-    /// - **44.1kHz**: CD quality (most common)
-    /// - **48kHz**: Professional audio standard
-    /// - **96kHz**: High-resolution audio
-    /// - **192kHz**: Ultra high-resolution audio
-    ///
     /// # Guarantees
     ///
-    /// The returned value is constant for the lifetime of the decoder and matches
-    /// the sample rate specified in the FLAC stream metadata. This value is
-    /// available immediately upon decoder creation.
+    /// The returned value is constant for the lifetime of the decoder.
     #[inline]
     fn sample_rate(&self) -> SampleRate {
         self.sample_rate
@@ -404,13 +390,9 @@ where
     /// FLAC metadata contains the total number of samples, allowing accurate duration calculation.
     /// This is available immediately upon decoder creation without needing to scan the entire file.
     ///
+    /// # Returns
+    ///
     /// Returns `None` only for malformed FLAC files missing sample count metadata.
-    ///
-    /// # Accuracy
-    ///
-    /// The duration is calculated from exact sample counts, providing sample-accurate
-    /// timing information. This is more precise than duration estimates based on
-    /// bitrate calculations used by lossy formats.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.total_duration
@@ -418,18 +400,14 @@ where
 
     /// Returns the bit depth of the audio samples.
     ///
-    /// FLAC is a lossless format that preserves the original bit depth:
-    /// - 16-bit: Standard CD quality
-    /// - 24-bit: Professional/high-resolution audio
-    /// - 32-bit: Professional/studio quality
-    /// - Other depths: 8, 12, and 20-bit are also supported
-    ///
-    /// Always returns `Some(depth)` for valid FLAC streams.
-    ///
     /// # Implementation Note
     ///
-    /// The bit depth information is preserved from the original FLAC stream and
+    /// Up to 24 bits of information is preserved from the original FLAC stream and
     /// used for proper sample scaling during conversion to Rodio's sample format.
+    ///
+    /// # Returns
+    ///
+    /// Always returns `Some(depth)` for valid FLAC streams.
     #[inline]
     fn bits_per_sample(&self) -> Option<u32> {
         Some(self.bits_per_sample)
@@ -476,12 +454,6 @@ where
     /// // Seek to 30 seconds into the track
     /// decoder.try_seek(Duration::from_secs(30)).unwrap();
     /// ```
-    ///
-    /// # Implementation Details
-    ///
-    /// The seeking implementation handles channel alignment to ensure that seeking
-    /// to a specific time position results in the correct channel being returned
-    /// for the first sample after the seek operation.
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         // Seeking should be "saturating", meaning: target positions beyond the end of the stream
         // are clamped to the end.
@@ -545,9 +517,9 @@ impl<R> Iterator for FlacDecoder<R>
 where
     R: Read + Seek,
 {
-    /// The type of items yielded by the iterator.
+    /// The type of samples yielded by the iterator.
     ///
-    /// Returns `Sample` (typically `f32`) values representing individual audio samples.
+    /// Returns `Sample` values representing individual audio samples.
     /// Samples are interleaved across channels in the order: channel 0, channel 1, etc.
     type Item = Sample;
 
@@ -587,7 +559,7 @@ where
             if self.current_block_off < self.current_block.len() {
                 // Read from current block.
                 let real_offset = (self.current_block_off % self.channels.get() as usize)
-                    * self.current_block_channel_len
+                    * self.current_block_samples_per_channel
                     + self.current_block_off / self.channels.get() as usize;
                 let raw_val = self.current_block[real_offset];
                 self.current_block_off += 1;
@@ -622,7 +594,8 @@ where
                 .read_next_or_eof(buffer)
             {
                 Ok(Some(block)) => {
-                    self.current_block_channel_len = (block.len() / block.channels()) as usize;
+                    self.current_block_samples_per_channel =
+                        (block.len() / block.channels()) as usize;
                     self.current_block = block.into_buffer();
                 }
                 Ok(None) | Err(_) => {
@@ -634,7 +607,7 @@ where
         }
     }
 
-    /// Returns bounds on the remaining length of the iterator.
+    /// Returns bounds on the remaining amount of samples.
     ///
     /// Provides accurate size estimates based on FLAC metadata when available.
     /// This information can be used by consumers for buffer pre-allocation

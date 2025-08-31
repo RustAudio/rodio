@@ -42,7 +42,7 @@
 //!     let decoder = Decoder::builder()
 //!         .with_data(file)
 //!         .with_byte_len(len)      // Enable seeking and duration calculation
-//!         .with_hint("mp3")        // Optional format hint for performance
+//!         .with_hint("mp3")        // Reduce format detection overhead
 //!         .with_gapless(true)      // Enable gapless playback
 //!         .build()?;
 //!
@@ -217,161 +217,30 @@ pub enum SeekMode {
 /// - Some settings are universal (e.g., `is_seekable`)
 /// - Others are format-specific (e.g., `gapless` for supported formats)
 /// - Unsupported settings are typically ignored gracefully
-///
-/// # Performance Impact
-///
-/// Several settings significantly affect performance:
-/// - `byte_len`: Enables efficient seeking and duration calculation
-/// - `hint`/`mime_type`: Reduce format detection overhead
-/// - `scan_duration`: Controls expensive file analysis operations
-/// - `seek_mode`: Balances seeking speed vs. accuracy
 #[derive(Clone, Debug)]
-pub struct Settings {
+pub(super) struct Settings {
     /// The total length of the stream in bytes.
-    ///
-    /// This setting enables several important optimizations:
-    /// - **Seeking operations**: Required for reliable backward seeking
-    /// - **Duration calculations**: Essential for formats lacking timing metadata
-    /// - **Progress indication**: Enables accurate progress tracking
-    /// - **Buffer optimization**: Helps with memory management decisions
-    ///
-    /// # Format Requirements
-    ///
-    /// - **MP3**: Required for coarse seeking and duration scanning
-    /// - **OGG Vorbis**: Used for duration scanning optimization
-    /// - **FLAC/WAV**: Improves seeking performance but not strictly required
-    /// - **Symphonia**: May be used for internal optimizations
-    ///
-    /// # Obtaining Byte Length
-    ///
-    /// Can be obtained from:
-    /// - File metadata: `file.metadata()?.len()`
-    /// - Stream seeking: `stream.seek(SeekFrom::End(0))?`
-    /// - HTTP Content-Length headers for network streams
     pub byte_len: Option<u64>,
 
     /// The seeking mode controlling speed vs. accuracy trade-offs.
-    ///
-    /// This setting affects seeking behavior across all decoder implementations
-    /// that support seeking operations. The actual behavior depends on format
-    /// capabilities and available optimizations.
     pub seek_mode: SeekMode,
 
     /// Whether to enable gapless playback by trimming padding frames.
-    ///
-    /// When enabled, removes silence padding added during encoding to achieve
-    /// seamless transitions between tracks. This is particularly important for
-    /// albums designed for continuous playback.
-    ///
-    /// # Format Support
-    ///
-    /// - **MP3**: Removes encoder delay and padding frames
-    /// - **AAC**: Removes padding specified in container metadata
-    /// - **FLAC**: Generally gapless by nature, minimal effect
-    /// - **OGG Vorbis**: Handles sample-accurate boundaries
-    ///
-    /// # Duration Impact
-    ///
-    /// Disabling gapless may affect duration calculations as padding frames
-    /// will be included in the total sample count for some formats.
     pub gapless: bool,
 
     /// Format extension hint for accelerated format detection.
-    ///
-    /// Providing an accurate hint significantly improves decoder initialization
-    /// performance by reducing the number of format probes required. Common
-    /// values include file extensions without the dot.
-    ///
-    /// # Common Values
-    ///
-    /// - Audio formats: "mp3", "flac", "wav", "ogg", "m4a"
-    /// - Container hints: "mp4", "mkv", "webm"
-    /// - Codec hints: "aac", "opus", "vorbis"
-    ///
-    /// # Performance Impact
-    ///
-    /// Without hints, decoders must probe all supported formats sequentially,
-    /// which can be slow for large format lists or complex containers.
     pub hint: Option<String>,
 
     /// MIME type hint for container format identification.
-    ///
-    /// Provides additional information for format detection, particularly useful
-    /// for network streams where file extensions may not be available. This
-    /// complements the extension hint for comprehensive format identification.
-    ///
-    /// # Common Values
-    ///
-    /// - "audio/mpeg" (MP3)
-    /// - "audio/flac" (FLAC)
-    /// - "audio/ogg" (OGG Vorbis/Opus)
-    /// - "audio/mp4" or "audio/aac" (AAC in MP4)
-    /// - "audio/wav" or "audio/vnd.wav" (WAV)
     pub mime_type: Option<String>,
 
     /// Whether the decoder should report seeking capabilities.
-    ///
-    /// This setting controls whether the decoder will attempt backward seeking
-    /// operations. When disabled, only forward seeking (sample skipping) is
-    /// allowed, which is suitable for streaming scenarios.
-    ///
-    /// # Requirements
-    ///
-    /// For reliable seeking behavior:
-    /// - The underlying stream must support `Seek` trait
-    /// - `byte_len` should be set for optimal performance
-    /// - Some formats may have additional requirements
-    ///
-    /// # Automatic Setting
-    ///
-    /// This is automatically set to `true` when `byte_len` is provided,
-    /// as byte length information typically implies seekable streams.
     pub is_seekable: bool,
 
     /// Pre-computed total duration to avoid expensive file scanning.
-    ///
-    /// When provided, decoders will use this value instead of performing
-    /// potentially expensive duration calculation operations. This is
-    /// particularly useful when duration is known from external metadata.
-    ///
-    /// # Use Cases
-    ///
-    /// - Database-stored track durations
-    /// - Previously calculated durations
-    /// - External metadata sources (ID3, database, etc.)
-    /// - Avoiding redundant file scanning in batch operations
-    ///
-    /// # Priority
-    ///
-    /// This setting takes precedence over `scan_duration` when both are set.
     pub total_duration: Option<Duration>,
 
     /// Enable expensive file scanning for accurate duration computation.
-    ///
-    /// When enabled, allows decoders to perform comprehensive file analysis
-    /// to determine accurate duration information. This can be slow for large
-    /// files but provides the most accurate duration data.
-    ///
-    /// # Prerequisites
-    ///
-    /// This setting only takes effect when:
-    /// - `is_seekable` is `true`
-    /// - `byte_len` is set
-    /// - The decoder supports duration scanning
-    ///
-    /// # Format Behavior
-    ///
-    /// - **MP3**: Scans for XING/VBRI headers, then frame-by-frame if needed
-    /// - **OGG Vorbis**: Uses binary search to find last granule position
-    /// - **FLAC**: Duration available in metadata, no scanning needed
-    /// - **WAV**: Duration available in header, no scanning needed
-    ///
-    /// # Performance Impact
-    ///
-    /// Scanning time varies significantly:
-    /// - Small files (< 10MB): Usually very fast
-    /// - Large files (> 100MB): Can take several seconds
-    /// - Variable bitrate files: May require more extensive scanning
     pub scan_duration: bool,
 }
 
@@ -546,16 +415,28 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     }
 
     /// Sets the byte length of the stream.
-    /// This is required for:
-    /// - Reliable seeking operations
-    /// - Duration calculations in formats that lack timing information (e.g. MP3, Vorbis)
-    ///   when `scan_duration` is enabled
-    /// - Symphonia decoders may also use this for internal scanning operations
+    ///
+    /// Depending on the format this can enable several important optimizations:
+    /// - **Seeking operations**: Required for reliable backward seeking
+    /// - **Duration calculations**: Essential for formats lacking timing metadata
+    /// - **Progress indication**: Enables accurate progress tracking
+    /// - **Buffer optimization**: Helps with memory management decisions
     ///
     /// Note that this also sets `is_seekable` to `true`.
     ///
-    /// To enable duration scanning for formats that require it, use `with_scan_duration(true)`.
-    /// File-based decoders (`try_from(File)`) automatically enable scanning.
+    /// # Format Requirements
+    ///
+    /// - **MP3**: Required for coarse seeking and duration scanning
+    /// - **OGG Vorbis**: Used for duration scanning optimization
+    /// - **FLAC/WAV**: Improves seeking performance but not strictly required
+    /// - **Symphonia**: May be used for internal optimizations
+    ///
+    /// # Obtaining Byte Length
+    ///
+    /// Can be obtained from:
+    /// - File metadata: `file.metadata()?.len()`
+    /// - Stream seeking: `stream.seek(SeekFrom::End(0))?`
+    /// - HTTP Content-Length headers for network streams
     ///
     /// `DecoderBuilder::try_from::<File>()` automatically sets this from file metadata.
     /// Alternatively, you can set it manually from file metadata:
@@ -592,6 +473,10 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     }
 
     /// Sets the seeking mode for the decoder.
+    ///
+    /// This setting affects seeking behavior across all decoder implementations
+    /// that support seeking operations. The actual behavior depends on format
+    /// capabilities and available optimizations.
     pub fn with_seek_mode(mut self, seek_mode: SeekMode) -> Self {
         self.settings.seek_mode = seek_mode;
         self
@@ -617,7 +502,22 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Enables or disables gapless playback. This is enabled by default.
     ///
-    /// When enabled, removes silence between tracks for formats that support it.
+    /// When enabled, removes silence padding added during encoding to achieve
+    /// seamless transitions between tracks. This is particularly important for
+    /// albums designed for continuous playback.
+    ///
+    /// # Format Support
+    ///
+    /// - **MP3**: Removes encoder delay and padding frames
+    /// - **AAC**: Removes padding specified in container metadata
+    /// - **FLAC**: Generally gapless by nature, minimal effect
+    /// - **OGG Vorbis**: Handles sample-accurate boundaries
+    ///
+    /// # Duration Impact
+    ///
+    /// Enabling gapless may affect duration calculations as padding frames
+    /// will be excluded in the total sample count for some decoders. If you
+    /// need consistent duration reporting across decoders, consider disabling this.
     pub fn with_gapless(mut self, gapless: bool) -> Self {
         self.settings.gapless = gapless;
         self
@@ -625,8 +525,21 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Sets a format hint for the decoder.
     ///
-    /// When known, this can help the decoder to select the correct codec faster.
-    /// Common values are "mp3", "wav", "flac", "ogg", etc.
+    /// Providing an accurate hint significantly improves decoder initialization
+    /// performance by reducing the number of format probes required. Common
+    /// values include file extensions without the dot.
+    ///
+    /// # Common Values
+    ///
+    /// - Codec hints: "aac", "flac", "mp3", "wav"
+    /// - Container hints: "audio/x-matroska", "audio/mp4", "audio/ogg"
+    ///
+    /// For audio within a container, such as MKV, MP4 or Ogg, use the container hint.
+    ///
+    /// # Performance Impact
+    ///
+    /// Without hints, decoders must probe all supported formats sequentially,
+    /// which can be slow for large format lists or complex containers.
     pub fn with_hint(mut self, hint: &str) -> Self {
         self.settings.hint = Some(hint.to_string());
         self
@@ -634,8 +547,17 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Sets a mime type hint for the decoder.
     ///
-    /// When known, this can help the decoder to select the correct demuxer faster.
-    /// Common values are "audio/mpeg", "audio/vnd.wav", "audio/flac", "audio/ogg", etc.
+    /// Provides additional information for format detection, particularly useful
+    /// for network streams where file extensions may not be available. This
+    /// complements the extension hint for comprehensive format identification.
+    ///
+    /// # Common Values
+    ///
+    /// - "audio/mpeg" (MP3)
+    /// - "audio/flac" (FLAC)
+    /// - "audio/ogg" (OGG Vorbis/Opus)
+    /// - "audio/mp4" or "audio/aac" (AAC in MP4)
+    /// - "audio/wav" or "audio/vnd.wav" (WAV)
     pub fn with_mime_type(mut self, mime_type: &str) -> Self {
         self.settings.mime_type = Some(mime_type.to_string());
         self
@@ -644,10 +566,22 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// Configure whether the data supports random access seeking. Without this, only forward
     /// seeking may work.
     ///
-    /// `DecoderBuilder::try_from::<File>()` automatically sets this to `true`.
+    /// This setting controls whether the decoder will attempt backward seeking
+    /// operations. When disabled, only forward seeking (sample skipping) is
+    /// allowed, which is suitable for streaming scenarios.
     ///
-    /// For reliable seeking behavior, `byte_len` should also be set. While random access seeking
-    /// may work without `byte_len` for some decoders, it is not guaranteed.
+    /// # Requirements
+    ///
+    /// For reliable seeking behavior:
+    /// - The underlying stream must support `Seek` trait
+    /// - `byte_len` should be set for optimal performance
+    /// - Some formats may have additional requirements
+    ///
+    /// # Automatic Setting
+    ///
+    /// This is automatically set to `true` when `byte_len` is provided,
+    /// as byte length information typically implies seekable streams.
+    /// `DecoderBuilder::try_from::<File>()` automatically sets this to `true`.
     ///
     /// # Examples
     /// ```no_run
@@ -676,7 +610,20 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Provides a pre-computed total duration to avoid file scanning.
     ///
-    /// When provided, decoders will use this value when they would otherwise need to scan the file.
+    /// When provided, decoders will use this value instead of performing
+    /// potentially expensive duration calculation operations. This is
+    /// particularly useful when duration is known from external metadata.
+    ///
+    /// # Use Cases
+    ///
+    /// - Database-stored track durations
+    /// - Previously calculated durations
+    /// - External metadata sources (ID3, database, etc.)
+    /// - Avoiding redundant file scanning in batch operations
+    ///
+    /// # Priority
+    ///
+    /// This setting takes precedence over `scan_duration` when both are set.
     ///
     /// This affects decoder implementations that may scan for duration:
     /// - **MP3**: May scan if metadata doesn't contain duration
@@ -705,8 +652,30 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
 
     /// Enable file scanning for duration computation.
     ///
-    /// **Important**: This setting only takes effect when the source is both seekable and has
-    /// `byte_len` is set. If these prerequisites are not met, this setting is ignored.
+    /// When enabled, allows decoders to perform comprehensive file analysis
+    /// to determine accurate duration information. This can be slow for large
+    /// files but provides the most accurate duration data.
+    ///
+    /// # Prerequisites
+    ///
+    /// This setting only takes effect when:
+    /// - `is_seekable` is `true`
+    /// - `byte_len` is set
+    /// - The decoder supports duration scanning
+    ///
+    /// # Format Behavior
+    ///
+    /// - **MP3**: Scans for XING/VBRI headers, then frame-by-frame if needed
+    /// - **OGG Vorbis**: Uses binary search to find last granule position
+    /// - **FLAC**: Duration available in metadata, no scanning needed
+    /// - **WAV**: Duration available in header, no scanning needed
+    ///
+    /// # Performance Impact
+    ///
+    /// Scanning time varies significantly:
+    /// - Small files (< 10MB): Usually very fast
+    /// - Large files (> 100MB): Can take several seconds
+    /// - Variable bitrate files: May require more extensive scanning
     ///
     /// This affects specific decoder implementations:
     /// - **MP3**: May scan if metadata doesn't contain duration
@@ -744,15 +713,6 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// This internal method handles the format detection and decoder creation process.
     /// It attempts to create decoders in a specific order, passing the data source
     /// between attempts until a compatible format is found.
-    ///
-    /// # Format Detection Order
-    ///
-    /// Decoders are tried in this order for optimal performance:
-    /// 1. **WAV**: Fast header-based detection
-    /// 2. **FLAC**: Distinctive magic bytes for quick identification
-    /// 3. **OGG Vorbis**: Well-defined container format
-    /// 4. **MP3**: Frame-based detection (more expensive)
-    /// 5. **Symphonia**: Multi-format fallback (most comprehensive)
     ///
     /// # Error Handling
     ///

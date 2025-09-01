@@ -1,5 +1,6 @@
 use crate::common::assert_error_traits;
 use crate::Source;
+use crate::Sample;
 use hound::{SampleFormat, WavSpec};
 use std::io::{self, Write};
 use std::path;
@@ -29,7 +30,7 @@ assert_error_traits!(ToWavError);
 /// # Note
 /// This is a convenience wrapper around `wav_to_writer`
 pub fn wav_to_file(
-    source: impl Source,
+    source: impl Source, // TODO make this take a spanless source
     wav_file: impl AsRef<path::Path>,
 ) -> Result<(), ToWavError> {
     let mut file = std::fs::File::create(wav_file)
@@ -58,7 +59,7 @@ pub fn wav_to_file(
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn wav_to_writer(
-    source: impl Source,
+    source: impl Source, // TODO make this take a spanless source
     writer: &mut (impl io::Write + io::Seek),
 ) -> Result<(), ToWavError> {
     let format = WavSpec {
@@ -72,12 +73,15 @@ pub fn wav_to_writer(
         let mut writer = hound::WavWriter::new(&mut writer, format)
             .map_err(Arc::new)
             .map_err(ToWavError::Creating)?;
-        for sample in source {
+
+        let whole_frames = WholeFrames::new(source);
+        for sample in whole_frames {
             writer
                 .write_sample(sample)
                 .map_err(Arc::new)
                 .map_err(ToWavError::Writing)?;
         }
+
         writer
             .finalize()
             .map_err(Arc::new)
@@ -89,6 +93,40 @@ pub fn wav_to_writer(
         .map_err(ToWavError::Flushing)?;
     Ok(())
 }
+
+struct WholeFrames<I: Iterator<Item=Sample>> {
+    buffer: Vec<Sample>,
+    pos: usize,
+    source: I
+}
+
+impl<S: Source> WholeFrames<S> {
+    fn new(source: S) -> Self {
+        Self {
+            buffer: vec![0.0; source.channels().get().into()],
+            pos: source.channels().get().into(),
+            source,
+        }
+    }
+}
+
+impl<I: Iterator<Item = Sample>> Iterator for WholeFrames<I> {
+    type Item = Sample;
+
+    fn next(&mut self) -> Option<Sample> {
+        if self.pos >= self.buffer.len() {
+            for sample in &mut self.buffer {
+                *sample = self.source.next()?;
+            }
+            self.pos = 0;
+        }
+        
+        let to_yield = self.buffer[self.pos];
+        self.pos += 1;
+        Some(to_yield)
+    }
+}
+
 
 #[cfg(test)]
 mod test {

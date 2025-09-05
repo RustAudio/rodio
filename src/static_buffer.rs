@@ -5,9 +5,10 @@
 //! # Example
 //!
 //! ```
+//! use rodio::{ChannelCount, SampleRate};
 //! use rodio::static_buffer::StaticSamplesBuffer;
-//! use core::num::NonZero;
-//! let _ = StaticSamplesBuffer::new(NonZero::new(1).unwrap(), NonZero::new(44100).unwrap(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+//!
+//! let _ = StaticSamplesBuffer::new(ChannelCount::new(1).unwrap(), SampleRate::new(44_100).unwrap(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 //! ```
 //!
 
@@ -17,7 +18,7 @@ use std::time::Duration;
 
 use crate::common::{ChannelCount, SampleRate};
 use crate::source::SeekError;
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 /// A buffer of samples treated as a source.
 #[derive(Clone)]
@@ -92,7 +93,7 @@ impl Source for StaticSamplesBuffer {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         None
     }
 

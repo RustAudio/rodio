@@ -14,7 +14,7 @@
 //
 
 use super::SeekError;
-use crate::Source;
+use crate::{BitDepth, Source};
 #[cfg(feature = "experimental")]
 use atomic_float::AtomicF32;
 #[cfg(feature = "experimental")]
@@ -491,7 +491,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.input.bits_per_sample()
     }
 

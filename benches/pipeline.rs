@@ -1,9 +1,8 @@
-use std::num::NonZero;
 use std::time::Duration;
 
 use divan::Bencher;
-use rodio::ChannelCount;
 use rodio::{source::UniformSourceIterator, Source};
+use rodio::{ChannelCount, SampleRate};
 
 mod shared;
 use shared::music_wav;
@@ -36,7 +35,7 @@ fn long(bencher: Bencher) {
         let resampled = UniformSourceIterator::new(
             effects_applied,
             ChannelCount::new(2).unwrap(),
-            NonZero::new(40_000).unwrap(),
+            SampleRate::new(40_000).unwrap(),
         );
         resampled.for_each(divan::black_box_drop)
     })

@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 
 use std::io::{Read, Seek};
+use std::num::NonZeroU32;
 use std::path::Path;
 use std::time::Duration;
 
@@ -253,6 +254,8 @@ fn decoder_returns_correct_channels(
 ) {
     use std::num::NonZero;
 
+    use rodio::ChannelCount;
+
     println!("decoder: {decoder_name}");
     let decoder = get_music(format);
     let channels = decoder.channels();
@@ -260,7 +263,7 @@ fn decoder_returns_correct_channels(
     // All our test files should be stereo (2 channels)
     assert_eq!(
         channels,
-        NonZero::new(2).unwrap(),
+        ChannelCount::new(2).unwrap(),
         "decoder {decoder_name} returned {channels} channels, expected 2 (stereo)"
     );
 }
@@ -307,7 +310,7 @@ fn decoder_returns_some_bit_depth(
     let returned_bit_depth = decoder.bits_per_sample();
     assert_eq!(
         returned_bit_depth,
-        Some(bit_depth),
+        NonZeroU32::new(bit_depth),
         "decoder {decoder_name} returned {returned_bit_depth:?} bit depth, expected {bit_depth}"
     );
 }
@@ -331,10 +334,10 @@ fn decoder_returns_hi_res_bit_depths() {
             // TODO: Symphonia returns None for audacity32bit.wav (float)
             if let Some(returned_bit_depth) = decoder.bits_per_sample() {
                 assert_eq!(
-                returned_bit_depth,
-                bit_depth,
-                "decoder for {asset} returned {returned_bit_depth:?} bit depth, expected {bit_depth}"
-            );
+                    returned_bit_depth.get(),
+                    bit_depth,
+                    "decoder for {asset} returned {returned_bit_depth:?} bit depth, expected {bit_depth}"
+                );
             }
         }
     }

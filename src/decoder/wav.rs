@@ -74,10 +74,7 @@ use hound::{SampleFormat, WavReader};
 
 use super::utils;
 use crate::{
-    common::{ChannelCount, SampleRate},
-    decoder::Settings,
-    source::SeekError,
-    Sample, Source,
+    decoder::Settings, source::SeekError, BitDepth, ChannelCount, Sample, SampleRate, Source,
 };
 
 /// Decoder for the WAV format using the `hound` library.
@@ -154,6 +151,11 @@ where
     /// Fixed for the entire WAV file. Common configurations include
     /// mono (1), stereo (2), and various surround sound formats.
     channels: ChannelCount,
+
+    /// Bit depth of the audio samples (cached from reader).
+    ///
+    /// Cached from the WAV header without repeatedly constructing it.
+    bits_per_sample: BitDepth,
 
     /// Whether random access seeking is enabled.
     ///
@@ -272,13 +274,15 @@ where
         let samples_per_channel = len / (channels as u64);
         let total_duration = utils::samples_to_duration(samples_per_channel, sample_rate as u64);
 
-        Ok(WavDecoder {
+        Ok(Self {
             reader,
             total_duration,
             sample_rate: SampleRate::new(sample_rate)
                 .expect("wav should have a sample rate higher then zero"),
             channels: ChannelCount::new(channels).expect("wav should have a least one channel"),
             is_seekable: settings.is_seekable,
+            bits_per_sample: BitDepth::new(spec.bits_per_sample.into())
+                .expect("wav should have a bit depth higher then zero"),
         })
     }
 
@@ -548,8 +552,8 @@ where
     /// Always returns `Some(depth)` for valid WAV files. The bit depth is
     /// constant throughout the file and matches the fmt chunk specification.
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
-        Some(self.reader.reader.spec().bits_per_sample as u32)
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        Some(self.bits_per_sample)
     }
 
     /// Attempts to seek to the specified position in the audio stream.

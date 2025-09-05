@@ -6,7 +6,7 @@ use crate::{
     common::{ChannelCount, SampleRate},
     math::nz,
     source::SeekError,
-    Source,
+    BitDepth, Source,
 };
 
 /// Convenience function to create a new `Chirp` source.
@@ -103,7 +103,7 @@ impl Source for Chirp {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
-        Some(f32::MANTISSA_DIGITS)
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        BitDepth::new(32)
     }
 }

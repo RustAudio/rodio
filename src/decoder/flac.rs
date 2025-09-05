@@ -72,11 +72,7 @@ use dasp_sample::Sample as _;
 use dasp_sample::I24;
 
 use super::{utils, Settings};
-use crate::{
-    common::{ChannelCount, Sample, SampleRate},
-    source::SeekError,
-    Source,
-};
+use crate::{source::SeekError, BitDepth, ChannelCount, Sample, SampleRate, Source};
 
 /// Reader options for `claxon` FLAC decoder.
 ///
@@ -152,7 +148,7 @@ where
     /// Preserved from the original FLAC stream metadata and used for proper
     /// sample conversion during iteration. FLAC supports various bit depths
     /// including non-standard ones like 12 and 20-bit.
-    bits_per_sample: u32,
+    bits_per_sample: BitDepth,
 
     /// Sample rate in Hz.
     ///
@@ -299,7 +295,8 @@ where
             current_block: Vec::with_capacity(max_block_size),
             current_block_samples_per_channel: 1,
             current_block_off: 0,
-            bits_per_sample: spec.bits_per_sample,
+            bits_per_sample: BitDepth::new(spec.bits_per_sample)
+                .expect("flac should never have zero bits per sample"),
             sample_rate: SampleRate::new(sample_rate)
                 .expect("flac data should never have a zero sample rate"),
             channels: ChannelCount::new(
@@ -409,7 +406,7 @@ where
     ///
     /// Always returns `Some(depth)` for valid FLAC streams.
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         Some(self.bits_per_sample)
     }
 
@@ -564,7 +561,7 @@ where
                 let raw_val = self.current_block[real_offset];
                 self.current_block_off += 1;
                 self.samples_read += 1;
-                let bits = self.bits_per_sample;
+                let bits = self.bits_per_sample.get();
                 let real_val = match bits {
                     8 => (raw_val as i8).to_sample(),
                     16 => (raw_val as i16).to_sample(),

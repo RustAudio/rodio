@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 /// An empty source that executes a callback function
 pub struct EmptyCallback {
@@ -53,7 +53,7 @@ impl Source for EmptyCallback {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         None
     }
 

@@ -6,6 +6,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
+use crate::BitDepth;
 use crate::Source;
 
 /// Internal function that builds a `Buffered` object.
@@ -62,7 +63,7 @@ where
     data: Vec<I::Item>,
     channels: ChannelCount,
     rate: SampleRate,
-    bits_per_sample: Option<u32>,
+    bits_per_sample: Option<BitDepth>,
     next: Mutex<Arc<Span<I>>>,
 }
 
@@ -238,7 +239,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         match *self.current_span {
             Span::Data(SpanData {
                 bits_per_sample, ..

@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::{
     common::{ChannelCount, SampleRate},
-    math, Source,
+    math, BitDepth, Source,
 };
 
 /// Internal function that builds a `Amplify` object.
@@ -97,7 +97,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.input.bits_per_sample()
     }
 

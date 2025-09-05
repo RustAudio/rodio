@@ -2,7 +2,7 @@
 
 use crate::common::{ChannelCount, SampleRate};
 use crate::source::{SeekError, Source, UniformSourceIterator};
-use crate::Sample;
+use crate::{BitDepth, Sample};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -106,7 +106,7 @@ impl Source for MixerSource {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.current_sources
             .iter()
             .flat_map(|s| s.bits_per_sample())

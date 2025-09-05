@@ -59,7 +59,7 @@ use crate::{
     common::{assert_error_traits, ChannelCount, SampleRate},
     math::nz,
     source::{SeekError, Source},
-    Sample,
+    BitDepth, Sample,
 };
 
 pub mod builder;
@@ -269,7 +269,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
     /// For lossy formats this should always return `None` as bit depth is not a meaningful
     /// concept for compressed audio.
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         match self {
             #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => source.bits_per_sample(),
@@ -951,7 +951,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.0.bits_per_sample()
     }
 
@@ -1131,7 +1131,7 @@ where
 
     /// Returns the bits per sample of the underlying decoder, if available.
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.inner.as_ref()?.bits_per_sample()
     }
 

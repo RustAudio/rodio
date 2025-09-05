@@ -20,7 +20,7 @@
 //! use std::num::NonZero;
 //! use rodio::source::noise::{WhiteUniform, Pink, WhiteTriangular, Blue, Red};
 //!
-//! let sample_rate = NonZero::new(44100).unwrap();
+//! let sample_rate = SampleRate::new(44100).unwrap();
 //!
 //! // Simple usage - creates generators with `SmallRng`
 //!
@@ -50,7 +50,7 @@ use rand::{
 use rand_distr::{Normal, Triangular};
 
 use crate::math::nz;
-use crate::{ChannelCount, Sample, SampleRate, Source};
+use crate::{BitDepth, ChannelCount, Sample, SampleRate, Source};
 
 /// Convenience function to create a new `WhiteUniform` noise source.
 #[deprecated(since = "0.21.0", note = "use WhiteUniform::new() instead")]
@@ -85,8 +85,8 @@ macro_rules! impl_noise_source {
                 None
             }
 
-            fn bits_per_sample(&self) -> Option<u32> {
-                Some(f32::MANTISSA_DIGITS)
+            fn bits_per_sample(&self) -> Option<BitDepth> {
+                BitDepth::new(32)
             }
 
             fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
@@ -751,8 +751,8 @@ impl<R: Rng> Source for Brownian<R> {
         None
     }
 
-    fn bits_per_sample(&self) -> Option<u32> {
-        Some(f32::MANTISSA_DIGITS)
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        BitDepth::new(32)
     }
 
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
@@ -832,8 +832,8 @@ impl<R: Rng> Source for Red<R> {
         None
     }
 
-    fn bits_per_sample(&self) -> Option<u32> {
-        Some(f32::MANTISSA_DIGITS)
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        BitDepth::new(32)
     }
 
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {

@@ -64,7 +64,7 @@ use super::SeekError;
 use crate::{
     common::{ChannelCount, Sample, SampleRate},
     math::{self, duration_to_coefficient},
-    Float, Source,
+    BitDepth, Float, Source,
 };
 
 /// Configuration settings for audio limiting.
@@ -597,7 +597,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.0.bits_per_sample()
     }
 
@@ -1092,7 +1092,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.inner().bits_per_sample()
     }
 

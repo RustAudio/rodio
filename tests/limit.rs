@@ -1,6 +1,5 @@
 use rodio::source::Source;
-use rodio::Sample;
-use std::num::NonZero;
+use rodio::{ChannelCount, Sample, SampleRate};
 use std::time::Duration;
 
 #[test]
@@ -126,8 +125,8 @@ fn test_limiter_stereo_processing() {
     }
 
     let buffer = SamplesBuffer::new(
-        NonZero::new(2).unwrap(),
-        NonZero::new(44100).unwrap(),
+        ChannelCount::new(2).unwrap(),
+        SampleRate::new(44100).unwrap(),
         stereo_samples,
     );
     let settings = rodio::source::LimitSettings::default().with_threshold(-3.0);

@@ -213,13 +213,17 @@ pub trait Source: Iterator<Item = Sample> {
 
     /// Returns the number of bits per sample, if known.
     ///
+    /// # Format Support
+    ///
+    /// For lossy formats this should always return `None` as bit depth is not a meaningful
+    /// concept for compressed audio.
+    ///
     /// # Implementation Note
     ///
-    /// This function returns the bit depth of the original audio stream when available,
-    /// not the bit depth of Rodio's internal sample representation. Up to 24 bits of
-    /// information is preserved from the original stream and used for proper sample
-    /// scaling during conversion to Rodio's sample format.
-    fn bits_per_sample(&self) -> Option<u32>;
+    /// Rodio processes audio samples internally as 32-bit floating point values. When audio data
+    /// is converted to integer output, up to 24 bits of information is preserved from the
+    /// original audio stream.
+    fn bits_per_sample(&self) -> Option<BitDepth>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
     #[inline]
@@ -847,7 +851,7 @@ macro_rules! source_pointer_impl {
             }
 
             #[inline]
-            fn bits_per_sample(&self) -> Option<u32> {
+            fn bits_per_sample(&self) -> Option<BitDepth> {
                 (**self).bits_per_sample()
             }
 

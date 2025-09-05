@@ -238,12 +238,14 @@ where
     /// Sets a custom input configuration.
     ///
     /// # Example
+    ///
     /// ```no_run
-    /// # use rodio::microphone::{MicrophoneBuilder, InputConfig};
-    /// # use std::num::NonZero;
+    /// use rodio::{ChannelCount, SampleRate};
+    /// use rodio::microphone::{MicrophoneBuilder, InputConfig};
+    ///
     /// let config = InputConfig {
-    ///     sample_rate: NonZero::new(44_100).expect("44100 is not zero"),
-    ///     channel_count: NonZero::new(2).expect("2 is not zero"),
+    ///     sample_rate: SampleRate::new(44_100).unwrap(),
+    ///     channel_count: ChannelCount::new(2).unwrap(),
     ///     buffer_size: cpal::BufferSize::Fixed(42_000),
     ///     sample_format: cpal::SampleFormat::U16,
     /// };

@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::source::{Empty, SeekError, Source, Zero};
-use crate::Sample;
+use crate::{BitDepth, Sample};
 
 use crate::common::{ChannelCount, SampleRate};
 #[cfg(feature = "crossbeam-channel")]
@@ -211,7 +211,7 @@ impl Source for SourcesQueueOutput {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.current.bits_per_sample()
     }
 
@@ -315,9 +315,10 @@ impl SourcesQueueOutput {
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
+    use crate::common::BITS_PER_SAMPLE;
     use crate::math::nz;
     use crate::source::{SeekError, Source};
-    use crate::{queue, ChannelCount, Sample, SampleRate};
+    use crate::{queue, BitDepth, ChannelCount, Sample, SampleRate};
     use std::time::Duration;
 
     #[test]
@@ -523,8 +524,8 @@ mod tests {
             self.sample_rate
         }
 
-        fn bits_per_sample(&self) -> Option<u32> {
-            Some(Sample::MANTISSA_DIGITS)
+        fn bits_per_sample(&self) -> Option<BitDepth> {
+            Some(BITS_PER_SAMPLE)
         }
 
         fn total_duration(&self) -> Option<Duration> {

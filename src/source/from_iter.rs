@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
-use crate::Source;
+use crate::{BitDepth, Source};
 
 /// Builds a source that chains sources provided by an iterator.
 ///
@@ -136,7 +136,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         if let Some(src) = &self.current_source {
             src.bits_per_sample()
         } else {

@@ -81,7 +81,7 @@ use std::{sync::Arc, time::Duration};
 
 use symphonia::{
     core::{
-        audio::{SampleBuffer, SignalSpec},
+        audio::SampleBuffer,
         codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL, CODEC_TYPE_VORBIS},
         errors::Error,
         formats::{FormatOptions, FormatReader, SeekMode as SymphoniaSeekMode, SeekTo},
@@ -93,13 +93,13 @@ use symphonia::{
 };
 
 use super::DecoderError;
-use crate::decoder::builder::Settings;
 use crate::{
     common::{ChannelCount, Sample, SampleRate},
     decoder::builder::SeekMode,
     math::duration_to_float,
     source, Float, Source,
 };
+use crate::{decoder::builder::Settings, BitDepth};
 
 /// Multi-format audio decoder using the Symphonia library.
 ///
@@ -166,17 +166,20 @@ pub struct SymphoniaDecoder {
     /// May be `None` for streams without duration metadata or live streams.
     total_duration: Option<Duration>,
 
+    /// Sample rate of the audio stream.
+    sample_rate: SampleRate,
+
+    /// Number of audio channels.
+    channels: ChannelCount,
+
+    /// Bit depth of the audio samples.
+    bits_per_sample: Option<BitDepth>,
+
     /// Current decoded audio buffer.
     ///
     /// Contains interleaved PCM samples from the most recently decoded packet.
     /// `None` indicates that a new packet needs to be decoded.
     buffer: Option<SampleBuffer<Sample>>,
-
-    /// Audio signal specification (channels, sample rate, etc.).
-    ///
-    /// May change during playback if codec parameters change or track switching occurs.
-    /// Updated automatically when such changes are detected.
-    spec: SignalSpec,
 
     /// Seeking precision mode.
     ///
@@ -441,7 +444,7 @@ impl SymphoniaDecoder {
                 // If ResetRequired is returned, then the track list must be re-examined and all
                 // Decoders re-created.
                 Err(Error::ResetRequired) => {
-                    track_id = recreate_decoder(&mut probed.format, &mut decoder, None, None)?;
+                    track_id = recreate_decoder(&mut probed.format, &mut decoder, None)?;
                     continue;
                 }
 
@@ -480,6 +483,20 @@ impl SymphoniaDecoder {
             }
         };
 
+        // Cache initial spec values
+        let sample_rate = SampleRate::new(spec.rate).expect("Invalid sample rate");
+        let channels = spec
+            .channels
+            .count()
+            .try_into()
+            .ok()
+            .and_then(ChannelCount::new)
+            .expect("Invalid channel count");
+        let bits_per_sample = decoder
+            .codec_params()
+            .bits_per_sample
+            .and_then(BitDepth::new);
+
         // Calculate total samples
         let total_samples = {
             // Try frame-based calculation first (most accurate)
@@ -491,9 +508,10 @@ impl SymphoniaDecoder {
             } else if let Some(duration) = total_duration {
                 // Fallback to duration-based calculation
                 let total_secs = duration_to_float(duration);
-                let sample_rate = spec.rate as Float;
-                let channels = spec.channels.count() as Float;
-                Some((total_secs * sample_rate * channels).ceil() as u64)
+                Some(
+                    (total_secs * sample_rate.get() as Float * channels.get() as Float).ceil()
+                        as u64,
+                )
             } else {
                 None
             }
@@ -504,8 +522,10 @@ impl SymphoniaDecoder {
             current_span_offset: 0,
             demuxer: probed.format,
             total_duration,
+            sample_rate,
+            channels,
+            bits_per_sample,
             buffer,
-            spec,
             seek_mode: settings.seek_mode,
             total_samples,
             samples_read: 0,
@@ -513,6 +533,26 @@ impl SymphoniaDecoder {
             is_seekable,
             byte_len,
         }))
+    }
+
+    /// Parses the signal specification from the decoder and returns sample rate, channel count,
+    /// and bit depth.
+    fn cache_spec(&mut self) {
+        if let Some(rate) = self.decoder.codec_params().sample_rate {
+            if let Some(rate) = SampleRate::new(rate) {
+                self.sample_rate = rate;
+            }
+        }
+
+        if let Some(channels) = self.decoder.codec_params().channels {
+            if let Some(count) = channels.count().try_into().ok().and_then(ChannelCount::new) {
+                self.channels = count;
+            }
+        }
+
+        if let Some(bits_per_sample) = self.decoder.codec_params().bits_per_sample {
+            self.bits_per_sample = BitDepth::new(bits_per_sample);
+        }
     }
 }
 
@@ -565,14 +605,7 @@ impl Source for SymphoniaDecoder {
     /// parameters change.
     #[inline]
     fn channels(&self) -> ChannelCount {
-        ChannelCount::new(
-            self.spec
-                .channels
-                .count()
-                .try_into()
-                .expect("rodio only support up to u16::MAX channels (65_535)"),
-        )
-        .expect("audio should always have at least one channel")
+        self.channels
     }
 
     /// Returns the sample rate in Hz.
@@ -592,7 +625,7 @@ impl Source for SymphoniaDecoder {
     /// parameters change.
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        SampleRate::new(self.spec.rate).expect("audio should always have a non zero SampleRate")
+        self.sample_rate
     }
 
     /// Returns the total duration of the audio stream.
@@ -638,8 +671,8 @@ impl Source for SymphoniaDecoder {
     /// - `Some(depth)` for formats that preserve bit depth information
     /// - `None` for lossy formats or when bit depth is not determinable
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
-        self.decoder.codec_params().bits_per_sample
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.bits_per_sample
     }
 
     /// Attempts to seek to the specified position in the audio stream.
@@ -914,13 +947,10 @@ impl Iterator for SymphoniaDecoder {
                 // If ResetRequired is returned, then the track list must be re-examined and all
                 // Decoders re-created.
                 Err(Error::ResetRequired) => {
-                    self.track_id = recreate_decoder(
-                        &mut self.demuxer,
-                        &mut self.decoder,
-                        Some(self.track_id),
-                        Some(&mut self.spec),
-                    )
-                    .ok()?;
+                    self.track_id =
+                        recreate_decoder(&mut self.demuxer, &mut self.decoder, Some(self.track_id))
+                            .ok()?;
+                    self.cache_spec();
 
                     // Clear buffer after decoder reset - spec may have been updated
                     self.buffer = None;
@@ -1090,7 +1120,6 @@ fn recreate_decoder(
     format: &mut Box<dyn FormatReader>,
     decoder: &mut Box<dyn Decoder>,
     current_track_id: Option<u32>,
-    spec: Option<&mut SignalSpec>,
 ) -> Result<u32, symphonia::core::errors::Error> {
     let track = if let Some(current_id) = current_track_id {
         // During playback: find the next supported track after the current one
@@ -1119,22 +1148,11 @@ fn recreate_decoder(
         "No supported track found after current track",
     ))?;
 
-    let new_track_id = track.id;
-
     // Create new decoder
     *decoder =
         symphonia::default::get_codecs().make(&track.codec_params, &DecoderOptions::default())?;
 
-    // Update spec if provided - this will be refined on next successful decode
-    if let Some(spec) = spec {
-        if let Some(sample_rate) = track.codec_params.sample_rate {
-            if let Some(channels) = track.codec_params.channels {
-                *spec = SignalSpec::new(sample_rate, channels);
-            }
-        }
-    }
-
-    Ok(new_track_id)
+    Ok(track.id)
 }
 
 /// Determines whether to continue decoding after a decode error.

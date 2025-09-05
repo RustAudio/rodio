@@ -15,7 +15,7 @@
 
 use super::SeekError;
 use crate::math::duration_to_coefficient;
-use crate::{Float, Sample, Source};
+use crate::{BitDepth, Float, Sample, Source};
 #[cfg(all(feature = "experimental", not(feature = "64bit")))]
 use atomic_float::AtomicF32;
 #[cfg(all(feature = "experimental", feature = "64bit"))]
@@ -548,7 +548,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.input.bits_per_sample()
     }
 

@@ -15,7 +15,6 @@ use cpal::{BufferSize, Sample, SampleFormat, StreamConfig, I24};
 use std::fmt;
 use std::io::{Read, Seek};
 use std::marker::Sync;
-use std::num::NonZero;
 
 const HZ_44100: SampleRate = nz!(44_100);
 
@@ -310,9 +309,9 @@ where
         config: &cpal::SupportedStreamConfig,
     ) -> DeviceSinkBuilder<E> {
         self.config = DeviceSinkConfig {
-            channel_count: NonZero::new(config.channels())
+            channel_count: ChannelCount::new(config.channels())
                 .expect("no valid cpal config has zero channels"),
-            sample_rate: NonZero::new(config.sample_rate())
+            sample_rate: SampleRate::new(config.sample_rate())
                 .expect("no valid cpal config has zero sample rate"),
             sample_format: config.sample_format(),
             ..Default::default()
@@ -323,9 +322,9 @@ where
     /// Set all OS-Sink parameters at once from CPAL stream config.
     pub fn with_config(mut self, config: &cpal::StreamConfig) -> DeviceSinkBuilder<E> {
         self.config = DeviceSinkConfig {
-            channel_count: NonZero::new(config.channels)
+            channel_count: ChannelCount::new(config.channels)
                 .expect("no valid cpal config has zero channels"),
-            sample_rate: NonZero::new(config.sample_rate)
+            sample_rate: SampleRate::new(config.sample_rate)
                 .expect("no valid cpal config has zero sample rate"),
             buffer_size: config.buffer_size,
             ..self.config

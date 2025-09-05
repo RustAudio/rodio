@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::NANOS_PER_SEC;
-use crate::Source;
+use crate::{BitDepth, Source};
 
 /// Internal function that builds a `SkipDuration` object.
 pub fn skip_duration<I>(mut input: I, duration: Duration) -> SkipDuration<I>
@@ -157,7 +157,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.input.bits_per_sample()
     }
 

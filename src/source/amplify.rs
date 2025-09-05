@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::{
-    common::{ChannelCount, Float, SampleRate},
+    common::{BitDepth, ChannelCount, Float, SampleRate},
     math, Source,
 };
 
@@ -97,7 +97,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.input.bits_per_sample()
     }
 

@@ -6,15 +6,15 @@
 //! # Example
 //!
 //! ```
+//! use rodio::SampleRate;;
 //! use rodio::source::{SignalGenerator,Function};
-//! use core::num::NonZero;
 //!
-//! let tone = SignalGenerator::new(NonZero::new(48000).unwrap(), 440.0, Function::Sine);
+//! let tone = SignalGenerator::new(SampleRate::new(48_000).unwrap(), 440.0, Function::Sine);
 //! ```
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::{duration_to_float, nz, TAU};
-use crate::{Float, Sample, Source};
+use crate::{BitDepth, Float, Sample, Source};
 use std::time::Duration;
 
 /// Generator function.
@@ -157,8 +157,8 @@ impl Source for SignalGenerator {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
-        Some(Sample::MANTISSA_DIGITS)
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        crate::common::bits_per_sample()
     }
 
     #[inline]

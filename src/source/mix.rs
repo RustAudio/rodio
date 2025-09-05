@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::common::{ChannelCount, SampleRate};
 use crate::source::uniform::UniformSourceIterator;
 use crate::source::SeekError;
-use crate::Source;
+use crate::{BitDepth, Source};
 
 /// Internal function that builds a `Mix` object.
 pub fn mix<I1, I2>(input1: I1, input2: I2) -> Mix<I1, I2>
@@ -114,7 +114,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         let f1 = self.input1.bits_per_sample();
         let f2 = self.input2.bits_per_sample();
 

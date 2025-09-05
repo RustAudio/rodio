@@ -1,4 +1,4 @@
-use crate::common::{ChannelCount, Float, SampleRate};
+use crate::common::{BitDepth, ChannelCount, Float, SampleRate};
 use crate::math::PI;
 use crate::{Sample, Source};
 use std::time::Duration;
@@ -174,7 +174,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.input.bits_per_sample()
     }
 

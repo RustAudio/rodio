@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::{duration_to_float, nz, secs_to_duration};
-use crate::{Float, Source};
+use crate::{BitDepth, Float, Source};
 
 /// Internal function that builds a `TrackPosition` object. See trait docs for
 /// details
@@ -143,7 +143,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.input.bits_per_sample()
     }
 

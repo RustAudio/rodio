@@ -54,7 +54,6 @@
 
 use std::{
     io::{Read, Seek, SeekFrom},
-    num::NonZero,
     sync::Arc,
     time::Duration,
 };
@@ -66,7 +65,7 @@ use minimp3_fixed as minimp3;
 
 use super::{utils, Settings};
 use crate::{
-    common::{ChannelCount, Sample, SampleRate},
+    common::{BitDepth, ChannelCount, Sample, SampleRate},
     decoder::builder::SeekMode,
     math::duration_to_float,
     source::SeekError,
@@ -358,8 +357,9 @@ where
             start_byte,
             current_span: Some(current_span),
             current_span_offset: 0,
-            channels: NonZero::new(channels as _).expect("mp3's have at least one channel"),
-            sample_rate: NonZero::new(sample_rate as _).expect("mp3's have a non zero sample rate"),
+            channels: ChannelCount::new(channels as _).expect("mp3's have at least one channel"),
+            sample_rate: SampleRate::new(sample_rate as _)
+                .expect("mp3's have a non zero sample rate"),
             samples_read: 0,
             total_samples,
             total_duration,
@@ -541,7 +541,7 @@ where
     /// This method always returns `None` for MP3 streams as bit depth is not
     /// a meaningful concept for lossy compressed audio formats.
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         None
     }
 
@@ -720,7 +720,7 @@ where
 
             // Update channels if they changed (can vary between MP3 frames)
             self.channels =
-                NonZero::new(span.channels as _).expect("mp3's have at least one channel");
+                ChannelCount::new(span.channels as _).expect("mp3's have at least one channel");
             // Sample rate is fixed per MP3 stream, so no need to update
             self.current_span = Some(span);
             self.current_span_offset = 0;

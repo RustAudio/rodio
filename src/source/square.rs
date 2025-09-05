@@ -1,7 +1,7 @@
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
 use crate::source::{Function, SignalGenerator};
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 use std::time::Duration;
 
 use super::SeekError;
@@ -60,8 +60,8 @@ impl Source for SquareWave {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
-        Some(Sample::MANTISSA_DIGITS)
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        crate::common::bits_per_sample()
     }
 
     #[inline]

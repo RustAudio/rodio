@@ -1,8 +1,6 @@
-use rodio::mixer;
 use rodio::source::{SineWave, Source};
-use rodio::Float;
+use rodio::{mixer, ChannelCount, Float, SampleRate};
 use std::error::Error;
-use std::num::NonZero;
 use std::time::Duration;
 
 const NOTE_DURATION: Duration = Duration::from_secs(1);
@@ -10,7 +8,10 @@ const NOTE_AMPLITUDE: Float = 0.20;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Construct a dynamic controller and mixer, stream_handle, and player.
-    let (controller, mixer) = mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(44_100).unwrap());
+    let (controller, mixer) = mixer::mixer(
+        ChannelCount::new(2).unwrap(),
+        SampleRate::new(44_100).unwrap(),
+    );
     let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
     let player = rodio::Player::connect_new(stream_handle.mixer());
 

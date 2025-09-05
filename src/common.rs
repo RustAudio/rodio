@@ -4,7 +4,7 @@ use std::num::NonZero;
 /// Sample rate (a frame rate or samples per second per channel).
 pub type SampleRate = NonZero<u32>;
 
-/// Number of channels in a stream. Can never be Zero
+/// Number of channels in a stream. Can never be zero.
 pub type ChannelCount = NonZero<u16>;
 
 /// Number of bits per sample. Can never be zero.
@@ -41,6 +41,20 @@ pub type Float = f64;
 /// Use conversion traits from [dasp_sample] crate or [crate::conversions::SampleTypeConverter]
 /// to convert between sample types if necessary.
 pub type Sample = Float;
+
+/// The default sample format used for playback and recording. Can be configured to be
+/// either `f32` (default) or `f64` using the `64bit` feature flag.
+#[cfg(not(feature = "64bit"))]
+pub(crate) const SAMPLE_FORMAT: cpal::SampleFormat = cpal::SampleFormat::F32;
+
+/// The default sample format used for playback and recording. Can be configured to be
+/// either `f32` (default) or `f64` using the `64bit` feature flag.
+#[cfg(feature = "64bit")]
+pub(crate) const SAMPLE_FORMAT: cpal::SampleFormat = cpal::SampleFormat::F64;
+
+pub(crate) fn bits_per_sample() -> Option<BitDepth> {
+    BitDepth::new(SAMPLE_FORMAT.bits_per_sample())
+}
 
 /// Used to test at compile time that a struct/enum implements Send, Sync and
 /// is 'static. These are common requirements for dynamic error management

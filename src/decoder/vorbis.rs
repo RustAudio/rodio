@@ -58,7 +58,6 @@
 
 use std::{
     io::{Read, Seek, SeekFrom},
-    num::NonZero,
     sync::Arc,
     time::Duration,
 };
@@ -74,7 +73,7 @@ use lewton::{
 
 use super::{utils, Settings};
 use crate::{
-    common::{ChannelCount, Sample, SampleRate},
+    common::{BitDepth, ChannelCount, Sample, SampleRate},
     decoder::builder::SeekMode,
     math::duration_to_float,
     source::SeekError,
@@ -284,7 +283,7 @@ where
         let mut stream_reader = OggStreamReader::new(data).expect("should still be vorbis");
         let current_data = read_next_non_empty_packet(&mut stream_reader);
 
-        let sample_rate = NonZero::new(stream_reader.ident_hdr.audio_sample_rate)
+        let sample_rate = SampleRate::new(stream_reader.ident_hdr.audio_sample_rate)
             .expect("vorbis has non-zero sample rate");
         let channels = stream_reader.ident_hdr.audio_channels;
 
@@ -554,7 +553,7 @@ where
     /// This method always returns `None` for Vorbis streams as bit depth is not
     /// a meaningful concept for lossy compressed audio formats.
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         None
     }
 

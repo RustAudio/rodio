@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 /// An empty source.
 #[derive(Debug, Default, Copy, Clone)]
@@ -56,7 +56,7 @@ impl Source for Empty {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         None
     }
 

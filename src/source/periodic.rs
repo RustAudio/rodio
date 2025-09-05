@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::{
     common::{ChannelCount, SampleRate},
-    Source,
+    BitDepth, Source,
 };
 
 /// Internal function that builds a `PeriodicAccess` object.
@@ -118,7 +118,7 @@ where
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.input.bits_per_sample()
     }
 

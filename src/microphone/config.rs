@@ -1,5 +1,3 @@
-use std::num::NonZero;
-
 use crate::{math::nz, ChannelCount, SampleRate};
 
 /// Describes the input stream's configuration
@@ -61,9 +59,9 @@ impl From<cpal::SupportedStreamConfig> for InputConfig {
             cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Default,
         };
         Self {
-            channel_count: NonZero::new(value.channels())
+            channel_count: ChannelCount::new(value.channels())
                 .expect("A supported config never has 0 channels"),
-            sample_rate: NonZero::new(value.sample_rate())
+            sample_rate: SampleRate::new(value.sample_rate())
                 .expect("A supported config produces samples"),
             buffer_size,
             sample_format: value.sample_format(),

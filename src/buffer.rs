@@ -5,16 +5,15 @@
 //! # Example
 //!
 //! ```
-//! use rodio::buffer::SamplesBuffer;
-//! use core::num::NonZero;
-//! let _ = SamplesBuffer::new(NonZero::new(1).unwrap(), NonZero::new(44100).unwrap(), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+//! use rodio::{ChannelCount, SampleRate, buffer::SamplesBuffer};
+//! let _ = SamplesBuffer::new(ChannelCount::new(1).unwrap(), SampleRate::new(44100).unwrap(), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 //! ```
 //!
 
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::{duration_to_float, NANOS_PER_SEC};
 use crate::source::{SeekError, UniformSourceIterator};
-use crate::{Float, Sample, Source};
+use crate::{BitDepth, Float, Sample, Source};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -97,7 +96,7 @@ impl Source for SamplesBuffer {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         None
     }
 

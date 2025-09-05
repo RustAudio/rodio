@@ -2,13 +2,13 @@ use std::io::Cursor;
 use std::time::Duration;
 use std::vec;
 
-use rodio::{ChannelCount, Sample, SampleRate, Source};
+use rodio::{BitDepth, ChannelCount, Sample, SampleRate, Source};
 
 pub struct TestSource {
     samples: vec::IntoIter<Sample>,
     channels: ChannelCount,
     sample_rate: SampleRate,
-    bits_per_sample: Option<u32>,
+    bits_per_sample: Option<BitDepth>,
     total_duration: Duration,
 }
 
@@ -50,7 +50,7 @@ impl Source for TestSource {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         self.bits_per_sample
     }
 }

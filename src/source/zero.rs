@@ -4,7 +4,7 @@ use dasp_sample::Sample as DaspSample;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 /// An source that produces samples with value zero (silence). Depending on if
 /// it where created with [`Zero::new`] or [`Zero::new_samples`] it can be never
@@ -100,8 +100,8 @@ impl Source for Zero {
     }
 
     #[inline]
-    fn bits_per_sample(&self) -> Option<u32> {
-        Some(Sample::MANTISSA_DIGITS)
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        crate::common::bits_per_sample()
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {

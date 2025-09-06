@@ -158,7 +158,7 @@ impl Source for SignalGenerator {
 
     #[inline]
     fn bits_per_sample(&self) -> Option<BitDepth> {
-        crate::common::bits_per_sample()
+        Some(crate::common::BITS_PER_SAMPLE)
     }
 
     #[inline]

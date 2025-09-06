@@ -131,8 +131,8 @@ impl<I: Iterator<Item = Sample>> Iterator for WholeFrames<I> {
 #[cfg(test)]
 mod test {
     use super::wav_to_file;
-    use crate::{Sample, Source};
-    use dasp_sample::Sample as DaspSample;
+    use crate::{Decoder, Sample, Source};
+    use dasp_sample::Sample as _;
     use std::io::BufReader;
     use std::time::Duration;
 
@@ -146,25 +146,22 @@ mod test {
         let wav_file_path = "target/tmp/save-to-wav-test.wav";
         wav_to_file(&mut make_source(), wav_file_path).expect("output file can be written");
 
-        let file = std::fs::File::open(wav_file_path).expect("output file can be opened");
-        // Not using crate::Decoder bcause it is limited to i16 samples.
-        let mut reader =
-            hound::WavReader::new(BufReader::new(file)).expect("wav file can be read back");
+        let path = std::path::Path::new(wav_file_path);
+        let decoder = Decoder::try_from(path).expect("wav file can be read back");
         let reference = make_source();
-        assert_eq!(reference.sample_rate().get(), reader.spec().sample_rate);
-        assert_eq!(reference.channels().get(), reader.spec().channels);
+        assert_eq!(reference.sample_rate(), decoder.sample_rate());
+        assert_eq!(reference.channels(), decoder.channels());
 
         // WAV files always use f32 samples (hound limitation)
-        let actual_samples: Vec<f32> = reader.samples::<f32>().map(|x| x.unwrap()).collect();
+        let actual_samples: Vec<f32> = decoder.into_iter().map(|x| x.to_sample::<f32>()).collect();
         let expected_samples: Vec<f32> = reference
             .into_iter()
             .map(|s| s.to_sample::<f32>())
             .collect();
 
-        assert_eq!(
-            actual_samples.len(),
-            expected_samples.len(),
-            "sample counts should match"
+        assert!(
+            expected_samples == actual_samples,
+            "wav samples do not match the source"
         );
         for (actual, expected) in actual_samples.iter().zip(expected_samples.iter()) {
             assert_eq!(actual, expected, "wav samples do not match the source");

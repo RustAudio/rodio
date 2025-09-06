@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 use std::num::NonZero;
 
+use crate::nz;
+
 /// Sample rate (a frame rate or samples per second per channel).
 pub type SampleRate = NonZero<u32>;
 
@@ -42,19 +44,15 @@ pub type Float = f64;
 /// to convert between sample types if necessary.
 pub type Sample = Float;
 
-/// The default sample format used for playback and recording. Can be configured to be
-/// either `f32` (default) or `f64` using the `64bit` feature flag.
+/// Number of bits per sample used in internal calculations. Can be configured to be
+/// either 32 (default) or 64 using the `64bit` feature flag.
 #[cfg(not(feature = "64bit"))]
-pub(crate) const SAMPLE_FORMAT: cpal::SampleFormat = cpal::SampleFormat::F32;
+pub(crate) const BITS_PER_SAMPLE: BitDepth = nz!(32);
 
-/// The default sample format used for playback and recording. Can be configured to be
-/// either `f32` (default) or `f64` using the `64bit` feature flag.
+/// Number of bits per sample used in internal calculations. Can be configured to be
+/// either 32 (default) or 64 using the `64bit` feature flag.
 #[cfg(feature = "64bit")]
-pub(crate) const SAMPLE_FORMAT: cpal::SampleFormat = cpal::SampleFormat::F64;
-
-pub(crate) fn bits_per_sample() -> Option<BitDepth> {
-    BitDepth::new(SAMPLE_FORMAT.bits_per_sample())
-}
+pub(crate) const BITS_PER_SAMPLE: BitDepth = nz!(64);
 
 /// Used to test at compile time that a struct/enum implements Send, Sync and
 /// is 'static. These are common requirements for dynamic error management

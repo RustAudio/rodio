@@ -341,12 +341,10 @@ fn time_remaining(decoder: Decoder<impl Read + Seek>) -> Duration {
 
 fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/music").with_extension(format);
-    let file = std::fs::File::open(asset).unwrap();
-    Decoder::try_from(file).unwrap()
+    Decoder::try_from(asset).unwrap()
 }
 
 fn get_rl(format: &str) -> Decoder<impl Read + Seek> {
     let asset = Path::new("assets/RL").with_extension(format);
-    let file = std::fs::File::open(asset).unwrap();
-    Decoder::try_from(file).unwrap()
+    Decoder::try_from(asset).unwrap()
 }

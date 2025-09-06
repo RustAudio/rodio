@@ -101,7 +101,7 @@ impl Source for Zero {
 
     #[inline]
     fn bits_per_sample(&self) -> Option<BitDepth> {
-        crate::common::bits_per_sample()
+        Some(crate::common::BITS_PER_SAMPLE)
     }
 
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {

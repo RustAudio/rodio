@@ -315,7 +315,6 @@ impl SourcesQueueOutput {
 #[cfg(test)]
 mod tests {
     use crate::buffer::SamplesBuffer;
-    use crate::common::BITS_PER_SAMPLE;
     use crate::math::nz;
     use crate::source::{SeekError, Source};
     use crate::{queue, BitDepth, ChannelCount, Sample, SampleRate};
@@ -525,7 +524,11 @@ mod tests {
         }
 
         fn bits_per_sample(&self) -> Option<BitDepth> {
-            Some(BITS_PER_SAMPLE)
+            #[cfg(not(feature = "64bit"))]
+            let bits = 32;
+            #[cfg(feature = "64bit")]
+            let bits = 64;
+            BitDepth::new(bits)
         }
 
         fn total_duration(&self) -> Option<Duration> {

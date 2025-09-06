@@ -5,13 +5,13 @@
 //!
 //! # Usage
 //!
-//! The simplest way to decode files (automatically sets up seeking and duration):
+//! The simplest way to decode files (automatically sets up seeking, duration and format hint):
 //! ```no_run
-//! use std::fs::File;
+//! use std::path::Path;
 //! use rodio::Decoder;
 //!
-//! let file = File::open("audio.mp3").unwrap();
-//! let decoder = Decoder::try_from(file).unwrap();  // Automatically sets byte_len from metadata
+//! let path = Path::new("audio.mp3");
+//! let decoder = Decoder::try_from(path).unwrap();  // Automatically sets byte_len from metadata
 //! ```
 //!
 //! For more control over decoder settings, use the builder pattern:
@@ -322,8 +322,8 @@ impl<R: Read + Seek> DecoderImpl<R> {
 /// use std::fs::File;
 /// use rodio::Decoder;
 ///
-/// let file = File::open("music.mp3").unwrap();
-/// let decoder = Decoder::try_from(file).unwrap();
+/// let path = std::path::Path::new("music.mp3");
+/// let decoder = Decoder::try_from(path).unwrap();
 /// ```
 impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
     type Error = DecoderError;

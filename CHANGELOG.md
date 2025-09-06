@@ -36,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `with_scan_duration()` - Enable file scanning for duration computation.
 - All alternative decoders now support `Settings` via `new_with_settings()`.
 - Symphonia decoder handles multi-track containers and chained Ogg streams.
+- Added `Decoder::TryFrom` implementations for memory-based types:
+  - `Vec<u8>` - Decoding from owned byte vectors
+  - `Box<[u8]>` - Decoding from boxed byte slices
+  - `Arc<[u8]>` - Decoding from shared byte slices
+  - `&'static [u8]` - Decoding from embedded static data
+  - `Cow<'static, [u8]>` - Decoding from borrowed or owned byte data
+  - `bytes::Bytes` - Decoding from bytes crate (requires `bytes` feature)
+  - `&Path` and `PathBuf` - Convenient file path decoding with format hints
+- `TryFrom<BufReader<R>>` and `TryFrom<Cursor<T>>` now use `DecoderBuilder` with optimized settings
+  instead of basic `Decoder::new()` - enabling seeking and byte length detection where possible.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.

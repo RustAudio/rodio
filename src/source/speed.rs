@@ -21,9 +21,9 @@
 //! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
 //!         .expect("open default audio stream");
 //! // Load a sound from a file, using a path relative to `Cargo.toml`
-//! let file = File::open("examples/music.ogg").unwrap();
+//! let path = std::path::Path::new("examples/music.ogg");
 //! // Decode that sound file into a source
-//! let source = Decoder::try_from(file).unwrap();
+//! let source = Decoder::try_from(path).unwrap();
 //! // Play the sound directly on the device 2x faster
 //! stream_handle.mixer().add(source.speed(2.0));
 //! std::thread::sleep(std::time::Duration::from_secs(5));

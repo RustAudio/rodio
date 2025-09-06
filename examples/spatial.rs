@@ -28,8 +28,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         positions.2,
     );
 
-    let file = std::fs::File::open("assets/music.ogg")?;
-    let source = rodio::Decoder::try_from(file)?
+    let path = std::path::Path::new("assets/music.ogg");
+    let source = rodio::Decoder::try_from(path)?
         .repeat_infinite()
         .take_duration(total_duration);
     sink.append(source);

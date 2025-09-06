@@ -1,7 +1,7 @@
 use rodio::source::Source;
 use rodio::Decoder;
 use std::error::Error;
-use std::fs::File;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -12,8 +12,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
     // Decode the sound file into a source
-    let file = File::open("assets/music.flac")?;
-    let source = Decoder::try_from(file)?;
+    let path = Path::new("assets/music.flac");
+    let source = Decoder::try_from(path)?;
 
     // Apply automatic gain control to the source
     let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);

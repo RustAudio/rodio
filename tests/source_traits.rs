@@ -329,8 +329,9 @@ fn decoder_returns_hi_res_bit_depths() {
     ];
 
     for (asset, bit_depth) in CASES {
-        let file = std::fs::File::open(format!("assets/{asset}")).unwrap();
-        if let Ok(decoder) = rodio::Decoder::try_from(file) {
+        let path_str = format!("assets/{asset}");
+        let path = std::path::Path::new(&path_str);
+        if let Ok(decoder) = rodio::Decoder::try_from(path) {
             // TODO: Symphonia returns None for audacity32bit.wav (float)
             if let Some(returned_bit_depth) = decoder.bits_per_sample() {
                 assert_eq!(

@@ -23,9 +23,9 @@
 //!         .expect("open default audio stream");
 //! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 //! // Load a sound from a file, using a path relative to Cargo.toml
-//! let file = File::open("examples/music.ogg").unwrap();
+//! let path = std::path::Path::new("examples/music.ogg");
 //! // Decode that sound file into a source
-//! let source = Decoder::try_from(file).unwrap();
+//! let source = Decoder::try_from(path).unwrap();
 //! // Play the sound directly on the device
 //! stream_handle.mixer().add(source);
 //!

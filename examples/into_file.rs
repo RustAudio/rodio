@@ -5,8 +5,8 @@ use std::error::Error;
 /// This example does not use any audio devices
 /// and can be used in build configurations without `cpal` feature enabled.
 fn main() -> Result<(), Box<dyn Error>> {
-    let file = std::fs::File::open("assets/music.mp3")?;
-    let mut audio = rodio::Decoder::try_from(file)?
+    let path = std::path::Path::new("assets/music.mp3");
+    let mut audio = rodio::Decoder::try_from(path)?
         .automatic_gain_control(1.0, 4.0, 0.005, 3.0)
         .speed(0.8);
 

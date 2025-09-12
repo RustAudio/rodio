@@ -19,6 +19,7 @@
 //! ```rust
 //! use std::num::NonZero;
 //! use rodio::source::noise::{WhiteUniform, Pink, WhiteTriangular, Blue, Red};
+//! use rodio::SampleRate;
 //!
 //! let sample_rate = NonZero::new(44100).unwrap();
 //!

@@ -11,14 +11,23 @@ edition = "2021"
 
 [features]
 # Default feature set provides audio playback and common format support
-default = ["playback", "recording", "flac", "mp3", "mp4", "vorbis", "wav"]
+default = [
+    "playback",
+    "recording",
+    "flac",
+    "mp3",
+    "mp4",
+    "vorbis",
+    "wav",
+    "dither",
+]
 
 # Core functionality features
 #
 # Enable audio playback
 playback = ["dep:cpal"]
 # Enable audio recording
-recording = ["dep:cpal", "rtrb"]
+recording = ["dep:cpal", "dep:rtrb"]
 # Enable writing audio to WAV files
 wav_output = ["dep:hound"]
 # Enable structured observability and instrumentation
@@ -28,6 +37,8 @@ experimental = ["dep:atomic_float"]
 
 # Audio generation features
 #
+# Enable audio dithering
+dither = ["noise"]
 # Enable noise generation (white noise, pink noise, etc.)
 noise = ["rand", "rand_distr"]
 

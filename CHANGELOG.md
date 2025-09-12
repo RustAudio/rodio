@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   SamplesBuffer.
 - Adds `wav_to_writer` which writes a `Source` to a writer.
 - Added supported for `I24` output (24-bit samples on 4 bytes storage).
+- Added audio dithering support with `dither` feature (enabled by default):
+  - Four dithering algorithms: `TPDF`, `RPDF`, `GPDF`, and `HighPass`
+  - `DitherAlgorithm` enum for algorithm selection
+  - `dither()` function for applying quantization noise shaping
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.

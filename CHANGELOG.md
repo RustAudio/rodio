@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `&Path` and `PathBuf` - Convenient file path decoding with format hints
 - `TryFrom<BufReader<R>>` and `TryFrom<Cursor<T>>` now use `DecoderBuilder` with optimized settings
   instead of basic `Decoder::new()` - enabling seeking and byte length detection where possible.
+- Added audio dithering support with `dither` feature (enabled by default):
+  - Four dithering algorithms: `TPDF`, `RPDF`, `GPDF`, and `HighPass`
+  - `DitherAlgorithm` enum for algorithm selection
+  - `dither()` function for applying quantization noise shaping
 
 ### Changed
 - `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.

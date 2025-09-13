@@ -71,7 +71,8 @@ use lewton::{
     VorbisError::{BadAudio, OggError},
 };
 
-use super::{utils, Settings};
+use super::utils;
+use crate::decoder::builder::Settings;
 use crate::{
     common::{BitDepth, ChannelCount, Sample, SampleRate},
     decoder::builder::SeekMode,

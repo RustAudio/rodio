@@ -63,7 +63,8 @@ use dasp_sample::Sample as _;
 use minimp3::{Decoder, Frame};
 use minimp3_fixed as minimp3;
 
-use super::{utils, Settings};
+use super::utils;
+use crate::decoder::builder::Settings;
 use crate::{
     common::{BitDepth, ChannelCount, Sample, SampleRate},
     decoder::builder::SeekMode,

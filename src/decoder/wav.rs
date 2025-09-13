@@ -75,7 +75,7 @@ use hound::{SampleFormat, WavReader};
 use super::utils;
 use crate::{
     common::{BitDepth, ChannelCount, SampleRate},
-    decoder::Settings,
+    decoder::builder::Settings,
     math::duration_to_float,
     source::SeekError,
     Float, Sample, Source,

@@ -101,11 +101,6 @@ use crate::{
 /// MP3 frames can theoretically change channel configuration, though this is
 /// rare in practice. The decoder handles such changes dynamically.
 ///
-/// # Thread Safety
-///
-/// This decoder is not thread-safe. Create separate instances for concurrent access
-/// or use appropriate synchronization primitives.
-///
 /// # Generic Parameters
 ///
 /// * `R` - The underlying data source type, must implement `Read + Seek`
@@ -113,10 +108,8 @@ pub struct Mp3Decoder<R>
 where
     R: Read + Seek,
 {
-    /// The underlying minimp3 decoder, wrapped in Option for seeking operations.
-    ///
-    /// Temporarily set to `None` during stream reset operations for seeking.
-    /// Always `Some` during normal operation and iteration.
+    /// The underlying minimp3 decoder, wrapped in Option to allow owning the
+    /// Decoder instance during seeking.
     decoder: Option<Decoder<R>>,
 
     /// Byte position where audio data begins (after headers/metadata).
@@ -145,8 +138,7 @@ where
 
     /// Sample rate in Hz.
     ///
-    /// Fixed for the entire MP3 stream. Common rates include 44.1kHz (CD quality),
-    /// 48kHz (professional), and various rates for different MPEG versions.
+    /// Does not change after decoder initialization.
     sample_rate: SampleRate,
 
     /// Number of samples read so far (for seeking calculations).
@@ -746,12 +738,6 @@ where
     /// Provides size estimates based on MP3 metadata and current playback position.
     /// The accuracy depends on the availability and reliability of duration information.
     ///
-    /// # Returns
-    ///
-    /// A tuple `(lower_bound, upper_bound)` where:
-    /// - `lower_bound`: Minimum number of samples guaranteed to be available
-    /// - `upper_bound`: Maximum number of samples that might be available (None if unknown)
-    ///
     /// # Accuracy Levels
     ///
     /// - **High accuracy**: When total samples calculated from scanned duration
@@ -847,39 +833,6 @@ fn get_mp3_duration<R: Read + Seek>(data: &mut R) -> Option<Duration> {
 }
 
 /// Probes input data to detect MP3 format.
-///
-/// This function attempts to decode the first MP3 frame to determine if the
-/// data contains a valid MP3 stream. The stream position is restored regardless
-/// of the result, making it safe to use for format detection.
-///
-/// # Arguments
-///
-/// * `data` - Mutable reference to the input stream to probe
-///
-/// # Returns
-///
-/// - `true` if the data appears to contain a valid MP3 stream
-/// - `false` if the data is not MP3 or is corrupted
-///
-/// # Implementation
-///
-/// Uses the common `utils::probe_format` helper which:
-/// 1. Saves the current stream position
-/// 2. Attempts MP3 detection using `minimp3::Decoder`
-/// 3. Restores the original stream position
-/// 4. Returns the detection result
-///
-/// # Performance
-///
-/// This function only reads the minimum amount of data needed to identify
-/// and decode the first MP3 frame, making it efficient for format detection
-/// in multi-format scenarios.
-///
-/// # Robustness
-///
-/// The detection uses actual frame decoding rather than just header checking,
-/// providing more reliable format identification at the cost of slightly
-/// higher computational overhead.
 fn is_mp3<R>(data: &mut R) -> bool
 where
     R: Read + Seek,

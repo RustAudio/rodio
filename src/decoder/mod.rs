@@ -111,14 +111,10 @@ pub struct LoopedDecoder<R: Read + Seek> {
     inner: Option<DecoderImpl<R>>,
     /// Configuration settings for the decoder.
     settings: Settings,
-    /// Cached metadata from the first successful decoder creation.
     /// Used to avoid expensive file scanning on subsequent loops.
     cached_duration: Option<Duration>,
 }
 
-// Cannot really reduce the size of the VorbisDecoder. There are not any
-/// Internal enum representing different decoder implementations.
-///
 /// This enum dispatches to the appropriate decoder based on detected format
 /// and available features. Large enum variant size is acceptable here since
 /// these are infrequently created and moved.
@@ -145,7 +141,6 @@ enum DecoderImpl<R: Read + Seek> {
     None(Unreachable, PhantomData<R>),
 }
 
-/// Placeholder type for the None variant that can never be instantiated.
 enum Unreachable {}
 
 impl<R: Read + Seek> DecoderImpl<R> {

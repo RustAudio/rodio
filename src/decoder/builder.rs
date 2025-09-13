@@ -845,10 +845,6 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// on each loop iteration, improving performance for repeated playback.
     pub fn build_looped(self) -> Result<LoopedDecoder<R>, DecoderError> {
         let (decoder, settings) = self.build_impl()?;
-        Ok(LoopedDecoder {
-            inner: Some(decoder),
-            settings,
-            cached_duration: None,
-        })
+        Ok(LoopedDecoder::new(decoder, settings))
     }
 }

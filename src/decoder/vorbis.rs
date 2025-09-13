@@ -105,11 +105,6 @@ use crate::{
 /// Ogg supports chained streams where multiple Vorbis streams are concatenated.
 /// The decoder adapts to parameter changes (sample rate, channels) between streams.
 ///
-/// # Thread Safety
-///
-/// This decoder is not thread-safe. Create separate instances for concurrent access
-/// or use appropriate synchronization primitives.
-///
 /// # Generic Parameters
 ///
 /// * `R` - The underlying data source type, must implement `Read + Seek`
@@ -725,12 +720,6 @@ where
     /// playback position. The accuracy depends on the availability of duration information
     /// from granule position scanning or explicit duration settings.
     ///
-    /// # Returns
-    ///
-    /// A tuple `(lower_bound, upper_bound)` where:
-    /// - `lower_bound`: Minimum number of samples guaranteed to be available
-    /// - `upper_bound`: Maximum number of samples that might be available (None if unknown)
-    ///
     /// # Accuracy Levels
     ///
     /// - **High accuracy**: When total samples calculated from granule scanning
@@ -995,39 +984,6 @@ fn granules_to_duration(granules: u64, sample_rate: SampleRate) -> Duration {
 }
 
 /// Probes input data to detect Ogg Vorbis format.
-///
-/// This function attempts to initialize a lewton OggStreamReader to determine if the
-/// data contains a valid Ogg Vorbis stream. The stream position is restored regardless
-/// of the result, making it safe to use for format detection.
-///
-/// # Arguments
-///
-/// * `data` - Mutable reference to the input stream to probe
-///
-/// # Returns
-///
-/// - `true` if the data appears to contain a valid Ogg Vorbis stream
-/// - `false` if the data is not Ogg Vorbis or is corrupted
-///
-/// # Implementation
-///
-/// Uses the common `utils::probe_format` helper which:
-/// 1. Saves the current stream position
-/// 2. Attempts Ogg Vorbis detection using `lewton::OggStreamReader`
-/// 3. Restores the original stream position
-/// 4. Returns the detection result
-///
-/// # Performance
-///
-/// This function reads the minimum amount of data needed to identify the Ogg
-/// container format and Vorbis codec headers, making it efficient for format
-/// detection in multi-format scenarios.
-///
-/// # Robustness
-///
-/// The detection uses actual stream reader initialization rather than just header
-/// checking, providing reliable format identification with proper Ogg/Vorbis
-/// validation at the cost of slightly higher computational overhead.
 fn is_vorbis<R>(data: &mut R) -> bool
 where
     R: Read + Seek,

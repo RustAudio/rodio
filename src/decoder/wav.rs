@@ -116,11 +116,6 @@ use crate::{
 /// - **Channel preservation**: Maintains correct channel order across seeks
 /// - **Sample accuracy**: Precise positioning without approximation
 ///
-/// # Thread Safety
-///
-/// This decoder is not thread-safe. Create separate instances for concurrent access
-/// or use appropriate synchronization primitives.
-///
 /// # Generic Parameters
 ///
 /// * `R` - The underlying data source type, must implement `Read + Seek`
@@ -459,12 +454,6 @@ where
     /// header information and current position. This enables accurate
     /// buffer pre-allocation and progress indication.
     ///
-    /// # Returns
-    ///
-    /// A tuple `(lower_bound, upper_bound)` where:
-    /// - `lower_bound`: Always 0 (no samples guaranteed without I/O)
-    /// - `upper_bound`: Exact remaining sample count from WAV header
-    ///
     /// # Accuracy
     ///
     /// WAV files provide exact sample counts in their headers, making the
@@ -674,12 +663,6 @@ where
     ///
     /// Delegates to the internal `SamplesIterator` which provides exact
     /// remaining sample count based on WAV header information.
-    ///
-    /// # Returns
-    ///
-    /// A tuple `(lower_bound, upper_bound)` where:
-    /// - `lower_bound`: Always 0 (no samples guaranteed without I/O)
-    /// - `upper_bound`: Exact remaining sample count from WAV header
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.reader.size_hint()
@@ -687,41 +670,6 @@ where
 }
 
 /// Probes input data to detect WAV format.
-///
-/// This function attempts to parse the RIFF/WAVE headers to determine if the
-/// data contains a valid WAV file. The stream position is restored regardless
-/// of the result, making it safe to use for format detection.
-///
-/// # Arguments
-///
-/// * `data` - Mutable reference to the input stream to probe
-///
-/// # Returns
-///
-/// - `true` if the data appears to contain a valid WAV file
-/// - `false` if the data is not WAV or has invalid headers
-///
-/// # Implementation
-///
-/// Uses the common `utils::probe_format` helper which:
-/// 1. Saves the current stream position
-/// 2. Attempts WAV detection using `hound::WavReader`
-/// 3. Restores the original stream position
-/// 4. Returns the detection result
-///
-/// # Performance
-///
-/// This function only reads the minimal amount of data needed to identify
-/// the RIFF/WAVE headers, making it very efficient for format detection
-/// in multi-format scenarios.
-///
-/// # Robustness
-///
-/// The detection uses hound's robust RIFF/WAVE parsing which validates:
-/// - RIFF container format compliance
-/// - WAVE format identification
-/// - fmt chunk presence and validity
-/// - Basic structural integrity
 fn is_wave<R>(data: &mut R) -> bool
 where
     R: Read + Seek,

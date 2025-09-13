@@ -135,11 +135,6 @@ use crate::{decoder::builder::Settings, BitDepth};
 /// - **Reset required**: Recreate decoder and continue with next track
 /// - **I/O errors**: Attempt to continue when possible
 /// - **Terminal errors**: Clean shutdown when recovery is impossible
-///
-/// # Thread Safety
-///
-/// This decoder is not thread-safe. Create separate instances for concurrent access
-/// or use appropriate synchronization primitives.
 pub struct SymphoniaDecoder {
     /// The underlying Symphonia audio decoder.
     ///
@@ -1054,12 +1049,6 @@ impl Iterator for SymphoniaDecoder {
     ///
     /// For multi-track files, estimates represent the currently selected audio
     /// track, not the entire file duration or all tracks combined.
-    ///
-    /// # Returns
-    ///
-    /// A tuple `(lower_bound, upper_bound)` where:
-    /// - `lower_bound`: Minimum number of samples guaranteed to be available
-    /// - `upper_bound`: Maximum number of samples that might be available (None if unknown)
     fn size_hint(&self) -> (usize, Option<usize>) {
         // Samples already decoded and buffered (guaranteed available)
         let buffered_samples = self
@@ -1189,36 +1178,34 @@ fn should_continue_on_decode_error(
     }
 }
 
+/// Converts Rodio's SeekMode to Symphonia's SeekMode.
+///
+/// This conversion maps Rodio's seeking preferences to Symphonia's
+/// internal seeking modes, enabling consistent seeking behavior
+/// across different audio processing layers.
+///
+/// # Mapping
+///
+/// - `SeekMode::Fastest` → `SymphoniaSeekMode::Coarse`
+///   - Prioritizes speed over precision
+///   - Uses keyframe-based seeking when available
+///   - Suitable for user scrubbing and fast navigation
+/// - `SeekMode::Nearest` → `SymphoniaSeekMode::Accurate`
+///   - Prioritizes precision over speed
+///   - Attempts sample-accurate positioning
+///   - Suitable for gapless playback and precise positioning
+///
+/// # Performance Implications
+///
+/// The choice between modes affects performance significantly:
+/// - **Coarse**: Fast seeks but may require fine-tuning
+/// - **Accurate**: Slower seeks but precise positioning
+///
+/// # Format Compatibility
+///
+/// Not all formats support both modes equally. Automatic
+/// fallbacks may occur when preferred mode unavailable.
 impl From<SeekMode> for SymphoniaSeekMode {
-    /// Converts Rodio's SeekMode to Symphonia's SeekMode.
-    ///
-    /// This conversion maps Rodio's seeking preferences to Symphonia's
-    /// internal seeking modes, enabling consistent seeking behavior
-    /// across different audio processing layers.
-    ///
-    /// # Mapping
-    ///
-    /// - `SeekMode::Fastest` → `SymphoniaSeekMode::Coarse`
-    ///   - Prioritizes speed over precision
-    ///   - Uses keyframe-based seeking when available
-    ///   - Suitable for user scrubbing and fast navigation
-    /// - `SeekMode::Nearest` → `SymphoniaSeekMode::Accurate`
-    ///   - Prioritizes precision over speed
-    ///   - Attempts sample-accurate positioning
-    ///   - Suitable for gapless playback and precise positioning
-    ///
-    /// # Performance Implications
-    ///
-    /// The choice between modes affects performance significantly:
-    /// - **Coarse**: Fast seeks but may require fine-tuning
-    /// - **Accurate**: Slower seeks but precise positioning
-    ///
-    /// # Format Compatibility
-    ///
-    /// Not all formats support both modes equally:
-    /// - Some formats only implement one mode effectively
-    /// - Automatic fallbacks may occur when preferred mode unavailable
-    /// - Mode availability may depend on stream characteristics
     fn from(mode: SeekMode) -> Self {
         match mode {
             SeekMode::Fastest => SymphoniaSeekMode::Coarse,

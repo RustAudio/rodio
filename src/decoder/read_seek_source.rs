@@ -52,12 +52,6 @@ use crate::decoder::builder::Settings;
 /// - **Byte length**: Total stream size for seeking and progress calculations
 /// - **Configuration**: Stream properties from decoder builder settings
 ///
-/// # Thread Safety
-///
-/// This wrapper requires `Send + Sync` bounds on the wrapped type to ensure
-/// thread safety for Symphonia's internal operations. Most standard I/O types
-/// satisfy these requirements.
-///
 /// # Generic Parameters
 ///
 /// * `T` - The wrapped I/O type, must implement `Read + Seek + Send + Sync`

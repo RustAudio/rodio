@@ -107,11 +107,6 @@ const READER_OPTIONS: FlacReaderOptions = FlacReaderOptions {
 /// to minimize allocations during playback. Buffers are reused across blocks for
 /// optimal performance.
 ///
-/// # Thread Safety
-///
-/// This decoder is not thread-safe. Create separate instances for concurrent access
-/// or use appropriate synchronization primitives.
-///
 /// # Generic Parameters
 ///
 /// * `R` - The underlying data source type, must implement `Read + Seek`
@@ -526,20 +521,6 @@ where
     /// buffer of the current FLAC block. It returns samples one at a time while
     /// automatically decoding new blocks as needed.
     ///
-    /// # Sample Format Conversion
-    ///
-    /// Raw FLAC samples are converted to Rodio's sample format based on bit depth:
-    /// - 8-bit: Direct conversion from `i8`
-    /// - 16-bit: Direct conversion from `i16`
-    /// - 24-bit: Conversion using `I24` type
-    /// - 32-bit: Direct conversion from `i32`
-    /// - Other (12, 20-bit): Bit-shifted to 32-bit then converted
-    ///
-    /// # Performance
-    ///
-    /// - **Hot path**: Returning samples from current block (very fast)
-    /// - **Cold path**: Decoding new blocks when buffer is exhausted (slower)
-    ///
     /// # Returns
     ///
     /// - `Some(sample)` - Next audio sample
@@ -610,12 +591,6 @@ where
     /// This information can be used by consumers for buffer pre-allocation
     /// and progress indication.
     ///
-    /// # Returns
-    ///
-    /// A tuple `(lower_bound, upper_bound)` where:
-    /// - `lower_bound`: Minimum number of samples guaranteed to be available
-    /// - `upper_bound`: Maximum number of samples that might be available (None if unknown)
-    ///
     /// # Accuracy
     ///
     /// - **With metadata**: Exact remaining sample count (lower == upper)
@@ -646,32 +621,6 @@ where
 }
 
 /// Probes input data to detect FLAC format.
-///
-/// This function attempts to parse the FLAC magic bytes and stream info header to determine if the
-/// data contains a valid FLAC stream. The stream position is restored regardless of the result.
-///
-/// # Arguments
-///
-/// * `data` - Mutable reference to the input stream to probe
-///
-/// # Returns
-///
-/// - `true` if the data appears to contain a valid FLAC stream
-/// - `false` if the data is not FLAC or is corrupted
-///
-/// # Implementation
-///
-/// Uses the common `utils::probe_format` helper which:
-/// 1. Saves the current stream position
-/// 2. Attempts FLAC detection using `claxon::FlacReader`
-/// 3. Restores the original stream position
-/// 4. Returns the detection result
-///
-/// # Performance
-///
-/// This function only reads the minimum amount of data needed to identify
-/// the FLAC format (magic bytes and basic header), making it efficient for
-/// format detection in multi-format scenarios.
 fn is_flac<R>(data: &mut R) -> bool
 where
     R: Read + Seek,
@@ -679,21 +628,6 @@ where
     utils::probe_format(data, |reader| FlacReader::new(reader).is_ok())
 }
 
-/// Converts claxon decoder errors to rodio seek errors.
-///
-/// This implementation provides error context preservation when FLAC decoding operations fail
-/// during seeking. The original `claxon` error is wrapped in an `Arc` for thread safety and
-/// converted to the appropriate Rodio error type.
-///
-/// # Error Mapping
-///
-/// All `claxon::Error` variants are mapped to `SeekError::ClaxonDecoder` with the
-/// original error preserved for debugging and error analysis.
-///
-/// # Thread Safety
-///
-/// The error is wrapped in `Arc` to allow sharing across thread boundaries if needed,
-/// following Rodio's error handling patterns.
 impl From<claxon::Error> for SeekError {
     /// Converts a claxon error into a Rodio seek error.
     ///

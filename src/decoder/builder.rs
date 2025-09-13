@@ -62,6 +62,7 @@
 //!     let file = File::open("audio.flac")?;
 //!     let len = file.metadata()?.len();
 //!
+//!     // High-quality decoder with precise seeking
 //!     let decoder = Decoder::builder()
 //!         .with_data(file)
 //!         .with_byte_len(len)
@@ -73,8 +74,7 @@
 //!         .with_gapless(false)
 //!         .build()?;
 //!
-//!     // High-quality decoder with precise seeking
-//!     Ok(())
+//!    Ok(())
 //! }
 //! ```
 //!

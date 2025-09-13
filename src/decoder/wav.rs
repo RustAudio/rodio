@@ -74,7 +74,7 @@ use hound::{SampleFormat, WavReader};
 
 use super::utils;
 use crate::{
-    decoder::Settings, source::SeekError, BitDepth, ChannelCount, Sample, SampleRate, Source,
+    decoder::builder::Settings, source::SeekError, BitDepth, ChannelCount, Sample, SampleRate, Source,
 };
 
 /// Decoder for the WAV format using the `hound` library.

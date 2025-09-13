@@ -71,7 +71,8 @@ use claxon::{FlacReader, FlacReaderOptions};
 use dasp_sample::Sample as _;
 use dasp_sample::I24;
 
-use super::{utils, Settings};
+use super::utils;
+use crate::decoder::builder::Settings;
 use crate::{source::SeekError, BitDepth, ChannelCount, Sample, SampleRate, Source};
 
 /// Reader options for `claxon` FLAC decoder.

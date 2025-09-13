@@ -70,7 +70,8 @@ use lewton::{
     VorbisError::{BadAudio, OggError},
 };
 
-use super::{utils, Settings};
+use super::utils;
+use crate::decoder::builder::Settings;
 use crate::{
     decoder::builder::SeekMode, source::SeekError, BitDepth, ChannelCount, Sample, SampleRate,
     Source,

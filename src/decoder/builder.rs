@@ -106,7 +106,7 @@ use std::{
 };
 
 #[cfg(feature = "symphonia")]
-use self::read_seek_source::ReadSeekSource;
+use super::symphonia::ReadSeekSource;
 #[cfg(feature = "symphonia")]
 use ::symphonia::core::io::{MediaSource, MediaSourceStream};
 

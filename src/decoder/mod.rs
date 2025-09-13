@@ -63,8 +63,8 @@ use crate::{
 pub mod builder;
 pub use builder::DecoderBuilder;
 
-mod utils;
 mod looped;
+mod utils;
 pub use looped::LoopedDecoder;
 
 #[cfg(feature = "claxon")]
@@ -81,7 +81,6 @@ mod wav;
 /// Source of audio samples decoded from an input stream.
 /// See the [module-level documentation](self) for examples and usage.
 pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
-
 
 /// This enum dispatches to the appropriate decoder based on detected format
 /// and available features. Large enum variant size is acceptable here since
@@ -923,9 +922,6 @@ where
         self.0.try_seek(pos)
     }
 }
-
-
-
 
 /// Errors that can occur when creating a decoder.
 #[derive(Debug, thiserror::Error, Clone)]

@@ -21,7 +21,7 @@
 //! use rodio::source::noise::{WhiteUniform, Pink, WhiteTriangular, Blue, Red};
 //! use rodio::SampleRate;
 //!
-//! let sample_rate = SampleRate::new(44100).unwrap();
+//! let sample_rate = rodio::SampleRate::new(44100).unwrap();
 //!
 //! // Simple usage - creates generators with `SmallRng`
 //!

@@ -77,7 +77,11 @@
 //! }
 //! ```
 
-use std::{io::{Read, Seek, SeekFrom}, sync::Arc, time::Duration};
+use std::{
+    io::{Read, Seek, SeekFrom},
+    sync::Arc,
+    time::Duration,
+};
 
 use symphonia::{
     core::{

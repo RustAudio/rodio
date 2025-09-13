@@ -72,8 +72,6 @@ mod flac;
 #[cfg(feature = "minimp3")]
 mod mp3;
 #[cfg(feature = "symphonia")]
-mod read_seek_source;
-#[cfg(feature = "symphonia")]
 mod symphonia;
 #[cfg(feature = "lewton")]
 mod vorbis;

@@ -1,4 +1,4 @@
-use rodio::{output_to_wav, Source};
+use rodio::{wav_to_file, Source};
 use std::error::Error;
 
 /// Converts mp3 file to a wav file.
@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let wav_path = "music_mp3_converted.wav";
     println!("Storing converted audio into {}", wav_path);
-    output_to_wav(&mut audio, wav_path)?;
+    wav_to_file(&mut audio, wav_path)?;
 
     Ok(())
 }

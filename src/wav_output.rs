@@ -1,6 +1,6 @@
 use crate::common::assert_error_traits;
-use crate::Source;
 use crate::Sample;
+use crate::Source;
 use hound::{SampleFormat, WavSpec};
 use std::io::{self, Write};
 use std::path;
@@ -94,10 +94,10 @@ pub fn wav_to_writer(
     Ok(())
 }
 
-struct WholeFrames<I: Iterator<Item=Sample>> {
+struct WholeFrames<I: Iterator<Item = Sample>> {
     buffer: Vec<Sample>,
     pos: usize,
-    source: I
+    source: I,
 }
 
 impl<S: Source> WholeFrames<S> {
@@ -120,13 +120,12 @@ impl<I: Iterator<Item = Sample>> Iterator for WholeFrames<I> {
             }
             self.pos = 0;
         }
-        
+
         let to_yield = self.buffer[self.pos];
         self.pos += 1;
         Some(to_yield)
     }
 }
-
 
 #[cfg(test)]
 mod test {

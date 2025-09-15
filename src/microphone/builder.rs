@@ -162,7 +162,7 @@ where
     /// ```
     pub fn default_device(&self) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
         let default_device = cpal::default_host()
-            .default_output_device()
+            .default_input_device()
             .ok_or(Error::NoDevice)?;
         let supported_configs = default_device
             .supported_input_configs()

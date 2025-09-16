@@ -4,8 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::math::nz;
-use crate::source::{Empty, SeekError, Source, Zero};
+use crate::source::{Empty, PauseHandle, SeekError, Source};
 use crate::Sample;
 
 use crate::common::{ChannelCount, SampleRate};
@@ -26,15 +25,18 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 /// - If you pass `false`, then the queue will report that it has finished playing.
 ///
 pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
+    let pause_handle = Arc::new(Mutex::new(None));
     let input = Arc::new(SourcesQueueInput {
         next_sounds: Mutex::new(Vec::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
+        pause_handle: Arc::clone(&pause_handle),
     });
 
     let output = SourcesQueueOutput {
         current: Box::new(Empty::new()) as Box<_>,
         signal_after_end: None,
         input: input.clone(),
+        pause_handle,
     };
 
     (input, output)
@@ -51,6 +53,7 @@ pub struct SourcesQueueInput {
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
+    pause_handle: Arc<Mutex<Option<PauseHandle>>>,
 }
 
 impl SourcesQueueInput {
@@ -60,10 +63,21 @@ impl SourcesQueueInput {
     where
         T: Source + Send + 'static,
     {
+        let is_paused = source.is_paused();
         self.next_sounds
             .lock()
             .unwrap()
             .push((Box::new(source) as Box<_>, None));
+        if is_paused {
+            if let Some(pause_handle) = self
+                .pause_handle
+                .lock()
+                .expect("audio thread should not panic")
+                .as_ref()
+            {
+                pause_handle.unpause();
+            }
+        }
     }
 
     /// Adds a new source to the end of the queue.
@@ -104,12 +118,12 @@ impl SourcesQueueInput {
 pub struct SourcesQueueOutput {
     // The current iterator that produces samples.
     current: Box<dyn Source + Send>,
-
     // Signal this sender before picking from `next`.
     signal_after_end: Option<Sender<()>>,
-
     // The next sounds.
     input: Arc<SourcesQueueInput>,
+    // Signal whether this source is paused to the output
+    pause_handle: Arc<Mutex<Option<PauseHandle>>>,
 }
 
 const THRESHOLD: usize = 512;
@@ -180,6 +194,17 @@ impl Source for SourcesQueueOutput {
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.current.try_seek(pos)
     }
+
+    fn set_pause_handle(&mut self, pause_handle: PauseHandle) {
+        *self
+            .pause_handle
+            .lock()
+            .expect("audio thread should not panic") = Some(pause_handle);
+    }
+
+    fn is_paused(&self) -> bool {
+        false
+    }
 }
 
 impl Iterator for SourcesQueueOutput {
@@ -195,8 +220,9 @@ impl Iterator for SourcesQueueOutput {
 
             // Since `self.current` has finished, we need to pick the next sound.
             // In order to avoid inlining this expensive operation, the code is in another function.
-            if self.go_next().is_err() {
-                return None;
+            match self.go_next() {
+                Next::Paused | Next::ShouldEnd => return None,
+                Next::IsNowCurrent => (),
             }
         }
     }
@@ -207,12 +233,18 @@ impl Iterator for SourcesQueueOutput {
     }
 }
 
+enum Next {
+    Paused,
+    ShouldEnd,
+    IsNowCurrent,
+}
+
 impl SourcesQueueOutput {
     // Called when `current` is empty, and we must jump to the next element.
     // Returns `Ok` if the sound should continue playing, or an error if it should stop.
     //
     // This method is separate so that it is not inlined.
-    fn go_next(&mut self) -> Result<(), ()> {
+    fn go_next(&mut self) -> Next {
         if let Some(signal_after_end) = self.signal_after_end.take() {
             let _ = signal_after_end.send(());
         }
@@ -221,12 +253,16 @@ impl SourcesQueueOutput {
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.is_empty() {
-                let silence = Box::new(Zero::new_samples(nz!(1), nz!(44100), THRESHOLD)) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
-                    // Play a short silence in order to avoid spinlocking.
-                    (silence, None)
+                    self.pause_handle
+                        .lock()
+                        .expect("audio thread should not panic")
+                        .as_ref()
+                        .expect("should be set before next is called")
+                        .pause();
+                    return Next::Paused;
                 } else {
-                    return Err(());
+                    return Next::ShouldEnd;
                 }
             } else {
                 next.remove(0)
@@ -235,7 +271,7 @@ impl SourcesQueueOutput {
 
         self.current = next;
         self.signal_after_end = signal_after_end;
-        Ok(())
+        Next::IsNowCurrent
     }
 }
 

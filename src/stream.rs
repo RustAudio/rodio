@@ -6,12 +6,12 @@
 //! There is also a convenience function `play` for using that output mixer to
 //! play a single sound.
 use crate::common::{assert_error_traits, ChannelCount, SampleRate};
-use crate::decoder;
 use crate::math::nz;
-use crate::mixer::{mixer, Mixer, MixerSource};
+use crate::mixer::{mixer, Mixer};
 use crate::sink::Sink;
+use crate::{decoder, Source};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, Sample, SampleFormat, StreamConfig};
+use cpal::{BufferSize, Sample, SampleFormat, StreamConfig, I24};
 use std::fmt;
 use std::io::{Read, Seek};
 use std::marker::Sync;
@@ -462,128 +462,82 @@ impl OutputStream {
         })
     }
 
-    fn init_stream<E>(
+    fn build_stream_for_sample_type<T, S, E>(
+        device: &cpal::Device,
+        config: &cpal::StreamConfig,
+        mut samples: S,
+        error_callback: E,
+    ) -> Result<cpal::Stream, cpal::BuildStreamError>
+    where
+        T: dasp_sample::Sample
+            + cpal::Sample
+            + cpal::SizedSample
+            + cpal::FromSample<crate::Sample>
+            + Send
+            + 'static,
+        S: Source + Send + 'static,
+        E: FnMut(cpal::StreamError) + Send + 'static,
+    {
+        device.build_output_stream::<T, _, _>(
+            config,
+            move |data, _| {
+                data.iter_mut().for_each(|d| {
+                    *d = samples
+                        .next()
+                        .map(Sample::from_sample)
+                        .unwrap_or(T::EQUILIBRIUM)
+                })
+            },
+            error_callback,
+            None,
+        )
+    }
+
+    fn init_stream<S, E>(
         device: &cpal::Device,
         config: &OutputStreamConfig,
-        mut samples: MixerSource,
+        samples: S,
         error_callback: E,
     ) -> Result<cpal::Stream, StreamError>
     where
+        S: Source + Send + 'static,
         E: FnMut(cpal::StreamError) + Send + 'static,
     {
-        let sample_format = config.sample_format;
-        let config = config.into();
+        let cpal_config = config.into();
 
-        match sample_format {
-            cpal::SampleFormat::F32 => device.build_output_stream::<f32, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut()
-                        .for_each(|d| *d = samples.next().unwrap_or(0f32))
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::F64 => device.build_output_stream::<f64, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut()
-                        .for_each(|d| *d = samples.next().map(Sample::from_sample).unwrap_or(0f64))
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::I8 => device.build_output_stream::<i8, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut()
-                        .for_each(|d| *d = samples.next().map(Sample::from_sample).unwrap_or(0i8))
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::I16 => device.build_output_stream::<i16, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut()
-                        .for_each(|d| *d = samples.next().map(Sample::from_sample).unwrap_or(0i16))
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::I32 => device.build_output_stream::<i32, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut()
-                        .for_each(|d| *d = samples.next().map(Sample::from_sample).unwrap_or(0i32))
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::I64 => device.build_output_stream::<i64, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut()
-                        .for_each(|d| *d = samples.next().map(Sample::from_sample).unwrap_or(0i64))
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::U8 => device.build_output_stream::<u8, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut().for_each(|d| {
-                        *d = samples
-                            .next()
-                            .map(Sample::from_sample)
-                            .unwrap_or(u8::MAX / 2)
-                    })
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::U16 => device.build_output_stream::<u16, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut().for_each(|d| {
-                        *d = samples
-                            .next()
-                            .map(Sample::from_sample)
-                            .unwrap_or(u16::MAX / 2)
-                    })
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::U32 => device.build_output_stream::<u32, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut().for_each(|d| {
-                        *d = samples
-                            .next()
-                            .map(Sample::from_sample)
-                            .unwrap_or(u32::MAX / 2)
-                    })
-                },
-                error_callback,
-                None,
-            ),
-            cpal::SampleFormat::U64 => device.build_output_stream::<u64, _, _>(
-                &config,
-                move |data, _| {
-                    data.iter_mut().for_each(|d| {
-                        *d = samples
-                            .next()
-                            .map(Sample::from_sample)
-                            .unwrap_or(u64::MAX / 2)
-                    })
-                },
-                error_callback,
-                None,
-            ),
-            _ => return Err(StreamError::UnsupportedSampleFormat),
+        macro_rules! build_output_streams {
+            ($($sample_format:tt, $generic:ty);+) => {
+                match config.sample_format {
+                    $(
+                        cpal::SampleFormat::$sample_format => Self::build_stream_for_sample_type::<$generic, _, _>(
+                            device,
+                            &cpal_config,
+                            samples,
+                            error_callback,
+                        ),
+                    )+
+                    _ => return Err(StreamError::UnsupportedSampleFormat),
+                }
+            };
         }
-        .map_err(StreamError::BuildStreamError)
+
+        let result = build_output_streams!(
+            F32, f32;
+            F64, f64;
+            I8, i8;
+            I16, i16;
+            I24, I24;
+            I32, i32;
+            I64, i64;
+            U8, u8;
+            U16, u16;
+            // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
+            // U24, U24;
+            U32, u32;
+            U64, u64
+        );
+
+        result.map_err(StreamError::BuildStreamError)
     }
 }
 

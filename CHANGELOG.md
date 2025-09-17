@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds a new method on source: record which collects all samples into a
   SamplesBuffer.
 - Adds `wav_to_writer` which writes a `Source` to a writer.
+- Added supported for `I24` output (24-bit samples on 4 bytes storage).
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.

@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::source::ChannelVolume;
-use crate::Source;
+use crate::{BitDepth, Source};
 
 /// A simple spatial audio source. The underlying source is transformed to Mono
 /// and then played in stereo. The left and right channel's volume are amplified
@@ -110,6 +110,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.input.bits_per_sample()
     }
 
     #[inline]

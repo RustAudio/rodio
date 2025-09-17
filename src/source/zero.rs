@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 /// An source that produces samples with value zero (silence). Depending on if
 /// it where created with [`Zero::new`] or [`Zero::new_samples`] it can be never
@@ -75,6 +75,11 @@ impl Source for Zero {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
+        None
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
         None
     }
 

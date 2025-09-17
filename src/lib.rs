@@ -23,9 +23,9 @@
 //!         .expect("open default audio stream");
 //! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
 //! // Load a sound from a file, using a path relative to Cargo.toml
-//! let file = File::open("examples/music.ogg").unwrap();
+//! let path = std::path::Path::new("examples/music.ogg");
 //! // Decode that sound file into a source
-//! let source = Decoder::try_from(file).unwrap();
+//! let source = Decoder::try_from(path).unwrap();
 //! // Play the sound directly on the device
 //! stream_handle.mixer().add(source);
 //!
@@ -163,6 +163,7 @@
 )]
 
 #[cfg(feature = "playback")]
+#[cfg_attr(docsrs, doc(cfg(feature = "playback")))]
 pub use cpal::{
     self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,
     SupportedStreamConfig,
@@ -172,6 +173,7 @@ mod common;
 mod sink;
 mod spatial_sink;
 #[cfg(feature = "playback")]
+#[cfg_attr(docsrs, doc(cfg(feature = "playback")))]
 pub mod stream;
 #[cfg(feature = "wav_output")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
@@ -189,12 +191,13 @@ pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
-pub use crate::common::{ChannelCount, Sample, SampleRate};
+pub use crate::common::{BitDepth, ChannelCount, Sample, SampleRate};
 pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;
 pub use crate::spatial_sink::SpatialSink;
 #[cfg(feature = "playback")]
+#[cfg_attr(docsrs, doc(cfg(feature = "playback")))]
 pub use crate::stream::{play, OutputStream, OutputStreamBuilder, PlayError, StreamError};
 #[cfg(feature = "wav_output")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]

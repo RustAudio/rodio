@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::{BitDepth, Source};
 
 const NS_PER_SECOND: u128 = 1_000_000_000;
 
@@ -151,6 +151,11 @@ where
             val.checked_sub(self.skipped_duration)
                 .unwrap_or_else(|| Duration::from_secs(0))
         })
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.input.bits_per_sample()
     }
 
     #[inline]

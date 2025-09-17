@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -168,6 +168,11 @@ where
         } else {
             None
         }
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.input.bits_per_sample()
     }
 
     #[inline]

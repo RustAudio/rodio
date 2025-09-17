@@ -6,7 +6,7 @@ use crate::{
     common::{ChannelCount, SampleRate},
     math::nz,
     source::SeekError,
-    Source,
+    BitDepth, Source,
 };
 
 /// Convenience function to create a new `Chirp` source.
@@ -100,5 +100,10 @@ impl Source for Chirp {
     fn total_duration(&self) -> Option<Duration> {
         let secs = self.total_samples as f64 / self.sample_rate.get() as f64;
         Some(Duration::from_secs_f64(secs))
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        BitDepth::new(32)
     }
 }

@@ -46,7 +46,7 @@ pub fn wav_to_file(
 /// # Example
 /// ```rust
 /// # use rodio::static_buffer::StaticSamplesBuffer;
-/// # use rodio::collect_to_wav;
+/// # use rodio::wav_to_writer;
 /// # const SAMPLES: [rodio::Sample; 5] = [0.0, 1.0, 2.0, 3.0, 4.0];
 /// # let source = StaticSamplesBuffer::new(
 /// #     1.try_into().unwrap(),
@@ -130,7 +130,7 @@ impl<I: Iterator<Item = Sample>> Iterator for WholeFrames<I> {
 #[cfg(test)]
 mod test {
     use super::wav_to_file;
-    use crate::Source;
+    use crate::{Decoder, Source};
     use std::io::BufReader;
     use std::time::Duration;
 
@@ -144,15 +144,13 @@ mod test {
         let wav_file_path = "target/tmp/save-to-wav-test.wav";
         wav_to_file(&mut make_source(), wav_file_path).expect("output file can be written");
 
-        let file = std::fs::File::open(wav_file_path).expect("output file can be opened");
-        // Not using crate::Decoder bcause it is limited to i16 samples.
-        let mut reader =
-            hound::WavReader::new(BufReader::new(file)).expect("wav file can be read back");
+        let path = std::path::Path::new(wav_file_path);
+        let decoder = Decoder::try_from(path).expect("wav file can be read back");
         let reference = make_source();
-        assert_eq!(reference.sample_rate().get(), reader.spec().sample_rate);
-        assert_eq!(reference.channels().get(), reader.spec().channels);
+        assert_eq!(reference.sample_rate(), decoder.sample_rate());
+        assert_eq!(reference.channels(), decoder.channels());
 
-        let actual_samples: Vec<f32> = reader.samples::<f32>().map(|x| x.unwrap()).collect();
+        let actual_samples: Vec<f32> = decoder.collect();
         let expected_samples: Vec<f32> = reference.collect();
         assert!(
             expected_samples == actual_samples,

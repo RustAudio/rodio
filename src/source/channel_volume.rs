@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -117,6 +117,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.input.bits_per_sample()
     }
 
     #[inline]

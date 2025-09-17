@@ -4,7 +4,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::conversions::{ChannelCountConverter, SampleRateConverter};
-use crate::Source;
+use crate::{BitDepth, Source};
 
 /// An iterator that reads from a `Source` and converts the samples to a
 /// specific type, sample-rate and channels count.
@@ -20,6 +20,7 @@ where
     target_channels: ChannelCount,
     target_sample_rate: SampleRate,
     total_duration: Option<Duration>,
+    bits_per_sample: Option<BitDepth>,
 }
 
 impl<I> UniformSourceIterator<I>
@@ -35,6 +36,7 @@ where
         target_sample_rate: SampleRate,
     ) -> UniformSourceIterator<I> {
         let total_duration = input.total_duration();
+        let bits_per_sample = input.bits_per_sample();
         let input = UniformSourceIterator::bootstrap(input, target_channels, target_sample_rate);
 
         UniformSourceIterator {
@@ -42,6 +44,7 @@ where
             target_channels,
             target_sample_rate,
             total_duration,
+            bits_per_sample,
         }
     }
 
@@ -117,6 +120,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.total_duration
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.bits_per_sample
     }
 
     #[inline]

@@ -15,7 +15,6 @@ use cpal::{BufferSize, Sample, SampleFormat, StreamConfig};
 use std::fmt;
 use std::io::{Read, Seek};
 use std::marker::Sync;
-use std::num::NonZero;
 
 const HZ_44100: SampleRate = nz!(44_100);
 
@@ -297,9 +296,9 @@ where
         config: &cpal::SupportedStreamConfig,
     ) -> OutputStreamBuilder<E> {
         self.config = OutputStreamConfig {
-            channel_count: NonZero::new(config.channels())
+            channel_count: ChannelCount::new(config.channels())
                 .expect("no valid cpal config has zero channels"),
-            sample_rate: NonZero::new(config.sample_rate().0)
+            sample_rate: SampleRate::new(config.sample_rate().0)
                 .expect("no valid cpal config has zero sample rate"),
             sample_format: config.sample_format(),
             ..Default::default()
@@ -310,9 +309,9 @@ where
     /// Set all output stream parameters at once from CPAL stream config.
     pub fn with_config(mut self, config: &cpal::StreamConfig) -> OutputStreamBuilder<E> {
         self.config = OutputStreamConfig {
-            channel_count: NonZero::new(config.channels)
+            channel_count: ChannelCount::new(config.channels)
                 .expect("no valid cpal config has zero channels"),
-            sample_rate: NonZero::new(config.sample_rate.0)
+            sample_rate: SampleRate::new(config.sample_rate.0)
                 .expect("no valid cpal config has zero sample rate"),
             buffer_size: config.buffer_size,
             ..self.config

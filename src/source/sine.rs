@@ -1,7 +1,7 @@
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
 use crate::source::{Function, SignalGenerator};
-use crate::Source;
+use crate::{BitDepth, Source};
 use std::time::Duration;
 
 use super::SeekError;
@@ -57,6 +57,11 @@ impl Source for SineWave {
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        BitDepth::new(32)
     }
 
     #[inline]

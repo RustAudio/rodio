@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::{
     buffer::SamplesBuffer,
     common::{assert_error_traits, ChannelCount, SampleRate},
-    math, Sample,
+    math, BitDepth, Sample,
 };
 
 use dasp_sample::FromSample;
@@ -85,6 +85,26 @@ mod triangle;
 mod uniform;
 mod zero;
 
+#[cfg(feature = "dither")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
+mod dither;
+#[cfg(feature = "dither")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
+pub use self::dither::{Algorithm as DitherAlgorithm, Dither};
+
+/// Creates a dithered source using the specified algorithm.
+///
+/// Dithering eliminates quantization artifacts when converting from high-precision
+/// audio to lower bit depths. Apply at the target output bit depth.
+#[cfg(feature = "dither")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
+pub fn dither<I>(input: I, target_bits: BitDepth, algorithm: DitherAlgorithm) -> Dither<I>
+where
+    I: Source,
+{
+    Dither::new(input, target_bits, algorithm)
+}
+
 #[cfg(feature = "noise")]
 #[cfg_attr(docsrs, doc(cfg(feature = "noise")))]
 pub mod noise;
@@ -153,33 +173,57 @@ pub use self::noise::{Pink, WhiteUniform};
 /// > transition between the two files.
 ///
 /// However, for optimization purposes rodio supposes that the number of channels and the frequency
-/// stay the same for long periods of time and avoids calling `channels()` and
-/// `sample_rate` too frequently.
+/// stay the same for long periods of time and avoids calling `channels()` and `sample_rate` too
+/// frequently.
 ///
 /// In order to properly handle this situation, the `current_span_len()` method should return
 /// the number of samples that remain in the iterator before the samples rate and number of
 /// channels can potentially change.
 ///
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends. `None` means "infinite" or
-    /// "until the sound ends".
-    /// Should never return 0 unless there's no more data.
+    /// Returns the number of samples before the current span ends.
     ///
     /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// whether the value of `channels()`, `sample_rate()` and/or `bits_per_sample()` have changed.
+    ///
+    /// # Returns
+    ///
+    /// `None` means "infinite" or "until the sound ends". Sources that return `Some(x)` should
+    /// return `Some(0)` if and only if when there's no more data.
     fn current_span_len(&self) -> Option<usize>;
 
     /// Returns the number of channels. Channels are always interleaved.
-    /// Should never be Zero
+    ///
+    /// Common configurations:
+    /// - 1 channel: Mono
+    /// - 2 channels: Stereo
+    /// - 6 channels: 5.1 surround
+    /// - 8 channels: 7.1 surround
     fn channels(&self) -> ChannelCount;
 
-    /// Returns the rate at which the source should be played. In number of samples per second.
+    /// Returns the sample rate in Hz at which the source should be played.
     fn sample_rate(&self) -> SampleRate;
 
     /// Returns the total duration of this source, if known.
     ///
+    /// # Returns
+    ///
     /// `None` indicates at the same time "infinite" or "unknown".
     fn total_duration(&self) -> Option<Duration>;
+
+    /// Returns the number of bits per sample, if known.
+    ///
+    /// # Format Support
+    ///
+    /// For lossy formats this should always return `None` as bit depth is not a meaningful
+    /// concept for compressed audio.
+    ///
+    /// # Implementation Note
+    ///
+    /// Rodio processes audio samples internally as 32-bit floating point values. When audio data
+    /// is converted to integer output, up to 24 bits of information is preserved from the
+    /// original audio stream.
+    fn bits_per_sample(&self) -> Option<BitDepth>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.
     #[inline]
@@ -696,7 +740,7 @@ pub trait Source: Iterator<Item = Sample> {
     /// the source is not known.
     #[allow(unused_variables)]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
+        Err(SeekError::SeekingNotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
     }
@@ -711,48 +755,56 @@ pub trait Source: Iterator<Item = Sample> {
 pub enum SeekError {
     /// One of the underlying sources does not support seeking
     #[error("Seeking is not supported by source: {underlying_source}")]
-    NotSupported {
+    SeekingNotSupported {
         /// The source that did not support seek
         underlying_source: &'static str,
     },
-    #[cfg(feature = "symphonia")]
-    /// The symphonia decoder ran into an issue
-    #[error("Symphonia decoder returned an error")]
-    SymphoniaDecoder(#[source] crate::decoder::symphonia::SeekError),
+
+    /// The source only supports forward seeking
+    #[error("The source only supports forward seeking")]
+    ForwardOnly,
+
+    #[cfg(feature = "claxon")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "claxon")))]
+    /// The claxon (Flac) decoder ran into an issue
+    #[error("Claxon decoder returned an error: {0}")]
+    ClaxonDecoder(#[from] Arc<claxon::Error>),
+
     #[cfg(feature = "hound")]
     #[cfg_attr(docsrs, doc(cfg(feature = "hound")))]
-    /// The hound (wav) decoder ran into an issue
-    #[error("Hound decoder returned an error")]
-    HoundDecoder(#[source] Arc<std::io::Error>),
-    // Prefer adding an enum variant to using this. It's meant for end users their
-    // own `try_seek` implementations.
+    /// The Hound (Wav) decoder ran into an issue
+    #[error("Hound decoder returned an error: {0}")]
+    HoundDecoder(#[from] Arc<hound::Error>),
+
+    #[cfg(feature = "lewton")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "lewton")))]
+    /// The Lewton (Ogg Vorbis) decoder ran into an issue
+    #[error("Lewton decoder returned an error: {0}")]
+    LewtonDecoder(#[from] Arc<lewton::VorbisError>),
+
+    #[cfg(feature = "minimp3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "minimp3")))]
+    /// The minimp3 (Mp3) decoder ran into an issue
+    #[error("Minimp3 decoder returned an error: {0}")]
+    Minimp3Decoder(#[from] Arc<minimp3_fixed::Error>),
+
+    #[cfg(feature = "symphonia")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "symphonia")))]
+    /// The Symphonia decoder ran into an issue
+    #[error("Symphonia decoder returned an error: {0}")]
+    SymphoniaDecoder(#[from] Arc<symphonia::core::errors::Error>),
+
+    /// An I/O error occurred while seeking
+    #[error("An I/O error occurred while seeking: {0}")]
+    IoError(#[from] Arc<std::io::Error>),
+
+    // Prefer adding an enum variant to using this. It's meant for end users' own `try_seek`
+    // implementations.
     /// Any other error probably in a custom Source
     #[error(transparent)]
     Other(Arc<dyn std::error::Error + Send + Sync + 'static>),
 }
 assert_error_traits!(SeekError);
-
-#[cfg(feature = "symphonia")]
-impl From<crate::decoder::symphonia::SeekError> for SeekError {
-    fn from(source: crate::decoder::symphonia::SeekError) -> Self {
-        SeekError::SymphoniaDecoder(source)
-    }
-}
-
-impl SeekError {
-    /// Will the source remain playing at its position before the seek or is it
-    /// broken?
-    pub fn source_intact(&self) -> bool {
-        match self {
-            SeekError::NotSupported { .. } => true,
-            #[cfg(feature = "symphonia")]
-            SeekError::SymphoniaDecoder(_) => false,
-            #[cfg(feature = "hound")]
-            SeekError::HoundDecoder(_) => false,
-            SeekError::Other(_) => false,
-        }
-    }
-}
 
 macro_rules! source_pointer_impl {
     ($($sig:tt)+) => {
@@ -775,6 +827,11 @@ macro_rules! source_pointer_impl {
             #[inline]
             fn total_duration(&self) -> Option<Duration> {
                 (**self).total_duration()
+            }
+
+            #[inline]
+            fn bits_per_sample(&self) -> Option<BitDepth> {
+                (**self).bits_per_sample()
             }
 
             #[inline]

@@ -101,11 +101,12 @@
 use core::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::{f32, f64};
 use std::{thread, time::Duration};
 
 use crate::common::assert_error_traits;
 use crate::conversions::SampleTypeConverter;
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 mod builder;
 mod config;
@@ -183,6 +184,20 @@ impl Source for Microphone {
 
     fn total_duration(&self) -> Option<std::time::Duration> {
         None
+    }
+
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        // TODO: use cpal::SampleFormat::bits_per_sample() when cpal v0.17 is released
+        let bits = match self.config.sample_format {
+            cpal::SampleFormat::I8 | cpal::SampleFormat::U8 => 8,
+            cpal::SampleFormat::I16 | cpal::SampleFormat::U16 => 16,
+            cpal::SampleFormat::I24 => 24,
+            cpal::SampleFormat::I32 | cpal::SampleFormat::U32 | cpal::SampleFormat::F32 => 32,
+            cpal::SampleFormat::I64 | cpal::SampleFormat::U64 | cpal::SampleFormat::F64 => 64,
+            _ => return None,
+        };
+
+        BitDepth::new(bits)
     }
 }
 

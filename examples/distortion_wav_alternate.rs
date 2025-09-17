@@ -12,8 +12,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
-    let file = std::fs::File::open("assets/music.wav")?;
-    let source = rodio::Decoder::try_from(file)?;
+    let path = std::path::Path::new("assets/music.wav");
+    let source = rodio::Decoder::try_from(path)?;
 
     // Shared flag to enable/disable distortion
     let distortion_enabled = Arc::new(AtomicBool::new(true));

@@ -11,23 +11,36 @@ edition = "2021"
 
 [features]
 # Default feature set provides audio playback and common format support
-default = ["playback", "recording", "flac", "mp3", "mp4", "vorbis", "wav"]
+default = [
+    "playback",
+    "recording",
+    "flac",
+    "mp3",
+    "mp4",
+    "vorbis",
+    "wav",
+    "dither",
+]
 
 # Core functionality features
 #
 # Enable audio playback
 playback = ["dep:cpal"]
 # Enable audio recording
-recording = ["dep:cpal", "rtrb"]
+recording = ["dep:cpal", "dep:rtrb"]
 # Enable writing audio to WAV files
 wav_output = ["dep:hound"]
 # Enable structured observability and instrumentation
 tracing = ["dep:tracing"]
 # Experimental features using atomic floating-point operations
 experimental = ["dep:atomic_float"]
+# Enable support for bytes::Bytes type in audio sources
+bytes = ["dep:bytes"]
 
 # Audio generation features
 #
+# Enable audio dithering
+dither = ["noise"]
 # Enable noise generation (white noise, pink noise, etc.)
 noise = ["rand", "rand_distr"]
 
@@ -82,22 +95,25 @@ symphonia-vorbis = ["symphonia/vorbis"]
 symphonia-wav = ["symphonia/wav"]
 
 # Alternative decoders and demuxers
-claxon = ["dep:claxon"]         # FLAC
-hound = ["dep:hound"]           # WAV
-minimp3 = ["dep:minimp3_fixed"] # MP3
-lewton = ["dep:lewton"]         # Ogg Vorbis
+claxon = ["dep:claxon"]                             # FLAC
+hound = ["dep:hound"]                               # WAV
+minimp3 = ["dep:minimp3_fixed", "dep:mp3-duration"] # MP3
+lewton = ["dep:lewton", "dep:ogg"]                  # Ogg Vorbis
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+bytes = { version = "1", optional = true }
 cpal = { version = "0.16", optional = true }
 dasp_sample = "0.11.0"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.5", optional = true }
 lewton = { version = "0.10", optional = true }
+ogg = { version = "0.9.2", optional = true }
 minimp3_fixed = { version = "0.5.4", optional = true }
+mp3-duration = { version = "0.1", optional = true }
 symphonia = { version = "0.5.4", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.15", optional = true }
 thiserror = "2"

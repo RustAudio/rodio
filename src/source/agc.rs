@@ -14,7 +14,7 @@
 //
 
 use super::SeekError;
-use crate::Source;
+use crate::{BitDepth, Source};
 #[cfg(feature = "experimental")]
 use atomic_float::AtomicF32;
 #[cfg(feature = "experimental")]
@@ -41,6 +41,7 @@ const fn power_of_two(n: usize) -> usize {
 const RMS_WINDOW_SIZE: usize = power_of_two(8192);
 
 #[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 /// Automatic Gain Control filter for maintaining consistent output levels.
 ///
 /// This struct implements an AGC algorithm that dynamically adjusts audio levels
@@ -487,6 +488,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.input.bits_per_sample()
     }
 
     #[inline]

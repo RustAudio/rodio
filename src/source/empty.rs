@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
-use crate::{Sample, Source};
+use crate::{BitDepth, Sample, Source};
 
 /// An empty source.
 #[derive(Debug, Copy, Clone)]
@@ -52,12 +52,17 @@ impl Source for Empty {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        Some(Duration::new(0, 0))
+        Some(Duration::ZERO)
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        None
     }
 
     #[inline]
     fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-        Err(SeekError::NotSupported {
+        Err(SeekError::SeekingNotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
     }

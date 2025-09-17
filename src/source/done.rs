@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::{BitDepth, Source};
 
 /// When the inner source is empty this decrements a `AtomicUsize`.
 #[derive(Debug, Clone)]
@@ -88,6 +88,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.input.bits_per_sample()
     }
 
     #[inline]

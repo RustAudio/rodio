@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::{linear_ramp::linear_gain_ramp, LinearGainRamp, SeekError};
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::{BitDepth, Source};
 
 /// Internal function that builds a `FadeIn` object.
 pub fn fadein<I>(input: I, duration: Duration) -> FadeIn<I>
@@ -84,6 +84,11 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.inner().total_duration()
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.inner().bits_per_sample()
     }
 
     #[inline]

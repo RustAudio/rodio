@@ -4,7 +4,7 @@ use crate::source::buffered::Buffered;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::{BitDepth, Source};
 
 /// Internal function that builds a `Repeat` object.
 pub fn repeat<I>(input: I) -> Repeat<I>
@@ -81,6 +81,14 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        match self.inner.current_span_len() {
+            Some(0) => self.next.bits_per_sample(),
+            _ => self.inner.bits_per_sample(),
+        }
     }
 
     #[inline]

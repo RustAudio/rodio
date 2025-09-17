@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::{BitDepth, Source};
 
 fn remaining_samples(
     until_playback: Duration,
@@ -109,6 +109,11 @@ where
         self.input
             .total_duration()
             .map(|val| val + self.requested_duration)
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.input.bits_per_sample()
     }
 
     /// Pos is seen from the perspective of the api user.

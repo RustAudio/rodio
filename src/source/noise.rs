@@ -19,8 +19,9 @@
 //! ```rust
 //! use std::num::NonZero;
 //! use rodio::source::noise::{WhiteUniform, Pink, WhiteTriangular, Blue, Red};
+//! use rodio::SampleRate;
 //!
-//! let sample_rate = NonZero::new(44100).unwrap();
+//! let sample_rate = rodio::SampleRate::new(44100).unwrap();
 //!
 //! // Simple usage - creates generators with `SmallRng`
 //!
@@ -50,7 +51,7 @@ use rand::{
 use rand_distr::{Normal, Triangular};
 
 use crate::math::nz;
-use crate::{ChannelCount, Sample, SampleRate, Source};
+use crate::{BitDepth, ChannelCount, Sample, SampleRate, Source};
 
 /// Convenience function to create a new `WhiteUniform` noise source.
 #[deprecated(since = "0.21.0", note = "use WhiteUniform::new() instead")]
@@ -83,6 +84,10 @@ macro_rules! impl_noise_source {
 
             fn total_duration(&self) -> Option<Duration> {
                 None
+            }
+
+            fn bits_per_sample(&self) -> Option<BitDepth> {
+                BitDepth::new(32)
             }
 
             fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
@@ -243,9 +248,9 @@ impl_noise_source!(WhiteTriangular<R>);
 pub struct Velvet<R: Rng = SmallRng> {
     sample_rate: SampleRate,
     rng: R,
-    grid_size: f32,   // samples per grid cell
-    grid_pos: f32,    // current position in grid cell
-    impulse_pos: f32, // where impulse occurs in current grid
+    grid_size: usize,   // samples per grid cell
+    grid_pos: usize,    // current position in grid cell
+    impulse_pos: usize, // where impulse occurs in current grid
 }
 
 impl Velvet<SmallRng> {
@@ -259,14 +264,14 @@ impl<R: Rng + SeedableRng> Velvet<R> {
     /// Create a new velvet noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, mut rng: R) -> Self {
         let density = VELVET_DEFAULT_DENSITY;
-        let grid_size = sample_rate.get() as f32 / density;
-        let impulse_pos = rng.random::<f32>() * grid_size;
+        let grid_size = (sample_rate.get() as f32 / density).ceil() as usize;
+        let impulse_pos = rng.random_range(0..grid_size);
 
         Self {
             sample_rate,
             rng,
             grid_size,
-            grid_pos: 0.0,
+            grid_pos: 0,
             impulse_pos,
         }
     }
@@ -283,14 +288,18 @@ impl<R: Rng + SeedableRng> Velvet<R> {
     pub fn new_with_density(sample_rate: SampleRate, density: f32) -> Self {
         let mut rng = R::from_os_rng();
         let density = density.max(f32::MIN_POSITIVE);
-        let grid_size = sample_rate.get() as f32 / density;
-        let impulse_pos = rng.random::<f32>() * grid_size;
+        let grid_size = (sample_rate.get() as f32 / density).ceil() as usize;
+        let impulse_pos = if grid_size > 0 {
+            rng.random_range(0..grid_size)
+        } else {
+            0
+        };
 
         Self {
             sample_rate,
             rng,
             grid_size,
-            grid_pos: 0.0,
+            grid_pos: 0,
             impulse_pos,
         }
     }
@@ -301,7 +310,7 @@ impl<R: Rng> Iterator for Velvet<R> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let output = if self.grid_pos as usize == self.impulse_pos as usize {
+        let output = if self.grid_pos == self.impulse_pos {
             // Generate impulse with random polarity
             if self.rng.random::<bool>() {
                 1.0
@@ -312,12 +321,16 @@ impl<R: Rng> Iterator for Velvet<R> {
             0.0
         };
 
-        self.grid_pos += 1.0;
+        self.grid_pos = self.grid_pos.wrapping_add(1);
 
         // Start new grid cell when we reach the end
         if self.grid_pos >= self.grid_size {
-            self.grid_pos = 0.0;
-            self.impulse_pos = self.rng.random::<f32>() * self.grid_size;
+            self.grid_pos = 0;
+            self.impulse_pos = if self.grid_size > 0 {
+                self.rng.random_range(0..self.grid_size)
+            } else {
+                0
+            };
         }
 
         Some(output)
@@ -747,6 +760,10 @@ impl<R: Rng> Source for Brownian<R> {
         None
     }
 
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        BitDepth::new(32)
+    }
+
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
         // Stateless noise generators can seek to any position since all positions
         // are equally random and don't depend on previous state
@@ -822,6 +839,10 @@ impl<R: Rng> Source for Red<R> {
 
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        BitDepth::new(32)
     }
 
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
@@ -1014,8 +1035,8 @@ mod tests {
     #[test]
     fn test_white_uniform_distribution() {
         let mut generator = WhiteUniform::new(TEST_SAMPLE_RATE);
-        let mut min = f32::INFINITY;
-        let mut max = f32::NEG_INFINITY;
+        let mut min = Sample::INFINITY;
+        let mut max = Sample::NEG_INFINITY;
 
         for _ in 0..TEST_SAMPLES_MEDIUM {
             let sample = generator.next().unwrap();
@@ -1053,7 +1074,7 @@ mod tests {
         let generator = WhiteTriangular::new(TEST_SAMPLE_RATE);
         let expected_std_dev = 2.0 / (6.0_f32).sqrt();
         assert!(
-            (generator.std_dev() - expected_std_dev).abs() < f32::EPSILON,
+            (generator.std_dev() - expected_std_dev).abs() < Sample::EPSILON,
             "Triangular std_dev should be 2/sqrt(6) ≈ 0.8165, got {}",
             generator.std_dev()
         );

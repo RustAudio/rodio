@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use crate::math::nz;
 use crate::source::{Empty, SeekError, Source, Zero};
-use crate::Sample;
+use crate::{BitDepth, Sample};
 
 use crate::common::{ChannelCount, SampleRate};
 #[cfg(feature = "crossbeam-channel")]
@@ -165,6 +165,11 @@ impl Source for SourcesQueueOutput {
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         None
+    }
+
+    #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.current.bits_per_sample()
     }
 
     /// Only seeks within the current source.

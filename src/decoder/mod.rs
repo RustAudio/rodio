@@ -249,18 +249,18 @@ impl<R: Read + Seek> DecoderImpl<R> {
 
     /// Attempts to seek to a given position in the current source.
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+    fn try_seek(&mut self, _pos: Duration) -> Result<(), SeekError> {
         match self {
             #[cfg(feature = "hound")]
-            DecoderImpl::Wav(source) => source.try_seek(pos),
+            DecoderImpl::Wav(source) => source.try_seek(_pos),
             #[cfg(feature = "lewton")]
-            DecoderImpl::Vorbis(source) => source.try_seek(pos),
+            DecoderImpl::Vorbis(source) => source.try_seek(_pos),
             #[cfg(feature = "claxon")]
-            DecoderImpl::Flac(source) => source.try_seek(pos),
+            DecoderImpl::Flac(source) => source.try_seek(_pos),
             #[cfg(feature = "minimp3")]
-            DecoderImpl::Mp3(source) => source.try_seek(pos),
+            DecoderImpl::Mp3(source) => source.try_seek(_pos),
             #[cfg(feature = "symphonia")]
-            DecoderImpl::Symphonia(source, PhantomData) => source.try_seek(pos),
+            DecoderImpl::Symphonia(source, PhantomData) => source.try_seek(_pos),
             DecoderImpl::None(_, _) => unreachable!(),
         }
     }

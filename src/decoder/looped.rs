@@ -1,9 +1,11 @@
 use std::{
     io::{Read, Seek},
-    marker::PhantomData,
     sync::Arc,
     time::Duration,
 };
+
+#[cfg(feature = "symphonia")]
+use std::marker::PhantomData;
 
 use crate::{
     common::{ChannelCount, SampleRate},
@@ -80,14 +82,14 @@ where
         let mut fast_settings = self.settings.clone();
         fast_settings.total_duration = self.cached_duration;
 
-        let (new_decoder, sample) = match decoder {
+        match decoder {
             #[cfg(feature = "hound")]
             DecoderImpl::Wav(source) => {
                 let mut reader = source.into_inner();
                 reader.rewind().ok()?;
                 let mut source = wav::WavDecoder::new_with_settings(reader, &fast_settings).ok()?;
                 let sample = source.next();
-                (DecoderImpl::Wav(source), sample)
+                Some((DecoderImpl::Wav(source), sample))
             }
             #[cfg(feature = "lewton")]
             DecoderImpl::Vorbis(source) => {
@@ -96,7 +98,7 @@ where
                 let mut source =
                     vorbis::VorbisDecoder::new_with_settings(reader, &fast_settings).ok()?;
                 let sample = source.next();
-                (DecoderImpl::Vorbis(source), sample)
+                Some((DecoderImpl::Vorbis(source), sample))
             }
             #[cfg(feature = "claxon")]
             DecoderImpl::Flac(source) => {
@@ -105,7 +107,7 @@ where
                 let mut source =
                     flac::FlacDecoder::new_with_settings(reader, &fast_settings).ok()?;
                 let sample = source.next();
-                (DecoderImpl::Flac(source), sample)
+                Some((DecoderImpl::Flac(source), sample))
             }
             #[cfg(feature = "minimp3")]
             DecoderImpl::Mp3(source) => {
@@ -113,7 +115,7 @@ where
                 reader.rewind().ok()?;
                 let mut source = mp3::Mp3Decoder::new_with_settings(reader, &fast_settings).ok()?;
                 let sample = source.next();
-                (DecoderImpl::Mp3(source), sample)
+                Some((DecoderImpl::Mp3(source), sample))
             }
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => {
@@ -122,11 +124,10 @@ where
                 let mut source =
                     symphonia::SymphoniaDecoder::new_with_settings(reader, &fast_settings).ok()?;
                 let sample = source.next();
-                (DecoderImpl::Symphonia(source, PhantomData), sample)
+                Some((DecoderImpl::Symphonia(source, PhantomData), sample))
             }
-            DecoderImpl::None(_, _) => return None,
-        };
-        Some((new_decoder, sample))
+            DecoderImpl::None(_, _) => None,
+        }
     }
 }
 

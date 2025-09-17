@@ -92,8 +92,13 @@ where
     pub(crate) fn new_with_noise(input: I, noise: N, target_bits: BitDepth) -> Self {
         // LSB amplitude for signed audio: 1.0 / (2^(bits-1))
         // This represents the amplitude of one quantization level
-        // Use i64 bit shifting to avoid overflow (supports up to 63 bits)
-        let lsb_amplitude = 1.0 / (1_i64 << (target_bits.get() - 1)) as f32;
+        let lsb_amplitude = if target_bits.get() >= Sample::MANTISSA_DIGITS {
+            // For bit depths at or beyond the floating point precision limit,
+            // the LSB amplitude calculation becomes meaningless
+            Sample::MIN_POSITIVE
+        } else {
+            1.0 / (1_i64 << (target_bits.get() - 1)) as f32
+        };
 
         Self {
             input,

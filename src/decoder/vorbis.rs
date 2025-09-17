@@ -840,6 +840,8 @@ fn read_next_non_empty_packet<R: Read + Seek>(
 /// point a final linear scan ensures all granule positions are found. The packet
 /// limit during binary search prevents excessive scanning in dense regions.
 fn find_last_granule<R: Read + Seek>(data: &mut R, byte_len: u64) -> Option<u64> {
+    const BINARY_SEARCH_PACKET_LIMIT: usize = 50;
+
     // Save current position
     let original_pos = data.stream_position().unwrap_or_default();
     let _ = data.rewind();
@@ -853,7 +855,7 @@ fn find_last_granule<R: Read + Seek>(data: &mut R, byte_len: u64) -> Option<u64>
         let mid = left + (right - left) / 2;
 
         // Try to find a granule from this position (limited packet scan during binary search)
-        match find_granule_from_position(data, mid, Some(50)) {
+        match find_granule_from_position(data, mid, Some(BINARY_SEARCH_PACKET_LIMIT)) {
             Some(_granule) => {
                 // Found a granule, this means there's content at or after this position
                 best_start_position = mid;
@@ -894,9 +896,11 @@ fn find_last_granule<R: Read + Seek>(data: &mut R, byte_len: u64) -> Option<u64>
 ///
 /// # Packet Limit Rationale
 ///
+/// Maximum number of packets to scan during binary search optimization.
+///
 /// When used during binary search, the packet limit prevents excessive scanning:
 /// - **Typical Ogg pages**: Contain 1-10 packets depending on content
-/// - **50 packet limit**: Covers roughly 5-50 pages (~20-400KB depending on bitrate)
+/// - **Binary search limit**: Covers roughly 5-50 pages (~20-400KB depending on bitrate)
 /// - **Balance**: Finding granules quickly vs. avoiding excessive I/O during binary search
 /// - **Final scan**: No limit ensures complete coverage from optimized position
 ///

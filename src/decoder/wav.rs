@@ -256,29 +256,32 @@ where
         let spec = reader.spec();
         let len = reader.len() as u64;
         let total_samples = reader.len();
+
+        let sample_rate = SampleRate::new(spec.sample_rate)
+            .expect("wav should have a sample rate higher than zero");
+        let channels =
+            ChannelCount::new(spec.channels).expect("wav should have at least one channel");
+        let bits_per_sample = BitDepth::new(spec.bits_per_sample.into())
+            .expect("wav should have a bit depth higher than zero");
+
         let reader = SamplesIterator {
             reader,
             samples_read: 0,
             total_samples,
         };
 
-        let sample_rate = spec.sample_rate;
-        let channels = spec.channels;
-
         // len is number of samples, not bytes, so use samples_to_duration
         // Note: hound's len() returns total samples across all channels
-        let samples_per_channel = len / (channels as u64);
-        let total_duration = utils::samples_to_duration(samples_per_channel, sample_rate as u64);
+        let samples_per_channel = len / (channels.get() as u64);
+        let total_duration = utils::samples_to_duration(samples_per_channel, sample_rate);
 
         Ok(Self {
             reader,
             total_duration,
-            sample_rate: SampleRate::new(sample_rate)
-                .expect("wav should have a sample rate higher then zero"),
-            channels: ChannelCount::new(channels).expect("wav should have a least one channel"),
+            sample_rate,
+            channels,
             is_seekable: settings.is_seekable,
-            bits_per_sample: BitDepth::new(spec.bits_per_sample.into())
-                .expect("wav should have a bit depth higher then zero"),
+            bits_per_sample,
         })
     }
 

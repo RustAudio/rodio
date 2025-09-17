@@ -277,14 +277,14 @@ where
         let reader = FlacReader::new_ext(data, READER_OPTIONS).expect("should still be flac");
 
         let spec = reader.streaminfo();
-        let sample_rate = spec.sample_rate;
+        let sample_rate = SampleRate::new(spec.sample_rate)
+            .expect("flac data should never have a zero sample rate");
         let max_block_size = spec.max_block_size as usize * spec.channels as usize;
 
         // `samples` in FLAC means "inter-channel samples" aka frames
         // so we do not divide by `self.channels` here.
         let total_samples = spec.samples;
-        let total_duration =
-            total_samples.map(|s| utils::samples_to_duration(s, sample_rate as u64));
+        let total_duration = total_samples.map(|s| utils::samples_to_duration(s, sample_rate));
 
         Ok(Self {
             reader: Some(reader),
@@ -293,8 +293,7 @@ where
             current_block_off: 0,
             bits_per_sample: BitDepth::new(spec.bits_per_sample)
                 .expect("flac should never have zero bits per sample"),
-            sample_rate: SampleRate::new(sample_rate)
-                .expect("flac data should never have a zero sample rate"),
+            sample_rate,
             channels: ChannelCount::new(
                 spec.channels
                     .try_into()

@@ -30,6 +30,9 @@
 #[cfg(any(feature = "claxon", feature = "hound"))]
 use std::time::Duration;
 
+#[cfg(any(feature = "claxon", feature = "hound"))]
+use crate::SampleRate;
+
 #[cfg(any(
     feature = "claxon",
     feature = "hound",
@@ -62,33 +65,11 @@ use std::io::{Read, Seek, SeekFrom};
 ///
 /// # Edge Cases
 ///
-/// - **Zero sample rate**: Returns `Duration::ZERO` to prevent division by zero
 /// - **Zero samples**: Returns `Duration::ZERO` (mathematically correct)
-/// - **Large values**: Handles overflow gracefully within Duration limits
-///
-/// # Examples
-///
-/// ```ignore
-/// use std::time::Duration;
-/// # use rodio::decoder::utils::samples_to_duration;
-///
-/// // 1 second at 44.1kHz
-/// assert_eq!(samples_to_duration(44100, 44100), Duration::from_secs(1));
-///
-/// // 0.5 seconds at 44.1kHz
-/// assert_eq!(samples_to_duration(22050, 44100), Duration::from_millis(500));
-/// ```
-///
-/// # Performance
-///
-/// This function is optimized for common audio sample rates and performs
-/// integer arithmetic only, making it suitable for real-time applications.
+/// - **Large values**: Handles overflow gracefully within `Duration` limits
 #[cfg(any(feature = "claxon", feature = "hound",))]
-pub(super) fn samples_to_duration(samples: u64, sample_rate: u64) -> Duration {
-    if sample_rate == 0 {
-        return Duration::ZERO;
-    }
-
+pub(super) fn samples_to_duration(samples: u64, sample_rate: SampleRate) -> Duration {
+    let sample_rate = sample_rate.get() as u64;
     let secs = samples / sample_rate;
     let nanos = ((samples % sample_rate) * 1_000_000_000) / sample_rate;
     Duration::new(secs, nanos as u32)
@@ -182,34 +163,31 @@ mod tests {
     #[test]
     fn test_samples_to_duration() {
         // Standard CD quality: 1 second at 44.1kHz
-        assert_eq!(samples_to_duration(44100, 44100), Duration::from_secs(1));
+        let rate_44_1k = SampleRate::new(44100).unwrap();
+        assert_eq!(
+            samples_to_duration(rate_44_1k.get() as u64, rate_44_1k),
+            Duration::from_secs(1)
+        );
 
         // Half second at CD quality
         assert_eq!(
-            samples_to_duration(22050, 44100),
+            samples_to_duration(rate_44_1k.get() as u64 / 2, rate_44_1k),
             Duration::from_millis(500)
         );
 
-        // Professional audio: 1 second at 48kHz
-        assert_eq!(samples_to_duration(48000, 48000), Duration::from_secs(1));
-
-        // High resolution: 1 second at 96kHz
-        assert_eq!(samples_to_duration(96000, 96000), Duration::from_secs(1));
-
         // Edge case: Zero samples should return zero duration
-        assert_eq!(samples_to_duration(0, 44100), Duration::ZERO);
-
-        // Edge case: Zero sample rate should not panic and return zero
-        assert_eq!(samples_to_duration(44100, 0), Duration::ZERO);
+        assert_eq!(samples_to_duration(0, rate_44_1k), Duration::ZERO);
 
         // Precision test: Fractional milliseconds
         // 441 samples at 44.1kHz = 10ms exactly
-        assert_eq!(samples_to_duration(441, 44100), Duration::from_millis(10));
+        assert_eq!(
+            samples_to_duration(rate_44_1k.get() as u64 / 100, rate_44_1k),
+            Duration::from_millis(10)
+        );
 
         // Very small durations should have nanosecond precision
-        // 1 sample at 44.1kHz ≈ 22.676 microseconds
-        let one_sample_duration = samples_to_duration(1, 44100);
-        assert!(one_sample_duration.as_nanos() > 22000);
-        assert!(one_sample_duration.as_nanos() < 23000);
+        // 1 sample at 44.1kHz ≈ 22.675 microseconds
+        let one_sample_duration = samples_to_duration(1, rate_44_1k);
+        assert_eq!(one_sample_duration.as_nanos(), 22675);
     }
 }

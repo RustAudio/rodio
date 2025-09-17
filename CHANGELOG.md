@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
 - `Blue` noise generator uses uniform instead of Gaussian noise for better performance.
 - `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
+- `Velvet` noise generator takes density in Hz as `usize` instead of `f32`.
 - Alternative decoders (`hound`, `claxon`, `lewton`, `minimp3`) now take  precedence over Symphonia
   decoders when both features are enabled.
 - Breaking: `SeekError::NotSupported` renamed to `SeekError::SeekingNotSupported`.

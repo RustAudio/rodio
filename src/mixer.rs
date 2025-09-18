@@ -177,7 +177,9 @@ impl MixerSource {
         let mut pending = self.input.0.pending_sources.lock().unwrap(); // TODO: relax ordering?
 
         for source in pending.drain(..) {
-            let in_step = self.sample_count % source.channels().get() as usize == 0;
+            let in_step = self
+                .sample_count
+                .is_multiple_of(source.channels().get() as usize);
 
             if in_step {
                 self.current_sources.push(source);

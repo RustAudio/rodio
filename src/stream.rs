@@ -462,41 +462,10 @@ impl OutputStream {
         })
     }
 
-    fn build_stream_for_sample_type<T, S, E>(
-        device: &cpal::Device,
-        config: &cpal::StreamConfig,
-        mut samples: S,
-        error_callback: E,
-    ) -> Result<cpal::Stream, cpal::BuildStreamError>
-    where
-        T: dasp_sample::Sample
-            + cpal::Sample
-            + cpal::SizedSample
-            + cpal::FromSample<crate::Sample>
-            + Send
-            + 'static,
-        S: Source + Send + 'static,
-        E: FnMut(cpal::StreamError) + Send + 'static,
-    {
-        device.build_output_stream::<T, _, _>(
-            config,
-            move |data, _| {
-                data.iter_mut().for_each(|d| {
-                    *d = samples
-                        .next()
-                        .map(Sample::from_sample)
-                        .unwrap_or(T::EQUILIBRIUM)
-                })
-            },
-            error_callback,
-            None,
-        )
-    }
-
     fn init_stream<S, E>(
         device: &cpal::Device,
         config: &OutputStreamConfig,
-        samples: S,
+        mut samples: S,
         error_callback: E,
     ) -> Result<cpal::Stream, StreamError>
     where
@@ -509,11 +478,18 @@ impl OutputStream {
             ($($sample_format:tt, $generic:ty);+) => {
                 match config.sample_format {
                     $(
-                        cpal::SampleFormat::$sample_format => Self::build_stream_for_sample_type::<$generic, _, _>(
-                            device,
+                        cpal::SampleFormat::$sample_format => device.build_output_stream::<$generic, _, _>(
                             &cpal_config,
-                            samples,
+                            move |data, _| {
+                                data.iter_mut().for_each(|d| {
+                                    *d = samples
+                                        .next()
+                                        .map(Sample::from_sample)
+                                        .unwrap_or(<$generic>::EQUILIBRIUM)
+                                })
+                            },
                             error_callback,
+                            None,
                         ),
                     )+
                     _ => return Err(StreamError::UnsupportedSampleFormat),

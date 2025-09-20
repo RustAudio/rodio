@@ -111,6 +111,7 @@ mod builder;
 mod config;
 pub use builder::MicrophoneBuilder;
 pub use config::InputConfig;
+use cpal::I24;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device,
@@ -265,10 +266,13 @@ impl Microphone {
             F64, f64;
             I8, i8;
             I16, i16;
+            I24, I24;
             I32, i32;
             I64, i64;
             U8, u8;
             U16, u16;
+            // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
+            // U24, cpal::U24;
             U32, u32;
             U64, u64
         )

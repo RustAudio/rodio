@@ -88,7 +88,7 @@ where
             factor = self.start_gain * (1.0f32 - p) + self.end_gain * p;
         }
 
-        if self.sample_idx % (self.channels().get() as u64) == 0 {
+        if self.sample_idx.is_multiple_of(self.channels().get() as u64) {
             self.elapsed_ns += 1000000000.0 / (self.input.sample_rate().get() as f32);
         }
 

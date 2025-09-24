@@ -414,42 +414,11 @@ where
 
     /// Sets the buffer size for the input.
     ///
-    /// To record sound without any glitches the audio card/chip must always
-    /// have a place to put a newly recorded sample. Unfortunately some samples
-    /// might take longer to consume then others. For example because the OS
-    /// preempts the thread running the microphone input. This happens more
-    /// often if the computer is under high load. That is why the OS has an
-    /// input buffer. This governs the size of that buffer.
+    /// This has no impact on latency, though a too small buffer can lead to audio
+    /// artifacts if your program can not get samples out of the buffer before they 
+    /// get overridden again.
     ///
-    /// Note there is a large buffer between the thread running the microphone
-    /// input and the rest of rodio. Short slowdowns in audio processing in
-    /// your rodio code will not easily cause us to miss samples.
-    ///
-    /// Rodio only gets the new samples once the OS swaps its buffer. That
-    /// means there is a minimum delay (latency) of `<buffer
-    /// size>/<sample_rate*channel_count>` seconds before a sample is made
-    /// available to Rodio.
-    ///
-    /// # Large vs Small buffer
-    /// - A larger buffer size results in high latency. This can be an issue
-    ///   for voip and other real time applications.
-    /// - A small buffer might cause:
-    ///   - Higher CPU usage
-    ///   - Recording interruptions such as buffer underruns.
-    ///   - Rodio to log errors like: `alsa::poll() returned POLLERR`
-    ///
-    /// # Recommendation
-    /// If low latency is important to you consider offering the user a method
-    /// to find the minimum buffer size that works well on their system under
-    /// expected conditions. A good example of this approach can be seen in
-    /// [mumble](https://www.mumble.info/documentation/user/audio-settings/)
-    /// (specifically the *Output Delay* & *Jitter buffer*.
-    ///
-    /// These are some typical values that are a good starting point. They may also
-    /// break audio completely, it depends on the system.
-    /// - Low-latency (audio production, live monitoring): 512-1024
-    /// - General use (games, media playback): 1024-2048
-    /// - Stability-focused (background music, non-interactive): 2048-4096
+    /// Normally the default input config will have this set up correctly.
     ///
     /// # Example
     /// ```no_run
@@ -457,7 +426,7 @@ where
     /// let builder = MicrophoneBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     .try_buffer_size(1024)?;
+    ///     .try_buffer_size(4096)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn try_buffer_size(
@@ -497,8 +466,8 @@ where
     ///     // We want mono, if thats not possible give
     ///     // us the lowest channel count
     ///     .prefer_buffer_sizes([
-    ///         512.try_into().expect("not zero"),
-    ///         1024.try_into().expect("not_zero"),
+    ///         2048.try_into().expect("not zero"),
+    ///         4096.try_into().expect("not_zero"),
     ///     ]);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
@@ -511,7 +480,7 @@ where
     ///     .default_config()?
     ///     // We want mono, if thats not possible give
     ///     // us the lowest channel count
-    ///     .prefer_buffer_sizes(512..);
+    ///     .prefer_buffer_sizes(4096..);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn prefer_buffer_sizes(

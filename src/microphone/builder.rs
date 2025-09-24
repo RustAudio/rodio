@@ -207,16 +207,17 @@ where
             })?
             .into();
 
-        // Lets try getting f32 output from the default config, as thats
-        // what rodio uses internally
-        let config = if self
-            .check_config(&default_config.with_f32_samples())
-            .is_ok()
-        {
-            default_config.with_f32_samples()
-        } else {
-            default_config
-        };
+        // // Lets try getting f32 output from the default config, as thats
+        // // what rodio uses internally
+        // let config = if self
+        //     .check_config(&default_config.with_f32_samples())
+        //     .is_ok()
+        // {
+        //     default_config.with_f32_samples()
+        // } else {
+        //     default_config
+        // };
+        let config = default_config;
 
         Ok(MicrophoneBuilder {
             device: self.device.clone(),

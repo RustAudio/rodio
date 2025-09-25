@@ -78,6 +78,14 @@ impl Drop for OutputStream {
     }
 }
 
+impl fmt::Debug for OutputStream {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("OutputStream")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
+}
+
 /// Describes the output stream's configuration
 #[derive(Copy, Clone, Debug)]
 pub struct OutputStreamConfig {

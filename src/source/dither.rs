@@ -74,7 +74,6 @@ pub enum Algorithm {
 pub struct DitherImpl<I, N> {
     input: I,
     noise: N,
-    target_bits: BitDepth,
     lsb_amplitude: f32,
 }
 
@@ -103,7 +102,6 @@ where
         Self {
             input,
             noise,
-            target_bits,
             lsb_amplitude,
         }
     }
@@ -151,11 +149,6 @@ where
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
-    }
-
-    #[inline]
-    fn bits_per_sample(&self) -> Option<BitDepth> {
-        Some(self.target_bits)
     }
 
     #[inline]
@@ -285,16 +278,6 @@ where
             Dither::HighPass(d) => d.total_duration(),
             Dither::RPDF(d) => d.total_duration(),
             Dither::TPDF(d) => d.total_duration(),
-        }
-    }
-
-    #[inline]
-    fn bits_per_sample(&self) -> Option<BitDepth> {
-        match self {
-            Dither::GPDF(d) => d.bits_per_sample(),
-            Dither::HighPass(d) => d.bits_per_sample(),
-            Dither::RPDF(d) => d.bits_per_sample(),
-            Dither::TPDF(d) => d.bits_per_sample(),
         }
     }
 

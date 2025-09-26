@@ -415,7 +415,7 @@ where
     /// Sets the buffer size for the input.
     ///
     /// This has no impact on latency, though a too small buffer can lead to audio
-    /// artifacts if your program can not get samples out of the buffer before they 
+    /// artifacts if your program can not get samples out of the buffer before they
     /// get overridden again.
     ///
     /// Normally the default input config will have this set up correctly.

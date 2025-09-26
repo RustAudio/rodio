@@ -1,6 +1,8 @@
 //! Sources of sound and various filters.
 
 use core::time::Duration;
+#[cfg(feature = "dither")]
+use std::num::NonZero;
 use std::sync::Arc;
 
 use crate::{
@@ -98,7 +100,7 @@ pub use self::dither::{Algorithm as DitherAlgorithm, Dither};
 /// audio to lower bit depths. Apply at the target output bit depth.
 #[cfg(feature = "dither")]
 #[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
-pub fn dither<I>(input: I, target_bits: BitDepth, algorithm: DitherAlgorithm) -> Dither<I>
+pub fn dither<I>(input: I, target_bits: NonZero<u32>, algorithm: DitherAlgorithm) -> Dither<I>
 where
     I: Source,
 {

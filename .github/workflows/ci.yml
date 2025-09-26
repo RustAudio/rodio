@@ -32,10 +32,12 @@ jobs:
         run: sudo apt install --yes --no-install-recommends libasound2-dev pkg-config
         if: contains(matrix.os, 'ubuntu')
 
-      - name: install ${{ matrix.toolchain }} toolchain
+      - name: Install ${{ matrix.toolchain }} toolchain
         run: rustup toolchain install ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
 
-      - run: cargo clippy --all-features -- -D warnings
+      - run: |
+          rustup component add clippy
+          cargo clippy --all-features -- -D warnings
         if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
 
       - run: |

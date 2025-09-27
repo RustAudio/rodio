@@ -41,7 +41,7 @@
 //! let white_custom = WhiteUniform::<StdRng>::new_with_rng(sample_rate, StdRng::seed_from_u64(12345));
 //! ```
 
-use std::time::Duration;
+use std::{num::NonZero, time::Duration};
 
 use rand::{
     distr::{Distribution, Uniform},
@@ -139,7 +139,7 @@ impl WhiteUniform<SmallRng> {
     }
 }
 
-impl<R: Rng + SeedableRng> WhiteUniform<R> {
+impl<R: Rng> WhiteUniform<R> {
     /// Create a new white noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let distribution =
@@ -195,7 +195,7 @@ impl WhiteTriangular {
     }
 }
 
-impl<R: Rng + SeedableRng> WhiteTriangular<R> {
+impl<R: Rng> WhiteTriangular<R> {
     /// Create a new triangular white noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let distribution = Triangular::new(-1.0, 1.0, 0.0).expect("Valid triangular distribution");
@@ -256,35 +256,21 @@ impl Velvet {
     }
 }
 
-impl<R: Rng + SeedableRng> Velvet<R> {
+impl<R: Rng> Velvet<R> {
     /// Create a new velvet noise generator with a custom RNG.
-    pub fn new_with_rng(sample_rate: SampleRate, mut rng: R) -> Self {
-        let density = VELVET_DEFAULT_DENSITY;
-        let grid_size = (sample_rate.get() as f32 / density).ceil() as usize;
-        let impulse_pos = rng.random_range(0..grid_size);
-
-        Self {
-            sample_rate,
-            rng,
-            grid_size,
-            grid_pos: 0,
-            impulse_pos,
-        }
+    pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
+        Self::new_with_density(sample_rate, VELVET_DEFAULT_DENSITY, rng)
     }
-}
 
-impl<R: Rng + SeedableRng> Velvet<R> {
-    /// Create a new velvet noise generator with custom density (impulses per second).
+    /// Create a new velvet noise generator with custom density (impulses per second) and RNG.
     ///
     /// **Density guidelines:**
     /// - 500-1000 Hz: Sparse, distant reverb effects
     /// - 1000-2000 Hz: Balanced reverb simulation (default: 2000 Hz)
     /// - 2000-4000 Hz: Dense, close reverb effects
     /// - >4000 Hz: Very dense, approaching continuous noise
-    pub fn new_with_density(sample_rate: SampleRate, density: f32) -> Self {
-        let mut rng = R::from_os_rng();
-        let density = density.max(f32::MIN_POSITIVE);
-        let grid_size = (sample_rate.get() as f32 / density).ceil() as usize;
+    pub fn new_with_density(sample_rate: SampleRate, density: NonZero<usize>, mut rng: R) -> Self {
+        let grid_size = (sample_rate.get() as f32 / density.get() as f32).ceil() as usize;
         let impulse_pos = if grid_size > 0 {
             rng.random_range(0..grid_size)
         } else {
@@ -300,6 +286,8 @@ impl<R: Rng + SeedableRng> Velvet<R> {
         }
     }
 }
+
+impl<R: Rng> Velvet<R> {}
 
 impl<R: Rng> Iterator for Velvet<R> {
     type Item = Sample;
@@ -358,7 +346,7 @@ pub struct WhiteGaussian<R: Rng = SmallRng> {
     sampler: NoiseSampler<R, Normal<f32>>,
 }
 
-impl<R: Rng + SeedableRng> WhiteGaussian<R> {
+impl<R: Rng> WhiteGaussian<R> {
     /// Get the mean (average) value of the noise distribution.
     pub fn mean(&self) -> f32 {
         self.sampler.distribution.mean()
@@ -377,7 +365,7 @@ impl WhiteGaussian {
     }
 }
 
-impl<R: Rng + SeedableRng> WhiteGaussian<R> {
+impl<R: Rng> WhiteGaussian<R> {
     /// Create a new Gaussian white noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         // For Gaussian to achieve equivalent decorrelation to triangular dithering, it needs
@@ -423,7 +411,7 @@ const PINK_NOISE_GENERATORS: usize = 16;
 /// This provides a good balance between realistic reverb characteristics and computational
 /// efficiency. Lower values create sparser, more distant reverb effects, while higher values
 /// create denser, closer reverb simulation.
-const VELVET_DEFAULT_DENSITY: f32 = 2000.0;
+const VELVET_DEFAULT_DENSITY: NonZero<usize> = nz!(2000);
 
 /// Variance of uniform distribution [-1.0, 1.0].
 ///
@@ -461,7 +449,7 @@ impl Pink {
     }
 }
 
-impl<R: Rng + SeedableRng> Pink<R> {
+impl<R: Rng> Pink<R> {
     /// Create a new pink noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let mut max_counts = [1u32; PINK_NOISE_GENERATORS];
@@ -543,7 +531,7 @@ impl Blue {
     }
 }
 
-impl<R: Rng + SeedableRng> Blue<R> {
+impl<R: Rng> Blue<R> {
     /// Create a new blue noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         Self {
@@ -606,7 +594,7 @@ impl Violet {
     }
 }
 
-impl<R: Rng + SeedableRng> Violet<R> {
+impl<R: Rng> Violet<R> {
     /// Create a new violet noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         Self {
@@ -719,7 +707,7 @@ impl Brownian {
     }
 }
 
-impl<R: Rng + SeedableRng> Brownian<R> {
+impl<R: Rng> Brownian<R> {
     /// Create a new brownian noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let white_noise = WhiteGaussian::new_with_rng(sample_rate, rng);
@@ -796,7 +784,7 @@ impl Red {
     }
 }
 
-impl<R: Rng + SeedableRng> Red<R> {
+impl<R: Rng> Red<R> {
     /// Create a new red noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let white_noise = WhiteUniform::new_with_rng(sample_rate, rng);
@@ -844,7 +832,6 @@ impl<R: Rng> Source for Red<R> {
 mod tests {
     use super::*;
     use rand::rngs::SmallRng;
-    use rand::SeedableRng;
     use rstest::rstest;
     use rstest_reuse::{self, *};
 
@@ -1181,16 +1168,17 @@ mod tests {
         }
 
         assert!(
-            impulse_count > (VELVET_DEFAULT_DENSITY * 0.75) as usize
-                && impulse_count < (VELVET_DEFAULT_DENSITY * 1.25) as usize,
+            impulse_count > (VELVET_DEFAULT_DENSITY.get() as f32 * 0.75) as usize
+                && impulse_count < (VELVET_DEFAULT_DENSITY.get() as f32 * 1.25) as usize,
             "Impulse count out of range: expected ~{VELVET_DEFAULT_DENSITY}, got {impulse_count}"
         );
     }
 
     #[test]
     fn test_velvet_custom_density() {
-        let density = 1000.0; // impulses per second for testing
-        let mut generator = Velvet::<SmallRng>::new_with_density(TEST_SAMPLE_RATE, density);
+        let density = nz!(1000); // impulses per second for testing
+        let mut generator =
+            Velvet::new_with_density(TEST_SAMPLE_RATE, density, SmallRng::from_os_rng());
 
         let mut impulse_count = 0;
         for _ in 0..TEST_SAMPLE_RATE.get() {
@@ -1200,10 +1188,9 @@ mod tests {
         }
 
         // Should be approximately the requested density
-        let actual_density = impulse_count as f32;
         assert!(
-            (actual_density - density).abs() < 200.0,
-            "Custom density not achieved: expected ~{density}, got {actual_density}"
+            density.get() - impulse_count < 200,
+            "Custom density not achieved: expected ~{density}, got {impulse_count}"
         );
     }
 }

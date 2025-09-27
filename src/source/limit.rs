@@ -817,7 +817,7 @@ pub struct LimitMulti<I> {
 fn process_sample(sample: Sample, threshold: f32, knee_width: f32, inv_knee_8: f32) -> f32 {
     // Add slight DC offset. Some samples are silence, which is -inf dB and gets the limiter stuck.
     // Adding a small positive offset prevents this.
-    let bias_db = math::linear_to_db(sample.abs() + f32::MIN_POSITIVE) - threshold;
+    let bias_db = math::linear_to_db(sample.abs() + Sample::MIN_POSITIVE) - threshold;
     let knee_boundary_db = bias_db * 2.0;
     if knee_boundary_db < -knee_width {
         0.0

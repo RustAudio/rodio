@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::{
     buffer::SamplesBuffer,
     common::{assert_error_traits, ChannelCount, SampleRate},
-    math, Sample,
+    math, BitDepth, Sample,
 };
 
 use dasp_sample::FromSample;
@@ -84,6 +84,13 @@ mod take;
 mod triangle;
 mod uniform;
 mod zero;
+
+#[cfg(feature = "dither")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
+pub mod dither;
+#[cfg(feature = "dither")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
+pub use self::dither::{Algorithm as DitherAlgorithm, Dither};
 
 #[cfg(feature = "noise")]
 #[cfg_attr(docsrs, doc(cfg(feature = "noise")))]
@@ -188,6 +195,31 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
     {
         buffered::buffered(self)
+    }
+
+    /// Applies dithering to the source at the specified bit depth.
+    ///
+    /// Dithering eliminates quantization artifacts during digital audio playback
+    /// and when converting between bit depths. Apply at the target output bit depth.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rodio::source::{SineWave, Source, DitherAlgorithm};
+    /// use rodio::BitDepth;
+    ///
+    /// let source = SineWave::new(440.0)
+    ///     .amplify(0.5)
+    ///     .dither(BitDepth::new(16).unwrap(), DitherAlgorithm::default());
+    /// ```
+    #[cfg(feature = "dither")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
+    #[inline]
+    fn dither(self, target_bits: BitDepth, algorithm: DitherAlgorithm) -> Dither<Self>
+    where
+        Self: Sized,
+    {
+        Dither::new(self, target_bits, algorithm)
     }
 
     /// Mixes this source with another one.

@@ -1,14 +1,12 @@
 //! Sources of sound and various filters.
 
 use core::time::Duration;
-// #[cfg(feature = "dither")]
-// use std::num::NonZero;
 use std::sync::Arc;
 
 use crate::{
     buffer::SamplesBuffer,
     common::{assert_error_traits, ChannelCount, SampleRate},
-    math, Sample,
+    math, BitDepth, Sample,
 };
 
 use dasp_sample::FromSample;
@@ -94,18 +92,18 @@ mod dither;
 #[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
 pub use self::dither::{Algorithm as DitherAlgorithm, Dither};
 
-// /// Creates a dithered source using the specified algorithm.
-// ///
-// /// Dithering eliminates quantization artifacts when converting from high-precision
-// /// audio to lower bit depths. Apply at the target output bit depth.
-// #[cfg(feature = "dither")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
-// pub fn dither<I>(input: I, target_bits: NonZero<u32>, algorithm: DitherAlgorithm) -> Dither<I>
-// where
-//     I: Source,
-// {
-//     Dither::new(input, target_bits, algorithm)
-// }
+/// Creates a dithered source using the specified algorithm.
+///
+/// Dithering eliminates quantization artifacts during digital audio playback
+/// and when converting between bit depths. Apply at the target output bit depth.
+#[cfg(feature = "dither")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
+pub fn dither<I>(input: I, target_bits: BitDepth, algorithm: DitherAlgorithm) -> Dither<I>
+where
+    I: Source,
+{
+    Dither::new(input, target_bits, algorithm)
+}
 
 #[cfg(feature = "noise")]
 #[cfg_attr(docsrs, doc(cfg(feature = "noise")))]

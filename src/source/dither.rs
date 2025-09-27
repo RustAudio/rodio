@@ -8,8 +8,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use rodio::source::{dither, SineWave};
-//! use rodio::source::DitherAlgorithm;
+//! use rodio::source::{dither, SineWave, DitherAlgorithm, Source};
 //! use rodio::BitDepth;
 //!
 //! let source = SineWave::new(440.0);
@@ -21,19 +20,155 @@
 //! - **Apply dithering before volume changes** for optimal results
 //! - **Dither once** - Apply only at the final output stage to avoid noise accumulation
 //! - **Choose TPDF** for most professional audio applications (it's the default)
-//! - **Use HighPass** for material with audible low-frequency dither artifacts
 //! - **Use target output bit depth** - Not the source bit depth!
 //!
 //! When you later change volume (e.g., with `Sink::set_volume()`), both the signal
 //! and dither noise scale together, maintaining proper dithering behavior.
 
-use crate::{BitDepth, ChannelCount, Sample, SampleRate, Source};
+use rand::{rngs::SmallRng, Rng};
 use std::time::Duration;
 
-impl<I, N> Iterator for Dither<I, N>
+use crate::{
+    source::noise::{Blue, WhiteGaussian, WhiteTriangular, WhiteUniform},
+    BitDepth, ChannelCount, Sample, SampleRate, Source,
+};
+
+/// Dither algorithm selection for runtime choice
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Algorithm {
+    /// GPDF (Gaussian PDF) - normal/bell curve distribution.
+    ///
+    /// Uses Gaussian white noise which more closely mimics natural processes and
+    /// analog circuits. Higher noise floor than TPDF.
+    GPDF,
+
+    /// High-pass dithering - reduces low-frequency artifacts.
+    ///
+    /// Uses blue noise (high-pass filtered white noise) to push dither energy
+    /// toward higher frequencies. Particularly effective for reducing audible
+    /// low-frequency modulation artifacts.
+    HighPass,
+
+    /// RPDF (Rectangular PDF) - uniform distribution.
+    ///
+    /// Uses uniform white noise for basic decorrelation. Simpler than TPDF but
+    /// allows some correlation between signal and quantization error at low levels.
+    /// Slightly lower noise floor than TPDF.
+    RPDF,
+
+    /// TPDF (Triangular PDF) - triangular distribution.
+    ///
+    /// The gold standard for audio dithering. Provides mathematically optimal
+    /// decorrelation by completely eliminating correlation between the original
+    /// signal and quantization error.
+    #[default]
+    TPDF,
+}
+
+#[derive(Clone, Debug)]
+#[allow(clippy::upper_case_acronyms)]
+enum NoiseGenerator<R: Rng = SmallRng> {
+    TPDF(WhiteTriangular<R>),
+    RPDF(WhiteUniform<R>),
+    GPDF(WhiteGaussian<R>),
+    HighPass(Blue<R>),
+}
+
+impl NoiseGenerator {
+    fn new(algorithm: Algorithm, sample_rate: SampleRate) -> Self {
+        match algorithm {
+            Algorithm::TPDF => Self::TPDF(WhiteTriangular::new(sample_rate)),
+            Algorithm::RPDF => Self::RPDF(WhiteUniform::new(sample_rate)),
+            Algorithm::GPDF => Self::GPDF(WhiteGaussian::new(sample_rate)),
+            Algorithm::HighPass => Self::HighPass(Blue::new(sample_rate)),
+        }
+    }
+
+    #[inline]
+    fn next(&mut self) -> Option<Sample> {
+        match self {
+            Self::TPDF(gen) => gen.next(),
+            Self::RPDF(gen) => gen.next(),
+            Self::GPDF(gen) => gen.next(),
+            Self::HighPass(gen) => gen.next(),
+        }
+    }
+
+    fn algorithm(&self) -> Algorithm {
+        match self {
+            Self::TPDF(_) => Algorithm::TPDF,
+            Self::RPDF(_) => Algorithm::RPDF,
+            Self::GPDF(_) => Algorithm::GPDF,
+            Self::HighPass(_) => Algorithm::HighPass,
+        }
+    }
+}
+
+/// A dithered audio source that applies quantization noise to reduce artifacts.
+///
+/// This struct wraps any audio source and applies dithering noise according to the
+/// selected algorithm. Dithering is essential for digital audio playback and when
+/// converting audio to different bit depths to prevent audible distortion.
+///
+/// # Example
+///
+/// ```rust
+/// use rodio::source::{SineWave, dither, DitherAlgorithm};
+/// use rodio::BitDepth;
+///
+/// let source = SineWave::new(440.0);
+/// let dithered = dither(source, BitDepth::new(16).unwrap(), DitherAlgorithm::TPDF);
+/// ```
+#[derive(Clone, Debug)]
+pub struct Dither<I> {
+    input: I,
+    noise: NoiseGenerator,
+    lsb_amplitude: f32,
+}
+
+impl<I> Dither<I>
 where
     I: Source,
-    N: Iterator<Item = Sample>,
+{
+    /// Creates a new dithered source with the specified algorithm
+    pub fn new(input: I, target_bits: BitDepth, algorithm: Algorithm) -> Self {
+        // LSB amplitude for signed audio: 1.0 / (2^(bits-1))
+        // For high bit depths (> mantissa precision), we're limited by the sample type's
+        // mantissa bits. Instead of dithering to a level that would be truncated,
+        // we dither at the actual LSB level representable by the sample format.
+        let lsb_amplitude = if target_bits.get() >= Sample::MANTISSA_DIGITS {
+            Sample::MIN_POSITIVE
+        } else {
+            1.0 / (1_i64 << (target_bits.get() - 1)) as f32
+        };
+
+        let sample_rate = input.sample_rate();
+        Self {
+            input,
+            noise: NoiseGenerator::new(algorithm, sample_rate),
+            lsb_amplitude,
+        }
+    }
+
+    /// Change the dithering algorithm at runtime
+    /// This recreates the noise generator with the new algorithm
+    pub fn set_algorithm(&mut self, algorithm: Algorithm) {
+        if self.noise.algorithm() != algorithm {
+            let sample_rate = self.input.sample_rate();
+            self.noise = NoiseGenerator::new(algorithm, sample_rate);
+        }
+    }
+
+    /// Get the current dithering algorithm
+    #[inline]
+    pub fn algorithm(&self) -> Algorithm {
+        self.noise.algorithm()
+    }
+}
+
+impl<I> Iterator for Dither<I>
+where
+    I: Source,
 {
     type Item = Sample;
 
@@ -42,17 +177,14 @@ where
         let input_sample = self.input.next()?;
         let noise_sample = self.noise.next().unwrap_or(0.0);
 
-        // Add dither noise at the target quantization level
-        let dithered = input_sample + noise_sample * self.lsb_amplitude;
-
-        Some(dithered)
+        // Apply subtractive dithering at the target quantization level
+        Some(input_sample - noise_sample * self.lsb_amplitude)
     }
 }
 
-impl<I, N> Source for Dither<I, N>
+impl<I> Source for Dither<I>
 where
     I: Source,
-    N: Iterator<Item = Sample>,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
@@ -80,160 +212,50 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Dither<I, N> {
-    input: I,
-    noise: N,
-    lsb_amplitude: f32,
-}
-
-trait DitherAlgorithm {
-    type Noise;
-    fn build_noise(self, sample_rate: SampleRate) -> Self::Noise;
-}
-
-macro_rules! dither_algos {
-    ($($(#[$outer:meta])* $name:ident, $noise:ident);+) => {
-        $(
-            $(#[$outer])*
-            struct $name;
-
-            impl DitherAlgorithm for $name {
-                type Noise = crate::source::noise::$noise;
-                fn build_noise(self, sample_rate: SampleRate) -> Self::Noise {
-                    crate::source::noise::$noise::new(sample_rate)
-                }
-            }
-        )+
-    };
-}
-dither_algos! {
-    /// GPDF (Gaussian PDF) - normal/bell curve distribution.
-    ///
-    /// Uses Gaussian white noise which more closely mimics natural processes and
-    /// analog circuits. Higher noise floor than TPDF.
-    GPDF, WhiteGaussian;
-    /// High-pass dithering - reduces low-frequency artifacts.
-    ///
-    /// Uses blue noise (high-pass filtered white noise) to push dither energy
-    /// toward higher frequencies. Particularly effective for reducing audible
-    /// low-frequency modulation artifacts. Best for material with significant
-    /// low-frequency content where traditional white dither might be audible.
-    HighPass, Blue;
-    /// RPDF (Rectangular PDF) - uniform distribution.
-    ///
-    /// Uses uniform white noise for basic decorrelation. Simpler than TPDF but
-    /// allows some correlation between signal and quantization error at low levels.
-    /// Slightly lower noise floor than TPDF.
-    RPDF, WhiteUniform;
-    /// TPDF (Triangular PDF) - triangular distribution.
-    ///
-    /// The gold standard for audio dithering. Provides mathematically optimal
-    /// decorrelation by completely eliminating correlation between the original
-    /// signal and quantization error.
-    TPDF, WhiteTriangular
-}
-
-fn dither<I, A>(
-    input: I,
-    algo: A,
-    target_bits: BitDepth,
-) -> Dither<I, <A as DitherAlgorithm>::Noise>
-where
-    I: Source,
-    A: DitherAlgorithm,
-{
-    // LSB amplitude for signed audio: 1.0 / (2^(bits-1))
-    // This represents the amplitude of one quantization level
-    let lsb_amplitude = if target_bits.get() >= Sample::MANTISSA_DIGITS {
-        // For bit depths at or beyond the floating point precision limit,
-        // the LSB amplitude calculation becomes meaningless
-        Sample::MIN_POSITIVE
-    } else {
-        1.0 / (1_i64 << (target_bits.get() - 1)) as f32
-    };
-
-    Dither {
-        noise: algo.build_noise(input.sample_rate()),
-        input,
-        lsb_amplitude,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::source::{SineWave, Source};
     use crate::{nz, BitDepth, SampleRate};
 
-    fn show_api() {
+    const TEST_SAMPLE_RATE: SampleRate = nz!(44100);
+    const TEST_BIT_DEPTH: BitDepth = nz!(16);
+
+    #[test]
+    fn test_dither_adds_noise() {
         let source = SineWave::new(440.0).take_duration(std::time::Duration::from_millis(10));
-        let source = dither(source, GPDF, nz!(16));
+        let mut dithered = Dither::new(source.clone(), TEST_BIT_DEPTH, Algorithm::TPDF);
+        let mut undithered = source;
+
+        // Collect samples from both sources
+        let dithered_samples: Vec<f32> = (0..10).filter_map(|_| dithered.next()).collect();
+        let undithered_samples: Vec<f32> = (0..10).filter_map(|_| undithered.next()).collect();
+
+        let lsb = 1.0 / (1_i64 << (TEST_BIT_DEPTH.get() - 1)) as f32;
+
+        // Verify dithered samples differ from undithered and are reasonable
+        for (i, (&dithered_sample, &undithered_sample)) in dithered_samples
+            .iter()
+            .zip(undithered_samples.iter())
+            .enumerate()
+        {
+            // Should be finite
+            assert!(
+                dithered_sample.is_finite(),
+                "Dithered sample {} should be finite",
+                i
+            );
+
+            // The difference should be small (just dither noise)
+            let diff = (dithered_sample - undithered_sample).abs();
+            let max_expected_diff = lsb * 2.0; // Max triangular dither amplitude
+            assert!(
+                diff <= max_expected_diff,
+                "Dither noise too large: sample {}, diff {}, max expected {}",
+                i,
+                diff,
+                max_expected_diff
+            );
+        }
     }
-    //     const TEST_SAMPLE_RATE: SampleRate = nz!(44100);
-    //     const TEST_BIT_DEPTH: BitDepth = nz!(16);
-    //
-    //     #[test]
-    //     fn test_dither_algorithms() {
-    //         let source = SineWave::new(440.0).take_duration(std::time::Duration::from_millis(10));
-    //
-    //         // Test all four algorithms
-    //         let mut gpdf = Dither::new(source.clone(), TEST_BIT_DEPTH, Algorithm::GPDF);
-    //         let mut highpass = Dither::new(source.clone(), TEST_BIT_DEPTH, Algorithm::HighPass);
-    //         let mut rpdf = Dither::new(source.clone(), TEST_BIT_DEPTH, Algorithm::RPDF);
-    //         let mut tpdf = Dither::new(source, TEST_BIT_DEPTH, Algorithm::TPDF);
-    //
-    //         for _ in 0..10 {
-    //             let gpdf_sample = gpdf.next().unwrap();
-    //             let highpass_sample = highpass.next().unwrap();
-    //             let rpdf_sample = rpdf.next().unwrap();
-    //             let tpdf_sample = tpdf.next().unwrap();
-    //
-    //             // RPDF and TPDF should be bounded
-    //             assert!((-1.0..=1.0).contains(&rpdf_sample));
-    //             assert!((-1.0..=1.0).contains(&tpdf_sample));
-    //
-    //             // Note: GPDF (Gaussian) and HighPass (Blue) may occasionally exceed [-1,1] bounds
-    //             assert!(gpdf_sample.is_normal());
-    //             assert!(highpass_sample.is_normal());
-    //         }
-    //     }
-    //
-    //     #[test]
-    //     fn test_dither_adds_noise() {
-    //         let source = SineWave::new(440.0).take_duration(std::time::Duration::from_millis(10));
-    //         let mut dithered = Dither::new(source.clone(), TEST_BIT_DEPTH, Algorithm::TPDF);
-    //         let mut undithered = source;
-    //
-    //         // Collect samples from both sources
-    //         let dithered_samples: Vec<f32> = (0..10).filter_map(|_| dithered.next()).collect();
-    //         let undithered_samples: Vec<f32> = (0..10).filter_map(|_| undithered.next()).collect();
-    //
-    //         let lsb = 1.0 / (1_i64 << (TEST_BIT_DEPTH.get() - 1)) as f32;
-    //
-    //         // Verify dithered samples differ from undithered and are reasonable
-    //         for (i, (&dithered_sample, &undithered_sample)) in dithered_samples
-    //             .iter()
-    //             .zip(undithered_samples.iter())
-    //             .enumerate()
-    //         {
-    //             // Should be finite
-    //             assert!(
-    //                 dithered_sample.is_finite(),
-    //                 "Dithered sample {} should be finite",
-    //                 i
-    //             );
-    //
-    //             // The difference should be small (just dither noise)
-    //             let diff = (dithered_sample - undithered_sample).abs();
-    //             let max_expected_diff = lsb * 2.0; // Max triangular dither amplitude
-    //             assert!(
-    //                 diff <= max_expected_diff,
-    //                 "Dither noise too large: sample {}, diff {}, max expected {}",
-    //                 i,
-    //                 diff,
-    //                 max_expected_diff
-    //             );
-    //         }
-    //     }
 }

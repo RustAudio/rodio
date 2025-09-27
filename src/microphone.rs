@@ -100,8 +100,8 @@
 
 use core::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::{thread, time::Duration};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 
 use crate::common::assert_error_traits;
 use crate::conversions::SampleTypeConverter;
@@ -166,8 +166,8 @@ pub struct Microphone {
     _stream_handle: cpal::Stream,
     buffer: rtrb::Consumer<Sample>,
     config: InputConfig,
-    poll_interval: Duration,
     error_occurred: Arc<AtomicBool>,
+    data_signal: Arc<(Mutex<()>, Condvar)>,
 }
 
 impl Source for Microphone {
@@ -198,7 +198,11 @@ impl Iterator for Microphone {
             } else if self.error_occurred.load(Ordering::Relaxed) {
                 return None;
             } else {
-                thread::sleep(self.poll_interval)
+                // Block until notified instead of sleeping. This eliminates polling overhead and
+                // reduces jitter by avoiding unnecessary wakeups when no audio data is available.
+                let (lock, cvar) = &*self.data_signal;
+                let guard = lock.lock().unwrap();
+                let _guard = cvar.wait(guard).unwrap();
             }
         }
     }
@@ -231,24 +235,32 @@ impl Microphone {
     ) -> Result<Self, OpenError> {
         let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
+        // Using rtrb (real-time ring buffer) instead of std::sync::mpsc or the ringbuf crate for
+        // audio performance. While ringbuf has Send variants that could eliminate the need for
+        // separate sendable/non-sendable microphone implementations, rtrb has been benchmarked to
+        // be significantly faster in throughput and provides lower latency operations.
         let (tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
         let error_occurred = Arc::new(AtomicBool::new(false));
+        let data_signal = Arc::new((Mutex::new(()), Condvar::new()));
         let error_callback = {
             let error_occurred = error_occurred.clone();
+            let data_signal = data_signal.clone();
             move |source| {
                 error_occurred.store(true, Ordering::Relaxed);
+                let (_lock, cvar) = &*data_signal;
+                cvar.notify_one();
                 error_callback(source);
             }
         };
 
-        let stream = open_input_stream(device, config, tx, error_callback)?;
+        let stream = open_input_stream(device, config, tx, error_callback, data_signal.clone())?;
 
         Ok(Microphone {
             _stream_handle: stream,
             buffer: rx,
             config,
-            poll_interval: Duration::from_millis(5),
             error_occurred,
+            data_signal,
         })
     }
 
@@ -279,8 +291,17 @@ fn open_input_stream(
     config: InputConfig,
     mut tx: Producer<crate::Sample>,
     error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
+    data_signal: Arc<(Mutex<()>, Condvar)>,
 ) -> Result<cpal::Stream, OpenError> {
     let timeout = Some(Duration::from_millis(100));
+
+    // Use the actual CPAL buffer size to determine when to notify. This aligns notifications with
+    // CPAL's natural period boundaries.
+    let period_samples = match config.buffer_size {
+        cpal::BufferSize::Fixed(frames) => frames as usize * config.channel_count.get() as usize,
+        cpal::BufferSize::Default => 1, // Always notify immediately when buffer size is unknown
+    };
+    let mut samples_since_notification = 0;
 
     macro_rules! build_input_streams {
     ($($sample_format:tt, $generic:ty);+) => {
@@ -290,7 +311,20 @@ fn open_input_stream(
                     &config.stream_config(),
                     move |data, _info| {
                         for sample in SampleTypeConverter::<_, f32>::new(data.into_iter().copied()) {
-                            let _skip_if_player_is_behind = tx.push(sample);
+                            if tx.push(sample).is_ok() {
+                                samples_since_notification += 1;
+
+                                // Notify when we've accumulated enough samples to represent one
+                                // CPAL buffer period.
+                                if samples_since_notification >= period_samples {
+                                    let (_lock, cvar) = &*data_signal;
+                                    cvar.notify_one();
+
+                                    // This keeps any "remainder" samples that didn't fit into a
+                                    // complete period.
+                                    samples_since_notification %= period_samples;
+                                }
+                            }
                         }
                     },
                     error_callback,

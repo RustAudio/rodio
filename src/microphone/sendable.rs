@@ -4,10 +4,9 @@
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc, Arc,
+        mpsc, Arc, Condvar, Mutex,
     },
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
 use cpal::Device;
@@ -24,8 +23,8 @@ pub struct Microphone {
     _stream_thread: JoinHandle<()>,
     buffer: rtrb::Consumer<Sample>,
     config: InputConfig,
-    poll_interval: Duration,
     error_occurred: Arc<AtomicBool>,
+    data_signal: Arc<(Mutex<()>, Condvar)>,
     _drop_tx: mpsc::Sender<()>,
 }
 
@@ -37,22 +36,33 @@ impl Microphone {
     ) -> Result<Self, OpenError> {
         let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
+        // Using rtrb (real-time ring buffer) instead of std::sync::mpsc or the ringbuf crate for
+        // audio performance. While ringbuf has Send variants that could eliminate the need for
+        // separate sendable/non-sendable microphone implementations, rtrb has been benchmarked to
+        // be significantly faster in throughput and provides lower latency operations.
         let (tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
         let error_occurred = Arc::new(AtomicBool::new(false));
+        let data_signal = Arc::new((Mutex::new(()), Condvar::new()));
         let error_callback = {
             let error_occurred = error_occurred.clone();
+            let data_signal = data_signal.clone();
             move |source| {
                 error_occurred.store(true, Ordering::Relaxed);
+                let (_lock, cvar) = &*data_signal;
+                cvar.notify_one();
                 error_callback(source);
             }
         };
 
         let (res_tx, res_rx) = mpsc::channel();
         let (_drop_tx, drop_rx) = mpsc::channel::<()>();
+        let data_signal_clone = data_signal.clone();
         let _stream_thread = thread::Builder::new()
             .name("Rodio cloneable microphone".to_string())
             .spawn(move || {
-                if let Err(e) = open_input_stream(device, config, tx, error_callback) {
+                if let Err(e) =
+                    open_input_stream(device, config, tx, error_callback, data_signal_clone)
+                {
                     let _ = res_tx.send(Err(e));
                 } else {
                     let _ = res_tx.send(Ok(()));
@@ -71,8 +81,8 @@ impl Microphone {
             _drop_tx,
             buffer: rx,
             config,
-            poll_interval: Duration::from_millis(5),
             error_occurred,
+            data_signal,
         })
     }
 
@@ -126,7 +136,11 @@ impl Iterator for Microphone {
             } else if self.error_occurred.load(Ordering::Relaxed) {
                 return None;
             } else {
-                thread::sleep(self.poll_interval)
+                // Block until notified instead of sleeping. This eliminates polling overhead and
+                // reduces jitter by avoiding unnecessary  wakeups when no audio data is available.
+                let (lock, cvar) = &*self.data_signal;
+                let guard = lock.lock().unwrap();
+                let _guard = cvar.wait(guard).unwrap();
             }
         }
     }

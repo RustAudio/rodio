@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added audio dithering support with `dither` feature (enabled by default):
   - Four dithering algorithms: `TPDF`, `RPDF`, `GPDF`, and `HighPass`
   - `DitherAlgorithm` enum for algorithm selection
-  - `dither()` function for applying quantization noise shaping
+  - `Source::dither()` function for applying dithering
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.

@@ -189,7 +189,7 @@ pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
-pub use crate::common::{ChannelCount, Sample, SampleRate};
+pub use crate::common::{BitDepth, ChannelCount, Sample, SampleRate};
 pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;

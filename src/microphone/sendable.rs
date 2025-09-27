@@ -60,15 +60,16 @@ impl Microphone {
         let _stream_thread = thread::Builder::new()
             .name("Rodio cloneable microphone".to_string())
             .spawn(move || {
-                if let Err(e) =
-                    open_input_stream(device, config, tx, error_callback, data_signal_clone)
-                {
-                    let _ = res_tx.send(Err(e));
-                } else {
-                    let _ = res_tx.send(Ok(()));
-                };
-
-                let _should_drop = drop_rx.recv();
+                match open_input_stream(device, config, tx, error_callback, data_signal_clone) {
+                    Err(e) => {
+                        let _ = res_tx.send(Err(e));
+                    }
+                    Ok(_) => {
+                        let _ = res_tx.send(Ok(()));
+                        // Keep the stream alive until we're told to drop
+                        let _should_drop = drop_rx.recv();
+                    }
+                }
             })
             .expect("Should be able to spawn threads");
 

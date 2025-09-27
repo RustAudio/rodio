@@ -109,6 +109,7 @@ use crate::{Sample, Source};
 
 mod builder;
 mod config;
+pub mod sendable;
 pub use builder::MicrophoneBuilder;
 pub use config::InputConfig;
 use cpal::I24;
@@ -116,7 +117,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device,
 };
-use rtrb::RingBuffer;
+use rtrb::{Producer, RingBuffer};
 
 /// Error that can occur when we can not list the input devices
 #[derive(Debug, thiserror::Error, Clone)]
@@ -228,10 +229,9 @@ impl Microphone {
         config: InputConfig,
         mut error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
     ) -> Result<Self, OpenError> {
-        let timeout = Some(Duration::from_millis(100));
         let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
-        let (mut tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
+        let (tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
         let error_occurred = Arc::new(AtomicBool::new(false));
         let error_callback = {
             let error_occurred = error_occurred.clone();
@@ -241,43 +241,7 @@ impl Microphone {
             }
         };
 
-        macro_rules! build_input_streams {
-        ($($sample_format:tt, $generic:ty);+) => {
-            match config.sample_format {
-                $(
-                    cpal::SampleFormat::$sample_format => device.build_input_stream::<$generic, _, _>(
-                        &config.stream_config(),
-                        move |data, _info| {
-                            for sample in SampleTypeConverter::<_, f32>::new(data.into_iter().copied()) {
-                                let _skip_if_player_is_behind = tx.push(sample);
-                            }
-                        },
-                        error_callback,
-                        timeout,
-                    ),
-                )+
-                _ => return Err(OpenError::UnsupportedSampleFormat),
-            }
-        };
-    }
-
-        let stream = build_input_streams!(
-            F32, f32;
-            F64, f64;
-            I8, i8;
-            I16, i16;
-            I24, I24;
-            I32, i32;
-            I64, i64;
-            U8, u8;
-            U16, u16;
-            // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
-            // U24, cpal::U24;
-            U32, u32;
-            U64, u64
-        )
-        .map_err(OpenError::BuildStream)?;
-        stream.play().map_err(OpenError::Play)?;
+        let stream = open_input_stream(device, config, tx, error_callback)?;
 
         Ok(Microphone {
             _stream_handle: stream,
@@ -308,4 +272,51 @@ impl Microphone {
     pub fn config(&self) -> &InputConfig {
         &self.config
     }
+}
+
+fn open_input_stream(
+    device: Device,
+    config: InputConfig,
+    mut tx: Producer<crate::Sample>,
+    error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
+) -> Result<cpal::Stream, OpenError> {
+    let timeout = Some(Duration::from_millis(100));
+
+    macro_rules! build_input_streams {
+    ($($sample_format:tt, $generic:ty);+) => {
+        match config.sample_format {
+            $(
+                cpal::SampleFormat::$sample_format => device.build_input_stream::<$generic, _, _>(
+                    &config.stream_config(),
+                    move |data, _info| {
+                        for sample in SampleTypeConverter::<_, f32>::new(data.into_iter().copied()) {
+                            let _skip_if_player_is_behind = tx.push(sample);
+                        }
+                    },
+                    error_callback,
+                    timeout,
+                ),
+            )+
+            _ => return Err(OpenError::UnsupportedSampleFormat),
+        }
+    };
+        }
+    let stream = build_input_streams!(
+        F32, f32;
+        F64, f64;
+        I8, i8;
+        I16, i16;
+        I24, I24;
+        I32, i32;
+        I64, i64;
+        U8, u8;
+        U16, u16;
+        // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
+        // U24, cpal::U24;
+        U32, u32;
+        U64, u64
+    )
+    .map_err(OpenError::BuildStream)?;
+    stream.play().map_err(OpenError::Play)?;
+    Ok(stream)
 }

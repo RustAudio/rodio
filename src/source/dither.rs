@@ -8,11 +8,11 @@
 //! ## Example
 //!
 //! ```rust
-//! use rodio::source::{dither, SineWave, DitherAlgorithm, Source};
-//! use rodio::BitDepth;
+//! use rodio::source::{DitherAlgorithm, SineWave};
+//! use rodio::{BitDepth, Source};
 //!
 //! let source = SineWave::new(440.0);
-//! let dithered = dither(source, BitDepth::new(16).unwrap(), DitherAlgorithm::TPDF);
+//! let dithered = source.dither(BitDepth::new(16).unwrap(), DitherAlgorithm::TPDF);
 //! ```
 //!
 //! ## Guidelines
@@ -113,11 +113,11 @@ impl NoiseGenerator {
 /// # Example
 ///
 /// ```rust
-/// use rodio::source::{SineWave, dither, DitherAlgorithm};
-/// use rodio::BitDepth;
+/// use rodio::source::{DitherAlgorithm, SineWave};
+/// use rodio::{BitDepth, Source};
 ///
 /// let source = SineWave::new(440.0);
-/// let dithered = dither(source, BitDepth::new(16).unwrap(), DitherAlgorithm::TPDF);
+/// let dithered = source.dither(BitDepth::new(16).unwrap(), DitherAlgorithm::TPDF);
 /// ```
 #[derive(Clone, Debug)]
 pub struct Dither<I> {

@@ -235,10 +235,7 @@ impl Microphone {
     ) -> Result<Self, OpenError> {
         let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
-        // Using rtrb (real-time ring buffer) instead of std::sync::mpsc or the ringbuf crate for
-        // audio performance. While ringbuf has Send variants that could eliminate the need for
-        // separate sendable/non-sendable microphone implementations, rtrb has been benchmarked to
-        // be significantly faster in throughput and provides lower latency operations.
+        // rtrb is faster then all other (ring)buffers: https://github.com/mgeier/rtrb/issues/39
         let (tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
         let error_occurred = Arc::new(AtomicBool::new(false));
         let data_signal = Arc::new((Mutex::new(()), Condvar::new()));

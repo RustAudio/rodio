@@ -1,5 +1,7 @@
-//! Slightly less efficient microphone that multiple sources can draw from
-//! think of it as an inverse mixer.
+//! Slightly less efficient microphone that is Send on all platforms. 
+
+// The normal microphone is not send on mac OS as the cpal::stream (handle) is not Send. This
+// creates and then keeps that handle on a seperate thread.
 
 use std::{
     sync::{
@@ -36,10 +38,9 @@ impl Microphone {
     ) -> Result<Self, OpenError> {
         let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
-        // Using rtrb (real-time ring buffer) instead of std::sync::mpsc or the ringbuf crate for
-        // audio performance. While ringbuf has Send variants that could eliminate the need for
-        // separate sendable/non-sendable microphone implementations, rtrb has been benchmarked to
-        // be significantly faster in throughput and provides lower latency operations.
+        // Using rtrb (real-time ring buffer) instead of std::sync::mpsc or the ringbuf crate rtrb
+        // has been benchmarked to be significantly faster in throughput and provides lower latency
+        // operations.
         let (tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
         let error_occurred = Arc::new(AtomicBool::new(false));
         let data_signal = Arc::new((Mutex::new(()), Condvar::new()));
@@ -58,7 +59,7 @@ impl Microphone {
         let (_drop_tx, drop_rx) = mpsc::channel::<()>();
         let data_signal_clone = data_signal.clone();
         let _stream_thread = thread::Builder::new()
-            .name("Rodio cloneable microphone".to_string())
+            .name("Rodio sendable microphone".to_string())
             .spawn(move || {
                 match open_input_stream(device, config, tx, error_callback, data_signal_clone) {
                     Err(e) => {
@@ -66,7 +67,7 @@ impl Microphone {
                     }
                     Ok(_) => {
                         let _ = res_tx.send(Ok(()));
-                        // Keep the stream alive until we're told to drop
+                        // Keep this thread alive until the Microphone struct is dropped
                         let _should_drop = drop_rx.recv();
                     }
                 }
@@ -138,7 +139,7 @@ impl Iterator for Microphone {
                 return None;
             } else {
                 // Block until notified instead of sleeping. This eliminates polling overhead and
-                // reduces jitter by avoiding unnecessary  wakeups when no audio data is available.
+                // reduces jitter by avoiding unnecessary wakeups when no audio data is available.
                 let (lock, cvar) = &*self.data_signal;
                 let guard = lock.lock().unwrap();
                 let _guard = cvar.wait(guard).unwrap();

@@ -295,14 +295,6 @@ fn open_input_stream(
 ) -> Result<cpal::Stream, OpenError> {
     let timeout = Some(Duration::from_millis(100));
 
-    // Use the actual CPAL buffer size to determine when to notify. This aligns notifications with
-    // CPAL's natural period boundaries.
-    let period_samples = match config.buffer_size {
-        cpal::BufferSize::Fixed(frames) => frames as usize * config.channel_count.get() as usize,
-        cpal::BufferSize::Default => 1, // Always notify immediately when buffer size is unknown
-    };
-    let mut samples_since_notification = 0;
-
     macro_rules! build_input_streams {
     ($($sample_format:tt, $generic:ty);+) => {
         match config.sample_format {
@@ -310,21 +302,20 @@ fn open_input_stream(
                 cpal::SampleFormat::$sample_format => device.build_input_stream::<$generic, _, _>(
                     &config.stream_config(),
                     move |data, _info| {
+                        let mut pushed_any = false;
                         for sample in SampleTypeConverter::<_, f32>::new(data.into_iter().copied()) {
                             if tx.push(sample).is_ok() {
-                                samples_since_notification += 1;
-
-                                // Notify when we've accumulated enough samples to represent one
-                                // CPAL buffer period.
-                                if samples_since_notification >= period_samples {
-                                    let (_lock, cvar) = &*data_signal;
-                                    cvar.notify_one();
-
-                                    // This keeps any "remainder" samples that didn't fit into a
-                                    // complete period.
-                                    samples_since_notification %= period_samples;
-                                }
+                                pushed_any = true;
                             }
+                        }
+
+                        // Notify once per CPAL callback if we pushed any samples.
+                        // This avoids complex sample counting that can get stuck when the ring
+                        // buffer is smaller than the CPAL period, or when the buffer is partially
+                        // full. Each callback represents one input period anyway.
+                        if pushed_any {
+                            let (_lock, cvar) = &*data_signal;
+                            cvar.notify_one();
                         }
                     },
                     error_callback,

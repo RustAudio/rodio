@@ -91,7 +91,7 @@
 //!
 //! // Use a specific device (e.g., the second one)
 //! let mic = MicrophoneBuilder::new()
-//!     .device(inputs[1].clone())?
+//!     .device(inputs[1].clone().into_inner())?
 //!     .default_config()?
 //!     .open_stream()?;
 //! # Ok(())
@@ -130,9 +130,10 @@ pub struct Input {
     inner: cpal::Device,
 }
 
-impl From<Input> for cpal::Device {
-    fn from(val: Input) -> Self {
-        val.inner
+impl Input {
+    /// Consumes the input and returns the inner device.
+    pub fn into_inner(self) -> cpal::Device {
+        self.inner
     }
 }
 

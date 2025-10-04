@@ -92,6 +92,9 @@ symphonia-pcm = ["symphonia/pcm"]
 symphonia-vorbis = ["symphonia/vorbis"]
 symphonia-wav = ["symphonia/wav"]
 
+# Enable SIMD optimisations for Symphonia
+symphonia-simd = ["symphonia/opt-simd"]
+
 # Alternative decoders and demuxers
 claxon = ["dep:claxon"]         # FLAC
 hound = ["dep:hound"]           # WAV

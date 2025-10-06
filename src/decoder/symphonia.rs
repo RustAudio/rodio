@@ -1,9 +1,9 @@
 use core::time::Duration;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
-        codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
+        codecs::{CodecRegistry, Decoder, DecoderOptions, CODEC_TYPE_NULL},
         errors::Error,
         formats::{FormatOptions, FormatReader, SeekMode, SeekTo, SeekedTo},
         io::MediaSourceStream,
@@ -19,6 +19,25 @@ use crate::{
     common::{assert_error_traits, ChannelCount, Sample, SampleRate},
     source, Source,
 };
+
+#[derive(Clone)]
+/// Enum for choosing which codec registry to used with Symphonia decoders.
+pub enum SymphoniaRegistry {
+    /// Use the symphonia default registry symphonia::default::get_codecs()
+    Default,
+
+    ///Use a custom CodecRegistry
+    Custom(Arc<CodecRegistry>),
+}
+
+impl Debug for SymphoniaRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Default => write!(f, "Default"),
+            Self::Custom(_) => write!(f, "Custom"),
+        }
+    }
+}
 
 pub(crate) struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
@@ -102,9 +121,13 @@ impl SymphoniaDecoder {
             None => return Ok(None),
         };
 
-        let mut decoder = symphonia::default::get_codecs()
-            .make(&track.codec_params, &DecoderOptions::default())?;
-        let total_duration: Option<Duration> = track
+        let mut decoder = match &settings.codec_registry {
+            SymphoniaRegistry::Default => symphonia::default::get_codecs(),
+            SymphoniaRegistry::Custom(cr) => cr.as_ref(),
+        }
+        .make(&track.codec_params, &DecoderOptions::default())?;
+
+        let total_duration = stream
             .codec_params
             .time_base
             .zip(stream.codec_params.n_frames)

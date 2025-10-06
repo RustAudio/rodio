@@ -40,9 +40,15 @@
 use std::io::{Read, Seek};
 
 #[cfg(feature = "symphonia")]
+use crate::decoder::symphonia::SymphoniaRegistry;
+
+#[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
 #[cfg(feature = "symphonia")]
-use ::symphonia::core::io::{MediaSource, MediaSourceStream};
+use ::symphonia::core::{
+    codecs::CodecRegistry,
+    io::{MediaSource, MediaSourceStream},
+};
 
 use super::*;
 
@@ -77,6 +83,9 @@ pub struct Settings {
 
     /// Whether the decoder should report as seekable.
     pub(crate) is_seekable: bool,
+
+    #[cfg(feature = "symphonia")]
+    pub(crate) codec_registry: SymphoniaRegistry,
 }
 
 impl Default for Settings {
@@ -88,6 +97,7 @@ impl Default for Settings {
             hint: None,
             mime_type: None,
             is_seekable: false,
+            codec_registry: SymphoniaRegistry::Default,
         }
     }
 }
@@ -228,6 +238,15 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// Common values are "audio/mpeg", "audio/vnd.wav", "audio/flac", "audio/ogg", etc.
     pub fn with_mime_type(mut self, mime_type: &str) -> Self {
         self.settings.mime_type = Some(mime_type.to_string());
+        self
+    }
+
+    /// Set a custom codec registry
+    /// 
+    /// 
+    #[cfg(feature = "symphonia")]
+    pub fn with_codec_registry(mut self, codec_registry: Arc<CodecRegistry>) -> Self {
+        self.settings.codec_registry = SymphoniaRegistry::Custom(codec_registry);
         self
     }
 

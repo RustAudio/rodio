@@ -197,7 +197,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.16.0"
-source = "git+https://github.com/RustAudio/cpal?rev=c9d8e2e18789e305e2d087d65888f06db08bd2ba#c9d8e2e18789e305e2d087d65888f06db08bd2ba"
+source = "git+https://github.com/RustAudio/cpal?rev=b7c0eace84974780571a138bae2ae5c56fda783d#b7c0eace84974780571a138bae2ae5c56fda783d"
 dependencies = [
  "alsa",
  "coreaudio-rs",
@@ -212,6 +212,7 @@ dependencies = [
  "num-traits",
  "objc2",
  "objc2-audio-toolbox",
+ "objc2-avf-audio",
  "objc2-core-audio",
  "objc2-core-audio-types",
  "objc2-core-foundation",
@@ -750,6 +751,16 @@ dependencies = [
  "objc2-core-audio",
  "objc2-core-audio-types",
  "objc2-core-foundation",
+ "objc2-foundation",
+]
+
+[[package]]
+name = "objc2-avf-audio"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfc1d11521c211a7ebe17739fc806719da41f56c6b3f949d9861b459188ce910"
+dependencies = [
+ "objc2",
  "objc2-foundation",
 ]
 

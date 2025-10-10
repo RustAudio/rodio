@@ -683,7 +683,14 @@ impl SymphoniaDecoder {
             .codec_params
             .time_base
             .zip(track.codec_params.n_frames)
-            .map(|(base, spans)| base.calc_time(spans).into());
+            .and_then(|(base, spans)| {
+                // Treat n_frames=0 as invalid (common issue with some M4A files)
+                if spans == 0 {
+                    None
+                } else {
+                    Some(base.calc_time(spans).into())
+                }
+            });
 
         // Find the first decodable packet and initialize spec from it
         let (spec, buffer) = loop {

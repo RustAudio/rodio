@@ -202,6 +202,11 @@ where
     }
 
     #[inline]
+    fn bits_per_sample(&self) -> Option<BitDepth> {
+        self.input.bits_per_sample()
+    }
+
+    #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
     }

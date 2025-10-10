@@ -102,6 +102,8 @@ hound = ["dep:hound"]           # WAV
 minimp3 = ["dep:minimp3_fixed"] # MP3
 lewton = ["dep:lewton"]         # Ogg Vorbis
 
+# Third party codec example
+libopus = ["dep:symphonia-adapter-libopus"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -125,6 +127,8 @@ tracing = { version = "0.1.40", optional = true }
 atomic_float = { version = "1.1.0", optional = true }
 rtrb = { version = "0.3.2", optional = true }
 num-rational = "0.4.2"
+
+symphonia-adapter-libopus = {version="0.1.1", optional = true}
 
 [dev-dependencies]
 quickcheck = "1"
@@ -253,3 +257,7 @@ required-features = ["playback", "vorbis"]
 [[example]]
 name = "stereo"
 required-features = ["playback", "vorbis"]
+
+[[example]]
+name = "third_party_codec"
+required-features = ["playback", "symphonia", "libopus"]

@@ -242,6 +242,10 @@ pub(super) struct Settings {
 
     /// Enable expensive file scanning for accurate duration computation.
     pub scan_duration: bool,
+
+    /// Force the decoder to treat parameters as stable for the duration of the sound, even when it
+    /// can't detect this automatically.
+    pub stable_parameters: bool,
 }
 
 impl Default for Settings {
@@ -255,6 +259,7 @@ impl Default for Settings {
             is_seekable: false,
             total_duration: None,
             scan_duration: true,
+            stable_parameters: false,
         }
     }
 }
@@ -705,6 +710,37 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     /// ```
     pub fn with_scan_duration(mut self, scan: bool) -> Self {
         self.settings.scan_duration = scan;
+        self
+    }
+
+    /// Forces the decoder to treat audio parameters as stable throughout the stream.
+    ///
+    /// This optimization allows `current_span_len()` to return `None`, indicating that
+    /// the audio parameters (sample rate, channels, bit depth) will never change.
+    /// This can improve performance by avoiding unnecessary parameter checks.
+    ///
+    /// Only enable this if you're certain the parameters won't change. If parameters
+    /// do change while this is enabled, audio playback will be corrupted or incorrect.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::fs::File;
+    /// use rodio::decoder::DecoderBuilder;
+    ///
+    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let file = File::open("assets/music.ogg")?;
+    ///     let decoder = DecoderBuilder::new()
+    ///         .with_data(file)
+    ///         .with_stable_parameters(true)  // User knows parameters are stable
+    ///         .build()?;
+    ///
+    ///     // Decoder will now optimize assuming stable parameters
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn with_stable_parameters(mut self, force: bool) -> Self {
+        self.settings.stable_parameters = force;
         self
     }
 

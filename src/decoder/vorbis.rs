@@ -167,6 +167,11 @@ where
     /// When `true`, enables backward seeking by allowing stream reset operations.
     /// When `false`, only forward seeking (sample skipping) is allowed.
     is_seekable: bool,
+
+    /// Whether audio parameters remain stable throughout the entire stream.
+    ///
+    /// Used to optimize performance by avoiding unnecessary checks for parameter changes.
+    has_stable_parameters: bool,
 }
 
 impl<R> VorbisDecoder<R>
@@ -301,6 +306,7 @@ where
             samples_read: 0,
             seek_mode: settings.seek_mode,
             is_seekable: settings.is_seekable,
+            has_stable_parameters: settings.force_stable_parameters,
         })
     }
 
@@ -460,12 +466,16 @@ where
     /// exhausted.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        // Chained Ogg streams are supported by lewton, so parameters can change.
-        // Return current buffer length, or Some(0) when exhausted.
-        self.current_data
-            .as_ref()
-            .map(|data| data.len())
-            .or(Some(0))
+        if self.has_stable_parameters {
+            None
+        } else {
+            // Chained Ogg streams are supported by lewton, so parameters can change.
+            // Return current buffer length, or Some(0) when exhausted.
+            self.current_data
+                .as_ref()
+                .map(|data| data.len())
+                .or(Some(0))
+        }
     }
 
     /// Returns the number of audio channels.

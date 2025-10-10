@@ -186,6 +186,11 @@ where
     /// When `true`, enables backward seeking by allowing stream reset operations.
     /// When `false`, only forward seeking (sample skipping) is allowed.
     is_seekable: bool,
+
+    /// Whether audio parameters remain stable throughout the entire stream.
+    ///
+    /// Used to optimize performance by avoiding unnecessary checks for parameter changes.
+    has_stable_parameters: bool,
 }
 
 impl<R> Mp3Decoder<R>
@@ -360,6 +365,7 @@ where
             mpeg_layer,
             seek_mode: settings.seek_mode,
             is_seekable: settings.is_seekable,
+            has_stable_parameters: settings.force_stable_parameters,
         })
     }
 
@@ -465,11 +471,15 @@ where
     /// Total samples per frame = samples_per_channel × channel_count
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        // Channel mode can change between MP3 frames. Return Some(0) when exhausted.
-        self.current_span
-            .as_ref()
-            .map(|span| span.data.len())
-            .or(Some(0))
+        if self.has_stable_parameters {
+            None
+        } else {
+            // Channel mode can change between MP3 frames. Return Some(0) when exhausted.
+            self.current_span
+                .as_ref()
+                .map(|span| span.data.len())
+                .or(Some(0))
+        }
     }
 
     /// Returns the number of audio channels.

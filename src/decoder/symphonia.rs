@@ -86,7 +86,16 @@ use std::{
 use symphonia::{
     core::{
         audio::SampleBuffer,
-        codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL, CODEC_TYPE_VORBIS},
+        codecs::{
+            CodecType, Decoder, DecoderOptions, CODEC_TYPE_ALAC, CODEC_TYPE_FLAC,
+            CODEC_TYPE_MONKEYS_AUDIO, CODEC_TYPE_NULL, CODEC_TYPE_PCM_ALAW, CODEC_TYPE_PCM_F32BE,
+            CODEC_TYPE_PCM_F32LE, CODEC_TYPE_PCM_F64BE, CODEC_TYPE_PCM_F64LE, CODEC_TYPE_PCM_MULAW,
+            CODEC_TYPE_PCM_S16BE, CODEC_TYPE_PCM_S16LE, CODEC_TYPE_PCM_S24BE, CODEC_TYPE_PCM_S24LE,
+            CODEC_TYPE_PCM_S32BE, CODEC_TYPE_PCM_S32LE, CODEC_TYPE_PCM_S8, CODEC_TYPE_PCM_U16BE,
+            CODEC_TYPE_PCM_U16LE, CODEC_TYPE_PCM_U24BE, CODEC_TYPE_PCM_U24LE, CODEC_TYPE_PCM_U32BE,
+            CODEC_TYPE_PCM_U32LE, CODEC_TYPE_PCM_U8, CODEC_TYPE_TTA, CODEC_TYPE_VORBIS,
+            CODEC_TYPE_WAVPACK,
+        },
         errors::Error,
         formats::{FormatOptions, FormatReader, SeekMode as SymphoniaSeekMode, SeekTo},
         io::{MediaSource, MediaSourceStream},
@@ -104,6 +113,39 @@ use crate::{
     source, Float, Source,
 };
 use crate::{decoder::builder::Settings, BitDepth};
+
+/// Determines if a codec has stable parameters throughout the stream.
+#[inline]
+fn has_stable_parameters(codec: CodecType) -> bool {
+    matches!(
+        codec,
+        CODEC_TYPE_FLAC
+            | CODEC_TYPE_ALAC
+            | CODEC_TYPE_WAVPACK
+            | CODEC_TYPE_TTA
+            | CODEC_TYPE_MONKEYS_AUDIO
+            | CODEC_TYPE_PCM_S8
+            | CODEC_TYPE_PCM_S16LE
+            | CODEC_TYPE_PCM_S16BE
+            | CODEC_TYPE_PCM_S24LE
+            | CODEC_TYPE_PCM_S24BE
+            | CODEC_TYPE_PCM_S32LE
+            | CODEC_TYPE_PCM_S32BE
+            | CODEC_TYPE_PCM_U8
+            | CODEC_TYPE_PCM_U16LE
+            | CODEC_TYPE_PCM_U16BE
+            | CODEC_TYPE_PCM_U24LE
+            | CODEC_TYPE_PCM_U24BE
+            | CODEC_TYPE_PCM_U32LE
+            | CODEC_TYPE_PCM_U32BE
+            | CODEC_TYPE_PCM_F32LE
+            | CODEC_TYPE_PCM_F32BE
+            | CODEC_TYPE_PCM_F64LE
+            | CODEC_TYPE_PCM_F64BE
+            | CODEC_TYPE_PCM_ALAW
+            | CODEC_TYPE_PCM_MULAW
+    )
+}
 
 /// A wrapper around a `Read + Seek` type that implements Symphonia's `MediaSource` trait.
 ///
@@ -419,6 +461,11 @@ pub struct SymphoniaDecoder {
     /// Required for some seeking operations, particularly coarse seeking in MP3.
     /// When not available, seeking may fall back to less optimal methods.
     byte_len: Option<u64>,
+
+    /// Whether audio parameters remain stable throughout the entire stream.
+    ///
+    /// Used to optimize performance by avoiding unnecessary checks for parameter changes.
+    has_stable_parameters: bool,
 }
 
 impl SymphoniaDecoder {
@@ -719,6 +766,10 @@ impl SymphoniaDecoder {
             }
         };
 
+        let has_stable_parameters = settings.stable_parameters
+            || (has_stable_parameters(decoder.codec_params().codec)
+                && probed.format.tracks().len() == 1);
+
         Ok(Some(Self {
             decoder,
             current_span_offset: 0,
@@ -734,6 +785,7 @@ impl SymphoniaDecoder {
             track_id,
             is_seekable,
             byte_len,
+            has_stable_parameters,
         }))
     }
 
@@ -761,27 +813,38 @@ impl SymphoniaDecoder {
 impl Source for SymphoniaDecoder {
     /// Returns the number of samples before parameters change.
     ///
+    /// # Parameter Stability Optimization
+    ///
+    /// For streams with guaranteed stable parameters (single-track files using codecs
+    /// like FLAC, WAV/PCM, ALAC), this returns `None` to indicate unlimited stability.
+    /// This allows downstream processing to optimize by avoiding parameter checks on
+    /// every sample.
+    ///
     /// # Parameter Changes
     ///
-    /// Symphonia may encounter parameter changes in several scenarios:
-    /// - **Codec resets**: Required when stream parameters change
-    /// - **Track switching**: Multi-track files with different specifications
-    /// - **Chained streams**: Different specifications in concatenated streams
+    /// For unstable streams, Symphonia may encounter parameter changes:
+    /// - **Track switching**: Multi-track files (.mkv, .mp4) with different specifications
+    /// - **Chained streams**: Concatenated streams (Ogg) with different parameters
+    /// - **Codec resets**: Mid-stream parameter changes (rare)
     ///
     /// # Buffer Sizes
     ///
-    /// Buffer sizes are determined by the codec's maximum frame length and
-    /// may vary between packets based on encoding complexity and format
-    /// characteristics.
+    /// When returned, buffer sizes are determined by the codec's maximum frame length
+    /// and may vary between packets based on encoding complexity.
     ///
     /// # Returns
     ///
-    /// This returns the number of samples in the current buffer when available, or
-    /// `Some(0)` when the stream is exhausted.
+    /// - `None` for streams with guaranteed stable parameters (optimization hint)
+    /// - `Some(n)` with current buffer length for potentially unstable streams
+    /// - `Some(0)` when the stream is exhausted
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        // Audio spec remains stable for the length of the buffer. Return Some(0) when exhausted.
-        self.buffer.as_ref().map(SampleBuffer::len).or(Some(0))
+        if self.has_stable_parameters {
+            None
+        } else {
+            // Parameters may change - return buffer length to force rechecks after each buffer
+            self.buffer.as_ref().map(SampleBuffer::len).or(Some(0))
+        }
     }
 
     /// Returns the number of audio channels.

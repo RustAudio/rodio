@@ -87,7 +87,7 @@ use symphonia::{
     core::{
         audio::SampleBuffer,
         codecs::{
-            CodecType, Decoder, DecoderOptions, CODEC_TYPE_ALAC, CODEC_TYPE_FLAC,
+            CodecType, Decoder, DecoderOptions, CODEC_TYPE_AAC, CODEC_TYPE_ALAC, CODEC_TYPE_FLAC,
             CODEC_TYPE_MONKEYS_AUDIO, CODEC_TYPE_NULL, CODEC_TYPE_PCM_ALAW, CODEC_TYPE_PCM_F32BE,
             CODEC_TYPE_PCM_F32LE, CODEC_TYPE_PCM_F64BE, CODEC_TYPE_PCM_F64LE, CODEC_TYPE_PCM_MULAW,
             CODEC_TYPE_PCM_S16BE, CODEC_TYPE_PCM_S16LE, CODEC_TYPE_PCM_S24BE, CODEC_TYPE_PCM_S24LE,
@@ -684,8 +684,9 @@ impl SymphoniaDecoder {
             .time_base
             .zip(track.codec_params.n_frames)
             .and_then(|(base, spans)| {
-                // Treat n_frames=0 as invalid (common issue with some M4A files)
-                if spans == 0 {
+                // Treat n_frames=0 as invalid for AAC codec (common issue with some M4A files)
+                // TODO: remove when Symphonia > 0.5.4 is released, see: https://github.com/pdeljanov/Symphonia/commit/4f41954de75e2447753f3e522cc7345ec414a703#diff-d4e7073755222d37e1b948b48dd361bea2066dfcfe7f7069271ebf75b6a7e083
+                if spans == 0 && track.codec_params.codec == CODEC_TYPE_AAC {
                     None
                 } else {
                     Some(base.calc_time(spans).into())

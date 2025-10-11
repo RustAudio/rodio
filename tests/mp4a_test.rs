@@ -19,8 +19,8 @@ fn test_mp4a_encodings() {
 
 #[test]
 fn test_m4a_zero_frames_handling() {
-    // Test for M4A files that report n_frames=0 but contain valid audio data.
-    // Some M4A files (like ISO Media MP4 Base Media v5) incorrectly report
+    // Test for AAC M4A files that report n_frames=0 but contain valid audio data.
+    // Some AAC M4A files (like ISO Media MP4 Base Media v5) incorrectly report
     // n_frames=0 in metadata, which should be handled by setting duration to None
     // instead of Some(0ns) to allow proper seeking functionality.
 
@@ -31,7 +31,7 @@ fn test_m4a_zero_frames_handling() {
     assert_ne!(
         decoder.total_duration(),
         Some(Duration::ZERO),
-        "Files with n_frames=0 should report None duration, not Some(0ns)"
+        "Files with n_frames=0 should not report Some(0ns) duration"
     );
 
     // Should be able to decode and get valid audio samples

@@ -49,6 +49,7 @@ const RMS_WINDOW_SIZE: usize = power_of_two(8192);
 pub struct AutomaticGainControl<I> {
     input: I,
     target_level: Arc<AtomicF32>,
+    floor: Option<f32>,
     absolute_max_gain: Arc<AtomicF32>,
     current_gain: f32,
     attack_coeff: Arc<AtomicF32>,
@@ -68,6 +69,7 @@ pub struct AutomaticGainControl<I> {
 pub struct AutomaticGainControl<I> {
     input: I,
     target_level: f32,
+    floor: Option<f32>,
     absolute_max_gain: f32,
     current_gain: f32,
     attack_coeff: f32,
@@ -152,6 +154,7 @@ where
         AutomaticGainControl {
             input,
             target_level: Arc::new(AtomicF32::new(target_level)),
+            floor: None,
             absolute_max_gain: Arc::new(AtomicF32::new(absolute_max_gain)),
             current_gain: 1.0,
             attack_coeff: Arc::new(AtomicF32::new(attack_coeff)),
@@ -168,6 +171,7 @@ where
         AutomaticGainControl {
             input,
             target_level,
+            floor: None,
             absolute_max_gain,
             current_gain: 1.0,
             attack_coeff,
@@ -320,6 +324,19 @@ where
         }
     }
 
+    /// Set the floor value for the AGC
+    ///
+    /// This method sets the floor value for the AGC. The floor value is the minimum
+    /// output level that the AGC will allow. If the input signal is below the floor
+    /// value, the AGC will set the output level to the floor value.
+    ///
+    /// Passing `None` will disable the floor value, allowing the AGC to produce
+    /// arbitrarily low output levels.
+    #[inline]
+    pub fn set_floor(&mut self, floor: Option<f32>) {
+        self.floor = floor;
+    }
+
     /// Updates the peak level with an adaptive attack coefficient
     ///
     /// This method adjusts the peak level using a variable attack coefficient.
@@ -383,7 +400,14 @@ where
         let peak_gain = self.calculate_peak_gain();
 
         // Use RMS for general adjustments, but limit by peak gain to prevent clipping
-        let desired_gain = rms_gain.min(peak_gain);
+        let mut desired_gain = rms_gain.min(peak_gain);
+
+        // Apply the floor value to set a minimum output level
+        if let Some(floor_value) = self.floor {
+            if desired_gain < floor_value {
+                desired_gain = floor_value;
+            }
+        }
 
         // Adaptive attack/release speed for AGC (Automatic Gain Control)
         //

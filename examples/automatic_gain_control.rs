@@ -1,4 +1,4 @@
-use rodio::source::Source;
+use rodio::source::{AutomaticGainControlSettings, Source};
 use rodio::Decoder;
 use std::error::Error;
 use std::fs::File;
@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let source = Decoder::try_from(file)?;
 
     // Apply automatic gain control to the source
-    let agc_source = source.automatic_gain_control(1.0, 4.0, 0.005, 5.0);
+    let agc_source = source.automatic_gain_control(AutomaticGainControlSettings::default());
 
     // Make it so that the source checks if automatic gain control should be
     // enabled or disabled every 5 milliseconds. We must clone `agc_enabled`,

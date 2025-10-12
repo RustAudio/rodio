@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use divan::Bencher;
+use rodio::source::AutomaticGainControlSettings;
 use rodio::Source;
 
 mod shared;
@@ -47,12 +48,7 @@ fn amplify(bencher: Bencher) {
 fn agc_enabled(bencher: Bencher) {
     bencher.with_inputs(music_wav).bench_values(|source| {
         source
-            .automatic_gain_control(
-                1.0,   // target_level
-                4.0,   // attack_time (in seconds)
-                0.005, // release_time (in seconds)
-                5.0,   // absolute_max_gain
-            )
+            .automatic_gain_control(AutomaticGainControlSettings::default())
             .for_each(divan::black_box_drop)
     })
 }
@@ -62,12 +58,8 @@ fn agc_enabled(bencher: Bencher) {
 fn agc_disabled(bencher: Bencher) {
     bencher.with_inputs(music_wav).bench_values(|source| {
         // Create the AGC source
-        let amplified_source = source.automatic_gain_control(
-            1.0,   // target_level
-            4.0,   // attack_time (in seconds)
-            0.005, // release_time (in seconds)
-            5.0,   // absolute_max_gain
-        );
+        let amplified_source =
+            source.automatic_gain_control(AutomaticGainControlSettings::default());
 
         // Get the control handle and disable AGC
         let agc_control = amplified_source.get_agc_control();

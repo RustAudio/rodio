@@ -63,7 +63,8 @@ use std::time::Duration;
 use super::SeekError;
 use crate::{
     common::{ChannelCount, Sample, SampleRate},
-    math, Source,
+    math::{self, duration_to_coefficient},
+    Source,
 };
 
 /// Configuration settings for audio limiting.
@@ -1114,29 +1115,6 @@ where
 
         Ok(())
     }
-}
-
-/// Converts a time duration to a smoothing coefficient for exponential filtering.
-///
-/// Used for both attack and release filtering in the limiter's envelope detector.
-/// Creates a coefficient that determines how quickly the limiter responds to level changes:
-/// * Longer times = higher coefficients (closer to 1.0) = slower, smoother response
-/// * Shorter times = lower coefficients (closer to 0.0) = faster, more immediate response
-///
-/// The coefficient is calculated using the formula: `e^(-1 / (duration_seconds * sample_rate))`
-/// which provides exponential smoothing behavior suitable for audio envelope detection.
-///
-/// # Arguments
-///
-/// * `duration` - Desired response time (attack or release duration)
-/// * `sample_rate` - Audio sample rate in Hz
-///
-/// # Returns
-///
-/// Smoothing coefficient in the range [0.0, 1.0] for use in exponential filters
-#[must_use]
-fn duration_to_coefficient(duration: Duration, sample_rate: SampleRate) -> f32 {
-    f32::exp(-1.0 / (duration.as_secs_f32() * sample_rate.get() as f32))
 }
 
 #[cfg(test)]

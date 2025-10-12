@@ -399,15 +399,8 @@ where
         // Calculate the peak limiting gain
         let peak_gain = self.calculate_peak_gain();
 
-        // Use RMS for general adjustments, but limit by peak gain to prevent clipping
-        let mut desired_gain = rms_gain.min(peak_gain);
-
-        // Apply the floor value to set a minimum output level
-        if let Some(floor_value) = self.floor {
-            if desired_gain < floor_value {
-                desired_gain = floor_value;
-            }
-        }
+        // Use RMS for general adjustments, but limit by peak gain to prevent clipping and apply a minimum floor value
+        let desired_gain = rms_gain.min(peak_gain).max(self.floor.unwrap_or(0f32));
 
         // Adaptive attack/release speed for AGC (Automatic Gain Control)
         //

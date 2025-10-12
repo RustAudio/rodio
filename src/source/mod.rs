@@ -11,7 +11,7 @@ use crate::{
 
 use dasp_sample::FromSample;
 
-pub use self::agc::AutomaticGainControl;
+pub use self::agc::{AutomaticGainControl, AutomaticGainControlSettings};
 pub use self::amplify::Amplify;
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
@@ -380,12 +380,13 @@ pub trait Source: Iterator<Item = Sample> {
     ///
     /// ```rust
     /// // Apply Automatic Gain Control to the source (AGC is on by default)
-    /// use rodio::source::{Source, SineWave};
+    /// use rodio::source::{Source, SineWave, AutomaticGainControlSettings};
     /// use rodio::Sink;
+    /// use std::time::Duration;
     /// let source = SineWave::new(444.0); // An example.
     /// let (sink, output) = Sink::new(); // An example.
     ///
-    /// let agc_source = source.automatic_gain_control(1.0, 4.0, 0.0, 5.0);
+    /// let agc_source = source.automatic_gain_control(AutomaticGainControlSettings::default());
     ///
     /// // Add the AGC-controlled source to the sink
     /// sink.append(agc_source);
@@ -394,26 +395,21 @@ pub trait Source: Iterator<Item = Sample> {
     #[inline]
     fn automatic_gain_control(
         self,
-        target_level: f32,
-        attack_time: f32,
-        release_time: f32,
-        absolute_max_gain: f32,
+        agc_settings: AutomaticGainControlSettings,
     ) -> AutomaticGainControl<Self>
     where
         Self: Sized,
     {
         // Added Limits to prevent the AGC from blowing up. ;)
-        const MIN_ATTACK_TIME: f32 = 10.0;
-        const MIN_RELEASE_TIME: f32 = 10.0;
-        let attack_time = attack_time.min(MIN_ATTACK_TIME);
-        let release_time = release_time.min(MIN_RELEASE_TIME);
+        let attack_time_limited = agc_settings.attack_time.min(Duration::from_secs_f32(10.0));
+        let release_time_limited = agc_settings.release_time.min(Duration::from_secs_f32(10.0));
 
         agc::automatic_gain_control(
             self,
-            target_level,
-            attack_time,
-            release_time,
-            absolute_max_gain,
+            agc_settings.target_level,
+            attack_time_limited,
+            release_time_limited,
+            agc_settings.absolute_max_gain,
         )
     }
 

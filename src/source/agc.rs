@@ -14,6 +14,7 @@
 //
 
 use super::SeekError;
+use crate::math::duration_to_coefficient;
 use crate::Source;
 #[cfg(feature = "experimental")]
 use atomic_float::AtomicF32;
@@ -40,6 +41,37 @@ const fn power_of_two(n: usize) -> usize {
 /// A larger size provides more stable RMS values but increases latency.
 const RMS_WINDOW_SIZE: usize = power_of_two(8192);
 
+/// Settings for the Automatic Gain Control (AGC).
+///
+/// This struct contains parameters that define how the AGC will function,
+/// allowing users to customise its behaviour.
+#[derive(Debug, Clone)]
+pub struct AutomaticGainControlSettings {
+    /// The desired output level that the AGC tries to maintain.
+    /// A value of 1.0 means no change to the original level.
+    pub target_level: f32,
+    /// Time constant for gain increases (how quickly the AGC responds to level increases).
+    /// Longer durations result in slower, more gradual gain increases.
+    pub attack_time: Duration,
+    /// Time constant for gain decreases (how quickly the AGC responds to level decreases).
+    /// Shorter durations allow for faster response to sudden loud signals.
+    pub release_time: Duration,
+    /// Maximum allowable gain multiplication to prevent excessive amplification.
+    /// This acts as a safety limit to avoid distortion from over-amplification.
+    pub absolute_max_gain: f32,
+}
+
+impl Default for AutomaticGainControlSettings {
+    fn default() -> Self {
+        AutomaticGainControlSettings {
+            target_level: 1.0,                           // Default to original level
+            attack_time: Duration::from_secs_f32(4.0),   // Recommended attack time
+            release_time: Duration::from_secs_f32(0f32), // Recommended release time
+            absolute_max_gain: 7.0,                      // Recommended max gain
+        }
+    }
+}
+
 #[cfg(feature = "experimental")]
 /// Automatic Gain Control filter for maintaining consistent output levels.
 ///
@@ -49,12 +81,11 @@ const RMS_WINDOW_SIZE: usize = power_of_two(8192);
 pub struct AutomaticGainControl<I> {
     input: I,
     target_level: Arc<AtomicF32>,
-    floor: Option<f32>,
+    floor: f32,
     absolute_max_gain: Arc<AtomicF32>,
     current_gain: f32,
     attack_coeff: Arc<AtomicF32>,
     release_coeff: Arc<AtomicF32>,
-    min_attack_coeff: f32,
     peak_level: f32,
     rms_window: CircularBuffer,
     is_enabled: Arc<AtomicBool>,
@@ -69,12 +100,11 @@ pub struct AutomaticGainControl<I> {
 pub struct AutomaticGainControl<I> {
     input: I,
     target_level: f32,
-    floor: Option<f32>,
+    floor: f32,
     absolute_max_gain: f32,
     current_gain: f32,
     attack_coeff: f32,
     release_coeff: f32,
-    min_attack_coeff: f32,
     peak_level: f32,
     rms_window: CircularBuffer,
     is_enabled: bool,
@@ -96,8 +126,8 @@ impl CircularBuffer {
     #[inline]
     fn new() -> Self {
         CircularBuffer {
-            buffer: Box::new([0.0; RMS_WINDOW_SIZE]),
-            sum: 0.0,
+            buffer: Box::new([0f32; RMS_WINDOW_SIZE]),
+            sum: 0f32,
             index: 0,
         }
     }
@@ -138,29 +168,28 @@ impl CircularBuffer {
 pub(crate) fn automatic_gain_control<I>(
     input: I,
     target_level: f32,
-    attack_time: f32,
-    release_time: f32,
+    attack_time: Duration,
+    release_time: Duration,
     absolute_max_gain: f32,
 ) -> AutomaticGainControl<I>
 where
     I: Source,
 {
-    let sample_rate = input.sample_rate().get();
-    let attack_coeff = (-1.0 / (attack_time * sample_rate as f32)).exp();
-    let release_coeff = (-1.0 / (release_time * sample_rate as f32)).exp();
+    let sample_rate = input.sample_rate();
+    let attack_coeff = duration_to_coefficient(attack_time, sample_rate);
+    let release_coeff = duration_to_coefficient(release_time, sample_rate);
 
     #[cfg(feature = "experimental")]
     {
         AutomaticGainControl {
             input,
             target_level: Arc::new(AtomicF32::new(target_level)),
-            floor: None,
+            floor: 0f32,
             absolute_max_gain: Arc::new(AtomicF32::new(absolute_max_gain)),
             current_gain: 1.0,
             attack_coeff: Arc::new(AtomicF32::new(attack_coeff)),
             release_coeff: Arc::new(AtomicF32::new(release_coeff)),
-            min_attack_coeff: release_time,
-            peak_level: 0.0,
+            peak_level: 0f32,
             rms_window: CircularBuffer::new(),
             is_enabled: Arc::new(AtomicBool::new(true)),
         }
@@ -171,13 +200,12 @@ where
         AutomaticGainControl {
             input,
             target_level,
-            floor: None,
+            floor: 0f32,
             absolute_max_gain,
             current_gain: 1.0,
             attack_coeff,
             release_coeff,
-            min_attack_coeff: release_time,
-            peak_level: 0.0,
+            peak_level: 0f32,
             rms_window: CircularBuffer::new(),
             is_enabled: true,
         }
@@ -327,32 +355,31 @@ where
     /// Set the floor value for the AGC
     ///
     /// This method sets the floor value for the AGC. The floor value is the minimum
-    /// output level that the AGC will allow. If the input signal is below the floor
-    /// value, the AGC will set the output level to the floor value.
+    /// gain that the AGC will allow. The gain will not drop below this value.
     ///
-    /// Passing `None` will disable the floor value, allowing the AGC to produce
-    /// arbitrarily low output levels.
+    /// Passing `None` will disable the floor value (setting it to 0.0), allowing the
+    /// AGC gain to drop to very low levels.
     #[inline]
     pub fn set_floor(&mut self, floor: Option<f32>) {
-        self.floor = floor;
+        self.floor = floor.unwrap_or(0f32);
     }
 
-    /// Updates the peak level with an adaptive attack coefficient
+    /// Updates the peak level using instant attack and slow release behaviour
     ///
-    /// This method adjusts the peak level using a variable attack coefficient.
-    /// It responds faster to sudden increases in signal level by using a
-    /// minimum attack coefficient of `min_attack_coeff` when the sample value exceeds the
-    /// current peak level. This adaptive behavior helps capture transients
-    /// more accurately while maintaining smoother behavior for gradual changes.
+    /// This method uses instant response (0.0 coefficient) when the signal is increasing
+    /// and the release coefficient when the signal is decreasing, providing
+    /// appropriate tracking behaviour for peak detection.
     #[inline]
-    fn update_peak_level(&mut self, sample_value: f32) {
-        let attack_coeff = if sample_value > self.peak_level {
-            self.attack_coeff().min(self.min_attack_coeff) // User-defined attack time limited via release_time
+    fn update_peak_level(&mut self, sample_value: f32, release_coeff: f32) {
+        let coeff = if sample_value > self.peak_level {
+            // Fast attack for rising peaks
+            0f32
         } else {
-            self.release_coeff()
+            // Slow release for falling peaks
+            release_coeff
         };
 
-        self.peak_level = attack_coeff * self.peak_level + (1.0 - attack_coeff) * sample_value;
+        self.peak_level = self.peak_level * coeff + sample_value * (1.0 - coeff);
     }
 
     /// Updates the RMS (Root Mean Square) level using a circular buffer approach.
@@ -370,37 +397,43 @@ where
     /// signal, considering the peak level.
     /// The peak level helps prevent sudden spikes in the output signal.
     #[inline]
-    fn calculate_peak_gain(&self) -> f32 {
-        if self.peak_level > 0.0 {
-            (self.target_level() / self.peak_level).min(self.absolute_max_gain())
+    fn calculate_peak_gain(&self, target_level: f32, absolute_max_gain: f32) -> f32 {
+        if self.peak_level > 0f32 {
+            (target_level / self.peak_level).min(absolute_max_gain)
         } else {
-            self.absolute_max_gain()
+            absolute_max_gain
         }
     }
 
     #[inline]
     fn process_sample(&mut self, sample: I::Item) -> I::Item {
+        // Cache atomic loads at the start - avoids repeated atomic operations
+        let target_level = self.target_level();
+        let absolute_max_gain = self.absolute_max_gain();
+        let attack_coeff = self.attack_coeff();
+        let release_coeff = self.release_coeff();
+
         // Convert the sample to its absolute float value for level calculations
         let sample_value = sample.abs();
 
-        // Dynamically adjust peak level using an adaptive attack coefficient
-        self.update_peak_level(sample_value);
+        // Dynamically adjust peak level using cached release coefficient
+        self.update_peak_level(sample_value, release_coeff);
 
         // Calculate the current RMS (Root Mean Square) level using a sliding window approach
         let rms = self.update_rms(sample_value);
 
         // Compute the gain adjustment required to reach the target level based on RMS
-        let rms_gain = if rms > 0.0 {
-            self.target_level() / rms
+        let rms_gain = if rms > 0f32 {
+            target_level / rms
         } else {
-            self.absolute_max_gain() // Default to max gain if RMS is zero
+            absolute_max_gain // Default to max gain if RMS is zero
         };
 
         // Calculate the peak limiting gain
-        let peak_gain = self.calculate_peak_gain();
+        let peak_gain = self.calculate_peak_gain(target_level, absolute_max_gain);
 
         // Use RMS for general adjustments, but limit by peak gain to prevent clipping and apply a minimum floor value
-        let desired_gain = rms_gain.min(peak_gain).max(self.floor.unwrap_or(0f32));
+        let desired_gain = rms_gain.min(peak_gain).max(self.floor);
 
         // Adaptive attack/release speed for AGC (Automatic Gain Control)
         //
@@ -427,16 +460,16 @@ where
         // By using a faster release time for decreasing gain, we can mitigate these issues and provide
         // more responsive control over sudden level increases while maintaining smooth gain increases.
         let attack_speed = if desired_gain > self.current_gain {
-            self.attack_coeff()
+            attack_coeff
         } else {
-            self.release_coeff()
+            release_coeff
         };
 
         // Gradually adjust the current gain towards the desired gain for smooth transitions
         self.current_gain = self.current_gain * attack_speed + desired_gain * (1.0 - attack_speed);
 
         // Ensure the calculated gain stays within the defined operational range
-        self.current_gain = self.current_gain.clamp(0.1, self.absolute_max_gain());
+        self.current_gain = self.current_gain.clamp(0.1, absolute_max_gain);
 
         // Output current gain value for developers to fine tune their inputs to automatic_gain_control
         #[cfg(feature = "tracing")]
@@ -446,12 +479,12 @@ where
         sample * self.current_gain
     }
 
-    /// Returns a mutable reference to the inner source.
+    /// Returns an immutable reference to the inner source.
     pub fn inner(&self) -> &I {
         &self.input
     }
 
-    /// Returns the inner source.
+    /// Returns a mutable reference to the inner source.
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input
     }

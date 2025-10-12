@@ -1,3 +1,4 @@
+use rodio::source::AutomaticGainControlSettings;
 use rodio::{wav_to_file, Source};
 use std::error::Error;
 
@@ -7,7 +8,7 @@ use std::error::Error;
 fn main() -> Result<(), Box<dyn Error>> {
     let file = std::fs::File::open("assets/music.mp3")?;
     let mut audio = rodio::Decoder::try_from(file)?
-        .automatic_gain_control(1.0, 4.0, 0.005, 3.0)
+        .automatic_gain_control(AutomaticGainControlSettings::default())
         .speed(0.8);
 
     let wav_path = "music_mp3_converted.wav";

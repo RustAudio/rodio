@@ -2,6 +2,7 @@ use std::{error::Error, sync::Arc};
 
 use rodio::decoder::DecoderBuilder;
 use symphonia::{core::codecs::CodecRegistry, default::register_enabled_codecs};
+use symphonia_adapter_libopus::OpusDecoder;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
@@ -13,11 +14,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let codec_registry_arc = Arc::new(codec_registry);
 
-    let file = std::fs::File::open("assets/music.opus")?;
+    let file = std::fs::File::open("../assets/music.opus")?;
     let decoder = DecoderBuilder::new()
                     .with_codec_registry(codec_registry_arc)
                     .with_data(file).build()?;
-    sink.append(rodio::Decoder::try_from(file)?);
+    sink.append(decoder);
 
     sink.sleep_until_end();
 

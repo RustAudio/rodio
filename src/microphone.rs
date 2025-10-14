@@ -272,8 +272,7 @@ impl Microphone {
             I64, i64;
             U8, u8;
             U16, u16;
-            // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
-            // U24, cpal::U24;
+            U24, cpal::U24;
             U32, u32;
             U64, u64
         )

@@ -126,7 +126,7 @@ atomic_float = { version = "1.1.0", optional = true }
 rtrb = { version = "0.3.2", optional = true }
 num-rational = "0.4.2"
 
-symphonia-adapter-libopus = {version="0.1.1", optional = true}
+symphonia-adapter-libopus = {version="0.2", optional = true}
 
 [dev-dependencies]
 quickcheck = "1"

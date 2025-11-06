@@ -111,7 +111,7 @@ impl SignalGenerator {
         frequency: f32,
         generator_function: GeneratorFunction,
     ) -> Self {
-        assert!(frequency != 0.0, "frequency must be greater than zero");
+        assert!(frequency > 0.0, "frequency must be greater than zero");
         let period = sample_rate.get() as f32 / frequency;
         let phase_step = 1.0f32 / period;
 

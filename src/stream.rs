@@ -445,7 +445,7 @@ pub enum StreamError {
 impl OutputStream {
     fn validate_config(config: &OutputStreamConfig) {
         if let BufferSize::Fixed(sz) = config.buffer_size {
-            assert!(sz > 0, "fixed buffer size is greater than zero");
+            assert!(sz > 0, "fixed buffer size must be greater than zero");
         }
     }
 

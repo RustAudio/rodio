@@ -113,6 +113,8 @@ pub struct SourcesQueueOutput {
 }
 
 const THRESHOLD: usize = 512;
+const SILENCE_SAMPLE_RATE: SampleRate = nz!(44100);
+const SILENCE_CHANNELS: ChannelCount = nz!(1);
 
 impl Source for SourcesQueueOutput {
     #[inline]
@@ -154,12 +156,28 @@ impl Source for SourcesQueueOutput {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.current.channels()
+        // current_span_len() should never return 0 unless the source is empty, so this is a cheeky hint
+        if self.current.current_span_len() != Some(0) {
+            self.current.channels()
+        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().first() {
+            next.channels()
+        } else {
+            // If keep_alive_if_empty is true, then it'll be mono 44.1khz silence -- otherwise it doesn't matter what it is
+            SILENCE_CHANNELS
+        }
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.current.sample_rate()
+        // current_span_len() should never return 0 unless the source is empty, so this is a cheeky hint
+        if self.current.current_span_len() != Some(0) {
+            self.current.sample_rate()
+        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().first() {
+            next.sample_rate()
+        } else {
+            // If keep_alive_if_empty is true, then it'll be mono 44.1khz silence -- otherwise it doesn't matter what it is
+            SILENCE_SAMPLE_RATE
+        }
     }
 
     #[inline]
@@ -221,7 +239,11 @@ impl SourcesQueueOutput {
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.is_empty() {
-                let silence = Box::new(Zero::new_samples(nz!(1), nz!(44100), THRESHOLD)) as Box<_>;
+                let silence = Box::new(Zero::new_samples(
+                    SILENCE_CHANNELS,
+                    SILENCE_SAMPLE_RATE,
+                    THRESHOLD,
+                )) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
                     (silence, None)

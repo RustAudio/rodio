@@ -269,7 +269,6 @@ mod tests {
     use crate::source::Source;
 
     #[test]
-    #[ignore] // FIXME: samples rate and channel not updated immediately after transition
     fn basic() {
         let (tx, mut rx) = queue::queue(false);
 

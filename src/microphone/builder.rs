@@ -128,7 +128,7 @@ where
     /// ```no_run
     /// # use rodio::microphone::{MicrophoneBuilder, available_inputs};
     /// let input = available_inputs()?.remove(2);
-    /// let builder = MicrophoneBuilder::new().device(input)?;
+    /// let builder = MicrophoneBuilder::new().device(input.into_inner())?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn device(

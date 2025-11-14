@@ -6,7 +6,9 @@ use cpal::{
 };
 
 use crate::{
-    common::assert_error_traits, microphone::config::InputConfig, ChannelCount, SampleRate,
+    common::assert_error_traits,
+    microphone::{config::InputConfig, sendable},
+    ChannelCount, SampleRate,
 };
 
 use super::Microphone;
@@ -537,6 +539,27 @@ where
     /// ```
     pub fn open_stream(&self) -> Result<Microphone, super::OpenError> {
         Microphone::open(
+            self.device.as_ref().expect("DeviceIsSet").0.clone(),
+            *self.config.as_ref().expect("ConfigIsSet"),
+            self.error_callback.clone(),
+        )
+    }
+    /// Opens the microphone input stream.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// # use rodio::Source;
+    /// # use std::time::Duration;
+    /// let mic = MicrophoneBuilder::new()
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .open_stream()?;
+    /// let recording = mic.take_duration(Duration::from_secs(3)).record();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn open_sendable_stream(&self) -> Result<sendable::Microphone, super::OpenError> {
+        sendable::Microphone::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
             *self.config.as_ref().expect("ConfigIsSet"),
             self.error_callback.clone(),

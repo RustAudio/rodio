@@ -117,18 +117,5 @@ where
         Err(SeekError::NotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
-
-        // uncomment when #510 is implemented (query position of playback)
-        // TODO use source_intact to check if rollback makes sense
-
-        // let org_pos = self.input1.playback_pos();
-        // self.input1.try_seek(pos)?;
-        //
-        // let res = self.input2.try_seek(pos);
-        // if res.is_err() { // rollback seek in input1
-        //     self.input1.try_seek(org_pos)?;
-        // }
-        //
-        // res
     }
 }

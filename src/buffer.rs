@@ -73,7 +73,7 @@ impl SamplesBuffer {
 impl Source for SamplesBuffer {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        None
+        Some(self.data.len() - self.pos)
     }
 
     #[inline]
@@ -126,7 +126,7 @@ impl Iterator for SamplesBuffer {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.data.len(), Some(self.data.len()))
+        (self.data.len() - self.pos, Some(self.data.len() - self.pos))
     }
 }
 

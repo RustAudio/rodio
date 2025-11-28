@@ -71,35 +71,72 @@ enum NoiseGenerator<R: Rng = SmallRng> {
     TPDF(WhiteTriangular<R>),
     RPDF(WhiteUniform<R>),
     GPDF(WhiteGaussian<R>),
-    HighPass(Blue<R>),
+    HighPass(Vec<Blue<R>>),
 }
 
 impl NoiseGenerator {
-    fn new(algorithm: Algorithm, sample_rate: SampleRate) -> Self {
+    fn new(algorithm: Algorithm, sample_rate: SampleRate, channels: ChannelCount) -> Self {
         match algorithm {
             Algorithm::TPDF => Self::TPDF(WhiteTriangular::new(sample_rate)),
             Algorithm::RPDF => Self::RPDF(WhiteUniform::new(sample_rate)),
             Algorithm::GPDF => Self::GPDF(WhiteGaussian::new(sample_rate)),
-            Algorithm::HighPass => Self::HighPass(Blue::new(sample_rate)),
+            Algorithm::HighPass => {
+                // Create per-channel generators for HighPass to prevent prev_white state from
+                // crossing channel boundaries in interleaved audio. Each channel must have an
+                // independent RNG to avoid correlation. Use this iterator instead of the `vec!`
+                // macro to avoid cloning the RNG.
+                Self::HighPass(
+                    (0..channels.get())
+                        .map(|_| Blue::new(sample_rate))
+                        .collect(),
+                )
+            }
         }
     }
 
     #[inline]
-    fn next(&mut self) -> Option<Sample> {
+    fn next(&mut self, channel: usize) -> Option<Sample> {
         match self {
             Self::TPDF(gen) => gen.next(),
             Self::RPDF(gen) => gen.next(),
             Self::GPDF(gen) => gen.next(),
-            Self::HighPass(gen) => gen.next(),
+            Self::HighPass(gens) => gens[channel].next(),
         }
     }
 
+    #[inline]
     fn algorithm(&self) -> Algorithm {
         match self {
             Self::TPDF(_) => Algorithm::TPDF,
             Self::RPDF(_) => Algorithm::RPDF,
             Self::GPDF(_) => Algorithm::GPDF,
             Self::HighPass(_) => Algorithm::HighPass,
+        }
+    }
+
+    #[inline]
+    fn sample_rate(&self) -> SampleRate {
+        match self {
+            Self::TPDF(gen) => gen.sample_rate(),
+            Self::RPDF(gen) => gen.sample_rate(),
+            Self::GPDF(gen) => gen.sample_rate(),
+            Self::HighPass(gens) => gens
+                .first()
+                .map(|g| g.sample_rate())
+                .expect("HighPass should have at least one generator"),
+        }
+    }
+
+    #[inline]
+    fn update_parameters(&mut self, sample_rate: SampleRate, channels: ChannelCount) {
+        if self.sample_rate() != sample_rate {
+            // The noise generators that we use are currently not dependent on sample rate,
+            // but we recreate them anyway in case that changes in the future.
+            *self = Self::new(self.algorithm(), sample_rate, channels);
+        } else if let Self::HighPass(gens) = self {
+            // Sample rate unchanged - only adjust channel count for stateful algorithms
+            // resize_with is a no-op if the size hasn't changed
+            gens.resize_with(channels.get() as usize, || Blue::new(sample_rate));
         }
     }
 }
@@ -123,6 +160,8 @@ impl NoiseGenerator {
 pub struct Dither<I> {
     input: I,
     noise: NoiseGenerator,
+    current_channel: usize,
+    remaining_in_span: Option<usize>,
     lsb_amplitude: f32,
 }
 
@@ -133,29 +172,29 @@ where
     /// Creates a new dithered source with the specified algorithm
     pub fn new(input: I, target_bits: BitDepth, algorithm: Algorithm) -> Self {
         // LSB amplitude for signed audio: 1.0 / (2^(bits-1))
-        // For high bit depths (> mantissa precision), we're limited by the sample type's
-        // mantissa bits. Instead of dithering to a level that would be truncated,
-        // we dither at the actual LSB level representable by the sample format.
-        let lsb_amplitude = if target_bits.get() >= Sample::MANTISSA_DIGITS {
-            Sample::MIN_POSITIVE
-        } else {
-            1.0 / (1_i64 << (target_bits.get() - 1)) as f32
-        };
+        // Using f64 intermediate prevents precision loss and u64 handles all bit depths without
+        // overflow (64-bit being the theoretical maximum for audio samples). Values stay well
+        // above f32 denormal threshold, avoiding denormal arithmetic performance penalty.
+        let lsb_amplitude = (1.0 / (1_u64 << (target_bits.get() - 1)) as f64) as f32;
 
         let sample_rate = input.sample_rate();
+        let channels = input.channels();
+        let active_span_len = input.current_span_len();
+
         Self {
             input,
-            noise: NoiseGenerator::new(algorithm, sample_rate),
+            noise: NoiseGenerator::new(algorithm, sample_rate, channels),
+            current_channel: 0,
+            remaining_in_span: active_span_len,
             lsb_amplitude,
         }
     }
 
     /// Change the dithering algorithm at runtime
-    /// This recreates the noise generator with the new algorithm
     pub fn set_algorithm(&mut self, algorithm: Algorithm) {
         if self.noise.algorithm() != algorithm {
-            let sample_rate = self.input.sample_rate();
-            self.noise = NoiseGenerator::new(algorithm, sample_rate);
+            self.noise =
+                NoiseGenerator::new(algorithm, self.input.sample_rate(), self.input.channels());
         }
     }
 
@@ -174,13 +213,42 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(ref mut remaining) = self.remaining_in_span {
+            *remaining = remaining.saturating_sub(1);
+        }
+
+        // Consume next input sample *after* decrementing span position and *before* checking for
+        // span boundary crossing. This ensures that the source has its parameters updated
+        // correctly before we generate noise for the next sample.
         let input_sample = self.input.next()?;
-        let noise_sample = self.noise.next().unwrap_or(0.0);
+        let num_channels = self.input.channels();
+
+        if self.remaining_in_span == Some(0) {
+            self.noise
+                .update_parameters(self.input.sample_rate(), num_channels);
+            self.current_channel = 0;
+            self.remaining_in_span = self.input.current_span_len();
+        }
+
+        let noise_sample = self
+            .noise
+            .next(self.current_channel)
+            .expect("Noise generator should always produce samples");
+
+        // Advance to next channel (wrapping around)
+        self.current_channel = (self.current_channel + 1) % num_channels.get() as usize;
 
         // Apply subtractive dithering at the target quantization level
         Some(input_sample - noise_sample * self.lsb_amplitude)
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.input.size_hint()
+    }
 }
+
+impl<I> ExactSizeIterator for Dither<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for Dither<I>
 where
@@ -257,5 +325,62 @@ mod tests {
                 max_expected_diff
             );
         }
+    }
+
+    #[test]
+    fn test_highpass_dither_multichannel_independence() {
+        use crate::source::Zero;
+
+        // Create a stereo source that outputs zeros
+        // This makes it easy to extract just the dither noise
+        let constant_source = Zero::new(nz!(2), TEST_SAMPLE_RATE);
+
+        // Apply HighPass dithering to stereo
+        let mut dithered = Dither::new(constant_source, TEST_BIT_DEPTH, Algorithm::HighPass);
+
+        // Collect interleaved samples (L, R, L, R, ...)
+        let samples: Vec<f32> = dithered.by_ref().take(1000).collect();
+
+        // De-interleave into left and right channels
+        let left: Vec<f32> = samples.iter().step_by(2).copied().collect();
+        let right: Vec<f32> = samples.iter().skip(1).step_by(2).copied().collect();
+
+        assert_eq!(left.len(), 500);
+        assert_eq!(right.len(), 500);
+
+        // Calculate autocorrelation at lag 1 for each channel
+        // Blue noise (high-pass) should have negative correlation at lag 1
+        let left_autocorr: f32 =
+            left.windows(2).map(|w| w[0] * w[1]).sum::<f32>() / (left.len() - 1) as f32;
+
+        let right_autocorr: f32 =
+            right.windows(2).map(|w| w[0] * w[1]).sum::<f32>() / (right.len() - 1) as f32;
+
+        // Blue noise should have negative autocorrelation (high-pass characteristic)
+        // If channels were cross-contaminated, this property would be broken
+        assert!(
+            left_autocorr < 0.0,
+            "Left channel should have negative autocorr (high-pass), got {}",
+            left_autocorr
+        );
+        assert!(
+            right_autocorr < 0.0,
+            "Right channel should have negative autocorr (high-pass), got {}",
+            right_autocorr
+        );
+
+        // Channels should be independent - cross-correlation between L and R should be near zero
+        let cross_corr: f32 = left
+            .iter()
+            .zip(right.iter())
+            .map(|(l, r)| l * r)
+            .sum::<f32>()
+            / left.len() as f32;
+
+        assert!(
+            cross_corr.abs() < 0.1,
+            "Channels should be independent, cross-correlation should be near 0, got {}",
+            cross_corr
+        );
     }
 }

@@ -100,8 +100,8 @@
 
 use core::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::{thread, time::Duration};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 
 use crate::common::assert_error_traits;
 use crate::conversions::SampleTypeConverter;
@@ -109,6 +109,7 @@ use crate::{Sample, Source};
 
 mod builder;
 mod config;
+pub mod sendable;
 pub use builder::MicrophoneBuilder;
 pub use config::InputConfig;
 use cpal::I24;
@@ -116,7 +117,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device,
 };
-use rtrb::RingBuffer;
+use rtrb::{Producer, RingBuffer};
 
 /// Error that can occur when we can not list the input devices
 #[derive(Debug, thiserror::Error, Clone)]
@@ -165,8 +166,8 @@ pub struct Microphone {
     _stream_handle: cpal::Stream,
     buffer: rtrb::Consumer<Sample>,
     config: InputConfig,
-    poll_interval: Duration,
     error_occurred: Arc<AtomicBool>,
+    data_signal: Arc<(Mutex<()>, Condvar)>,
 }
 
 impl Source for Microphone {
@@ -197,7 +198,11 @@ impl Iterator for Microphone {
             } else if self.error_occurred.load(Ordering::Relaxed) {
                 return None;
             } else {
-                thread::sleep(self.poll_interval)
+                // Block until notified instead of sleeping. This eliminates polling overhead and
+                // reduces jitter by avoiding unnecessary wakeups when no audio data is available.
+                let (lock, cvar) = &*self.data_signal;
+                let guard = lock.lock().unwrap();
+                let _guard = cvar.wait(guard).unwrap();
             }
         }
     }
@@ -228,63 +233,31 @@ impl Microphone {
         config: InputConfig,
         mut error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
     ) -> Result<Self, OpenError> {
-        let timeout = Some(Duration::from_millis(100));
         let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
-        let (mut tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
+        // rtrb is faster then all other (ring)buffers: https://github.com/mgeier/rtrb/issues/39
+        let (tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
         let error_occurred = Arc::new(AtomicBool::new(false));
+        let data_signal = Arc::new((Mutex::new(()), Condvar::new()));
         let error_callback = {
             let error_occurred = error_occurred.clone();
+            let data_signal = data_signal.clone();
             move |source| {
                 error_occurred.store(true, Ordering::Relaxed);
+                let (_lock, cvar) = &*data_signal;
+                cvar.notify_one();
                 error_callback(source);
             }
         };
 
-        macro_rules! build_input_streams {
-        ($($sample_format:tt, $generic:ty);+) => {
-            match config.sample_format {
-                $(
-                    cpal::SampleFormat::$sample_format => device.build_input_stream::<$generic, _, _>(
-                        &config.stream_config(),
-                        move |data, _info| {
-                            for sample in SampleTypeConverter::<_, f32>::new(data.into_iter().copied()) {
-                                let _skip_if_player_is_behind = tx.push(sample);
-                            }
-                        },
-                        error_callback,
-                        timeout,
-                    ),
-                )+
-                _ => return Err(OpenError::UnsupportedSampleFormat),
-            }
-        };
-    }
-
-        let stream = build_input_streams!(
-            F32, f32;
-            F64, f64;
-            I8, i8;
-            I16, i16;
-            I24, I24;
-            I32, i32;
-            I64, i64;
-            U8, u8;
-            U16, u16;
-            // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
-            // U24, cpal::U24;
-            U32, u32;
-            U64, u64
-        )
-        .map_err(OpenError::BuildStream)?;
-        stream.play().map_err(OpenError::Play)?;
+        let stream = open_input_stream(device, config, tx, error_callback, data_signal.clone())?;
 
         Ok(Microphone {
             _stream_handle: stream,
             buffer: rx,
             config,
-            poll_interval: Duration::from_millis(5),
             error_occurred,
+            data_signal,
         })
     }
 
@@ -308,4 +281,64 @@ impl Microphone {
     pub fn config(&self) -> &InputConfig {
         &self.config
     }
+}
+
+fn open_input_stream(
+    device: Device,
+    config: InputConfig,
+    mut tx: Producer<crate::Sample>,
+    error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
+    data_signal: Arc<(Mutex<()>, Condvar)>,
+) -> Result<cpal::Stream, OpenError> {
+    let timeout = Some(Duration::from_millis(100));
+
+    macro_rules! build_input_streams {
+    ($($sample_format:tt, $generic:ty);+) => {
+        match config.sample_format {
+            $(
+                cpal::SampleFormat::$sample_format => device.build_input_stream::<$generic, _, _>(
+                    &config.stream_config(),
+                    move |data, _info| {
+                        let mut pushed_any = false;
+                        for sample in SampleTypeConverter::<_, f32>::new(data.into_iter().copied()) {
+                            if tx.push(sample).is_ok() {
+                                pushed_any = true;
+                            }
+                        }
+
+                        // Notify once per CPAL callback if we pushed any samples.
+                        // This avoids complex sample counting that can get stuck when the ring
+                        // buffer is smaller than the CPAL period, or when the buffer is partially
+                        // full. Each callback represents one input period anyway.
+                        if pushed_any {
+                            let (_lock, cvar) = &*data_signal;
+                            cvar.notify_one();
+                        }
+                    },
+                    error_callback,
+                    timeout,
+                ),
+            )+
+            _ => return Err(OpenError::UnsupportedSampleFormat),
+        }
+    };
+        }
+    let stream = build_input_streams!(
+        F32, f32;
+        F64, f64;
+        I8, i8;
+        I16, i16;
+        I24, I24;
+        I32, i32;
+        I64, i64;
+        U8, u8;
+        U16, u16;
+        // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
+        // U24, cpal::U24;
+        U32, u32;
+        U64, u64
+    )
+    .map_err(OpenError::BuildStream)?;
+    stream.play().map_err(OpenError::Play)?;
+    Ok(stream)
 }

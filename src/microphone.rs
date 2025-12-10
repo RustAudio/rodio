@@ -140,14 +140,28 @@ impl Input {
 impl fmt::Debug for Input {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Device")
-            .field("inner", &self.inner.name().unwrap_or("unknown".to_string()))
+            .field(
+                "inner",
+                &self
+                    .inner
+                    .description()
+                    .ok()
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
+            )
             .finish()
     }
 }
 
 impl fmt::Display for Input {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner.name().unwrap_or("unknown".to_string()))
+        write!(
+            f,
+            "{}",
+            self.inner
+                .description()
+                .ok()
+                .map_or("unknown".to_string(), |d| d.name().to_string())
+        )
     }
 }
 

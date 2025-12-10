@@ -34,8 +34,8 @@ impl InputConfig {
         buffer_ok
             && self.channel_count.get() == supported.channels()
             && self.sample_format == supported.sample_format()
-            && self.sample_rate.get() <= supported.max_sample_rate().0
-            && self.sample_rate.get() >= supported.min_sample_rate().0
+            && self.sample_rate.get() <= supported.max_sample_rate()
+            && self.sample_rate.get() >= supported.min_sample_rate()
     }
 
     pub(crate) fn with_f32_samples(&self) -> Self {
@@ -47,7 +47,7 @@ impl InputConfig {
     pub(crate) fn stream_config(&self) -> cpal::StreamConfig {
         cpal::StreamConfig {
             channels: self.channel_count.get(),
-            sample_rate: cpal::SampleRate(self.sample_rate.get()),
+            sample_rate: self.sample_rate.get(),
             buffer_size: self.buffer_size,
         }
     }
@@ -62,7 +62,7 @@ impl From<cpal::SupportedStreamConfig> for InputConfig {
         Self {
             channel_count: NonZero::new(value.channels())
                 .expect("A supported config never has 0 channels"),
-            sample_rate: NonZero::new(value.sample_rate().0)
+            sample_rate: NonZero::new(value.sample_rate())
                 .expect("A supported config produces samples"),
             buffer_size,
             sample_format: value.sample_format(),

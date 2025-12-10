@@ -101,7 +101,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-cpal = { git = "https://github.com/RustAudio/cpal", rev = "a8269d3c993f7d375d4655b53d3437429d4f6bd8", optional = true }
+cpal = { git = "https://github.com/RustAudio/cpal", rev = "e32ee65a5335301553cc9650b949b868f922d748", optional = true }
 dasp_sample = "0.11.0"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.5", optional = true }

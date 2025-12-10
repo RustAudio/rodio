@@ -46,7 +46,7 @@ pub fn wav_to_file(
 /// # Example
 /// ```rust
 /// # use rodio::static_buffer::StaticSamplesBuffer;
-/// # use rodio::collect_to_wav;
+/// # use rodio::wav_to_writer;
 /// # const SAMPLES: [rodio::Sample; 5] = [0.0, 1.0, 2.0, 3.0, 4.0];
 /// # let source = StaticSamplesBuffer::new(
 /// #     1.try_into().unwrap(),

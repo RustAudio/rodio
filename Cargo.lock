@@ -197,7 +197,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.16.0"
-source = "git+https://github.com/RustAudio/cpal?rev=a8269d3c993f7d375d4655b53d3437429d4f6bd8#a8269d3c993f7d375d4655b53d3437429d4f6bd8"
+source = "git+https://github.com/RustAudio/cpal?rev=e32ee65a5335301553cc9650b949b868f922d748#e32ee65a5335301553cc9650b949b868f922d748"
 dependencies = [
  "alsa",
  "coreaudio-rs",
@@ -205,7 +205,7 @@ dependencies = [
  "jni",
  "js-sys",
  "libc",
- "mach2 0.5.0",
+ "mach2 0.6.0",
  "ndk",
  "ndk-context",
  "num-derive",
@@ -574,12 +574,9 @@ dependencies = [
 
 [[package]]
 name = "mach2"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a1b95cd5421ec55b445b5ae102f5ea0e768de1f82bd3001e11f426c269c3aea"
-dependencies = [
- "libc",
-]
+checksum = "dae608c151f68243f2b000364e1f7b186d9c29845f7d2d85bd31b9ad77ad552b"
 
 [[package]]
 name = "memchr"

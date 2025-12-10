@@ -55,3 +55,10 @@ jobs:
       - run: cargo check --tests --lib --no-default-features
       # Check alternative decoders.
       - run: cargo check --tests --lib --no-default-features --features claxon,hound,minimp3,lewton
+      # Test 64-bit sample mode
+      - run: cargo test --all-targets --features 64bit
+      - run: cargo test --doc --features 64bit
+      - run: cargo test --all-targets --all-features --features 64bit
+      # Check examples compile in both modes
+      - run: cargo check --examples
+      - run: cargo check --examples --features 64bit

@@ -130,7 +130,7 @@ impl<I: Iterator<Item = Sample>> Iterator for WholeFrames<I> {
 #[cfg(test)]
 mod test {
     use super::wav_to_file;
-    use crate::Source;
+    use crate::{Sample, Source};
     use std::io::BufReader;
     use std::time::Duration;
 
@@ -152,8 +152,8 @@ mod test {
         assert_eq!(reference.sample_rate().get(), reader.spec().sample_rate);
         assert_eq!(reference.channels().get(), reader.spec().channels);
 
-        let actual_samples: Vec<f32> = reader.samples::<f32>().map(|x| x.unwrap()).collect();
-        let expected_samples: Vec<f32> = reference.collect();
+        let actual_samples: Vec<Sample> = reader.samples::<Sample>().map(|x| x.unwrap()).collect();
+        let expected_samples: Vec<Sample> = reference.collect();
         assert!(
             expected_samples == actual_samples,
             "wav samples do not match the source"

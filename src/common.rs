@@ -10,12 +10,22 @@ pub type ChannelCount = NonZero<u16>;
 /// Number of bits per sample. Can never be zero.
 pub type BitDepth = NonZero<u32>;
 
+/// Floating point type used for internal calculations. Can be configured to be
+/// either `f32` (default) or `f64` using the `64bit` feature flag.
+#[cfg(not(feature = "64bit"))]
+pub type Float = f32;
+
+/// Floating point type used for internal calculations. Can be configured to be
+/// either `f32` (default) or `f64` using the `64bit` feature flag.
+#[cfg(feature = "64bit")]
+pub type Float = f64;
+
 /// Represents value of a single sample.
 /// Silence corresponds to the value `0.0`. The expected amplitude range is  -1.0...1.0.
 /// Values below and above this range are clipped in conversion to other sample types.
 /// Use conversion traits from [dasp_sample] crate or [crate::conversions::SampleTypeConverter]
 /// to convert between sample types if necessary.
-pub type Sample = f32;
+pub type Sample = Float;
 
 /// Used to test at compile time that a struct/enum implements Send, Sync and
 /// is 'static. These are common requirements for dynamic error management

@@ -64,7 +64,7 @@ use super::SeekError;
 use crate::{
     common::{ChannelCount, Sample, SampleRate},
     math::{self, duration_to_coefficient},
-    Source,
+    Float, Source,
 };
 
 /// Configuration settings for audio limiting.
@@ -156,7 +156,7 @@ pub struct LimitSettings {
     ///
     /// Values must be negative - positive values would attempt limiting above
     /// 0 dBFS, which cannot prevent clipping.
-    pub threshold: f32,
+    pub threshold: Float,
     /// Range over which limiting gradually increases (dB).
     ///
     /// Defines the transition zone width in dB where limiting gradually increases
@@ -165,7 +165,7 @@ pub struct LimitSettings {
     /// - `2.0` = moderate knee (some gradual transition)
     /// - `4.0` = soft knee (smooth, transparent transition)
     /// - `8.0` = very soft knee (very gradual, musical transition)
-    pub knee_width: f32,
+    pub knee_width: Float,
     /// Time to respond to level increases
     pub attack: Duration,
     /// Time to recover after level decreases
@@ -399,7 +399,7 @@ impl LimitSettings {
     /// Only negative values are meaningful - positive values would attempt limiting
     /// above 0 dBFS, which cannot prevent clipping.
     #[inline]
-    pub fn with_threshold(mut self, threshold: f32) -> Self {
+    pub fn with_threshold(mut self, threshold: Float) -> Self {
         self.threshold = threshold;
         self
     }
@@ -422,7 +422,7 @@ impl LimitSettings {
     /// - Gradual limiting from -5 dBFS to -1 dBFS
     /// - Full limiting above -1 dBFS (threshold + knee_width/2)
     #[inline]
-    pub fn with_knee_width(mut self, knee_width: f32) -> Self {
+    pub fn with_knee_width(mut self, knee_width: Float) -> Self {
         self.knee_width = knee_width;
         self
     }
@@ -700,15 +700,15 @@ where
 #[derive(Clone, Debug)]
 struct LimitBase {
     /// Level where limiting begins (dB)
-    threshold: f32,
+    threshold: Float,
     /// Width of the soft-knee region (dB)
-    knee_width: f32,
+    knee_width: Float,
     /// Inverse of 8 times the knee width (precomputed for efficiency)
-    inv_knee_8: f32,
+    inv_knee_8: Float,
     /// Attack time constant (ms)
-    attack: f32,
+    attack: Float,
     /// Release time constant (ms)
-    release: f32,
+    release: Float,
 }
 
 /// Mono channel limiter optimized for single-channel processing.
@@ -728,9 +728,9 @@ pub struct LimitMono<I> {
     /// Common limiter parameters
     base: LimitBase,
     /// Peak detection integrator state
-    limiter_integrator: f32,
+    limiter_integrator: Float,
     /// Peak detection state
-    limiter_peak: f32,
+    limiter_peak: Float,
 }
 
 /// Stereo channel limiter with optimized two-channel processing.
@@ -756,9 +756,9 @@ pub struct LimitStereo<I> {
     /// Common limiter parameters
     base: LimitBase,
     /// Peak detection integrator states for left and right channels
-    limiter_integrators: [f32; 2],
+    limiter_integrators: [Float; 2],
     /// Peak detection states for left and right channels
-    limiter_peaks: [f32; 2],
+    limiter_peaks: [Float; 2],
     /// Current channel position (0 = left, 1 = right)
     position: u8,
 }
@@ -787,9 +787,9 @@ pub struct LimitMulti<I> {
     /// Common limiter parameters
     base: LimitBase,
     /// Peak detector integrator states (one per channel)
-    limiter_integrators: Vec<f32>,
+    limiter_integrators: Vec<Float>,
     /// Peak detector states (one per channel)
-    limiter_peaks: Vec<f32>,
+    limiter_peaks: Vec<Float>,
     /// Current channel position (0 to channels-1)
     position: usize,
 }
@@ -815,7 +815,12 @@ pub struct LimitMulti<I> {
 ///
 /// Amount of gain reduction to apply in dB
 #[inline]
-fn process_sample(sample: Sample, threshold: f32, knee_width: f32, inv_knee_8: f32) -> f32 {
+fn process_sample(
+    sample: Sample,
+    threshold: Float,
+    knee_width: Float,
+    inv_knee_8: Float,
+) -> Sample {
     // Add slight DC offset. Some samples are silence, which is -inf dB and gets the limiter stuck.
     // Adding a small positive offset prevents this.
     let bias_db = math::linear_to_db(sample.abs() + Sample::MIN_POSITIVE) - threshold;
@@ -832,7 +837,7 @@ fn process_sample(sample: Sample, threshold: f32, knee_width: f32, inv_knee_8: f
 }
 
 impl LimitBase {
-    fn new(threshold: f32, knee_width: f32, attack: f32, release: f32) -> Self {
+    fn new(threshold: Float, knee_width: Float, attack: Float, release: Float) -> Self {
         let inv_knee_8 = 1.0 / (8.0 * knee_width);
         Self {
             threshold,
@@ -859,13 +864,13 @@ impl LimitBase {
     /// allow for coupled gain reduction across channels.
     #[must_use]
     #[inline]
-    fn process_channel(&self, sample: Sample, integrator: &mut f32, peak: &mut f32) -> Sample {
+    fn process_channel(&self, sample: Sample, integrator: &mut Float, peak: &mut Float) -> Sample {
         // step 1-4: half-wave rectification and conversion into dB, and gain computer with soft
         // knee and subtractor
         let limiter_db = process_sample(sample, self.threshold, self.knee_width, self.inv_knee_8);
 
         // step 5: smooth, decoupled peak detector
-        *integrator = f32::max(
+        *integrator = Float::max(
             limiter_db,
             self.release * *integrator + (1.0 - self.release) * limiter_db,
         );
@@ -914,7 +919,7 @@ where
 
         // steps 6-8: conversion into level and multiplication into gain stage. Find maximum peak
         // across both channels to couple the gain and maintain stereo imaging.
-        let max_peak = f32::max(self.limiter_peaks[0], self.limiter_peaks[1]);
+        let max_peak = Float::max(self.limiter_peaks[0], self.limiter_peaks[1]);
         processed * math::db_to_linear(-max_peak)
     }
 }
@@ -942,7 +947,7 @@ where
         let max_peak = self
             .limiter_peaks
             .iter()
-            .fold(0.0, |max, &peak| f32::max(max, peak));
+            .fold(0.0, |max, &peak| Float::max(max, peak));
         processed * math::db_to_linear(-max_peak)
     }
 }
@@ -1126,7 +1131,7 @@ mod tests {
     use std::time::Duration;
 
     fn create_test_buffer(
-        samples: Vec<f32>,
+        samples: Vec<Sample>,
         channels: ChannelCount,
         sample_rate: SampleRate,
     ) -> SamplesBuffer {

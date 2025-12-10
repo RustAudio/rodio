@@ -10,6 +10,7 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use crate::mixer::Mixer;
 use crate::source::SeekError;
+use crate::Float;
 use crate::{queue, source::Done, Source};
 
 /// Handle to a device that outputs sounds.
@@ -58,7 +59,7 @@ impl SeekOrder {
 
 struct Controls {
     pause: AtomicBool,
-    volume: Mutex<f32>,
+    volume: Mutex<Float>,
     stopped: AtomicBool,
     speed: Mutex<f32>,
     to_clear: Mutex<u32>,
@@ -165,7 +166,7 @@ impl Sink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
     /// multiply each sample by this value.
     #[inline]
-    pub fn volume(&self) -> f32 {
+    pub fn volume(&self) -> Float {
         *self.controls.volume.lock().unwrap()
     }
 
@@ -174,7 +175,7 @@ impl Sink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than `1.0` will
     /// multiply each sample by this value.
     #[inline]
-    pub fn set_volume(&self, value: f32) {
+    pub fn set_volume(&self, value: Float) {
         *self.controls.volume.lock().unwrap() = value;
     }
 

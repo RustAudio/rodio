@@ -10,7 +10,7 @@ where
     I: Source,
 {
     FadeIn {
-        input: linear_gain_ramp(input, duration, 0.0f32, 1.0f32, false),
+        input: linear_gain_ramp(input, duration, 0.0, 1.0, false),
     }
 }
 

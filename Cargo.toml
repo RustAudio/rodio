@@ -34,6 +34,8 @@ wav_output = ["dep:hound"]
 tracing = ["dep:tracing"]
 # Experimental features using atomic floating-point operations
 experimental = ["dep:atomic_float"]
+# Perform all calculations with 64-bit floats (instead of 32)
+64bit = []
 
 # Audio generation features
 #

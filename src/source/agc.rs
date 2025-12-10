@@ -15,14 +15,21 @@
 
 use super::SeekError;
 use crate::math::duration_to_coefficient;
-use crate::Source;
-#[cfg(feature = "experimental")]
+use crate::{Float, Sample, Source};
+#[cfg(all(feature = "experimental", not(feature = "64bit")))]
 use atomic_float::AtomicF32;
+#[cfg(all(feature = "experimental", feature = "64bit"))]
+use atomic_float::AtomicF64;
 #[cfg(feature = "experimental")]
 use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(feature = "experimental")]
 use std::sync::Arc;
 use std::time::Duration;
+
+#[cfg(all(feature = "experimental", not(feature = "64bit")))]
+type AtomicFloat = AtomicF32;
+#[cfg(all(feature = "experimental", feature = "64bit"))]
+type AtomicFloat = AtomicF64;
 
 use crate::common::{ChannelCount, SampleRate};
 #[cfg(feature = "tracing")]
@@ -49,7 +56,7 @@ const RMS_WINDOW_SIZE: usize = power_of_two(8192);
 pub struct AutomaticGainControlSettings {
     /// The desired output level that the AGC tries to maintain.
     /// A value of 1.0 means no change to the original level.
-    pub target_level: f32,
+    pub target_level: Float,
     /// Time constant for gain increases (how quickly the AGC responds to level increases).
     /// Longer durations result in slower, more gradual gain increases.
     pub attack_time: Duration,
@@ -58,16 +65,16 @@ pub struct AutomaticGainControlSettings {
     pub release_time: Duration,
     /// Maximum allowable gain multiplication to prevent excessive amplification.
     /// This acts as a safety limit to avoid distortion from over-amplification.
-    pub absolute_max_gain: f32,
+    pub absolute_max_gain: Float,
 }
 
 impl Default for AutomaticGainControlSettings {
     fn default() -> Self {
         AutomaticGainControlSettings {
-            target_level: 1.0,                           // Default to original level
-            attack_time: Duration::from_secs_f32(4.0),   // Recommended attack time
-            release_time: Duration::from_secs_f32(0f32), // Recommended release time
-            absolute_max_gain: 7.0,                      // Recommended max gain
+            target_level: 1.0,                    // Default to original level
+            attack_time: Duration::from_secs(4),  // Recommended attack time
+            release_time: Duration::from_secs(0), // Recommended release time
+            absolute_max_gain: 7.0,               // Recommended max gain
         }
     }
 }
@@ -80,13 +87,13 @@ impl Default for AutomaticGainControlSettings {
 #[derive(Clone, Debug)]
 pub struct AutomaticGainControl<I> {
     input: I,
-    target_level: Arc<AtomicF32>,
-    floor: f32,
-    absolute_max_gain: Arc<AtomicF32>,
-    current_gain: f32,
-    attack_coeff: Arc<AtomicF32>,
-    release_coeff: Arc<AtomicF32>,
-    peak_level: f32,
+    target_level: Arc<AtomicFloat>,
+    floor: Float,
+    absolute_max_gain: Arc<AtomicFloat>,
+    current_gain: Float,
+    attack_coeff: Arc<AtomicFloat>,
+    release_coeff: Arc<AtomicFloat>,
+    peak_level: Float,
     rms_window: CircularBuffer,
     is_enabled: Arc<AtomicBool>,
 }
@@ -99,13 +106,13 @@ pub struct AutomaticGainControl<I> {
 #[derive(Clone, Debug)]
 pub struct AutomaticGainControl<I> {
     input: I,
-    target_level: f32,
-    floor: f32,
-    absolute_max_gain: f32,
-    current_gain: f32,
-    attack_coeff: f32,
-    release_coeff: f32,
-    peak_level: f32,
+    target_level: Float,
+    floor: Float,
+    absolute_max_gain: Float,
+    current_gain: Float,
+    attack_coeff: Float,
+    release_coeff: Float,
+    peak_level: Float,
     rms_window: CircularBuffer,
     is_enabled: bool,
 }
@@ -116,8 +123,8 @@ pub struct AutomaticGainControl<I> {
 /// which is crucial for real-time audio processing.
 #[derive(Clone, Debug)]
 struct CircularBuffer {
-    buffer: Box<[f32; RMS_WINDOW_SIZE]>,
-    sum: f32,
+    buffer: Box<[Float; RMS_WINDOW_SIZE]>,
+    sum: Float,
     index: usize,
 }
 
@@ -126,8 +133,8 @@ impl CircularBuffer {
     #[inline]
     fn new() -> Self {
         CircularBuffer {
-            buffer: Box::new([0f32; RMS_WINDOW_SIZE]),
-            sum: 0f32,
+            buffer: Box::new([0.0; RMS_WINDOW_SIZE]),
+            sum: 0.0,
             index: 0,
         }
     }
@@ -136,7 +143,7 @@ impl CircularBuffer {
     ///
     /// This method maintains a running sum for efficient mean calculation.
     #[inline]
-    fn push(&mut self, value: f32) -> f32 {
+    fn push(&mut self, value: Float) -> Float {
         let old_value = self.buffer[self.index];
         // Update the sum by first subtracting the old value and then adding the new value; this is more accurate.
         self.sum = self.sum - old_value + value;
@@ -150,8 +157,8 @@ impl CircularBuffer {
     ///
     /// This operation is `O(1)` due to the maintained running sum.
     #[inline]
-    fn mean(&self) -> f32 {
-        self.sum / RMS_WINDOW_SIZE as f32
+    fn mean(&self) -> Float {
+        self.sum / RMS_WINDOW_SIZE as Float
     }
 }
 
@@ -167,10 +174,10 @@ impl CircularBuffer {
 #[inline]
 pub(crate) fn automatic_gain_control<I>(
     input: I,
-    target_level: f32,
+    target_level: Float,
     attack_time: Duration,
     release_time: Duration,
-    absolute_max_gain: f32,
+    absolute_max_gain: Float,
 ) -> AutomaticGainControl<I>
 where
     I: Source,
@@ -183,13 +190,13 @@ where
     {
         AutomaticGainControl {
             input,
-            target_level: Arc::new(AtomicF32::new(target_level)),
-            floor: 0f32,
-            absolute_max_gain: Arc::new(AtomicF32::new(absolute_max_gain)),
+            target_level: Arc::new(AtomicFloat::new(target_level)),
+            floor: 0.0,
+            absolute_max_gain: Arc::new(AtomicFloat::new(absolute_max_gain)),
             current_gain: 1.0,
-            attack_coeff: Arc::new(AtomicF32::new(attack_coeff)),
-            release_coeff: Arc::new(AtomicF32::new(release_coeff)),
-            peak_level: 0f32,
+            attack_coeff: Arc::new(AtomicFloat::new(attack_coeff)),
+            release_coeff: Arc::new(AtomicFloat::new(release_coeff)),
+            peak_level: 0.0,
             rms_window: CircularBuffer::new(),
             is_enabled: Arc::new(AtomicBool::new(true)),
         }
@@ -200,12 +207,12 @@ where
         AutomaticGainControl {
             input,
             target_level,
-            floor: 0f32,
+            floor: 0.0,
             absolute_max_gain,
             current_gain: 1.0,
             attack_coeff,
             release_coeff,
-            peak_level: 0f32,
+            peak_level: 0.0,
             rms_window: CircularBuffer::new(),
             is_enabled: true,
         }
@@ -217,7 +224,7 @@ where
     I: Source,
 {
     #[inline]
-    fn target_level(&self) -> f32 {
+    fn target_level(&self) -> Float {
         #[cfg(feature = "experimental")]
         {
             self.target_level.load(Ordering::Relaxed)
@@ -229,7 +236,7 @@ where
     }
 
     #[inline]
-    fn absolute_max_gain(&self) -> f32 {
+    fn absolute_max_gain(&self) -> Float {
         #[cfg(feature = "experimental")]
         {
             self.absolute_max_gain.load(Ordering::Relaxed)
@@ -241,7 +248,7 @@ where
     }
 
     #[inline]
-    fn attack_coeff(&self) -> f32 {
+    fn attack_coeff(&self) -> Float {
         #[cfg(feature = "experimental")]
         {
             self.attack_coeff.load(Ordering::Relaxed)
@@ -253,7 +260,7 @@ where
     }
 
     #[inline]
-    fn release_coeff(&self) -> f32 {
+    fn release_coeff(&self) -> Float {
         #[cfg(feature = "experimental")]
         {
             self.release_coeff.load(Ordering::Relaxed)
@@ -283,7 +290,7 @@ where
     /// Use this to dynamically modify the AGC's target level while audio is processing.
     /// Adjust this value to control the overall output amplitude of the processed signal.
     #[inline]
-    pub fn get_target_level(&self) -> Arc<AtomicF32> {
+    pub fn get_target_level(&self) -> Arc<AtomicFloat> {
         Arc::clone(&self.target_level)
     }
 
@@ -294,7 +301,7 @@ where
     /// Use this to dynamically modify the AGC's maximum allowable gain during runtime.
     /// Adjusting this value helps prevent excessive amplification in low-level signals.
     #[inline]
-    pub fn get_absolute_max_gain(&self) -> Arc<AtomicF32> {
+    pub fn get_absolute_max_gain(&self) -> Arc<AtomicFloat> {
         Arc::clone(&self.absolute_max_gain)
     }
 
@@ -306,7 +313,7 @@ where
     /// Smaller values result in faster response, larger values in slower response.
     /// Adjust during runtime to fine-tune AGC behavior for different audio content.
     #[inline]
-    pub fn get_attack_coeff(&self) -> Arc<AtomicF32> {
+    pub fn get_attack_coeff(&self) -> Arc<AtomicFloat> {
         Arc::clone(&self.attack_coeff)
     }
 
@@ -318,7 +325,7 @@ where
     /// Smaller values result in faster response, larger values in slower response.
     /// Adjust during runtime to optimize AGC behavior for varying audio dynamics.
     #[inline]
-    pub fn get_release_coeff(&self) -> Arc<AtomicF32> {
+    pub fn get_release_coeff(&self) -> Arc<AtomicFloat> {
         Arc::clone(&self.release_coeff)
     }
 
@@ -360,8 +367,8 @@ where
     /// Passing `None` will disable the floor value (setting it to 0.0), allowing the
     /// AGC gain to drop to very low levels.
     #[inline]
-    pub fn set_floor(&mut self, floor: Option<f32>) {
-        self.floor = floor.unwrap_or(0f32);
+    pub fn set_floor(&mut self, floor: Option<Float>) {
+        self.floor = floor.unwrap_or(0.0);
     }
 
     /// Updates the peak level using instant attack and slow release behaviour
@@ -370,10 +377,10 @@ where
     /// and the release coefficient when the signal is decreasing, providing
     /// appropriate tracking behaviour for peak detection.
     #[inline]
-    fn update_peak_level(&mut self, sample_value: f32, release_coeff: f32) {
+    fn update_peak_level(&mut self, sample_value: Sample, release_coeff: Float) {
         let coeff = if sample_value > self.peak_level {
             // Fast attack for rising peaks
-            0f32
+            0.0
         } else {
             // Slow release for falling peaks
             release_coeff
@@ -386,7 +393,7 @@ where
     /// This method calculates a moving average of the squared input samples,
     /// providing a measure of the signal's average power over time.
     #[inline]
-    fn update_rms(&mut self, sample_value: f32) -> f32 {
+    fn update_rms(&mut self, sample_value: Sample) -> Float {
         let squared_sample = sample_value * sample_value;
         self.rms_window.push(squared_sample);
         self.rms_window.mean().sqrt()
@@ -397,8 +404,8 @@ where
     /// signal, considering the peak level.
     /// The peak level helps prevent sudden spikes in the output signal.
     #[inline]
-    fn calculate_peak_gain(&self, target_level: f32, absolute_max_gain: f32) -> f32 {
-        if self.peak_level > 0f32 {
+    fn calculate_peak_gain(&self, target_level: Float, absolute_max_gain: Float) -> Float {
+        if self.peak_level > 0.0 {
             (target_level / self.peak_level).min(absolute_max_gain)
         } else {
             absolute_max_gain
@@ -423,7 +430,7 @@ where
         let rms = self.update_rms(sample_value);
 
         // Compute the gain adjustment required to reach the target level based on RMS
-        let rms_gain = if rms > 0f32 {
+        let rms_gain = if rms > 0.0 {
             target_level / rms
         } else {
             absolute_max_gain // Default to max gain if RMS is zero

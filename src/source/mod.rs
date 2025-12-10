@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::{
     buffer::SamplesBuffer,
     common::{assert_error_traits, ChannelCount, SampleRate},
-    math, BitDepth, Sample,
+    math, BitDepth, Float, Sample,
 };
 
 use dasp_sample::FromSample;
@@ -294,7 +294,7 @@ pub trait Source: Iterator<Item = Sample> {
 
     /// Amplifies the sound by the given value.
     #[inline]
-    fn amplify(self, value: f32) -> Amplify<Self>
+    fn amplify(self, value: Float) -> Amplify<Self>
     where
         Self: Sized,
     {
@@ -303,7 +303,7 @@ pub trait Source: Iterator<Item = Sample> {
 
     /// Amplifies the sound logarithmically by the given value.
     #[inline]
-    fn amplify_decibel(self, value: f32) -> Amplify<Self>
+    fn amplify_decibel(self, value: Float) -> Amplify<Self>
     where
         Self: Sized,
     {
@@ -317,18 +317,18 @@ pub trait Source: Iterator<Item = Sample> {
     ///
     /// **note: it clamps values outside this range.**
     #[inline]
-    fn amplify_normalized(self, value: f32) -> Amplify<Self>
+    fn amplify_normalized(self, value: Float) -> Amplify<Self>
     where
         Self: Sized,
     {
-        const NORMALIZATION_MIN: f32 = 0.0;
-        const NORMALIZATION_MAX: f32 = 1.0;
-        const LOG_VOLUME_GROWTH_RATE: f32 = 6.907_755_4;
-        const LOG_VOLUME_SCALE_FACTOR: f32 = 1000.0;
+        const NORMALIZATION_MIN: Float = 0.0;
+        const NORMALIZATION_MAX: Float = 1.0;
+        const LOG_VOLUME_GROWTH_RATE: Float = 6.907_755_4;
+        const LOG_VOLUME_SCALE_FACTOR: Float = 1000.0;
 
         let value = value.clamp(NORMALIZATION_MIN, NORMALIZATION_MAX);
 
-        let mut amplitude = f32::exp(LOG_VOLUME_GROWTH_RATE * value) / LOG_VOLUME_SCALE_FACTOR;
+        let mut amplitude = Float::exp(LOG_VOLUME_GROWTH_RATE * value) / LOG_VOLUME_SCALE_FACTOR;
         if value < 0.1 {
             amplitude *= value * 10.0;
         }
@@ -417,8 +417,8 @@ pub trait Source: Iterator<Item = Sample> {
         Self: Sized,
     {
         // Added Limits to prevent the AGC from blowing up. ;)
-        let attack_time_limited = agc_settings.attack_time.min(Duration::from_secs_f32(10.0));
-        let release_time_limited = agc_settings.release_time.min(Duration::from_secs_f32(10.0));
+        let attack_time_limited = agc_settings.attack_time.min(Duration::from_secs(10));
+        let release_time_limited = agc_settings.release_time.min(Duration::from_secs(10));
 
         agc::automatic_gain_control(
             self,
@@ -522,8 +522,8 @@ pub trait Source: Iterator<Item = Sample> {
     fn linear_gain_ramp(
         self,
         duration: Duration,
-        start_value: f32,
-        end_value: f32,
+        start_value: Float,
+        end_value: Float,
         clamp_end: bool,
     ) -> LinearGainRamp<Self>
     where
@@ -613,7 +613,7 @@ pub trait Source: Iterator<Item = Sample> {
     /// let source = source.buffered().reverb(Duration::from_millis(100), 0.7);
     /// ```
     #[inline]
-    fn reverb(self, duration: Duration, amplitude: f32) -> Mix<Self, Delay<Amplify<Self>>>
+    fn reverb(self, duration: Duration, amplitude: Float) -> Mix<Self, Delay<Amplify<Self>>>
     where
         Self: Sized + Clone,
     {
@@ -674,7 +674,7 @@ pub trait Source: Iterator<Item = Sample> {
     fn low_pass(self, freq: u32) -> BltFilter<Self>
     where
         Self: Sized,
-        Self: Source<Item = f32>,
+        Self: Source<Item = Sample>,
     {
         blt::low_pass(self, freq)
     }
@@ -684,34 +684,34 @@ pub trait Source: Iterator<Item = Sample> {
     fn high_pass(self, freq: u32) -> BltFilter<Self>
     where
         Self: Sized,
-        Self: Source<Item = f32>,
+        Self: Source<Item = Sample>,
     {
         blt::high_pass(self, freq)
     }
 
     /// Applies a low-pass filter to the source while allowing the q (bandwidth) to be changed.
     #[inline]
-    fn low_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
+    fn low_pass_with_q(self, freq: u32, q: Float) -> BltFilter<Self>
     where
         Self: Sized,
-        Self: Source<Item = f32>,
+        Self: Source<Item = Sample>,
     {
         blt::low_pass_with_q(self, freq, q)
     }
 
     /// Applies a high-pass filter to the source while allowing the q (bandwidth) to be changed.
     #[inline]
-    fn high_pass_with_q(self, freq: u32, q: f32) -> BltFilter<Self>
+    fn high_pass_with_q(self, freq: u32, q: Float) -> BltFilter<Self>
     where
         Self: Sized,
-        Self: Source<Item = f32>,
+        Self: Source<Item = Sample>,
     {
         blt::high_pass_with_q(self, freq, q)
     }
 
     /// Applies a distortion effect to the sound.
     #[inline]
-    fn distortion(self, gain: f32, threshold: f32) -> Distortion<Self>
+    fn distortion(self, gain: Float, threshold: Float) -> Distortion<Self>
     where
         Self: Sized,
     {

@@ -30,7 +30,7 @@ use std::time::Duration;
 
 use crate::{
     source::noise::{Blue, WhiteGaussian, WhiteTriangular, WhiteUniform},
-    BitDepth, ChannelCount, Sample, SampleRate, Source,
+    BitDepth, ChannelCount, Float, Sample, SampleRate, Source,
 };
 
 /// Dither algorithm selection for runtime choice
@@ -162,7 +162,7 @@ pub struct Dither<I> {
     noise: NoiseGenerator,
     current_channel: usize,
     remaining_in_span: Option<usize>,
-    lsb_amplitude: f32,
+    lsb_amplitude: Float,
 }
 
 impl<I> Dither<I>
@@ -175,7 +175,7 @@ where
         // Using f64 intermediate prevents precision loss and u64 handles all bit depths without
         // overflow (64-bit being the theoretical maximum for audio samples). Values stay well
         // above f32 denormal threshold, avoiding denormal arithmetic performance penalty.
-        let lsb_amplitude = (1.0 / (1_u64 << (target_bits.get() - 1)) as f64) as f32;
+        let lsb_amplitude = (1.0 / (1_u64 << (target_bits.get() - 1)) as f64) as Float;
 
         let sample_rate = input.sample_rate();
         let channels = input.channels();
@@ -296,10 +296,10 @@ mod tests {
         let mut undithered = source;
 
         // Collect samples from both sources
-        let dithered_samples: Vec<f32> = (0..10).filter_map(|_| dithered.next()).collect();
-        let undithered_samples: Vec<f32> = (0..10).filter_map(|_| undithered.next()).collect();
+        let dithered_samples: Vec<Sample> = (0..10).filter_map(|_| dithered.next()).collect();
+        let undithered_samples: Vec<Sample> = (0..10).filter_map(|_| undithered.next()).collect();
 
-        let lsb = 1.0 / (1_i64 << (TEST_BIT_DEPTH.get() - 1)) as f32;
+        let lsb = 1.0 / (1_i64 << (TEST_BIT_DEPTH.get() - 1)) as Float;
 
         // Verify dithered samples differ from undithered and are reasonable
         for (i, (&dithered_sample, &undithered_sample)) in dithered_samples
@@ -339,22 +339,22 @@ mod tests {
         let mut dithered = Dither::new(constant_source, TEST_BIT_DEPTH, Algorithm::HighPass);
 
         // Collect interleaved samples (L, R, L, R, ...)
-        let samples: Vec<f32> = dithered.by_ref().take(1000).collect();
+        let samples: Vec<Sample> = dithered.by_ref().take(1000).collect();
 
         // De-interleave into left and right channels
-        let left: Vec<f32> = samples.iter().step_by(2).copied().collect();
-        let right: Vec<f32> = samples.iter().skip(1).step_by(2).copied().collect();
+        let left: Vec<Sample> = samples.iter().step_by(2).copied().collect();
+        let right: Vec<Sample> = samples.iter().skip(1).step_by(2).copied().collect();
 
         assert_eq!(left.len(), 500);
         assert_eq!(right.len(), 500);
 
         // Calculate autocorrelation at lag 1 for each channel
         // Blue noise (high-pass) should have negative correlation at lag 1
-        let left_autocorr: f32 =
-            left.windows(2).map(|w| w[0] * w[1]).sum::<f32>() / (left.len() - 1) as f32;
+        let left_autocorr: Float =
+            left.windows(2).map(|w| w[0] * w[1]).sum::<Float>() / (left.len() - 1) as Float;
 
-        let right_autocorr: f32 =
-            right.windows(2).map(|w| w[0] * w[1]).sum::<f32>() / (right.len() - 1) as f32;
+        let right_autocorr: Float =
+            right.windows(2).map(|w| w[0] * w[1]).sum::<Float>() / (right.len() - 1) as Float;
 
         // Blue noise should have negative autocorrelation (high-pass characteristic)
         // If channels were cross-contaminated, this property would be broken
@@ -370,12 +370,12 @@ mod tests {
         );
 
         // Channels should be independent - cross-correlation between L and R should be near zero
-        let cross_corr: f32 = left
+        let cross_corr: Float = left
             .iter()
             .zip(right.iter())
             .map(|(l, r)| l * r)
-            .sum::<f32>()
-            / left.len() as f32;
+            .sum::<Float>()
+            / left.len() as Float;
 
         assert!(
             cross_corr.abs() < 0.1,

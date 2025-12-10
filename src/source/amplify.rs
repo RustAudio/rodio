@@ -2,12 +2,12 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::{
-    common::{ChannelCount, SampleRate},
+    common::{ChannelCount, Float, SampleRate},
     math, Source,
 };
 
 /// Internal function that builds a `Amplify` object.
-pub fn amplify<I>(input: I, factor: f32) -> Amplify<I>
+pub fn amplify<I>(input: I, factor: Float) -> Amplify<I>
 where
     I: Source,
 {
@@ -18,19 +18,19 @@ where
 #[derive(Clone, Debug)]
 pub struct Amplify<I> {
     input: I,
-    factor: f32,
+    factor: Float,
 }
 
 impl<I> Amplify<I> {
     /// Modifies the amplification factor.
     #[inline]
-    pub fn set_factor(&mut self, factor: f32) {
+    pub fn set_factor(&mut self, factor: Float) {
         self.factor = factor;
     }
 
     /// Modifies the amplification factor logarithmically.
     #[inline]
-    pub fn set_log_factor(&mut self, factor: f32) {
+    pub fn set_log_factor(&mut self, factor: Float) {
         self.factor = math::db_to_linear(factor);
     }
 

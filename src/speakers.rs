@@ -108,6 +108,7 @@ use cpal::{
 
 use crate::{common::assert_error_traits, StreamError};
 
+/// TODO
 pub mod builder;
 mod config;
 
@@ -126,11 +127,19 @@ assert_error_traits! {ListError}
 #[derive(Clone)]
 pub struct Output {
     inner: cpal::Device,
+    default: bool,
 }
 
 impl From<Output> for cpal::Device {
     fn from(val: Output) -> Self {
         val.inner
+    }
+}
+
+impl Output {
+    /// TODO
+    pub fn is_default(&self) -> bool {
+        self.default
     }
 }
 
@@ -151,10 +160,11 @@ impl fmt::Display for Output {
 /// Returns a list of available output devices on the system.
 pub fn available_outputs() -> Result<Vec<Output>, ListError> {
     let host = cpal::default_host();
-    let devices = host
-        .output_devices()
-        .map_err(ListError)?
-        .map(|dev| Output { inner: dev });
+    let default = host.default_output_device().map(|d| d.name());
+    let devices = host.output_devices().map_err(ListError)?.map(|dev| Output {
+        default: Some(dev.name()) == default,
+        inner: dev,
+    });
     Ok(devices.collect())
 }
 

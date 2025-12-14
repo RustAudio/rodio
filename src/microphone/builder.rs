@@ -524,7 +524,7 @@ where
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_config(&self) -> InputConfig {
-        self.config.copied().expect("ConfigIsSet")
+        self.config.expect("ConfigIsSet")
     }
 }
 

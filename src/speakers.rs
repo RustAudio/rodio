@@ -108,7 +108,7 @@ use cpal::{
 
 use crate::{common::assert_error_traits, StreamError};
 
-mod builder;
+pub mod builder;
 mod config;
 
 pub use builder::SpeakersBuilder;

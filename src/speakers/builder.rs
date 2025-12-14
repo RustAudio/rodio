@@ -512,8 +512,8 @@ where
     /// println!("Channel count: {}", config.channel_count.get());
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn get_config(&self) -> &OutputConfig {
-        self.config.as_ref().expect("ConfigIsSet")
+    pub fn get_config(&self) -> OutputConfig {
+        self.config.copied().expect("ConfigIsSet")
     }
 }
 

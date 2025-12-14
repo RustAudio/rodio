@@ -44,7 +44,7 @@ impl OutputConfig {
         this
     }
 
-    pub(crate) fn into_cpal_config(&self) -> crate::stream::OutputStreamConfig {
+    pub(crate) fn into_cpal_config(self) -> crate::stream::OutputStreamConfig {
         OutputStreamConfig {
             channel_count: self.channel_count,
             sample_rate: self.sample_rate,

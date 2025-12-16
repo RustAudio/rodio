@@ -137,7 +137,7 @@ impl From<Output> for cpal::Device {
 }
 
 impl Output {
-    /// TODO
+    /// TODO doc comment also mirror to microphone api
     pub fn is_default(&self) -> bool {
         self.default
     }

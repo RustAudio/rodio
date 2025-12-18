@@ -272,7 +272,12 @@ where
             Ok(())
         }
     }
+}
 
+impl<E> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>
+where
+    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+{
     /// Sets the sample rate for input.
     ///
     /// # Error

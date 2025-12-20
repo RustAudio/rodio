@@ -14,8 +14,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let stream_handle = rodio::OutputStreamBuilder::from_device(default_device)?
         .with_error_callback(move |err| {
-            // Filter for where err is a DeviceNotAvailable error.
-            if let cpal::StreamError::DeviceNotAvailable = err {
+            // Filter for where err is an actionable error.
+            if matches!(
+                err,
+                cpal::StreamError::DeviceNotAvailable | cpal::StreamError::StreamInvalidated
+            ) {
                 if let Err(e) = tx.send(err) {
                     eprintln!("Error emitting StreamError: {e}");
                 }
@@ -31,9 +34,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     mixer.add(wave);
 
     if let Ok(err) = rx.recv_timeout(Duration::from_secs(30)) {
-        // Here we print the error that was emitted by the error callback.
-        // but in a real application we may want to destroy the stream and
-        // try to reopen it, either with the same device or a different one.
+        // Here we received an error that requires action from the error callback.
+        // In a real application you would destroy the stream and try to reopen it,
+        // either with the same device (for StreamInvalidated) or a different device
+        // (for DeviceNotAvailable).
         eprintln!("Error with stream {err}");
     }
 

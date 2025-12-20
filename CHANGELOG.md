@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Blue` noise generator uses uniform instead of Gaussian noise for better performance.
 - `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
 - `Velvet` noise generator takes density in Hz as `usize` instead of `f32`.
+- Upgrade `cpal` to v0.17.
 
 ## Version [0.21.1] (2025-07-14)
 

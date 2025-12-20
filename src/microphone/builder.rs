@@ -76,10 +76,11 @@ where
         f.debug_struct("MicrophoneBuilder")
             .field(
                 "device",
-                &self
-                    .device
-                    .as_ref()
-                    .map(|d| d.0.name().unwrap_or("unknown".to_string())),
+                &self.device.as_ref().map(|d| {
+                    d.0.description()
+                        .ok()
+                        .map_or("unknown".to_string(), |d| d.name().to_string())
+                }),
             )
             .field("config", &self.config)
             .finish()
@@ -128,7 +129,7 @@ where
     /// ```no_run
     /// # use rodio::microphone::{MicrophoneBuilder, available_inputs};
     /// let input = available_inputs()?.remove(2);
-    /// let builder = MicrophoneBuilder::new().device(input)?;
+    /// let builder = MicrophoneBuilder::new().device(input.into_inner())?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn device(
@@ -140,7 +141,10 @@ where
             .supported_input_configs()
             .map_err(|source| Error::InputConfigs {
                 source,
-                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+                device_name: device
+                    .description()
+                    .ok()
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             })?
             .collect();
         Ok(MicrophoneBuilder {
@@ -169,8 +173,9 @@ where
             .map_err(|source| Error::InputConfigs {
                 source,
                 device_name: default_device
-                    .name()
-                    .unwrap_or_else(|_| "unknown".to_string()),
+                    .description()
+                    .ok()
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             })?
             .collect();
         Ok(MicrophoneBuilder {
@@ -203,7 +208,10 @@ where
             .default_input_config()
             .map_err(|source| Error::DefaultInputConfig {
                 source,
-                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+                device_name: device
+                    .description()
+                    .ok()
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             })?
             .into();
 
@@ -266,7 +274,10 @@ where
             .any(|range| config.supported_given(range))
         {
             Err(Error::UnsupportedByDevice {
-                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+                device_name: device
+                    .description()
+                    .ok()
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             })
         } else {
             Ok(())

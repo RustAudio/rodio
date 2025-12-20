@@ -91,7 +91,7 @@
 //!
 //! // Use a specific device (e.g., the second one)
 //! let mic = MicrophoneBuilder::new()
-//!     .device(inputs[1].clone())?
+//!     .device(inputs[1].clone().into_inner())?
 //!     .default_config()?
 //!     .open_stream()?;
 //! # Ok(())
@@ -130,23 +130,38 @@ pub struct Input {
     inner: cpal::Device,
 }
 
-impl From<Input> for cpal::Device {
-    fn from(val: Input) -> Self {
-        val.inner
+impl Input {
+    /// Consumes the input and returns the inner device.
+    pub fn into_inner(self) -> cpal::Device {
+        self.inner
     }
 }
 
 impl fmt::Debug for Input {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Device")
-            .field("inner", &self.inner.name().unwrap_or("unknown".to_string()))
+            .field(
+                "inner",
+                &self
+                    .inner
+                    .description()
+                    .ok()
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
+            )
             .finish()
     }
 }
 
 impl fmt::Display for Input {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner.name().unwrap_or("unknown".to_string()))
+        write!(
+            f,
+            "{}",
+            self.inner
+                .description()
+                .ok()
+                .map_or("unknown".to_string(), |d| d.name().to_string())
+        )
     }
 }
 
@@ -271,8 +286,7 @@ impl Microphone {
             I64, i64;
             U8, u8;
             U16, u16;
-            // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
-            // U24, cpal::U24;
+            U24, cpal::U24;
             U32, u32;
             U64, u64
         )

@@ -131,7 +131,12 @@ impl OutputStreamConfig {
 impl core::fmt::Debug for OutputStreamBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let device = if let Some(device) = &self.device {
-            "Some(".to_owned() + device.name().as_deref().unwrap_or("UnNamed") + ")"
+            "Some(".to_owned()
+                + &device
+                    .description()
+                    .ok()
+                    .map_or("UnNamed".to_string(), |d| d.name().to_string())
+                + ")"
         } else {
             "None".to_owned()
         };
@@ -307,7 +312,7 @@ where
         self.config = OutputStreamConfig {
             channel_count: NonZero::new(config.channels())
                 .expect("no valid cpal config has zero channels"),
-            sample_rate: NonZero::new(config.sample_rate().0)
+            sample_rate: NonZero::new(config.sample_rate())
                 .expect("no valid cpal config has zero sample rate"),
             sample_format: config.sample_format(),
             ..Default::default()
@@ -320,7 +325,7 @@ where
         self.config = OutputStreamConfig {
             channel_count: NonZero::new(config.channels)
                 .expect("no valid cpal config has zero channels"),
-            sample_rate: NonZero::new(config.sample_rate.0)
+            sample_rate: NonZero::new(config.sample_rate)
                 .expect("no valid cpal config has zero sample rate"),
             buffer_size: config.buffer_size,
             ..self.config
@@ -390,7 +395,7 @@ impl From<&OutputStreamConfig> for StreamConfig {
     fn from(config: &OutputStreamConfig) -> Self {
         cpal::StreamConfig {
             channels: config.channel_count.get() as cpal::ChannelCount,
-            sample_rate: cpal::SampleRate(config.sample_rate.get()),
+            sample_rate: config.sample_rate.get(),
             buffer_size: config.buffer_size,
         }
     }
@@ -515,8 +520,7 @@ impl OutputStream {
             I64, i64;
             U8, u8;
             U16, u16;
-            // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
-            // U24, U24;
+            U24, cpal::U24;
             U32, u32;
             U64, u64
         );
@@ -539,7 +543,7 @@ pub fn supported_output_configs(
         let max_rate = sf.max_sample_rate();
         let min_rate = sf.min_sample_rate();
         let mut formats = vec![sf.with_max_sample_rate()];
-        let preferred_rate = cpal::SampleRate(HZ_44100.get());
+        let preferred_rate = HZ_44100.get();
         if preferred_rate < max_rate && preferred_rate > min_rate {
             formats.push(sf.with_sample_rate(preferred_rate))
         }

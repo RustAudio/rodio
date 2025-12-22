@@ -73,7 +73,11 @@ impl SamplesBuffer {
 impl Source for SamplesBuffer {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        None
+        if self.pos >= self.data.len() {
+            Some(0)
+        } else {
+            Some(self.data.len())
+        }
     }
 
     #[inline]
@@ -126,9 +130,12 @@ impl Iterator for SamplesBuffer {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.data.len(), Some(self.data.len()))
+        let remaining = self.data.len() - self.pos;
+        (remaining, Some(remaining))
     }
 }
+
+impl ExactSizeIterator for SamplesBuffer {}
 
 #[cfg(test)]
 mod tests {

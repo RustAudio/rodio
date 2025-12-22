@@ -92,10 +92,8 @@ where
 
         // Try the current `current_span_len`.
         if let Some(src) = &self.current_source {
-            if let Some(val) = src.current_span_len() {
-                if val != 0 {
-                    return Some(val);
-                }
+            if !src.is_exhausted() {
+                return src.current_span_len();
             }
         }
 

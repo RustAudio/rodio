@@ -39,18 +39,22 @@ where
             return;
         }
 
-        let ns_per_sample: u128 =
-            NS_PER_SECOND / input.sample_rate().get() as u128 / input.channels().get() as u128;
+        let sample_rate = input.sample_rate().get() as u128;
+        let channels = input.channels().get() as u128;
+
+        let samples_per_channel = duration.as_nanos() * sample_rate / NS_PER_SECOND;
+        let samples_to_skip: u128 = samples_per_channel * channels;
 
         // Check if we need to skip only part of the current span.
-        if span_len as u128 * ns_per_sample > duration.as_nanos() {
-            skip_samples(input, (duration.as_nanos() / ns_per_sample) as usize);
+        if span_len as u128 > samples_to_skip {
+            skip_samples(input, samples_to_skip as usize);
             return;
         }
 
+        duration -= Duration::from_nanos(
+            (NS_PER_SECOND * span_len as u128 / channels / sample_rate) as u64,
+        );
         skip_samples(input, span_len);
-
-        duration -= Duration::from_nanos((span_len * ns_per_sample as usize) as u64);
     }
 }
 

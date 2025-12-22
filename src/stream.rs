@@ -347,7 +347,7 @@ where
 
     /// Open output stream using parameters configured so far.
     pub fn open_stream(self) -> Result<OutputStream, StreamError> {
-        let device = self.device.as_ref().expect("output device specified");
+        let device = self.device.as_ref().expect("No output device specified");
 
         OutputStream::open(device, &self.config, self.error_callback)
     }
@@ -360,7 +360,7 @@ where
     where
         E: Clone,
     {
-        let device = self.device.as_ref().expect("output device specified");
+        let device = self.device.as_ref().expect("No output device specified");
         let error_callback = &self.error_callback;
 
         OutputStream::open(device, &self.config, error_callback.clone()).or_else(|err| {

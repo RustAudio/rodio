@@ -176,6 +176,12 @@ pub trait Source: Iterator<Item = Sample> {
     /// After the engine has finished reading the specified number of samples, it will check
     /// whether the value of `channels()` and/or `sample_rate()` have changed.
     ///
+    /// # Frame Alignment
+    ///
+    /// Span lengths must be multiples of the channel count to ensure spans end on frame
+    /// boundaries. A "frame" is one sample for each channel. Returning a span length
+    /// that is not a multiple of `channels()` will cause channel misalignment issues.
+    ///
     /// Note: This returns the total span size, not the remaining samples. Use `Iterator::size_hint`
     /// to determine how many samples remain in the iterator.
     fn current_span_len(&self) -> Option<usize>;

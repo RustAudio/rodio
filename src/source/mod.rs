@@ -168,13 +168,23 @@ pub use self::noise::{Pink, WhiteUniform};
 /// channels can potentially change.
 ///
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends. `None` means "infinite" or
-    /// "until the sound ends".
-    /// Should never return 0 unless there's no more data.
+    /// Returns the number of samples before the current span ends.
+    ///
+    /// `None` means "infinite" or "until the sound ends". Sources that return `Some(x)` should
+    /// return `Some(0)` if and only if when there's no more data.
     ///
     /// After the engine has finished reading the specified number of samples, it will check
     /// whether the value of `channels()` and/or `sample_rate()` have changed.
+    ///
+    /// Note: This returns the total span size, not the remaining samples. Use `Iterator::size_hint`
+    /// to determine how many samples remain in the iterator.
     fn current_span_len(&self) -> Option<usize>;
+
+    /// Returns true if the source is exhausted (has no more samples available).
+    #[inline]
+    fn is_exhausted(&self) -> bool {
+        self.current_span_len() == Some(0)
+    }
 
     /// Returns the number of channels. Channels are always interleaved.
     /// Should never be Zero

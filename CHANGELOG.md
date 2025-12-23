@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Chirp` now implements `Iterator::size_hint` and `ExactSizeIterator`.
+- `SamplesBuffer` now implements `ExactSizeIterator`.
+- Added `Source::is_exhausted()` helper method to check if a source has no more samples.
 - Added `Red` noise generator that is more practical than `Brownian` noise.
 - Added `std_dev()` to `WhiteUniform` and `WhiteTriangular`.
 - Added a macro `nz!` which facilitates creating NonZero's for `SampleRate` and
@@ -31,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chirp::next` now returns `None` when the total duration has been reached, and will work
   correctly for a number of samples greater than 2^24.
 - `PeriodicAccess` is slightly more accurate for 44.1 kHz sample rate families.
+- Fixed audio distortion when queueing sources with different sample rates/channel counts or transitioning from empty queue.
+- Fixed `SamplesBuffer` to correctly report exhaustion and remaining samples.
+- Improved precision in `SkipDuration` to avoid off-by-a-few-samples errors.
 
 ### Changed
 - `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
@@ -38,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
 - `Velvet` noise generator takes density in Hz as `usize` instead of `f32`.
 - Upgrade `cpal` to v0.17.
+- Clarified `Source::current_span_len()` contract documentation.
 
 ## Version [0.21.1] (2025-07-14)
 

@@ -66,15 +66,15 @@ fn main() {
     println!("Example 5: Comparing different limiting scenarios");
 
     let gentle_limiting = LimitSettings::default()
-        .with_threshold(-6.0)           // Higher threshold (less limiting)
-        .with_knee_width(8.0)           // Wide knee (softer)
-        .with_attack(Duration::from_millis(20))    // Slower attack
+        .with_threshold(-6.0) // Higher threshold (less limiting)
+        .with_knee_width(8.0) // Wide knee (softer)
+        .with_attack(Duration::from_millis(20)) // Slower attack
         .with_release(Duration::from_millis(200)); // Slower release
 
     let aggressive_limiting = LimitSettings::default()
-        .with_threshold(-1.0)           // Lower threshold (more limiting)
-        .with_knee_width(1.0)           // Narrow knee (harder)
-        .with_attack(Duration::from_millis(2))    // Fast attack
+        .with_threshold(-1.0) // Lower threshold (more limiting)
+        .with_knee_width(1.0) // Narrow knee (harder)
+        .with_attack(Duration::from_millis(2)) // Fast attack
         .with_release(Duration::from_millis(20)); // Fast release
 
     println!("  Gentle limiting:");
@@ -109,8 +109,8 @@ fn main() {
     // Apply limiting with -6dB threshold (should limit to ~0.5)
     let strict_limiting = LimitSettings::default()
         .with_threshold(-6.0)
-        .with_knee_width(0.5)                     // Narrow knee for precise limiting
-        .with_attack(Duration::from_millis(3))    // Fast attack
+        .with_knee_width(0.5) // Narrow knee for precise limiting
+        .with_attack(Duration::from_millis(3)) // Fast attack
         .with_release(Duration::from_millis(12)); // Moderate release
 
     let limited_sine = test_sine.limit(strict_limiting.clone());

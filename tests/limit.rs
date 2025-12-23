@@ -10,7 +10,7 @@ fn test_limiting_works() {
         .take_duration(Duration::from_millis(60)); // ~2600 samples
 
     let settings = rodio::source::LimitSettings::default()
-        .with_threshold(-6.0)   // -6dB = ~0.5 linear
+        .with_threshold(-6.0) // -6dB = ~0.5 linear
         .with_knee_width(0.5)
         .with_attack(Duration::from_millis(3))
         .with_release(Duration::from_millis(12));

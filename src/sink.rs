@@ -138,7 +138,8 @@ impl Sink {
                         *to_clear -= 1;
                         *controls.position.lock().unwrap() = Duration::ZERO;
                     } else {
-                        *controls.position.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
+                        *controls.position.lock().unwrap() =
+                            src.inner().inner().inner().inner().get_pos();
                     }
                 }
                 let amp = src.inner_mut().inner_mut();

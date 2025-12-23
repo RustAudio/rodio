@@ -8,7 +8,9 @@
     inputs: inputs.utils.lib.eachDefaultSystem (
       system: let
         pkgs = inputs.nixpkgs.legacyPackages.${system}.extend inputs.rust-overlay.overlays.default;
-        rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        rust = pkgs.rust-bin.stable.latest.default.override {
+          extensions = [ "rust-src" "rust-analyzer" ];
+        };
       in {
         devShell = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [

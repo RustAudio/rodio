@@ -257,8 +257,8 @@ impl LimitSettings {
     #[inline]
     pub fn broadcast() -> Self {
         Self::default()
-            .with_knee_width(2.0)                    // Narrower knee for decisive limiting
-            .with_attack(Duration::from_millis(3))   // Faster attack for transients
+            .with_knee_width(2.0) // Narrower knee for decisive limiting
+            .with_attack(Duration::from_millis(3)) // Faster attack for transients
             .with_release(Duration::from_millis(50)) // Faster recovery for consistency
     }
 

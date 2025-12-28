@@ -12,7 +12,7 @@ pub struct InputConfig {
     /// The buffersize, see a thorough explanation in MicrophoneBuilder::with_buffer_size
     pub buffer_size: cpal::BufferSize,
     /// The sample format used by the microphone.
-    /// Note we will always convert it to f32
+    /// Note we will always convert it to `Sample`
     pub sample_format: cpal::SampleFormat,
 }
 impl InputConfig {

@@ -169,8 +169,8 @@ mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::common::{ChannelCount, SampleRate};
     use crate::math::nz;
-    use crate::Sample;
     use crate::source::Source;
+    use crate::Sample;
     use dasp_sample::Sample as DaspSample;
 
     fn test_skip_duration_samples_left(

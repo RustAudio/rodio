@@ -104,8 +104,9 @@ impl Source for SamplesBuffer {
         // sample directly.
 
         let curr_channel = self.pos % self.channels().get() as usize;
-        let new_pos =
-            duration_to_float(pos) * self.sample_rate().get() as Float * self.channels().get() as Float;
+        let new_pos = duration_to_float(pos)
+            * self.sample_rate().get() as Float
+            * self.channels().get() as Float;
         // saturate pos at the end of the source
         let new_pos = new_pos as usize;
         let new_pos = new_pos.min(self.data.len());

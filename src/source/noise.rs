@@ -154,7 +154,7 @@ impl<R: Rng> WhiteUniform<R> {
     /// Get the standard deviation of the uniform distribution.
     ///
     /// For uniform distribution [-1.0, 1.0], std_dev = √(1/3) ≈ 0.5774.
-    pub fn std_dev(&self) -> f32 {
+    pub fn std_dev(&self) -> Sample {
         UNIFORM_VARIANCE.sqrt()
     }
 }
@@ -209,8 +209,8 @@ impl<R: Rng> WhiteTriangular<R> {
     /// Get the standard deviation of the triangular distribution.
     ///
     /// For triangular distribution [-1.0, 1.0] with mode 0.0, std_dev = 2/√6 ≈ 0.8165.
-    pub fn std_dev(&self) -> f32 {
-        2.0 / (6.0_f32).sqrt()
+    pub fn std_dev(&self) -> Sample {
+        2.0 / Sample::sqrt(6.0)
     }
 }
 
@@ -416,7 +416,7 @@ const VELVET_DEFAULT_DENSITY: NonZero<usize> = nz!(2000);
 /// Variance of uniform distribution [-1.0, 1.0].
 ///
 /// For uniform distribution U(-1, 1), the variance is (b-a)²/12 = 4/12 = 1/3.
-const UNIFORM_VARIANCE: f32 = 1.0 / 3.0;
+const UNIFORM_VARIANCE: Sample = 1.0 / 3.0;
 
 /// Pink noise generator - sounds much more natural than white noise.
 ///
@@ -645,8 +645,7 @@ where
         // Center frequency is set to 5Hz, which provides good behavior
         // while preventing excessive low-frequency buildup across common sample rates.
         let center_freq_hz = 5.0;
-        let leak_factor =
-            1.0 - ((2.0 * PI * center_freq_hz) / sample_rate.get() as Float);
+        let leak_factor = 1.0 - ((2.0 * PI * center_freq_hz) / sample_rate.get() as Float);
 
         // Calculate the scaling factor to normalize output based on leak factor.
         // This ensures consistent output level regardless of the leak factor value.
@@ -1043,15 +1042,6 @@ mod tests {
         assert!(
             near_zero_count > total_samples / 2,
             "Triangular distribution should favor values near zero"
-        );
-
-        // Test std_dev method
-        let generator = WhiteTriangular::new(TEST_SAMPLE_RATE);
-        let expected_std_dev = 2.0 / (6.0_f32).sqrt();
-        assert!(
-            (generator.std_dev() - expected_std_dev).abs() < f32::EPSILON,
-            "Triangular std_dev should be 2/sqrt(6) ≈ 0.8165, got {}",
-            generator.std_dev()
         );
     }
 

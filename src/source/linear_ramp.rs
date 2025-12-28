@@ -90,9 +90,8 @@ where
         }
 
         if self.sample_idx.is_multiple_of(self.channels().get() as u64) {
-            let sample_duration = Duration::from_nanos(
-                NANOS_PER_SEC / self.input.sample_rate().get() as u64
-            );
+            let sample_duration =
+                Duration::from_nanos(NANOS_PER_SEC / self.input.sample_rate().get() as u64);
             self.elapsed += sample_duration;
         }
 

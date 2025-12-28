@@ -1,8 +1,7 @@
 //! Generator sources for various periodic test waveforms.
 //!
 //! This module provides several periodic, deterministic waveforms for testing other sources and
-//! for simple additive sound synthesis. Every source is monoaural and in the codomain [-1.0f32,
-//! 1.0f32].
+//! for simple additive sound synthesis. Every source is monoaural and in the codomain [-1.0, 1.0].
 //!
 //! # Example
 //!
@@ -176,7 +175,7 @@ mod tests {
 
     #[test]
     fn square() {
-        let mut wf = SignalGenerator::new(nz!(2000), 500.0f32, Function::Square);
+        let mut wf = SignalGenerator::new(nz!(2000), 500.0, Function::Square);
         assert_eq!(wf.next(), Some(1.0));
         assert_eq!(wf.next(), Some(1.0));
         assert_eq!(wf.next(), Some(-1.0));
@@ -189,7 +188,7 @@ mod tests {
 
     #[test]
     fn triangle() {
-        let mut wf = SignalGenerator::new(nz!(8000), 1000.0f32, Function::Triangle);
+        let mut wf = SignalGenerator::new(nz!(8000), 1000.0, Function::Triangle);
         assert_eq!(wf.next(), Some(-1.0));
         assert_eq!(wf.next(), Some(-0.5));
         assert_eq!(wf.next(), Some(0.0));
@@ -210,7 +209,7 @@ mod tests {
 
     #[test]
     fn saw() {
-        let mut wf = SignalGenerator::new(nz!(200), 50.0f32, Function::Sawtooth);
+        let mut wf = SignalGenerator::new(nz!(200), 50.0, Function::Sawtooth);
         assert_eq!(wf.next(), Some(0.0));
         assert_eq!(wf.next(), Some(0.5));
         assert_eq!(wf.next(), Some(-1.0));

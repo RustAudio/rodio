@@ -9,9 +9,9 @@ pub(crate) const NANOS_PER_SEC: u64 = 1_000_000_000;
 // Re-export float constants with appropriate precision for the Float type.
 // This centralizes all cfg gating for constants in one place.
 #[cfg(not(feature = "64bit"))]
-pub use std::f32::consts::{E, LN_2, LN_10, LOG2_10, LOG2_E, LOG10_2, LOG10_E, PI, TAU};
+pub use std::f32::consts::{E, LN_10, LN_2, LOG10_2, LOG10_E, LOG2_10, LOG2_E, PI, TAU};
 #[cfg(feature = "64bit")]
-pub use std::f64::consts::{E, LN_2, LN_10, LOG2_10, LOG2_E, LOG10_2, LOG10_E, PI, TAU};
+pub use std::f64::consts::{E, LN_10, LN_2, LOG10_2, LOG10_E, LOG2_10, LOG2_E, PI, TAU};
 
 /// Linear interpolation between two samples.
 ///
@@ -255,21 +255,21 @@ mod test {
     #[test]
     fn convert_linear_to_decibels() {
         // Test the inverse conversion function using the same reference data
-        for (wikipedia_db, linear) in DECIBELS_LINEAR_TABLE {
+        for (expected_db, linear) in DECIBELS_LINEAR_TABLE {
             let actual_db = linear_to_db(linear);
 
             // Sanity check: ensure we're reasonably close to the expected dB value from the table
             // This accounts for rounding in both the linear and dB reference values
-            let magnitude_ratio = if wikipedia_db.abs() > 10.0 * Float::EPSILON {
-                actual_db / wikipedia_db
+            let magnitude_ratio = if expected_db.abs() > 10.0 * Float::EPSILON {
+                actual_db / expected_db
             } else {
                 1.0 // Skip ratio check for values very close to 0 dB
             };
 
-            if wikipedia_db.abs() > 10.0 * Float::EPSILON {
+            if expected_db.abs() > 10.0 * Float::EPSILON {
                 assert!(
                     magnitude_ratio > 0.99 && magnitude_ratio < 1.01,
-                    "Result differs significantly from table reference for linear {linear}: expected {wikipedia_db}dB, got {actual_db}dB, ratio: {magnitude_ratio:.4}"
+                    "Result differs significantly from table reference for linear {linear}: expected {expected_db}dB, got {actual_db}dB, ratio: {magnitude_ratio:.4}"
                 );
             }
         }

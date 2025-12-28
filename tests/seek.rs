@@ -334,8 +334,8 @@ fn is_silent(samples: &[Sample], channels: ChannelCount, channel: usize) -> bool
         .iter()
         .skip(channel)
         .step_by(channels.get() as usize);
-    let volume =
-        channel.map(|s| s.abs()).sum::<Sample>() / samples.len() as Sample * channels.get() as Sample;
+    let volume = channel.map(|s| s.abs()).sum::<Sample>() / samples.len() as Sample
+        * channels.get() as Sample;
 
     volume < BASICALLY_ZERO
 }

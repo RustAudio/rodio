@@ -27,10 +27,7 @@ fn channel_volume_with_queue() {
     assert_output_only_on_first_two_channels(queue, 6);
 }
 
-fn assert_output_only_on_first_two_channels(
-    source: impl Source<Item = Sample>,
-    channels: usize,
-) {
+fn assert_output_only_on_first_two_channels(source: impl Source<Item = Sample>, channels: usize) {
     let mut frame_number = 0;
     let mut samples_in_frame = Vec::new();
 

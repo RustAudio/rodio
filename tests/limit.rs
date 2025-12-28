@@ -21,9 +21,7 @@ fn test_limiting_works() {
 
     // After settling, ALL samples should be well below 1.0 (around 0.5)
     let settled_samples = &samples[1500..]; // After attack/release settling
-    let settled_peak = settled_samples
-        .iter()
-        .fold(0.0, |acc, &x| acc.max(x.abs()));
+    let settled_peak: Sample = settled_samples.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
 
     assert!(
         settled_peak <= 0.6,
@@ -34,9 +32,7 @@ fn test_limiting_works() {
         "Peak should be reasonably close to 0.5: {settled_peak:.3}"
     );
 
-    let max_sample = settled_samples
-        .iter()
-        .fold(0.0, |acc, &x| acc.max(x.abs()));
+    let max_sample: Sample = settled_samples.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
     assert!(
         max_sample < 0.8,
         "ALL samples should be well below 1.0: max={max_sample:.3}"
@@ -91,9 +87,7 @@ fn test_limiter_with_different_settings() {
 
         // Check settled samples after attack/release
         let settled_samples = &samples[1000..];
-        let peak = settled_samples
-            .iter()
-            .fold(0.0, |acc, &x| acc.max(x.abs()));
+        let peak: Sample = settled_samples.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
 
         assert!(
             peak <= expected_peak + 0.1,
@@ -145,10 +139,8 @@ fn test_limiter_stereo_processing() {
     let limited_left: Vec<Sample> = limited_samples.iter().step_by(2).cloned().collect();
     let limited_right: Vec<Sample> = limited_samples.iter().skip(1).step_by(2).cloned().collect();
 
-    let left_peak = limited_left.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
-    let right_peak = limited_right
-        .iter()
-        .fold(0.0, |acc, &x| acc.max(x.abs()));
+    let left_peak: Sample = limited_left.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
+    let right_peak: Sample = limited_right.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
 
     // Both channels should be limited to approximately the same level
     // (limiter should prevent the louder channel from exceeding threshold)

@@ -57,7 +57,7 @@ fn agc_enabled(bencher: Bencher) {
 fn agc_disabled(bencher: Bencher) {
     bencher.with_inputs(music_wav).bench_values(|source| {
         // Create the AGC source
-        let amplified_source = source.automatic_gain_control(Default::default);
+        let amplified_source = source.automatic_gain_control(Default::default());
 
         // Get the control handle and disable AGC
         let agc_control = amplified_source.get_agc_control();

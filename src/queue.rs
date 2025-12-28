@@ -113,6 +113,8 @@ pub struct SourcesQueueOutput {
 }
 
 const THRESHOLD: usize = 512;
+const SILENCE_SAMPLE_RATE: SampleRate = nz!(44100);
+const SILENCE_CHANNELS: ChannelCount = nz!(1);
 
 impl Source for SourcesQueueOutput {
     #[inline]
@@ -129,15 +131,13 @@ impl Source for SourcesQueueOutput {
         // constant.
 
         // Try the current `current_span_len`.
-        if let Some(val) = self.current.current_span_len() {
-            if val != 0 {
-                return Some(val);
-            } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
-                && self.input.next_sounds.lock().unwrap().is_empty()
-            {
-                // The next source will be a filler silence which will have the length of `THRESHOLD`
-                return Some(THRESHOLD);
-            }
+        if !self.current.is_exhausted() {
+            return self.current.current_span_len();
+        } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
+            && self.input.next_sounds.lock().unwrap().is_empty()
+        {
+            // The next source will be a filler silence which will have the length of `THRESHOLD`
+            return Some(THRESHOLD);
         }
 
         // Try the size hint.
@@ -154,12 +154,28 @@ impl Source for SourcesQueueOutput {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.current.channels()
+        // When current source is exhausted, peek at the next source's metadata
+        if !self.current.is_exhausted() {
+            self.current.channels()
+        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().first() {
+            next.channels()
+        } else {
+            // Queue is empty - return silence metadata
+            SILENCE_CHANNELS
+        }
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.current.sample_rate()
+        // When current source is exhausted, peek at the next source's metadata
+        if !self.current.is_exhausted() {
+            self.current.sample_rate()
+        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().first() {
+            next.sample_rate()
+        } else {
+            // Queue is empty - return silence metadata
+            SILENCE_SAMPLE_RATE
+        }
     }
 
     #[inline]
@@ -221,7 +237,11 @@ impl SourcesQueueOutput {
             let mut next = self.input.next_sounds.lock().unwrap();
 
             if next.is_empty() {
-                let silence = Box::new(Zero::new_samples(nz!(1), nz!(44100), THRESHOLD)) as Box<_>;
+                let silence = Box::new(Zero::new_samples(
+                    SILENCE_CHANNELS,
+                    SILENCE_SAMPLE_RATE,
+                    THRESHOLD,
+                )) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
                     (silence, None)
@@ -247,7 +267,6 @@ mod tests {
     use crate::source::Source;
 
     #[test]
-    #[ignore] // FIXME: samples rate and channel not updated immediately after transition
     fn basic() {
         let (tx, mut rx) = queue::queue(false);
 

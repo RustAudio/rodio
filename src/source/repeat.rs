@@ -56,25 +56,28 @@ where
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        match self.inner.current_span_len() {
-            Some(0) => self.next.current_span_len(),
-            a => a,
+        if self.inner.is_exhausted() {
+            self.next.current_span_len()
+        } else {
+            self.inner.current_span_len()
         }
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        match self.inner.current_span_len() {
-            Some(0) => self.next.channels(),
-            _ => self.inner.channels(),
+        if self.inner.is_exhausted() {
+            self.next.channels()
+        } else {
+            self.inner.channels()
         }
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        match self.inner.current_span_len() {
-            Some(0) => self.next.sample_rate(),
-            _ => self.inner.sample_rate(),
+        if self.inner.is_exhausted() {
+            self.next.sample_rate()
+        } else {
+            self.inner.sample_rate()
         }
     }
 

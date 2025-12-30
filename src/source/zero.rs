@@ -52,7 +52,7 @@ impl Iterator for Zero {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(total_samples) = self.total_samples {
             if self.position < total_samples {
-                self.position = self.position + 1;
+                self.position += 1;
             } else {
                 return None;
             }

@@ -10,6 +10,21 @@ pub type ChannelCount = NonZero<u16>;
 /// Number of bits per sample. Can never be zero.
 pub type BitDepth = NonZero<u32>;
 
+// NOTE on numeric precision:
+//
+// While `f32` is transparent for typical playback use cases, it does not guarantee preservation of
+// full 24-bit source fidelity across arbitrary processing chains. Each floating-point operation
+// rounds its result to `f32` precision (~24-bit significand). In DSP pipelines (filters, mixing,
+// modulation), many operations are applied per sample and over time, so rounding noise accumulates
+// and long-running state (e.g. oscillator phase) can drift.
+//
+// For use cases where numerical accuracy must be preserved through extended processing (recording,
+// editing, analysis, long-running generators, or complex DSP graphs), enabling 64-bit processing
+// reduces accumulated rounding error and drift.
+//
+// This mirrors common practice in professional audio software and DSP libraries, which often use
+// 64-bit internal processing even when the final output is 16- or 24-bit.
+
 /// Floating point type used for internal calculations. Can be configured to be
 /// either `f32` (default) or `f64` using the `64bit` feature flag.
 #[cfg(not(feature = "64bit"))]

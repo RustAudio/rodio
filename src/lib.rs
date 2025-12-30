@@ -142,6 +142,14 @@
 //!
 //! The "playback" feature adds support for playing audio. This feature requires the "cpal" crate.
 //!
+//! ### Feature "64bit"
+//!
+//! The "64bit" feature enables 64-bit sample precision using `f64` for audio samples and most
+//! internal calculations. By default, rodio uses 32-bit floats (`f32`), which offers better
+//! performance and is sufficient for most use cases. The 64-bit mode addresses precision drift
+//! when chaining many audio operations together and in long-running signal generators where
+//! phase errors compound over time.
+//!
 //! ## How it works under the hood
 //!
 //! Rodio spawns a background thread that is dedicated to reading from the sources and sending
@@ -189,7 +197,7 @@ pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
-pub use crate::common::{BitDepth, ChannelCount, Sample, SampleRate};
+pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate};
 pub use crate::decoder::Decoder;
 pub use crate::sink::Sink;
 pub use crate::source::Source;

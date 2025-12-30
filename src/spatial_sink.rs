@@ -6,7 +6,7 @@ use dasp_sample::FromSample;
 
 use crate::mixer::Mixer;
 use crate::source::{SeekError, Spatial};
-use crate::{Sink, Source};
+use crate::{Float, Sink, Source};
 
 /// A sink that allows changing the position of the source and the listeners
 /// ears while playing. The sources played are then transformed to give a simple
@@ -82,7 +82,7 @@ impl SpatialSink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
     /// multiply each sample by this value.
     #[inline]
-    pub fn volume(&self) -> f32 {
+    pub fn volume(&self) -> Float {
         self.sink.volume()
     }
 
@@ -91,7 +91,7 @@ impl SpatialSink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
     /// multiply each sample by this value.
     #[inline]
-    pub fn set_volume(&self, value: f32) {
+    pub fn set_volume(&self, value: Float) {
         self.sink.set_volume(value);
     }
 

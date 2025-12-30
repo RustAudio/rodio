@@ -2,26 +2,26 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::math::{duration_to_float, NANOS_PER_SEC};
+use crate::{Float, Source};
 
 /// Internal function that builds a `LinearRamp` object.
 pub fn linear_gain_ramp<I>(
     input: I,
     duration: Duration,
-    start_gain: f32,
-    end_gain: f32,
+    start_gain: Float,
+    end_gain: Float,
     clamp_end: bool,
 ) -> LinearGainRamp<I>
 where
     I: Source,
 {
-    let duration_nanos = duration.as_nanos() as f32;
-    assert!(duration_nanos > 0.0f32);
+    assert!(!duration.is_zero(), "duration must be greater than zero");
 
     LinearGainRamp {
         input,
-        elapsed_ns: 0.0f32,
-        total_ns: duration_nanos,
+        elapsed: Duration::ZERO,
+        total: duration,
         start_gain,
         end_gain,
         clamp_end,
@@ -33,10 +33,10 @@ where
 #[derive(Clone, Debug)]
 pub struct LinearGainRamp<I> {
     input: I,
-    elapsed_ns: f32,
-    total_ns: f32,
-    start_gain: f32,
-    end_gain: f32,
+    elapsed: Duration,
+    total: Duration,
+    start_gain: Float,
+    end_gain: Float,
     clamp_end: bool,
     sample_idx: u64,
 }
@@ -72,24 +72,27 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        let factor: f32;
-        let remaining_ns = self.total_ns - self.elapsed_ns;
+        let factor: Float;
 
-        if remaining_ns < 0.0 {
+        if self.elapsed >= self.total {
             if self.clamp_end {
                 factor = self.end_gain;
             } else {
-                factor = 1.0f32;
+                factor = 1.0;
             }
         } else {
             self.sample_idx += 1;
 
-            let p = self.elapsed_ns / self.total_ns;
-            factor = self.start_gain * (1.0f32 - p) + self.end_gain * p;
+            // Calculate progress (0.0 to 1.0) using appropriate precision for Float type
+            let p = duration_to_float(self.elapsed) / duration_to_float(self.total);
+
+            factor = self.start_gain * (1.0 - p) + self.end_gain * p;
         }
 
         if self.sample_idx.is_multiple_of(self.channels().get() as u64) {
-            self.elapsed_ns += 1000000000.0 / (self.input.sample_rate().get() as f32);
+            let sample_duration =
+                Duration::from_nanos(NANOS_PER_SEC / self.input.sample_rate().get() as u64);
+            self.elapsed += sample_duration;
         }
 
         self.input.next().map(|value| value * factor)
@@ -129,7 +132,7 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.elapsed_ns = pos.as_nanos() as f32;
+        self.elapsed = pos;
         self.input.try_seek(pos)
     }
 }
@@ -146,7 +149,7 @@ mod tests {
     /// Create a SamplesBuffer of identical samples with value `value`.
     /// Returned buffer is one channel and has a sample rate of 1 hz.
     fn const_source(length: u8, value: Sample) -> SamplesBuffer {
-        let data: Vec<f32> = (1..=length).map(|_| value).collect();
+        let data: Vec<Sample> = (1..=length).map(|_| value).collect();
         SamplesBuffer::new(nz!(1), nz!(1), data)
     }
 
@@ -162,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_linear_ramp() {
-        let source1 = const_source(10, 1.0f32);
+        let source1 = const_source(10, 1.0);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 1.0, true);
 
         assert_eq!(faded.next(), Some(0.0));
@@ -180,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_linear_ramp_clamped() {
-        let source1 = const_source(10, 1.0f32);
+        let source1 = const_source(10, 1.0);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(4), 0.0, 0.5, true);
 
         assert_eq!(faded.next(), Some(0.0)); // fading in...
@@ -198,7 +201,7 @@ mod tests {
 
     #[test]
     fn test_linear_ramp_seek() {
-        let source1 = cycle_source(20, vec![0.0f32, 0.4f32, 0.8f32]);
+        let source1 = cycle_source(20, vec![0.0, 0.4, 0.8]);
         let mut faded = linear_gain_ramp(source1, Duration::from_secs(10), 0.0, 1.0, true);
 
         assert_abs_diff_eq!(faded.next().unwrap(), 0.0); // source value 0

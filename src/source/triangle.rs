@@ -1,7 +1,7 @@
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
 use crate::source::{Function, SignalGenerator};
-use crate::Source;
+use crate::{Sample, Source};
 use std::time::Duration;
 
 use super::SeekError;
@@ -30,10 +30,10 @@ impl TriangleWave {
 }
 
 impl Iterator for TriangleWave {
-    type Item = f32;
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<f32> {
+    fn next(&mut self) -> Option<Sample> {
         self.test_tri.next()
     }
 }

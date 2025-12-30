@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::NANOS_PER_SEC;
 use crate::Source;
 
 fn remaining_samples(
@@ -9,8 +10,8 @@ fn remaining_samples(
     sample_rate: SampleRate,
     channels: ChannelCount,
 ) -> usize {
-    let ns = until_playback.as_secs() * 1_000_000_000 + until_playback.subsec_nanos() as u64;
-    let samples = ns * channels.get() as u64 * sample_rate.get() as u64 / 1_000_000_000;
+    let ns = until_playback.as_nanos();
+    let samples = ns * channels.get() as u128 * sample_rate.get() as u128 / NANOS_PER_SEC as u128;
     samples as usize
 }
 

@@ -1,6 +1,6 @@
-use dasp_sample::{Duplex, Sample};
+use dasp_sample::{Duplex, Sample as DaspSample};
 use divan::Bencher;
-use rodio::conversions::SampleTypeConverter;
+use rodio::{conversions::SampleTypeConverter, Sample};
 
 mod shared;
 
@@ -9,7 +9,7 @@ fn main() {
 }
 
 #[divan::bench(types = [i16, u16, f32])]
-fn from_sample<S: Duplex<f32>>(bencher: Bencher) {
+fn from_sample<S: Duplex<Sample>>(bencher: Bencher) {
     bencher
         .with_inputs(|| {
             shared::music_wav()
@@ -18,6 +18,6 @@ fn from_sample<S: Duplex<f32>>(bencher: Bencher) {
                 .into_iter()
         })
         .bench_values(|source| {
-            SampleTypeConverter::<_, rodio::Sample>::new(source).for_each(divan::black_box_drop)
+            SampleTypeConverter::<_, Sample>::new(source).for_each(divan::black_box_drop)
         })
 }

@@ -2,7 +2,6 @@ use std::num::NonZero;
 use std::time::Duration;
 
 use divan::Bencher;
-use rodio::source::AutomaticGainControlSettings;
 use rodio::ChannelCount;
 use rodio::{source::UniformSourceIterator, Source};
 
@@ -20,7 +19,7 @@ fn long(bencher: Bencher) {
             .high_pass(300)
             .amplify(1.2)
             .speed(0.9)
-            .automatic_gain_control(AutomaticGainControlSettings::default())
+            .automatic_gain_control(Default::default())
             .delay(Duration::from_secs_f32(0.5))
             .fade_in(Duration::from_secs_f32(2.0))
             .take_duration(Duration::from_secs(10));

@@ -16,6 +16,7 @@ use std::slice::Iter as SliceIter;
 use std::time::Duration;
 
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::NANOS_PER_SEC;
 use crate::source::SeekError;
 use crate::{Sample, Source};
 
@@ -53,12 +54,12 @@ impl StaticSamplesBuffer {
         sample_rate: SampleRate,
         data: &'static [Sample],
     ) -> StaticSamplesBuffer {
-        let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
+        let duration_ns = NANOS_PER_SEC.checked_mul(data.len() as u64).unwrap()
             / sample_rate.get() as u64
             / channels.get() as u64;
         let duration = Duration::new(
-            duration_ns / 1_000_000_000,
-            (duration_ns % 1_000_000_000) as u32,
+            duration_ns / NANOS_PER_SEC,
+            (duration_ns % NANOS_PER_SEC) as u32,
         );
 
         StaticSamplesBuffer {

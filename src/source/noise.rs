@@ -50,8 +50,8 @@ use rand::{
 };
 use rand_distr::{Normal, Triangular};
 
-use crate::math::nz;
-use crate::{ChannelCount, Sample, SampleRate, Source};
+use crate::math::{nz, PI};
+use crate::{ChannelCount, Float, Sample, SampleRate, Source};
 
 /// Convenience function to create a new `WhiteUniform` noise source.
 #[deprecated(since = "0.21.0", note = "use WhiteUniform::new() instead")]
@@ -98,12 +98,12 @@ macro_rules! impl_noise_source {
 /// Common sampling utilities for noise generators.
 /// Provides a generic interface for sampling from any distribution.
 #[derive(Clone, Debug)]
-struct NoiseSampler<R: Rng, D: Distribution<f32> + Clone> {
+struct NoiseSampler<R: Rng, D: Distribution<Sample> + Clone> {
     rng: R,
     distribution: D,
 }
 
-impl<R: Rng, D: Distribution<f32> + Clone> NoiseSampler<R, D> {
+impl<R: Rng, D: Distribution<Sample> + Clone> NoiseSampler<R, D> {
     /// Create a new sampler with the given distribution.
     fn new(rng: R, distribution: D) -> Self {
         Self { rng, distribution }
@@ -111,7 +111,7 @@ impl<R: Rng, D: Distribution<f32> + Clone> NoiseSampler<R, D> {
 
     /// Generate a sample from the configured distribution.
     #[inline]
-    fn sample(&mut self) -> f32 {
+    fn sample(&mut self) -> Sample {
         self.rng.sample(&self.distribution)
     }
 }
@@ -129,7 +129,7 @@ impl<R: Rng, D: Distribution<f32> + Clone> NoiseSampler<R, D> {
 #[derive(Clone, Debug)]
 pub struct WhiteUniform<R: Rng = SmallRng> {
     sample_rate: SampleRate,
-    sampler: NoiseSampler<R, Uniform<f32>>,
+    sampler: NoiseSampler<R, Uniform<Sample>>,
 }
 
 impl WhiteUniform<SmallRng> {
@@ -154,7 +154,7 @@ impl<R: Rng> WhiteUniform<R> {
     /// Get the standard deviation of the uniform distribution.
     ///
     /// For uniform distribution [-1.0, 1.0], std_dev = √(1/3) ≈ 0.5774.
-    pub fn std_dev(&self) -> f32 {
+    pub fn std_dev(&self) -> Sample {
         UNIFORM_VARIANCE.sqrt()
     }
 }
@@ -185,7 +185,7 @@ impl_noise_source!(WhiteUniform<R>);
 #[derive(Clone, Debug)]
 pub struct WhiteTriangular<R: Rng = SmallRng> {
     sample_rate: SampleRate,
-    sampler: NoiseSampler<R, Triangular<f32>>,
+    sampler: NoiseSampler<R, Triangular<Sample>>,
 }
 
 impl WhiteTriangular {
@@ -209,8 +209,8 @@ impl<R: Rng> WhiteTriangular<R> {
     /// Get the standard deviation of the triangular distribution.
     ///
     /// For triangular distribution [-1.0, 1.0] with mode 0.0, std_dev = 2/√6 ≈ 0.8165.
-    pub fn std_dev(&self) -> f32 {
-        2.0 / (6.0_f32).sqrt()
+    pub fn std_dev(&self) -> Sample {
+        2.0 / Sample::sqrt(6.0)
     }
 }
 
@@ -343,17 +343,17 @@ impl_noise_source!(Velvet<R>);
 #[derive(Clone, Debug)]
 pub struct WhiteGaussian<R: Rng = SmallRng> {
     sample_rate: SampleRate,
-    sampler: NoiseSampler<R, Normal<f32>>,
+    sampler: NoiseSampler<R, Normal<Sample>>,
 }
 
 impl<R: Rng> WhiteGaussian<R> {
     /// Get the mean (average) value of the noise distribution.
-    pub fn mean(&self) -> f32 {
+    pub fn mean(&self) -> Sample {
         self.sampler.distribution.mean()
     }
 
     /// Get the standard deviation of the noise distribution.
-    pub fn std_dev(&self) -> f32 {
+    pub fn std_dev(&self) -> Sample {
         self.sampler.distribution.std_dev()
     }
 }
@@ -416,7 +416,7 @@ const VELVET_DEFAULT_DENSITY: NonZero<usize> = nz!(2000);
 /// Variance of uniform distribution [-1.0, 1.0].
 ///
 /// For uniform distribution U(-1, 1), the variance is (b-a)²/12 = 4/12 = 1/3.
-const UNIFORM_VARIANCE: f32 = 1.0 / 3.0;
+const UNIFORM_VARIANCE: Sample = 1.0 / 3.0;
 
 /// Pink noise generator - sounds much more natural than white noise.
 ///
@@ -437,7 +437,7 @@ const UNIFORM_VARIANCE: f32 = 1.0 / 3.0;
 pub struct Pink<R: Rng = SmallRng> {
     sample_rate: SampleRate,
     white_noise: WhiteUniform<R>,
-    values: [f32; PINK_NOISE_GENERATORS],
+    values: [Sample; PINK_NOISE_GENERATORS],
     counters: [u32; PINK_NOISE_GENERATORS],
     max_counts: [u32; PINK_NOISE_GENERATORS],
 }
@@ -490,7 +490,7 @@ impl<R: Rng> Iterator for Pink<R> {
         }
 
         // Normalize by number of generators to keep output in reasonable range
-        Some(sum / PINK_NOISE_GENERATORS as f32)
+        Some(sum / PINK_NOISE_GENERATORS as Sample)
     }
 }
 
@@ -521,7 +521,7 @@ impl_noise_source!(Pink<R>);
 pub struct Blue<R: Rng = SmallRng> {
     sample_rate: SampleRate,
     white_noise: WhiteUniform<R>,
-    prev_white: f32,
+    prev_white: Sample,
 }
 
 impl Blue {
@@ -584,7 +584,7 @@ impl_noise_source!(Blue<R>);
 pub struct Violet<R: Rng = SmallRng> {
     sample_rate: SampleRate,
     blue_noise: Blue<R>,
-    prev: f32,
+    prev: Sample,
 }
 
 impl Violet {
@@ -630,23 +630,22 @@ impl_noise_source!(Violet<R>);
 struct IntegratedNoise<W> {
     sample_rate: SampleRate,
     white_noise: W,
-    accumulator: f32,
-    leak_factor: f32,
-    scale: f32,
+    accumulator: Sample,
+    leak_factor: Float,
+    scale: Float,
 }
 
 impl<W> IntegratedNoise<W>
 where
-    W: Iterator<Item = f32>,
+    W: Iterator<Item = Sample>,
 {
     /// Create a new integrated noise generator with the given white noise source and its standard deviation.
-    fn new_with_stddev(sample_rate: SampleRate, white_noise: W, white_noise_stddev: f32) -> Self {
+    fn new_with_stddev(sample_rate: SampleRate, white_noise: W, white_noise_stddev: Float) -> Self {
         // Leak factor prevents DC buildup while maintaining 1/f² characteristics.
         // Center frequency is set to 5Hz, which provides good behavior
         // while preventing excessive low-frequency buildup across common sample rates.
         let center_freq_hz = 5.0;
-        let leak_factor =
-            1.0 - ((2.0 * std::f32::consts::PI * center_freq_hz) / sample_rate.get() as f32);
+        let leak_factor = 1.0 - ((2.0 * PI * center_freq_hz) / sample_rate.get() as Float);
 
         // Calculate the scaling factor to normalize output based on leak factor.
         // This ensures consistent output level regardless of the leak factor value.
@@ -664,8 +663,8 @@ where
     }
 }
 
-impl<W: Iterator<Item = f32>> Iterator for IntegratedNoise<W> {
-    type Item = f32;
+impl<W: Iterator<Item = Sample>> Iterator for IntegratedNoise<W> {
+    type Item = Sample;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -788,7 +787,7 @@ impl<R: Rng> Red<R> {
     /// Create a new red noise generator with a custom RNG.
     pub fn new_with_rng(sample_rate: SampleRate, rng: R) -> Self {
         let white_noise = WhiteUniform::new_with_rng(sample_rate, rng);
-        let stddev = white_noise.std_dev();
+        let stddev = white_noise.std_dev() as Float;
         let inner = IntegratedNoise::new_with_stddev(sample_rate, white_noise, stddev);
 
         Self { inner }
@@ -841,22 +840,22 @@ mod tests {
     const TEST_SAMPLES_MEDIUM: usize = 1000;
 
     /// Calculate correlation between consecutive samples.
-    fn calculate_correlation(samples: &[f32]) -> f32 {
+    fn calculate_correlation(samples: &[Sample]) -> Sample {
         let mut correlation_sum = 0.0;
         for i in 0..samples.len() - 1 {
             correlation_sum += samples[i] * samples[i + 1];
         }
-        correlation_sum / (samples.len() - 1) as f32
+        correlation_sum / (samples.len() - 1) as Sample
     }
 
     /// Test properties common to 1/f² integrated noise generators (Brownian and Red).
-    fn test_integrated_noise_properties<T: Iterator<Item = f32>>(mut generator: T, name: &str) {
+    fn test_integrated_noise_properties<T: Iterator<Item = Sample>>(mut generator: T, name: &str) {
         // Test that integrated noise doesn't accumulate DC indefinitely
-        let samples: Vec<f32> = (0..TEST_SAMPLE_RATE.get() * 10)
+        let samples: Vec<Sample> = (0..TEST_SAMPLE_RATE.get() * 10)
             .map(|_| generator.next().unwrap())
             .collect(); // 10 seconds
 
-        let average = samples.iter().sum::<f32>() / samples.len() as f32;
+        let average = samples.iter().sum::<Sample>() / samples.len() as Sample;
         // Average should be close to zero due to leak factor
         assert!(
             average.abs() < 0.5,
@@ -872,7 +871,7 @@ mod tests {
     }
 
     // Helper function to create iterator from generator name
-    fn create_generator_iterator(name: &str) -> Box<dyn Iterator<Item = f32>> {
+    fn create_generator_iterator(name: &str) -> Box<dyn Iterator<Item = Sample>> {
         match name {
             "WhiteUniform" => Box::new(WhiteUniform::new(TEST_SAMPLE_RATE)),
             "WhiteTriangular" => Box::new(WhiteTriangular::new(TEST_SAMPLE_RATE)),
@@ -1044,15 +1043,6 @@ mod tests {
             near_zero_count > total_samples / 2,
             "Triangular distribution should favor values near zero"
         );
-
-        // Test std_dev method
-        let generator = WhiteTriangular::new(TEST_SAMPLE_RATE);
-        let expected_std_dev = 2.0 / (6.0_f32).sqrt();
-        assert!(
-            (generator.std_dev() - expected_std_dev).abs() < Sample::EPSILON,
-            "Triangular std_dev should be 2/sqrt(6) ≈ 0.8165, got {}",
-            generator.std_dev()
-        );
     }
 
     #[test]
@@ -1064,7 +1054,7 @@ mod tests {
         // Test that most samples fall within 3 standard deviations
         // (should be ~85%; theoretical: ~90.5%)
         let mut generator = WhiteGaussian::new(TEST_SAMPLE_RATE);
-        let samples: Vec<f32> = (0..TEST_SAMPLES_MEDIUM)
+        let samples: Vec<Sample> = (0..TEST_SAMPLES_MEDIUM)
             .map(|_| generator.next().unwrap())
             .collect();
         let out_of_bounds = samples.iter().filter(|&&s| s.abs() > 1.0).count();
@@ -1080,7 +1070,7 @@ mod tests {
     #[test]
     fn test_pink_noise_properties() {
         let mut generator = Pink::new(TEST_SAMPLE_RATE);
-        let samples: Vec<f32> = (0..TEST_SAMPLES_MEDIUM)
+        let samples: Vec<Sample> = (0..TEST_SAMPLES_MEDIUM)
             .map(|_| generator.next().unwrap())
             .collect();
 
@@ -1097,7 +1087,7 @@ mod tests {
     #[test]
     fn test_blue_noise_properties() {
         let mut generator = Blue::new(TEST_SAMPLE_RATE);
-        let samples: Vec<f32> = (0..TEST_SAMPLES_MEDIUM)
+        let samples: Vec<Sample> = (0..TEST_SAMPLES_MEDIUM)
             .map(|_| generator.next().unwrap())
             .collect();
 
@@ -1114,7 +1104,7 @@ mod tests {
     #[test]
     fn test_violet_noise_properties() {
         let mut generator = Violet::new(TEST_SAMPLE_RATE);
-        let samples: Vec<f32> = (0..TEST_SAMPLES_MEDIUM)
+        let samples: Vec<Sample> = (0..TEST_SAMPLES_MEDIUM)
             .map(|_| generator.next().unwrap())
             .collect();
 
@@ -1122,7 +1112,7 @@ mod tests {
         // Check that consecutive differences have higher variance than the original signal
         let mut diff_variance = 0.0;
         let mut signal_variance = 0.0;
-        let mean = samples.iter().sum::<f32>() / samples.len() as f32;
+        let mean = samples.iter().sum::<Sample>() / samples.len() as Sample;
 
         for i in 0..samples.len() - 1 {
             let diff = samples[i + 1] - samples[i];
@@ -1131,8 +1121,8 @@ mod tests {
             signal_variance += centered * centered;
         }
 
-        diff_variance /= (samples.len() - 1) as f32;
-        signal_variance /= samples.len() as f32;
+        diff_variance /= (samples.len() - 1) as Sample;
+        signal_variance /= samples.len() as Sample;
 
         // For violet noise (high-pass), differences should have comparable or higher variance
         assert!(

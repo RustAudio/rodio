@@ -1,8 +1,7 @@
 //! Generator sources for various periodic test waveforms.
 //!
 //! This module provides several periodic, deterministic waveforms for testing other sources and
-//! for simple additive sound synthesis. Every source is monoaural and in the codomain [-1.0f32,
-//! 1.0f32].
+//! for simple additive sound synthesis. Every source is monoaural and in the codomain [-1.0, 1.0].
 //!
 //! # Example
 //!
@@ -14,9 +13,8 @@
 //! ```
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::nz;
-use crate::Source;
-use std::f32::consts::TAU;
+use crate::math::{duration_to_float, nz, TAU};
+use crate::{Float, Sample, Source};
 use std::time::Duration;
 
 /// Generator function.
@@ -25,17 +23,17 @@ use std::time::Duration;
 /// function to create periodic waveforms.
 ///
 /// # Arguments
-///  *  An `f32` representing a time in the signal to generate. The scale of this variable is
+///  *  A `Float` representing a time in the signal to generate. The scale of this variable is
 ///     normalized to the period of the signal, such that "0.0" is time zero, "1.0" is one period of
 ///     the signal, "2.0" is two periods and so on. This function should be written to accept any
-///     float in the range (`f32::MIN`, `f32::MAX`) but `SignalGenerator` will only pass values in
+///     float in the range (`Float::MIN`, `Float::MAX`) but `SignalGenerator` will only pass values in
 ///     (0.0, 1.0) to mitigate floating point error.
 ///
 /// # Returns
 ///
-/// An `f32` representing the signal level at the passed time. This value should be normalized
+/// A `Sample` (Float) representing the signal level at the passed time. This value should be normalized
 /// in the range [-1.0,1.0].
-pub type GeneratorFunction = fn(f32) -> f32;
+pub type GeneratorFunction = fn(Float) -> Sample;
 
 /// Waveform functions.
 #[derive(Clone, Debug)]
@@ -50,24 +48,24 @@ pub enum Function {
     Sawtooth,
 }
 
-fn sine_signal(phase: f32) -> f32 {
+fn sine_signal(phase: Float) -> Sample {
     (TAU * phase).sin()
 }
 
-fn triangle_signal(phase: f32) -> f32 {
-    4.0f32 * (phase - (phase + 0.5f32).floor()).abs() - 1f32
+fn triangle_signal(phase: Float) -> Sample {
+    4.0 * (phase - (phase + 0.5).floor()).abs() - 1.0
 }
 
-fn square_signal(phase: f32) -> f32 {
-    if phase % 1.0f32 < 0.5f32 {
-        1.0f32
+fn square_signal(phase: Float) -> Sample {
+    if phase % 1.0 < 0.5 {
+        1.0
     } else {
-        -1.0f32
+        -1.0
     }
 }
 
-fn sawtooth_signal(phase: f32) -> f32 {
-    2.0f32 * (phase - (phase + 0.5f32).floor())
+fn sawtooth_signal(phase: Float) -> Sample {
+    2.0 * (phase - (phase + 0.5).floor())
 }
 
 /// An infinite source that produces one of a selection of test waveforms.
@@ -75,9 +73,9 @@ fn sawtooth_signal(phase: f32) -> f32 {
 pub struct SignalGenerator {
     sample_rate: SampleRate,
     function: GeneratorFunction,
-    phase_step: f32,
-    phase: f32,
-    period: f32,
+    phase_step: Float,
+    phase: Float,
+    period: Float,
 }
 
 impl SignalGenerator {
@@ -112,27 +110,27 @@ impl SignalGenerator {
         generator_function: GeneratorFunction,
     ) -> Self {
         assert!(frequency > 0.0, "frequency must be greater than zero");
-        let period = sample_rate.get() as f32 / frequency;
-        let phase_step = 1.0f32 / period;
+        let period = sample_rate.get() as Float / frequency as Float;
+        let phase_step = 1.0 / period;
 
         SignalGenerator {
             sample_rate,
             function: generator_function,
             phase_step,
-            phase: 0.0f32,
+            phase: 0.0,
             period,
         }
     }
 }
 
 impl Iterator for SignalGenerator {
-    type Item = f32;
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<f32> {
+    fn next(&mut self) -> Option<Sample> {
         let f = self.function;
         let val = Some(f(self.phase));
-        self.phase = (self.phase + self.phase_step).rem_euclid(1.0f32);
+        self.phase = (self.phase + self.phase_step).rem_euclid(1.0);
         val
     }
 }
@@ -160,8 +158,8 @@ impl Source for SignalGenerator {
 
     #[inline]
     fn try_seek(&mut self, duration: Duration) -> Result<(), SeekError> {
-        let seek = duration.as_secs_f32() * (self.sample_rate.get() as f32) / self.period;
-        self.phase = seek.rem_euclid(1.0f32);
+        let seek = duration_to_float(duration) * (self.sample_rate.get() as Float) / self.period;
+        self.phase = seek.rem_euclid(1.0);
         Ok(())
     }
 }
@@ -170,64 +168,67 @@ impl Source for SignalGenerator {
 mod tests {
     use crate::math::nz;
     use crate::source::{Function, SignalGenerator};
+    use crate::Sample;
     use approx::assert_abs_diff_eq;
+
+    const TEST_EPSILON: Sample = 0.0001;
 
     #[test]
     fn square() {
-        let mut wf = SignalGenerator::new(nz!(2000), 500.0f32, Function::Square);
-        assert_eq!(wf.next(), Some(1.0f32));
-        assert_eq!(wf.next(), Some(1.0f32));
-        assert_eq!(wf.next(), Some(-1.0f32));
-        assert_eq!(wf.next(), Some(-1.0f32));
-        assert_eq!(wf.next(), Some(1.0f32));
-        assert_eq!(wf.next(), Some(1.0f32));
-        assert_eq!(wf.next(), Some(-1.0f32));
-        assert_eq!(wf.next(), Some(-1.0f32));
+        let mut wf = SignalGenerator::new(nz!(2000), 500.0, Function::Square);
+        assert_eq!(wf.next(), Some(1.0));
+        assert_eq!(wf.next(), Some(1.0));
+        assert_eq!(wf.next(), Some(-1.0));
+        assert_eq!(wf.next(), Some(-1.0));
+        assert_eq!(wf.next(), Some(1.0));
+        assert_eq!(wf.next(), Some(1.0));
+        assert_eq!(wf.next(), Some(-1.0));
+        assert_eq!(wf.next(), Some(-1.0));
     }
 
     #[test]
     fn triangle() {
-        let mut wf = SignalGenerator::new(nz!(8000), 1000.0f32, Function::Triangle);
-        assert_eq!(wf.next(), Some(-1.0f32));
-        assert_eq!(wf.next(), Some(-0.5f32));
-        assert_eq!(wf.next(), Some(0.0f32));
-        assert_eq!(wf.next(), Some(0.5f32));
-        assert_eq!(wf.next(), Some(1.0f32));
-        assert_eq!(wf.next(), Some(0.5f32));
-        assert_eq!(wf.next(), Some(0.0f32));
-        assert_eq!(wf.next(), Some(-0.5f32));
-        assert_eq!(wf.next(), Some(-1.0f32));
-        assert_eq!(wf.next(), Some(-0.5f32));
-        assert_eq!(wf.next(), Some(0.0f32));
-        assert_eq!(wf.next(), Some(0.5f32));
-        assert_eq!(wf.next(), Some(1.0f32));
-        assert_eq!(wf.next(), Some(0.5f32));
-        assert_eq!(wf.next(), Some(0.0f32));
-        assert_eq!(wf.next(), Some(-0.5f32));
+        let mut wf = SignalGenerator::new(nz!(8000), 1000.0, Function::Triangle);
+        assert_eq!(wf.next(), Some(-1.0));
+        assert_eq!(wf.next(), Some(-0.5));
+        assert_eq!(wf.next(), Some(0.0));
+        assert_eq!(wf.next(), Some(0.5));
+        assert_eq!(wf.next(), Some(1.0));
+        assert_eq!(wf.next(), Some(0.5));
+        assert_eq!(wf.next(), Some(0.0));
+        assert_eq!(wf.next(), Some(-0.5));
+        assert_eq!(wf.next(), Some(-1.0));
+        assert_eq!(wf.next(), Some(-0.5));
+        assert_eq!(wf.next(), Some(0.0));
+        assert_eq!(wf.next(), Some(0.5));
+        assert_eq!(wf.next(), Some(1.0));
+        assert_eq!(wf.next(), Some(0.5));
+        assert_eq!(wf.next(), Some(0.0));
+        assert_eq!(wf.next(), Some(-0.5));
     }
 
     #[test]
     fn saw() {
-        let mut wf = SignalGenerator::new(nz!(200), 50.0f32, Function::Sawtooth);
-        assert_eq!(wf.next(), Some(0.0f32));
-        assert_eq!(wf.next(), Some(0.5f32));
-        assert_eq!(wf.next(), Some(-1.0f32));
-        assert_eq!(wf.next(), Some(-0.5f32));
-        assert_eq!(wf.next(), Some(0.0f32));
-        assert_eq!(wf.next(), Some(0.5f32));
-        assert_eq!(wf.next(), Some(-1.0f32));
+        let mut wf = SignalGenerator::new(nz!(200), 50.0, Function::Sawtooth);
+        assert_eq!(wf.next(), Some(0.0));
+        assert_eq!(wf.next(), Some(0.5));
+        assert_eq!(wf.next(), Some(-1.0));
+        assert_eq!(wf.next(), Some(-0.5));
+        assert_eq!(wf.next(), Some(0.0));
+        assert_eq!(wf.next(), Some(0.5));
+        assert_eq!(wf.next(), Some(-1.0));
     }
 
     #[test]
     fn sine() {
         let mut wf = SignalGenerator::new(nz!(1000), 100f32, Function::Sine);
 
-        assert_abs_diff_eq!(wf.next().unwrap(), 0.0f32);
-        assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525f32);
-        assert_abs_diff_eq!(wf.next().unwrap(), 0.95105652f32);
-        assert_abs_diff_eq!(wf.next().unwrap(), 0.95105652f32);
-        assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525f32);
-        assert_abs_diff_eq!(wf.next().unwrap(), 0.0f32);
-        assert_abs_diff_eq!(wf.next().unwrap(), -0.58778554f32);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.0, epsilon = TEST_EPSILON);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525, epsilon = TEST_EPSILON);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.95105652, epsilon = TEST_EPSILON);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.95105652, epsilon = TEST_EPSILON);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.58778525, epsilon = TEST_EPSILON);
+        assert_abs_diff_eq!(wf.next().unwrap(), 0.0, epsilon = TEST_EPSILON);
+        assert_abs_diff_eq!(wf.next().unwrap(), -0.58778554, epsilon = TEST_EPSILON);
     }
 }

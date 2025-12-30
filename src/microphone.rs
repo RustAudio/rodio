@@ -203,7 +203,7 @@ impl Source for Microphone {
 }
 
 impl Iterator for Microphone {
-    type Item = f32;
+    type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -246,7 +246,7 @@ impl Microphone {
         let timeout = Some(Duration::from_millis(100));
         let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
-        let (mut tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
+        let (mut tx, rx) = RingBuffer::<Sample>::new(hundred_ms_of_samples as usize);
         let error_occurred = Arc::new(AtomicBool::new(false));
         let error_callback = {
             let error_occurred = error_occurred.clone();
@@ -263,7 +263,7 @@ impl Microphone {
                     cpal::SampleFormat::$sample_format => device.build_input_stream::<$generic, _, _>(
                         &config.stream_config(),
                         move |data, _info| {
-                            for sample in SampleTypeConverter::<_, f32>::new(data.into_iter().copied()) {
+                            for sample in SampleTypeConverter::<_, Sample>::new(data.into_iter().copied()) {
                                 let _skip_if_player_is_behind = tx.push(sample);
                             }
                         },

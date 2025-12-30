@@ -3,9 +3,11 @@
 
 use std::{error::Error, thread::sleep, time::Duration};
 
-use rodio::source::{
-    noise::{Blue, Brownian, Pink, Velvet, Violet, WhiteGaussian, WhiteTriangular, WhiteUniform},
-    Source,
+use rodio::{
+    source::noise::{
+        Blue, Brownian, Pink, Velvet, Violet, WhiteGaussian, WhiteTriangular, WhiteUniform,
+    },
+    Sample, Source,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -74,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// Helper function to play a noise type with description
 fn play_noise<S>(stream_handle: &rodio::OutputStream, source: S, name: &str, description: &str)
 where
-    S: Source<Item = f32> + Send + 'static,
+    S: Source<Item = Sample> + Send + 'static,
 {
     println!("{} Noise", name);
     println!("   Application: {}", description);

@@ -1,4 +1,5 @@
 use rodio::source::Source;
+use rodio::Sample;
 use std::num::NonZero;
 use std::time::Duration;
 
@@ -16,13 +17,11 @@ fn test_limiting_works() {
         .with_release(Duration::from_millis(12));
 
     let limiter = sine_wave.limit(settings);
-    let samples: Vec<f32> = limiter.take(2600).collect();
+    let samples: Vec<Sample> = limiter.take(2600).collect();
 
     // After settling, ALL samples should be well below 1.0 (around 0.5)
     let settled_samples = &samples[1500..]; // After attack/release settling
-    let settled_peak = settled_samples
-        .iter()
-        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
+    let settled_peak: Sample = settled_samples.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
 
     assert!(
         settled_peak <= 0.6,
@@ -33,9 +32,7 @@ fn test_limiting_works() {
         "Peak should be reasonably close to 0.5: {settled_peak:.3}"
     );
 
-    let max_sample = settled_samples
-        .iter()
-        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
+    let max_sample: Sample = settled_samples.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
     assert!(
         max_sample < 0.8,
         "ALL samples should be well below 1.0: max={max_sample:.3}"
@@ -51,9 +48,9 @@ fn test_passthrough_below_threshold() {
 
     let settings = rodio::source::LimitSettings::default().with_threshold(-6.0);
 
-    let original_samples: Vec<f32> = sine_wave.clone().take(880).collect();
+    let original_samples: Vec<Sample> = sine_wave.clone().take(880).collect();
     let limiter = sine_wave.limit(settings);
-    let limited_samples: Vec<f32> = limiter.take(880).collect();
+    let limited_samples: Vec<Sample> = limiter.take(880).collect();
 
     // Samples should be nearly identical since below threshold
     for (orig, limited) in original_samples.iter().zip(limited_samples.iter()) {
@@ -86,13 +83,11 @@ fn test_limiter_with_different_settings() {
             .with_release(Duration::from_millis(10));
 
         let limiter = sine_wave.limit(settings);
-        let samples: Vec<f32> = limiter.take(2000).collect();
+        let samples: Vec<Sample> = limiter.take(2000).collect();
 
         // Check settled samples after attack/release
         let settled_samples = &samples[1000..];
-        let peak = settled_samples
-            .iter()
-            .fold(0.0f32, |acc, &x| acc.max(x.abs()));
+        let peak: Sample = settled_samples.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
 
         assert!(
             peak <= expected_peak + 0.1,
@@ -118,10 +113,10 @@ fn test_limiter_stereo_processing() {
 
     // Create stereo test signal - left channel louder than right
     let left_samples = (0..1000)
-        .map(|i| (i as f32 * 0.01).sin() * 1.5)
+        .map(|i| (i as Sample * 0.01).sin() * 1.5)
         .collect::<Vec<_>>();
     let right_samples = (0..1000)
-        .map(|i| (i as f32 * 0.01).sin() * 0.8)
+        .map(|i| (i as Sample * 0.01).sin() * 0.8)
         .collect::<Vec<_>>();
 
     let mut stereo_samples = Vec::new();
@@ -138,16 +133,14 @@ fn test_limiter_stereo_processing() {
     let settings = rodio::source::LimitSettings::default().with_threshold(-3.0);
 
     let limiter = buffer.limit(settings);
-    let limited_samples: Vec<f32> = limiter.collect();
+    let limited_samples: Vec<Sample> = limiter.collect();
 
     // Extract left and right channels after limiting
-    let limited_left: Vec<f32> = limited_samples.iter().step_by(2).cloned().collect();
-    let limited_right: Vec<f32> = limited_samples.iter().skip(1).step_by(2).cloned().collect();
+    let limited_left: Vec<Sample> = limited_samples.iter().step_by(2).cloned().collect();
+    let limited_right: Vec<Sample> = limited_samples.iter().skip(1).step_by(2).cloned().collect();
 
-    let left_peak = limited_left.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
-    let right_peak = limited_right
-        .iter()
-        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
+    let left_peak: Sample = limited_left.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
+    let right_peak: Sample = limited_right.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
 
     // Both channels should be limited to approximately the same level
     // (limiter should prevent the louder channel from exceeding threshold)

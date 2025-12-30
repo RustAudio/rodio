@@ -27,14 +27,11 @@ fn channel_volume_with_queue() {
     assert_output_only_on_first_two_channels(queue, 6);
 }
 
-fn assert_output_only_on_first_two_channels(
-    mut source: impl Source<Item = Sample>,
-    channels: usize,
-) {
+fn assert_output_only_on_first_two_channels(source: impl Source<Item = Sample>, channels: usize) {
     let mut frame_number = 0;
     let mut samples_in_frame = Vec::new();
 
-    while let Some(sample) = source.next() {
+    for sample in source {
         samples_in_frame.push(sample);
 
         if samples_in_frame.len() == channels {

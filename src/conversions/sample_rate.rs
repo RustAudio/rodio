@@ -167,7 +167,7 @@ where
             .zip(self.next_frame.iter())
             .enumerate()
         {
-            let sample = math::lerp(cur, next, numerator, self.to);
+            let sample = math::lerp(*cur, *next, numerator, self.to);
 
             if off == 0 {
                 result = Some(sample);

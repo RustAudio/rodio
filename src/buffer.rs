@@ -12,8 +12,9 @@
 //!
 
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::{duration_to_float, NANOS_PER_SEC};
 use crate::source::{SeekError, UniformSourceIterator};
-use crate::{Sample, Source};
+use crate::{Float, Sample, Source};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -40,13 +41,13 @@ impl SamplesBuffer {
     where
         D: Into<Vec<Sample>>,
     {
-        let data: Arc<[f32]> = data.into().into();
-        let duration_ns = 1_000_000_000u64.checked_mul(data.len() as u64).unwrap()
+        let data: Arc<[Sample]> = data.into().into();
+        let duration_ns = NANOS_PER_SEC.checked_mul(data.len() as u64).unwrap()
             / sample_rate.get() as u64
             / channels.get() as u64;
         let duration = Duration::new(
-            duration_ns / 1_000_000_000,
-            (duration_ns % 1_000_000_000) as u32,
+            duration_ns / NANOS_PER_SEC,
+            (duration_ns % NANOS_PER_SEC) as u32,
         );
 
         Self {
@@ -103,8 +104,9 @@ impl Source for SamplesBuffer {
         // sample directly.
 
         let curr_channel = self.pos % self.channels().get() as usize;
-        let new_pos =
-            pos.as_secs_f32() * self.sample_rate().get() as f32 * self.channels().get() as f32;
+        let new_pos = duration_to_float(pos)
+            * self.sample_rate().get() as Float
+            * self.channels().get() as Float;
         // saturate pos at the end of the source
         let new_pos = new_pos as usize;
         let new_pos = new_pos.min(self.data.len());
@@ -171,7 +173,7 @@ mod tests {
     #[cfg(test)]
     mod try_seek {
         use super::*;
-        use crate::common::{ChannelCount, SampleRate};
+        use crate::common::{ChannelCount, Float, SampleRate};
         use crate::Sample;
         use std::time::Duration;
 
@@ -187,7 +189,7 @@ mod tests {
             buf.try_seek(Duration::from_secs(5)).unwrap();
             assert_eq!(
                 buf.next(),
-                Some(5.0 * SAMPLE_RATE.get() as f32 * CHANNELS.get() as f32)
+                Some(5.0 * SAMPLE_RATE.get() as Float * CHANNELS.get() as Float)
             );
 
             assert!(buf.next().is_some_and(|s| s.trunc() as i32 % 2 == 1));

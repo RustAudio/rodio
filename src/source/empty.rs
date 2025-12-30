@@ -6,22 +6,15 @@ use crate::math::nz;
 use crate::{Sample, Source};
 
 /// An empty source.
-#[derive(Debug, Copy, Clone)]
-pub struct Empty();
-
-impl Default for Empty {
-    #[inline]
-    fn default() -> Self {
-        Self::new()
-    }
-}
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Empty;
 
 impl Empty {
     /// An empty source that immediately ends without ever returning a sample to
     /// play
     #[inline]
-    pub fn new() -> Empty {
-        Empty()
+    pub fn new() -> Self {
+        Self
     }
 }
 
@@ -32,7 +25,14 @@ impl Iterator for Empty {
     fn next(&mut self) -> Option<Self::Item> {
         None
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(0))
+    }
 }
+
+impl ExactSizeIterator for Empty {}
 
 impl Source for Empty {
     #[inline]

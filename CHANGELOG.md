@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Chirp` now implements `Iterator::size_hint` and `ExactSizeIterator`.
+- `Chirp` and `Empty` now implement `Iterator::size_hint` and `ExactSizeIterator`.
 - `SamplesBuffer` now implements `ExactSizeIterator`.
+- `Zero` now implements `try_seek`, `total_duration` and `Copy`.
 - Added `Source::is_exhausted()` helper method to check if a source has no more samples.
 - Added `Red` noise generator that is more practical than `Brownian` noise.
 - Added `std_dev()` to `WhiteUniform` and `WhiteTriangular`.
@@ -39,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed channel misalignment in queue with non-power-of-2 channel counts (e.g., 6 channels) by ensuring frame-aligned span lengths.
 - Fixed channel misalignment when sources end before their promised span length by padding with silence to complete frames.
 - Fixed `Empty` source to properly report exhaustion.
+- Fixed `Zero::current_span_len` returning remaining samples instead of span length.
 
 ### Changed
 - `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.

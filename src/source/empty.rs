@@ -37,7 +37,7 @@ impl Iterator for Empty {
 impl Source for Empty {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        None
+        Some(0)
     }
 
     #[inline]
@@ -52,7 +52,7 @@ impl Source for Empty {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        Some(Duration::new(0, 0))
+        Some(Duration::ZERO)
     }
 
     #[inline]

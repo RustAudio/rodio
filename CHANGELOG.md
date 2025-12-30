@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved precision in `SkipDuration` to avoid off-by-a-few-samples errors.
 - Fixed channel misalignment in queue with non-power-of-2 channel counts (e.g., 6 channels) by ensuring frame-aligned span lengths.
 - Fixed channel misalignment when sources end before their promised span length by padding with silence to complete frames.
+- Fixed `Empty` source to properly report exhaustion.
 
 ### Changed
 - `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.

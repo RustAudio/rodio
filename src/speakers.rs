@@ -84,15 +84,15 @@
 //! use rodio::speakers::{SpeakersBuilder, available_outputs};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! // List all available input devices
-//! let inputs = available_outputs()?;
-//! for (i, input) in inputs.iter().enumerate() {
-//!     println!("Input {}: {}", i, input);
+//! // List all available output devices
+//! let outputs = available_outputs()?;
+//! for (i, output) in outputs.iter().enumerate() {
+//!     println!("output {}: {}", i, output);
 //! }
 //!
 //! // Use a specific device (e.g., the second one)
 //! let mic = SpeakersBuilder::new()
-//!     .device(inputs[1].clone())?
+//!     .device(outputs[1].clone())?
 //!     .default_config()?
 //!     .open_stream()?;
 //! # Ok(())
@@ -119,11 +119,11 @@ struct Speakers;
 
 /// Error that can occur when we can not list the output devices
 #[derive(Debug, thiserror::Error, Clone)]
-#[error("Could not list input devices")]
+#[error("Could not list output devices")]
 pub struct ListError(#[source] cpal::DevicesError);
 assert_error_traits! {ListError}
 
-/// An input device
+/// An output device
 #[derive(Clone)]
 pub struct Output {
     inner: cpal::Device,

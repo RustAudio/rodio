@@ -57,7 +57,7 @@ pub struct SourcesQueueInput {
 impl SourcesQueueInput {
     /// Adds a new source to the end of the queue.
     #[inline]
-    pub fn append<T>(&self, source: T) -> usize
+    pub fn append<T>(&self, source: T)
     where
         T: Source + Send + 'static,
     {
@@ -65,7 +65,7 @@ impl SourcesQueueInput {
             .lock()
             .unwrap();
         next_sounds.push((Box::new(source) as Box<_>, None));
-        next_sounds.len()
+        next_sounds.len();
     }
 
     /// Adds a new source to the end of the queue.

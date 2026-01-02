@@ -11,12 +11,12 @@ use crate::{
     ChannelCount, OutputStream, SampleRate,
 };
 
-/// Error configuring or opening speakers input
+/// Error configuring or opening speakers output
 #[allow(missing_docs)]
 #[derive(Debug, thiserror::Error, Clone)]
 pub enum Error {
     /// No output device is available on the system.
-    #[error("There is no input device")]
+    #[error("There is no output device")]
     NoDevice,
     /// Failed to get the default output configuration for the device.
     #[error("Could not get default output configuration for output device: '{device_name}'")]
@@ -54,7 +54,7 @@ pub struct ConfigNotSet;
 /// Some methods are only available when this types counterpart: `DeviceIsSet` is present.
 pub struct DeviceNotSet;
 
-/// Builder for configuring and opening speakers input streams.
+/// Builder for configuring and opening speakers output streams.
 #[must_use]
 pub struct SpeakersBuilder<Device, Config, E = fn(cpal::StreamError)>
 where
@@ -122,13 +122,13 @@ impl<Device, Config, E> SpeakersBuilder<Device, Config, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
-    /// Sets the input device to use.
+    /// Sets the output device to use.
     ///
     /// # Example
     /// ```no_run
     /// # use rodio::speakers::{SpeakersBuilder, available_outputs};
-    /// let input = available_outputs()?.remove(2);
-    /// let builder = SpeakersBuilder::new().device(input)?;
+    /// let output = available_outputs()?.remove(2);
+    /// let builder = SpeakersBuilder::new().device(output)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn device(
@@ -152,7 +152,7 @@ where
         })
     }
 
-    /// Uses the system's default input device.
+    /// Uses the system's default output device.
     ///
     /// # Example
     /// ```no_run
@@ -187,7 +187,7 @@ impl<Config, E> SpeakersBuilder<DeviceIsSet, Config, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
-    /// Uses the device's default input configuration.
+    /// Uses the device's default output configuration.
     ///
     /// # Example
     /// ```no_run
@@ -227,7 +227,7 @@ where
         })
     }
 
-    /// Sets a custom input configuration.
+    /// Sets a custom output configuration.
     ///
     /// # Example
     /// ```no_run
@@ -278,7 +278,7 @@ impl<E> SpeakersBuilder<DeviceIsSet, ConfigIsSet, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
-    /// Sets the sample rate for input.
+    /// Sets the sample rate for output.
     ///
     /// # Error
     /// Returns an error if the requested sample rate combined with the
@@ -361,7 +361,7 @@ where
         }
     }
 
-    /// Sets the number of input channels.
+    /// Sets the number of output channels.
     ///
     /// # Example
     /// ```no_run
@@ -417,13 +417,13 @@ where
         })
     }
 
-    /// Sets the buffer size for the input.
+    /// Sets the buffer size for the output.
     ///
     /// This has no impact on latency, though a too small buffer can lead to audio
     /// artifacts if your program can not get samples out of the buffer before they
     /// get overridden again.
     ///
-    /// Normally the default input config will have this set up correctly.
+    /// Normally the default output config will have this set up correctly.
     ///
     /// # Example
     /// ```no_run
@@ -504,7 +504,7 @@ impl<Device, E> SpeakersBuilder<Device, ConfigIsSet, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
-    /// Returns the current input configuration.
+    /// Returns the current output configuration.
     ///
     /// # Example
     /// ```no_run
@@ -526,7 +526,7 @@ impl<E> SpeakersBuilder<DeviceIsSet, ConfigIsSet, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
-    /// Opens the speakers input stream.
+    /// Opens the speakers output stream.
     ///
     /// # Example
     /// ```no_run

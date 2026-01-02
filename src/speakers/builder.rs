@@ -479,8 +479,6 @@ where
     /// let builder = SpeakersBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     // We want mono, if thats not possible give
-    ///     // us the lowest channel count
     ///     .prefer_buffer_sizes([
     ///         2048.try_into().expect("not zero"),
     ///         4096.try_into().expect("not_zero"),
@@ -494,8 +492,8 @@ where
     /// let builder = SpeakersBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     // We want mono, if thats not possible give
-    ///     // us the lowest channel count
+    ///     // We need a minimum buffer of 4096 
+    ///     // or we get glitches. 
     ///     .prefer_buffer_sizes(4096..);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```

@@ -76,10 +76,11 @@ where
         f.debug_struct("SpeakersBuilder")
             .field(
                 "device",
-                &self
-                    .device
-                    .as_ref()
-                    .map(|d| d.0.name().unwrap_or("unknown".to_string())),
+                &self.device.as_ref().map(|d| {
+                    d.0.description()
+                        .map(|d| d.name().to_string())
+                        .unwrap_or("unknown".to_string())
+                }),
             )
             .field("config", &self.config)
             .finish()
@@ -133,14 +134,17 @@ where
     /// ```
     pub fn device(
         &self,
-        device: impl Into<cpal::Device>,
+        device: super::Output,
     ) -> Result<SpeakersBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
-        let device = device.into();
+        let device = device.into_inner();
         let supported_configs = device
             .supported_output_configs()
             .map_err(|source| Error::OutputConfigs {
                 source,
-                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+                device_name: device
+                    .description()
+                    .map(|d| d.name().to_string())
+                    .unwrap_or("unknown".to_string()),
             })?
             .collect();
         Ok(SpeakersBuilder {
@@ -169,8 +173,9 @@ where
             .map_err(|source| Error::OutputConfigs {
                 source,
                 device_name: default_device
-                    .name()
-                    .unwrap_or_else(|_| "unknown".to_string()),
+                    .description()
+                    .map(|d| d.name().to_string())
+                    .unwrap_or("unknown".to_string()),
             })?
             .collect();
         Ok(SpeakersBuilder {
@@ -203,7 +208,10 @@ where
             .default_output_config()
             .map_err(|source| Error::DefaultOutputConfig {
                 source,
-                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+                device_name: device
+                    .description()
+                    .map(|d| d.name().to_string())
+                    .unwrap_or("unknown".to_string()),
             })?
             .into();
 
@@ -266,7 +274,10 @@ where
             .any(|range| config.supported_given(range))
         {
             Err(Error::UnsupportedByDevice {
-                device_name: device.name().unwrap_or_else(|_| "unknown".to_string()),
+                device_name: device
+                    .description()
+                    .map(|d| d.name().to_string())
+                    .unwrap_or("unknown".to_string()),
             })
         } else {
             Ok(())

@@ -129,14 +129,14 @@ where
     /// ```no_run
     /// # use rodio::microphone::{MicrophoneBuilder, available_inputs};
     /// let input = available_inputs()?.remove(2);
-    /// let builder = MicrophoneBuilder::new().device(input.into_inner())?;
+    /// let builder = MicrophoneBuilder::new().device(input)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn device(
         &self,
-        device: impl Into<cpal::Device>,
+        device: super::Input,
     ) -> Result<MicrophoneBuilder<DeviceIsSet, ConfigNotSet, E>, Error> {
-        let device = device.into();
+        let device = device.into_inner();
         let supported_configs = device
             .supported_input_configs()
             .map_err(|source| Error::InputConfigs {

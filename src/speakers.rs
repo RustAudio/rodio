@@ -108,8 +108,7 @@ use cpal::{
 
 use crate::{common::assert_error_traits, StreamError};
 
-/// TODO
-pub mod builder;
+mod builder;
 mod config;
 
 pub use builder::SpeakersBuilder;
@@ -130,39 +129,51 @@ pub struct Output {
     default: bool,
 }
 
-impl From<Output> for cpal::Device {
-    fn from(val: Output) -> Self {
-        val.inner
-    }
-}
-
 impl Output {
     /// TODO doc comment also mirror to microphone api
     pub fn is_default(&self) -> bool {
         self.default
+    }
+
+    pub(crate) fn into_inner(self) -> cpal::Device {
+        self.inner
     }
 }
 
 impl fmt::Debug for Output {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Device")
-            .field("inner", &self.inner.name().unwrap_or("unknown".to_string()))
+            .field(
+                "inner",
+                &self
+                    .inner
+                    .description()
+                    .map(|d| d.name().to_string())
+                    .unwrap_or("unknown".to_string()),
+            )
             .finish()
     }
 }
 
 impl fmt::Display for Output {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner.name().unwrap_or("unknown".to_string()))
+        write!(
+            f,
+            "{}",
+            self.inner
+                .description()
+                .map(|d| d.name().to_string())
+                .unwrap_or("unknown".to_string()),
+        )
     }
 }
 
 /// Returns a list of available output devices on the system.
 pub fn available_outputs() -> Result<Vec<Output>, ListError> {
     let host = cpal::default_host();
-    let default = host.default_output_device().map(|d| d.name());
+    let default = host.default_output_device().map(|d| d.id());
     let devices = host.output_devices().map_err(ListError)?.map(|dev| Output {
-        default: Some(dev.name()) == default,
+        default: Some(dev.id()) == default,
         inner: dev,
     });
     Ok(devices.collect())

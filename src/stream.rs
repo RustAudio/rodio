@@ -89,10 +89,10 @@ impl fmt::Debug for OutputStream {
 /// Describes the output stream's configuration
 #[derive(Copy, Clone, Debug)]
 pub struct OutputStreamConfig {
-    channel_count: ChannelCount,
-    sample_rate: SampleRate,
-    buffer_size: BufferSize,
-    sample_format: SampleFormat,
+    pub(crate) channel_count: ChannelCount,
+    pub(crate) sample_rate: SampleRate,
+    pub(crate) buffer_size: BufferSize,
+    pub(crate) sample_format: SampleFormat,
 }
 
 impl Default for OutputStreamConfig {
@@ -454,7 +454,7 @@ impl OutputStream {
         }
     }
 
-    fn open<E>(
+    pub(crate) fn open<E>(
         device: &cpal::Device,
         config: &OutputStreamConfig,
         error_callback: E,

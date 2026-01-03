@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .prompt()?;
 
     let input = MicrophoneBuilder::new()
-        .device(input.into_inner())?
+        .device(input)?
         .default_config()?
         .open_stream()?;
 

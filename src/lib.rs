@@ -4,10 +4,10 @@
 //! represents a sound (streaming or not). In order to play a sound, there are three steps:
 //!
 //! - Get an OS-Sink handle to a physical device. For example, get a sink to the system's
-//!   default sound device with [`DeviceSinkBuilder::open_default_stream()`].
+//!   default sound device with [`OsSinkBuilder::open_default_stream()`].
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [`decoder`], etc. or even your own type that implements the [`Source`] trait.
-//! - Add the source to the OS-Sink using [`DeviceSink::mixer()`](OutputStream::mixer)
+//! - Add the source to the OS-Sink using [`OsSink::mixer()`](OutputStream::mixer)
 //!   on the OS-Sink handle.
 //!
 //! Here is a complete example of how you would play an audio file:
@@ -15,11 +15,11 @@
 #![cfg_attr(not(feature = "playback"), doc = "```ignore")]
 #![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use std::fs::File;
-//! use rodio::{Decoder, MixerDeviceSink, source::Source};
+//! use rodio::{Decoder, MixerOsSink, source::Source};
 //!
 //! // Get an OS-Sink handle to the default physical sound device.
 //! // Note that the playback stops when the handle is dropped.//!
-//! let handle = rodio::DeviceSinkBuilder::open_default_sink()
+//! let handle = rodio::OsSinkBuilder::open_default_sink()
 //!         .expect("open default audio stream");
 //! let player = rodio::Player::connect_new(&handle.mixer());
 //! // Load a sound from a file, using a path relative to Cargo.toml
@@ -39,11 +39,11 @@
 #![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use std::fs::File;
 //! use std::io::BufReader;
-//! use rodio::{Decoder, MixerDeviceSink, source::Source};
+//! use rodio::{Decoder, MixerOsSink, source::Source};
 //!
 //! // Get an OS-Sink handle to the default physical sound device.
 //! // Note that the playback stops when the sink_handle is dropped.
-//! let sink_handle = rodio::DeviceSinkBuilder::open_default_sink()
+//! let sink_handle = rodio::OsSinkBuilder::open_default_sink()
 //!         .expect("open default audio stream");
 //!
 //! // Load a sound from a file, using a path relative to Cargo.toml
@@ -69,11 +69,11 @@
 #![cfg_attr(not(feature = "playback"), doc = "```ignore")]
 #![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use std::time::Duration;
-//! use rodio::{MixerDeviceSink, Player};
+//! use rodio::{MixerOsSink, Player};
 //! use rodio::source::{SineWave, Source};
 //!
 //! // _stream must live as long as the sink
-//! let handle = rodio::DeviceSinkBuilder::open_default_sink()
+//! let handle = rodio::OsSinkBuilder::open_default_sink()
 //!         .expect("open default audio stream");
 //! let player = rodio::Player::connect_new(&handle.mixer());
 //!
@@ -93,7 +93,7 @@
 //! The [`Player`] type also provides utilities such as playing/pausing or controlling the volume.
 //!
 //! <div class="warning">Note that playback through Player will end if the associated
-//! DeviceSink is dropped.</div>
+//! OsSink is dropped.</div>
 //!
 //! ## Filters
 //!
@@ -179,7 +179,7 @@ pub use cpal::{
 mod common;
 mod player;
 mod spatial_player;
-#[cfg(all(feature = "playback", feature = "experimental"))]
+// #[cfg(all(feature = "playback", feature = "experimental"))]
 pub mod speakers;
 #[cfg(feature = "playback")]
 pub mod stream;
@@ -196,16 +196,18 @@ pub mod math;
 pub mod microphone;
 pub mod mixer;
 pub mod queue;
+// #[cfg(feature = "experimental")]
+pub mod fixed_source;
 pub mod source;
 pub mod static_buffer;
 
 pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate};
 pub use crate::decoder::Decoder;
-pub use crate::player::Player;
+pub use crate::player::Player as Player;
 pub use crate::source::Source;
 pub use crate::spatial_player::SpatialPlayer;
 #[cfg(feature = "playback")]
-pub use crate::stream::{play, DeviceSinkBuilder, DeviceSinkError, MixerDeviceSink, PlayError};
+pub use crate::stream::{play, MixerOsSink, OsSinkBuilder, PlayError, OsSinkError};
 #[cfg(feature = "wav_output")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 pub use crate::wav_output::wav_to_file;

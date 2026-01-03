@@ -1,7 +1,7 @@
 //! Output audio via the OS via mixers or play directly
 //!
 //! This module provides a builder that's used to configure and open audio output. Once
-//! opened sources can be mixed into the output via `DeviceSink::mixer`.
+//! opened sources can be mixed into the output via `OsSink::mixer`.
 //!
 //! There is also a convenience function `play` for using that output mixer to
 //! play a single sound.
@@ -27,36 +27,36 @@ const HZ_44100: SampleRate = nz!(44_100);
 /// # Note
 /// On drop this will print a message to stderr or emit a log msg when tracing is
 /// enabled. Though we recommend you do not you can disable that print/log with:
-/// [`DeviceSink::log_on_drop(false)`](DeviceSink::log_on_drop).
-/// If the `DeviceSink` is dropped because the program is panicking we do not print
+/// [`OsSink::log_on_drop(false)`](OsSink::log_on_drop).
+/// If the `OsSink` is dropped because the program is panicking we do not print
 /// or log anything.
 ///
 /// # Example
 /// ```no_run
-/// # use rodio::DeviceSinkBuilder;
+/// # use rodio::OsSinkBuilder;
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let mut handle = DeviceSinkBuilder::open_default_sink()?;
+/// let mut handle = OsSinkBuilder::open_default_sink()?;
 /// handle.log_on_drop(false); // Not recommended during development
 /// println!("Output config: {:?}", handle.config());
 /// let mixer = handle.mixer();
 /// # Ok(())
 /// # }
 /// ```
-pub struct MixerDeviceSink {
-    config: DeviceSinkConfig,
+pub struct MixerOsSink {
+    config: OsSinkConfig,
     mixer: Mixer,
     log_on_drop: bool,
     _stream: cpal::Stream,
 }
 
-impl MixerDeviceSink {
+impl MixerOsSink {
     /// Access the sink's mixer.
     pub fn mixer(&self) -> &Mixer {
         &self.mixer
     }
 
     /// Access the sink's config.
-    pub fn config(&self) -> &DeviceSinkConfig {
+    pub fn config(&self) -> &OsSinkConfig {
         &self.config
     }
 
@@ -67,20 +67,20 @@ impl MixerDeviceSink {
     }
 }
 
-impl Drop for MixerDeviceSink {
+impl Drop for MixerOsSink {
     fn drop(&mut self) {
         if self.log_on_drop && !std::thread::panicking() {
             #[cfg(feature = "tracing")]
-            tracing::debug!("Dropping DeviceSink, audio playing through this sink will stop");
+            tracing::debug!("Dropping OsSink, audio playing through this sink will stop");
             #[cfg(not(feature = "tracing"))]
-            eprintln!("Dropping DeviceSink, audio playing through this sink will stop, to prevent this message from appearing use tracing or call `.log_on_drop(false)` on this DeviceSink")
+            eprintln!("Dropping OsSink, audio playing through this sink will stop, to prevent this message from appearing use tracing or call `.log_on_drop(false)` on this OsSink")
         }
     }
 }
 
-impl fmt::Debug for MixerDeviceSink {
+impl fmt::Debug for MixerOsSink {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("MixerDeviceSink")
+        f.debug_struct("MixerOsSink")
             .field("config", &self.config)
             .finish_non_exhaustive()
     }
@@ -88,14 +88,14 @@ impl fmt::Debug for MixerDeviceSink {
 
 /// Describes the OS-Sink's configuration
 #[derive(Copy, Clone, Debug)]
-pub struct DeviceSinkConfig {
+pub struct OsSinkConfig {
     pub(crate) channel_count: ChannelCount,
     pub(crate) sample_rate: SampleRate,
     pub(crate) buffer_size: BufferSize,
     pub(crate) sample_format: SampleFormat,
 }
 
-impl Default for DeviceSinkConfig {
+impl Default for OsSinkConfig {
     fn default() -> Self {
         Self {
             channel_count: nz!(2),
@@ -106,7 +106,7 @@ impl Default for DeviceSinkConfig {
     }
 }
 
-impl DeviceSinkConfig {
+impl OsSinkConfig {
     /// Access the OS-Sink config's channel count.
     pub fn channel_count(&self) -> ChannelCount {
         self.channel_count
@@ -128,7 +128,7 @@ impl DeviceSinkConfig {
     }
 }
 
-impl core::fmt::Debug for DeviceSinkBuilder {
+impl core::fmt::Debug for OsSinkBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let device = if let Some(device) = &self.device {
             "Some(".to_owned()
@@ -141,7 +141,7 @@ impl core::fmt::Debug for DeviceSinkBuilder {
             "None".to_owned()
         };
 
-        f.debug_struct("DeviceSinkBuilder")
+        f.debug_struct("OsSinkBuilder")
             .field("device", &device)
             .field("config", &self.config)
             .finish()
@@ -159,33 +159,33 @@ fn default_error_callback(err: cpal::StreamError) {
 /// It provides methods to configure several parameters of the audio output and opening default
 /// device. See examples for use-cases.
 ///
-/// <div class="warning">When the DeviceSink is dropped playback will end, and the associated
+/// <div class="warning">When the OsSink is dropped playback will end, and the associated
 /// OS-Sink will be disposed</div>
-pub struct DeviceSinkBuilder<E = fn(cpal::StreamError)>
+pub struct OsSinkBuilder<E = fn(cpal::StreamError)>
 where
     E: FnMut(cpal::StreamError) + Send + 'static,
 {
     device: Option<cpal::Device>,
-    config: DeviceSinkConfig,
+    config: OsSinkConfig,
     error_callback: E,
 }
 
-impl Default for DeviceSinkBuilder {
+impl Default for OsSinkBuilder {
     fn default() -> Self {
         Self {
             device: None,
-            config: DeviceSinkConfig::default(),
+            config: OsSinkConfig::default(),
             error_callback: default_error_callback,
         }
     }
 }
 
-impl DeviceSinkBuilder {
+impl OsSinkBuilder {
     /// Sets output device and its default parameters.
-    pub fn from_device(device: cpal::Device) -> Result<DeviceSinkBuilder, DeviceSinkError> {
+    pub fn from_device(device: cpal::Device) -> Result<OsSinkBuilder, OsSinkError> {
         let default_config = device
             .default_output_config()
-            .map_err(DeviceSinkError::DefaultSinkConfigError)?;
+            .map_err(OsSinkError::DefaultSinkConfigError)?;
 
         Ok(Self::default()
             .with_device(device)
@@ -193,10 +193,10 @@ impl DeviceSinkBuilder {
     }
 
     /// Sets default OS-Sink parameters for default output audio device.
-    pub fn from_default_device() -> Result<DeviceSinkBuilder, DeviceSinkError> {
+    pub fn from_default_device() -> Result<OsSinkBuilder, OsSinkError> {
         let default_device = cpal::default_host()
             .default_output_device()
-            .ok_or(DeviceSinkError::NoDevice)?;
+            .ok_or(OsSinkError::NoDevice)?;
         Self::from_device(default_device)
     }
 
@@ -204,7 +204,7 @@ impl DeviceSinkBuilder {
     /// Failing that attempt to open OS-Sink with alternative configuration and/or non default
     /// output devices. Returns stream for first of the tried configurations that succeeds.
     /// If all attempts fail return the initial error.
-    pub fn open_default_sink() -> Result<MixerDeviceSink, DeviceSinkError> {
+    pub fn open_default_sink() -> Result<MixerOsSink, OsSinkError> {
         Self::from_default_device()
             .and_then(|x| x.open_stream())
             .or_else(|original_err| {
@@ -229,27 +229,27 @@ impl DeviceSinkBuilder {
     }
 }
 
-impl<E> DeviceSinkBuilder<E>
+impl<E> OsSinkBuilder<E>
 where
     E: FnMut(cpal::StreamError) + Send + 'static,
 {
     /// Sets output audio device keeping all existing stream parameters intact.
     /// This method is useful if you want to set other parameters yourself.
     /// To also set parameters that are appropriate for the device use [Self::from_device()] instead.
-    pub fn with_device(mut self, device: cpal::Device) -> DeviceSinkBuilder<E> {
+    pub fn with_device(mut self, device: cpal::Device) -> OsSinkBuilder<E> {
         self.device = Some(device);
         self
     }
 
     /// Sets number of OS-Sink's channels.
-    pub fn with_channels(mut self, channel_count: ChannelCount) -> DeviceSinkBuilder<E> {
+    pub fn with_channels(mut self, channel_count: ChannelCount) -> OsSinkBuilder<E> {
         assert!(channel_count.get() > 0);
         self.config.channel_count = channel_count;
         self
     }
 
     /// Sets OS-Sink's sample rate.
-    pub fn with_sample_rate(mut self, sample_rate: SampleRate) -> DeviceSinkBuilder<E> {
+    pub fn with_sample_rate(mut self, sample_rate: SampleRate) -> OsSinkBuilder<E> {
         self.config.sample_rate = sample_rate;
         self
     }
@@ -292,13 +292,13 @@ where
     /// - Low-latency (audio production, live monitoring): 512-1024
     /// - General use (games, media playback): 1024-2048
     /// - Stability-focused (background music, non-interactive): 2048-4096
-    pub fn with_buffer_size(mut self, buffer_size: cpal::BufferSize) -> DeviceSinkBuilder<E> {
+    pub fn with_buffer_size(mut self, buffer_size: cpal::BufferSize) -> OsSinkBuilder<E> {
         self.config.buffer_size = buffer_size;
         self
     }
 
     /// Select scalar type that will carry a sample.
-    pub fn with_sample_format(mut self, sample_format: SampleFormat) -> DeviceSinkBuilder<E> {
+    pub fn with_sample_format(mut self, sample_format: SampleFormat) -> OsSinkBuilder<E> {
         self.config.sample_format = sample_format;
         self
     }
@@ -308,8 +308,8 @@ where
     pub fn with_supported_config(
         mut self,
         config: &cpal::SupportedStreamConfig,
-    ) -> DeviceSinkBuilder<E> {
-        self.config = DeviceSinkConfig {
+    ) -> OsSinkBuilder<E> {
+        self.config = OsSinkConfig {
             channel_count: NonZero::new(config.channels())
                 .expect("no valid cpal config has zero channels"),
             sample_rate: NonZero::new(config.sample_rate())
@@ -321,8 +321,8 @@ where
     }
 
     /// Set all OS-Sink parameters at once from CPAL stream config.
-    pub fn with_config(mut self, config: &cpal::StreamConfig) -> DeviceSinkBuilder<E> {
-        self.config = DeviceSinkConfig {
+    pub fn with_config(mut self, config: &cpal::StreamConfig) -> OsSinkBuilder<E> {
+        self.config = OsSinkConfig {
             channel_count: NonZero::new(config.channels)
                 .expect("no valid cpal config has zero channels"),
             sample_rate: NonZero::new(config.sample_rate)
@@ -334,11 +334,11 @@ where
     }
 
     /// Set a callback that will be called when an error occurs with the stream
-    pub fn with_error_callback<F>(self, callback: F) -> DeviceSinkBuilder<F>
+    pub fn with_error_callback<F>(self, callback: F) -> OsSinkBuilder<F>
     where
         F: FnMut(cpal::StreamError) + Send + 'static,
     {
-        DeviceSinkBuilder {
+        OsSinkBuilder {
             device: self.device,
             config: self.config,
             error_callback: callback,
@@ -346,26 +346,26 @@ where
     }
 
     /// Open OS-Sink using parameters configured so far.
-    pub fn open_stream(self) -> Result<MixerDeviceSink, DeviceSinkError> {
+    pub fn open_stream(self) -> Result<MixerOsSink, OsSinkError> {
         let device = self.device.as_ref().expect("No output device specified");
 
-        MixerDeviceSink::open(device, &self.config, self.error_callback)
+        MixerOsSink::open(device, &self.config, self.error_callback)
     }
 
     /// Try opening a new OS-Sink with the builder's current stream configuration.
     /// Failing that attempt to open stream with other available configurations
     /// supported by the device.
     /// If all attempts fail returns initial error.
-    pub fn open_sink_or_fallback(&self) -> Result<MixerDeviceSink, DeviceSinkError>
+    pub fn open_sink_or_fallback(&self) -> Result<MixerOsSink, OsSinkError>
     where
         E: Clone,
     {
         let device = self.device.as_ref().expect("No output device specified");
         let error_callback = &self.error_callback;
 
-        MixerDeviceSink::open(device, &self.config, error_callback.clone()).or_else(|err| {
+        MixerOsSink::open(device, &self.config, error_callback.clone()).or_else(|err| {
             for supported_config in supported_output_configs(device)? {
-                if let Ok(handle) = DeviceSinkBuilder::default()
+                if let Ok(handle) = OsSinkBuilder::default()
                     .with_device(device.clone())
                     .with_supported_config(&supported_config)
                     .with_error_callback(error_callback.clone())
@@ -391,8 +391,8 @@ where
     Ok(player)
 }
 
-impl From<&DeviceSinkConfig> for StreamConfig {
-    fn from(config: &DeviceSinkConfig) -> Self {
+impl From<&OsSinkConfig> for StreamConfig {
+    fn from(config: &OsSinkConfig) -> Self {
         cpal::StreamConfig {
             channels: config.channel_count.get() as cpal::ChannelCount,
             sample_rate: config.sample_rate.get(),
@@ -422,7 +422,7 @@ assert_error_traits!(PlayError);
 
 /// Errors that might occur when interfacing with audio output.
 #[derive(Debug, thiserror::Error)]
-pub enum DeviceSinkError {
+pub enum OsSinkError {
     /// Could not start playing the sink, see [cpal::PlayStreamError] for
     /// details.
     #[error("Could not start playing the stream")]
@@ -447,8 +447,8 @@ pub enum DeviceSinkError {
     UnsupportedSampleFormat,
 }
 
-impl MixerDeviceSink {
-    fn validate_config(config: &DeviceSinkConfig) {
+impl MixerOsSink {
+    fn validate_config(config: &OsSinkConfig) {
         if let BufferSize::Fixed(sz) = config.buffer_size {
             assert!(sz > 0, "fixed buffer size must be greater than zero");
         }
@@ -456,16 +456,16 @@ impl MixerDeviceSink {
 
     pub(crate) fn open<E>(
         device: &cpal::Device,
-        config: &DeviceSinkConfig,
+        config: &OsSinkConfig,
         error_callback: E,
-    ) -> Result<MixerDeviceSink, DeviceSinkError>
+    ) -> Result<MixerOsSink, OsSinkError>
     where
         E: FnMut(cpal::StreamError) + Send + 'static,
     {
         Self::validate_config(config);
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
         Self::init_stream(device, config, source, error_callback).and_then(|stream| {
-            stream.play().map_err(DeviceSinkError::PlayError)?;
+            stream.play().map_err(OsSinkError::PlayError)?;
             Ok(Self {
                 _stream: stream,
                 mixer: controller,
@@ -477,10 +477,10 @@ impl MixerDeviceSink {
 
     fn init_stream<S, E>(
         device: &cpal::Device,
-        config: &DeviceSinkConfig,
+        config: &OsSinkConfig,
         mut samples: S,
         error_callback: E,
-    ) -> Result<cpal::Stream, DeviceSinkError>
+    ) -> Result<cpal::Stream, OsSinkError>
     where
         S: Source + Send + 'static,
         E: FnMut(cpal::StreamError) + Send + 'static,
@@ -505,7 +505,7 @@ impl MixerDeviceSink {
                             None,
                         ),
                     )+
-                    _ => return Err(DeviceSinkError::UnsupportedSampleFormat),
+                    _ => return Err(OsSinkError::UnsupportedSampleFormat),
                 }
             };
         }
@@ -525,17 +525,17 @@ impl MixerDeviceSink {
             U64, u64
         );
 
-        result.map_err(DeviceSinkError::BuildError)
+        result.map_err(OsSinkError::BuildError)
     }
 }
 
 /// Return all formats supported by the device.
 pub fn supported_output_configs(
     device: &cpal::Device,
-) -> Result<impl Iterator<Item = cpal::SupportedStreamConfig>, DeviceSinkError> {
+) -> Result<impl Iterator<Item = cpal::SupportedStreamConfig>, OsSinkError> {
     let mut supported: Vec<_> = device
         .supported_output_configs()
-        .map_err(DeviceSinkError::SupportedConfigsError)?
+        .map_err(OsSinkError::SupportedConfigsError)?
         .collect();
     supported.sort_by(|a, b| b.cmp_default_heuristics(a));
 

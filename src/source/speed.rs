@@ -18,7 +18,7 @@
 //!
 //! // Get an OS-Sink handle to the default physical sound device.
 //! // Note that no sound will be played if the _handle_ is dropped.
-//! let handle = rodio::DeviceSinkBuilder::open_default_sink()
+//! let handle = rodio::OsSinkBuilder::open_default_sink()
 //!         .expect("open default audio sink");
 //! // Load a sound from a file, using a path relative to `Cargo.toml`
 //! let file = File::open("examples/music.ogg").unwrap();
@@ -35,7 +35,7 @@
 //! let source = SineWave::new(440.0)
 //!    .take_duration(std::time::Duration::from_secs_f32(20.25))
 //!    .amplify(0.20);
-//! let handle = rodio::DeviceSinkBuilder::open_default_sink()
+//! let handle = rodio::OsSinkBuilder::open_default_sink()
 //!         .expect("open default audio sink");
 //! let player = rodio::Player::connect_new(&handle.mixer());
 //! player.set_speed(2.0);

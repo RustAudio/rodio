@@ -1,6 +1,6 @@
 use std::num::NonZero;
 
-use crate::{math::nz, stream::DeviceSinkConfig, ChannelCount, SampleRate};
+use crate::{math::nz, stream::OsSinkConfig, ChannelCount, SampleRate};
 
 /// Describes the output stream's configuration
 #[derive(Copy, Clone, Debug)]
@@ -44,8 +44,8 @@ impl OutputConfig {
         this
     }
 
-    pub(crate) fn into_cpal_config(self) -> crate::stream::DeviceSinkConfig {
-        DeviceSinkConfig {
+    pub(crate) fn into_cpal_config(self) -> crate::stream::OsSinkConfig {
+        OsSinkConfig {
             channel_count: self.channel_count,
             sample_rate: self.sample_rate,
             buffer_size: self.buffer_size,

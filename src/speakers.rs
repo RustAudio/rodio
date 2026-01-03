@@ -13,7 +13,7 @@
 //! let speakers = SpeakersBuilder::new()
 //!     .default_device()?
 //!     .default_config()?
-//!     .open_mixer()?;
+//!     .open_mixer_sink()?;
 //! let mixer = speakers.mixer();
 //!
 //! // Play a beep for 4 seconds
@@ -46,7 +46,7 @@
 //!     ])
 //!     .prefer_buffer_sizes(512..);
 //!
-//! let mixer = builder.open_mixer()?;
+//! let mixer = builder.open_mixer_sink()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -73,7 +73,7 @@
 //!     // builder remains unchanged with default configuration
 //! }
 //!
-//! let speakers = builder.open_mixer()?;
+//! let speakers = builder.open_mixer_sink()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -94,7 +94,7 @@
 //! let speakers = SpeakersBuilder::new()
 //!     .device(outputs[1].clone())?
 //!     .default_config()?
-//!     .open_mixer()?;
+//!     .open_mixer_sink()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -106,7 +106,7 @@ use cpal::{
     Device,
 };
 
-use crate::{common::assert_error_traits, DeviceSinkError};
+use crate::{common::assert_error_traits, OsSinkError};
 
 mod builder;
 mod config;
@@ -182,7 +182,7 @@ impl Speakers {
         device: Device,
         config: OutputConfig,
         error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
-    ) -> Result<crate::stream::MixerDeviceSink, DeviceSinkError> {
-        crate::stream::MixerDeviceSink::open(&device, &config.into_cpal_config(), error_callback)
+    ) -> Result<crate::stream::MixerOsSink, OsSinkError> {
+        crate::stream::MixerOsSink::open(&device, &config.into_cpal_config(), error_callback)
     }
 }

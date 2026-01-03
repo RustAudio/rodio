@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let total_duration = iter_duration * 2 * repeats;
 
-    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
+    let stream_handle = rodio::OsSinkBuilder::open_default_sink()?;
 
     let mut positions = ([0., 0., 0.], [-1., 0., 0.], [1., 0., 0.]);
     let player = rodio::SpatialPlayer::connect_new(

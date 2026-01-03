@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let stream_handle = rodio::DeviceSinkBuilder::from_device(default_device)?
+    let stream_handle = rodio::OsSinkBuilder::from_device(default_device)?
         .with_error_callback(move |err| {
             // Filter for where err is an actionable error.
             if matches!(

@@ -2,7 +2,7 @@ use std::error::Error;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
+    let stream_handle = rodio::OsSinkBuilder::open_default_sink()?;
     let player = rodio::Player::connect_new(stream_handle.mixer());
 
     let file = std::fs::File::open("assets/music.mp3")?;

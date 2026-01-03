@@ -11,7 +11,7 @@ const NOTE_AMPLITUDE: Float = 0.20;
 fn main() -> Result<(), Box<dyn Error>> {
     // Construct a dynamic controller and mixer, stream_handle, and player.
     let (controller, mixer) = mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(44_100).unwrap());
-    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
+    let stream_handle = rodio::OsSinkBuilder::open_default_sink()?;
     let player = rodio::Player::connect_new(stream_handle.mixer());
 
     // Create four unique sources. The frequencies used here correspond

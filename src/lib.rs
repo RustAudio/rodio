@@ -205,6 +205,8 @@ pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate};
 pub use crate::decoder::Decoder;
 pub use crate::player::Player as Player;
 pub use crate::source::Source;
+#[cfg(feature = "experimental")]
+pub use crate::fixed_source::FixedSource;
 pub use crate::spatial_player::SpatialPlayer;
 #[cfg(feature = "playback")]
 pub use crate::stream::{play, MixerOsSink, OsSinkBuilder, PlayError, OsSinkError};

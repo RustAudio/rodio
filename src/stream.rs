@@ -445,6 +445,9 @@ pub enum OsSinkError {
     /// an issue if you run into this.
     #[error("New cpal sample format that rodio does not yet support please open an issue if you run into this.")]
     UnsupportedSampleFormat,
+    /// The source has a different channel count or sample rate then the Sink
+    #[error("The source you are trying to play has a different channel count or sample rate then the Sink")]
+    WrongParams,
 }
 
 impl MixerOsSink {

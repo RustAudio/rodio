@@ -22,7 +22,7 @@
 //! - **Choose TPDF** for most professional audio applications (it's the default)
 //! - **Use target output bit depth** - Not the source bit depth!
 //!
-//! When you later change volume (e.g., with `Sink::set_volume()`), both the signal
+//! When you later change volume (e.g., with `Player::set_volume()`), both the signal
 //! and dither noise scale together, maintaining proper dithering behavior.
 
 use rand::{rngs::SmallRng, Rng};

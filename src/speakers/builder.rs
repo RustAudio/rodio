@@ -1,15 +1,14 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
+    traits::{DeviceTrait, HostTrait},
     SupportedStreamConfigRange,
 };
 
 use crate::{
     common::assert_error_traits,
-    fixed_source::FixedSource,
     speakers::{self, config::OutputConfig},
-    ChannelCount, MixerOsSink, SampleRate, OsSinkError,
+    ChannelCount, MixerOsSink, SampleRate,
 };
 
 /// Error configuring or opening speakers output
@@ -553,76 +552,4 @@ where
             self.error_callback.clone(),
         )
     }
-
-    /// TODO
-    pub fn open_queue_sink(&self) -> Result<QueueSink, crate::OsSinkError> {
-        todo!()
-    }
-
-    /// TODO
-    pub fn play(
-        self,
-        mut source: impl FixedSource + Send + 'static,
-    ) -> Result<SinkHandle, crate::OsSinkError> {
-        use cpal::Sample as _;
-
-        let config = self.config.expect("ConfigIsSet");
-        let device = self.device.expect("DeviceIsSet").0;
-        let cpal_config1 = config.into_cpal_config();
-        let cpal_config2 = (&cpal_config1).into();
-
-        macro_rules! build_output_streams {
-        ($($sample_format:tt, $generic:ty);+) => {
-            match config.sample_format {
-                $(
-                    cpal::SampleFormat::$sample_format => device.build_output_stream::<$generic, _, _>(
-                        &cpal_config2,
-                        move |data, _| {
-                            data.iter_mut().for_each(|d| {
-                                *d = source
-                                    .next()
-                                    .map(cpal::Sample::from_sample)
-                                    .unwrap_or(<$generic>::EQUILIBRIUM)
-                            })
-                        },
-                        self.error_callback,
-                        None,
-                    ),
-                )+
-                _ => return Err(OsSinkError::UnsupportedSampleFormat),
-            }
-        };
-    }
-
-        let result = build_output_streams!(
-            F32, f32;
-            F64, f64;
-            I8, i8;
-            I16, i16;
-            I24, cpal::I24;
-            I32, i32;
-            I64, i64;
-            U8, u8;
-            U16, u16;
-            U24, cpal::U24;
-            U32, u32;
-            U64, u64
-        );
-
-        result
-            .map_err(OsSinkError::BuildError)
-            .map(|stream| {
-                stream
-                    .play()
-                    .map_err(OsSinkError::PlayError)
-                    .map(|()| stream)
-            })?
-            .map(SinkHandle)
-    }
 }
-
-// TODO
-pub struct QueueSink;
-
-// TODO
-pub struct SinkHandle(cpal::Stream);

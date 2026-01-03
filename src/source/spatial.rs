@@ -27,7 +27,7 @@ impl<I> Spatial<I>
 where
     I: Source,
 {
-    /// Builds a new `SpatialSink`, beginning playback on a stream.
+    /// Builds a new `SpatialPlayer`, beginning playback on a stream.
     pub fn new(
         input: I,
         emitter_position: [f32; 3],

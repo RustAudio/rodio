@@ -179,7 +179,7 @@ pub use cpal::{
 mod common;
 mod player;
 mod spatial_player;
-// #[cfg(all(feature = "playback", feature = "experimental"))]
+#[cfg(all(feature = "playback", feature = "experimental"))]
 pub mod speakers;
 #[cfg(feature = "playback")]
 pub mod stream;

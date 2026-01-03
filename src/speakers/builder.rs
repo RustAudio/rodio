@@ -78,8 +78,7 @@ where
                 "device",
                 &self.device.as_ref().map(|d| {
                     d.0.description()
-                        .map(|d| d.name().to_string())
-                        .unwrap_or("unknown".to_string())
+                        .map_or("unknown".to_string(), |d| d.name().to_string())
                 }),
             )
             .field("config", &self.config)
@@ -143,8 +142,7 @@ where
                 source,
                 device_name: device
                     .description()
-                    .map(|d| d.name().to_string())
-                    .unwrap_or("unknown".to_string()),
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             })?
             .collect();
         Ok(SpeakersBuilder {
@@ -174,8 +172,7 @@ where
                 source,
                 device_name: default_device
                     .description()
-                    .map(|d| d.name().to_string())
-                    .unwrap_or("unknown".to_string()),
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             })?
             .collect();
         Ok(SpeakersBuilder {
@@ -210,8 +207,7 @@ where
                 source,
                 device_name: device
                     .description()
-                    .map(|d| d.name().to_string())
-                    .unwrap_or("unknown".to_string()),
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             })?
             .into();
 
@@ -276,8 +272,7 @@ where
             Err(Error::UnsupportedByDevice {
                 device_name: device
                     .description()
-                    .map(|d| d.name().to_string())
-                    .unwrap_or("unknown".to_string()),
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             })
         } else {
             Ok(())
@@ -492,8 +487,6 @@ where
     /// let builder = SpeakersBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     // We need a minimum buffer of 4096
-    ///     // or we get glitches.
     ///     .prefer_buffer_sizes(4096..);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```

@@ -2,7 +2,7 @@ use std::num::NonZero;
 
 use crate::{math::nz, stream::OutputStreamConfig, ChannelCount, SampleRate};
 
-/// Describes the input stream's configuration
+/// Describes the output stream's configuration
 #[derive(Copy, Clone, Debug)]
 pub struct OutputConfig {
     /// The number of channels
@@ -27,7 +27,7 @@ impl OutputConfig {
                 },
             ) => {
                 let n_samples = n_frames * self.channel_count.get() as u32;
-                (*min_samples..*max_samples).contains(&n_samples)
+                (*min_samples..=*max_samples).contains(&n_samples)
             }
         };
 

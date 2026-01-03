@@ -148,8 +148,7 @@ impl fmt::Debug for Output {
                 &self
                     .inner
                     .description()
-                    .map(|d| d.name().to_string())
-                    .unwrap_or("unknown".to_string()),
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
             )
             .finish()
     }
@@ -162,8 +161,7 @@ impl fmt::Display for Output {
             "{}",
             self.inner
                 .description()
-                .map(|d| d.name().to_string())
-                .unwrap_or("unknown".to_string()),
+                .map_or("unknown".to_string(), |d| d.name().to_string())
         )
     }
 }

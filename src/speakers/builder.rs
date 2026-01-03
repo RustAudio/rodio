@@ -1,14 +1,15 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use cpal::{
-    traits::{DeviceTrait, HostTrait},
+    traits::{DeviceTrait, HostTrait, StreamTrait},
     SupportedStreamConfigRange,
 };
 
 use crate::{
     common::assert_error_traits,
+    fixed_source::FixedSource,
     speakers::{self, config::OutputConfig},
-    ChannelCount, OutputStream, SampleRate,
+    ChannelCount, MixerOsSink, SampleRate, OsSinkError,
 };
 
 /// Error configuring or opening speakers output
@@ -54,7 +55,7 @@ pub struct ConfigNotSet;
 /// Some methods are only available when this types counterpart: `DeviceIsSet` is present.
 pub struct DeviceNotSet;
 
-/// Builder for configuring and opening speakers output streams.
+/// Builder for configuring and opening an OS-Sink, usually a speaker or headphone.
 #[must_use]
 pub struct SpeakersBuilder<Device, Config, E = fn(cpal::StreamError)>
 where
@@ -535,7 +536,7 @@ impl<E> SpeakersBuilder<DeviceIsSet, ConfigIsSet, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
-    /// Opens the speakers output stream.
+    /// Opens the OS-Sink and provide a mixer for playing sources on it.
     ///
     /// # Example
     /// ```no_run
@@ -545,18 +546,90 @@ where
     /// let speakers = SpeakersBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     .open_stream()?;
+    ///     .open_mixer_sink()?;
     /// let mixer = speakers.mixer();
     /// mixer.add(SineWave::new(440.).take_duration(Duration::from_secs(4)));
     /// std::thread::sleep(Duration::from_secs(4));
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn open_stream(&self) -> Result<OutputStream, crate::StreamError> {
+    pub fn open_mixer_sink(&self) -> Result<MixerOsSink, crate::OsSinkError> {
         speakers::Speakers::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
             *self.config.as_ref().expect("ConfigIsSet"),
             self.error_callback.clone(),
         )
     }
+
+    /// TODO
+    pub fn open_queue_sink(&self) -> Result<QueueSink, crate::OsSinkError> {
+        todo!()
+    }
+
+    /// TODO
+    pub fn play(
+        self,
+        mut source: impl FixedSource + Send + 'static,
+    ) -> Result<SinkHandle, crate::OsSinkError> {
+        use cpal::Sample as _;
+
+        let config = self.config.expect("ConfigIsSet");
+        let device = self.device.expect("DeviceIsSet").0;
+        let cpal_config1 = config.into_cpal_config();
+        let cpal_config2 = (&cpal_config1).into();
+
+        macro_rules! build_output_streams {
+        ($($sample_format:tt, $generic:ty);+) => {
+            match config.sample_format {
+                $(
+                    cpal::SampleFormat::$sample_format => device.build_output_stream::<$generic, _, _>(
+                        &cpal_config2,
+                        move |data, _| {
+                            data.iter_mut().for_each(|d| {
+                                *d = source
+                                    .next()
+                                    .map(cpal::Sample::from_sample)
+                                    .unwrap_or(<$generic>::EQUILIBRIUM)
+                            })
+                        },
+                        self.error_callback,
+                        None,
+                    ),
+                )+
+                _ => return Err(OsSinkError::UnsupportedSampleFormat),
+            }
+        };
+    }
+
+        let result = build_output_streams!(
+            F32, f32;
+            F64, f64;
+            I8, i8;
+            I16, i16;
+            I24, cpal::I24;
+            I32, i32;
+            I64, i64;
+            U8, u8;
+            U16, u16;
+            U24, cpal::U24;
+            U32, u32;
+            U64, u64
+        );
+
+        result
+            .map_err(OsSinkError::BuildError)
+            .map(|stream| {
+                stream
+                    .play()
+                    .map_err(OsSinkError::PlayError)
+                    .map(|()| stream)
+            })?
+            .map(SinkHandle)
+    }
 }
+
+// TODO
+pub struct QueueSink;
+
+// TODO
+pub struct SinkHandle(cpal::Stream);

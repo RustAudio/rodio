@@ -24,7 +24,7 @@ assert_error_traits!(ToWavError);
 
 /// Saves Source's output into a wav file. The output samples format is 32-bit
 /// float. This function is intended primarily for testing and diagnostics. It can be used to see
-/// the output without opening output stream to a real audio device.
+/// the output without opening OS-Sink to a real audio device.
 ///
 /// If the file already exists it will be overwritten.
 ///
@@ -42,7 +42,7 @@ pub fn wav_to_file(
 
 /// Saves Source's output into a writer. The output samples format is 32-bit float. This function
 /// is intended primarily for testing and diagnostics. It can be used to see the output without
-/// opening output stream to a real audio device.
+/// opening an OS-Sink to a real audio device.
 ///
 /// # Example
 /// ```rust

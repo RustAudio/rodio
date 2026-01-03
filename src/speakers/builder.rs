@@ -547,6 +547,7 @@ where
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn open_mixer_sink(&self) -> Result<MixerOsSink, crate::OsSinkError> {
+        // TODO redefine in such a way we can use Self::play with some custom struct
         speakers::Speakers::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
             *self.config.as_ref().expect("ConfigIsSet"),

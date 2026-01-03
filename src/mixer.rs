@@ -19,9 +19,9 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 /// After creating a mixer, you can add new sounds with the controller.
 ///
 /// Note that mixer without any input source behaves like an `Empty` (not: `Zero`) source,
-/// and thus, just after appending to a sink, the mixer is removed from the sink.
-/// As a result, input sources added to the mixer later might not be forwarded to the sink.
-/// Add `Zero` source to prevent detaching the mixer from sink.
+/// and thus, just after appending to a player, the mixer is removed from the player.
+/// As a result, input sources added to the mixer later might not be forwarded to the player.
+/// Add `Zero` source to prevent detaching the mixer from player.
 pub fn mixer(channels: ChannelCount, sample_rate: SampleRate) -> (Mixer, MixerSource) {
     let (tx, rx) = channel();
 

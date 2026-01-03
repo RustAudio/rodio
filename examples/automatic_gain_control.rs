@@ -8,8 +8,8 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
-    let sink = rodio::Sink::connect_new(stream_handle.mixer());
+    let stream_handle = rodio::OsSinkBuilder::open_default_sink()?;
+    let player = rodio::Player::connect_new(stream_handle.mixer());
 
     // Decode the sound file into a source
     let file = File::open("assets/music.flac")?;
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Add the source now equipped with automatic gain control and controlled via
     // periodic_access to the sink for the playback.
-    sink.append(controlled);
+    player.append(controlled);
 
     // After 5 seconds of playback disable automatic gain control using the
     // shared AtomicBool `agc_enabled`. You could do this from another part
@@ -42,6 +42,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     agc_enabled.store(false, Ordering::Relaxed);
 
     // Keep the program running until the playback is complete.
-    sink.sleep_until_end();
+    player.sleep_until_end();
     Ok(())
 }

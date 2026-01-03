@@ -492,8 +492,8 @@ where
     /// let builder = SpeakersBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     // We need a minimum buffer of 4096 
-    ///     // or we get glitches. 
+    ///     // We need a minimum buffer of 4096
+    ///     // or we get glitches.
     ///     .prefer_buffer_sizes(4096..);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```

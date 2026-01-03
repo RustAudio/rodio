@@ -179,7 +179,7 @@ pub use cpal::{
 mod common;
 mod sink;
 mod spatial_sink;
-// #[cfg(all(feature = "playback", feature = "experimental"))]
+#[cfg(all(feature = "playback", feature = "experimental"))]
 pub mod speakers;
 #[cfg(feature = "playback")]
 pub mod stream;

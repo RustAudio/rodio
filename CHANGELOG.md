@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Velvet` noise generator takes density in Hz as `usize` instead of `f32`.
 - Upgraded `cpal` to v0.17.
 - Clarified `Source::current_span_len()` contract documentation.
-- Improved mixer and sample rate conversion performance.
+- Improved queue, mixer and sample rate conversion performance.
 
 ## Version [0.21.1] (2025-07-14)
 

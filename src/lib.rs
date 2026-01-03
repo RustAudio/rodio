@@ -196,8 +196,6 @@ pub mod math;
 pub mod microphone;
 pub mod mixer;
 pub mod queue;
-// #[cfg(feature = "experimental")]
-pub mod fixed_source;
 pub mod source;
 pub mod static_buffer;
 

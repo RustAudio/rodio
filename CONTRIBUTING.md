@@ -20,7 +20,7 @@ src/:
 - Follow [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
 - Use `rustfmt` for formatting
 - Implement `Source` trait for new audio sources
-- Use `Sink` for playback management
+- Use `Player` for playback management
 
 ## Common Tasks
 

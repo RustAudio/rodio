@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .prompt()?;
 
     let input = MicrophoneBuilder::new()
-        .device(input.into_inner())?
+        .device(input)?
         .default_config()?
         .open_stream()?;
 
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let recording = input.take_duration(Duration::from_secs(5)).record();
 
     println!("Playing the recording");
-    let mut output = rodio::OutputStreamBuilder::open_default_stream()?;
+    let mut output = rodio::OsSinkBuilder::open_default_sink()?;
     output.mixer().add(recording);
 
     thread::sleep(Duration::from_secs(5));

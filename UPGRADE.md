@@ -56,12 +56,12 @@ No changes are required.
 The following Rodio *0.20* code:
 ```rust
 let (_stream, handle) = rodio::OutputStream::try_default()?;
-let sink = rodio::Sink::try_new(&handle)?;
+let player = rodio::Player::try_new(&handle)?;
 ```
 Should be written like this in Rodio *0.21*:
 ```rust
 let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
-let sink = rodio::Sink::connect_new(stream_handle.mixer());
+let player = rodio::Player::connect_new(stream_handle.mixer());
 ```
 
 The `SpatialSink` changes mirror those in `Sink` described above.

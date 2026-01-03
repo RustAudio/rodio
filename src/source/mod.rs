@@ -397,15 +397,15 @@ pub trait Source: Iterator<Item = Sample> {
     /// ```rust
     /// // Apply Automatic Gain Control to the source (AGC is on by default)
     /// use rodio::source::{Source, SineWave, AutomaticGainControlSettings};
-    /// use rodio::Sink;
+    /// use rodio::Player;
     /// use std::time::Duration;
     /// let source = SineWave::new(444.0); // An example.
-    /// let (sink, output) = Sink::new(); // An example.
+    /// let (player, output) = Player::new(); // An example.
     ///
     /// let agc_source = source.automatic_gain_control(AutomaticGainControlSettings::default());
     ///
     /// // Add the AGC-controlled source to the sink
-    /// sink.append(agc_source);
+    /// player.append(agc_source);
     ///
     /// ```
     #[inline]
@@ -642,7 +642,7 @@ pub trait Source: Iterator<Item = Sample> {
     }
 
     /// Adds a method [`Skippable::skip`] for skipping this source. Skipping
-    /// makes Source::next() return None. Which in turn makes the Sink skip to
+    /// makes Source::next() return None. Which in turn makes the Player skip to
     /// the next source.
     fn skippable(self) -> Skippable<Self>
     where

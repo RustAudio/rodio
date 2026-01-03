@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 use std::num::NonZero;
 
-/// Stream sample rate (a frame rate or samples per second per channel).
+/// Sample rate (a frame rate or samples per second per channel).
 pub type SampleRate = NonZero<u32>;
 
 /// Number of channels in a stream. Can never be Zero

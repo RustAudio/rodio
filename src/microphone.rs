@@ -91,7 +91,7 @@
 //!
 //! // Use a specific device (e.g., the second one)
 //! let mic = MicrophoneBuilder::new()
-//!     .device(inputs[1].clone().into_inner())?
+//!     .device(inputs[1].clone())?
 //!     .default_config()?
 //!     .open_stream()?;
 //! # Ok(())

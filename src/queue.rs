@@ -61,10 +61,9 @@ impl SourcesQueueInput {
     where
         T: Source + Send + 'static,
     {
-        self.next_sounds
-            .lock()
-            .unwrap()
-            .push((Box::new(source) as Box<_>, None));
+        let mut next_sounds = self.next_sounds.lock().unwrap();
+        next_sounds.push((Box::new(source) as Box<_>, None));
+        next_sounds.len();
     }
 
     /// Adds a new source to the end of the queue.

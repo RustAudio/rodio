@@ -9,7 +9,7 @@ use crate::{
     common::assert_error_traits,
     fixed_source::FixedSource,
     speakers::{self, config::OutputConfig},
-    ChannelCount, MixerOsSink, SampleRate, OsSinkError,
+    ChannelCount, MixerOsSink, OsSinkError, SampleRate,
 };
 
 /// Error configuring or opening speakers output
@@ -553,7 +553,7 @@ where
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn open_mixer_sink(&self) -> Result<MixerOsSink, crate::OsSinkError> {
+    pub fn open_mixer_sink(&self) -> Result<MixerOsSink, OsSinkError> {
         // TODO redefine in such a way we can use Self::play with some custom struct
         speakers::Speakers::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
@@ -563,7 +563,7 @@ where
     }
 
     /// TODO
-    pub fn open_queue_sink(&self) -> Result<QueueSink, crate::OsSinkError> {
+    pub fn open_queue_sink(&self) -> Result<QueueSink, OsSinkError> {
         todo!()
     }
 
@@ -571,11 +571,19 @@ where
     pub fn play(
         self,
         mut source: impl FixedSource + Send + 'static,
-    ) -> Result<SinkHandle, crate::OsSinkError> {
+    ) -> Result<SinkHandle, OsSinkError> {
         use cpal::Sample as _;
 
         let config = self.config.expect("ConfigIsSet");
         let device = self.device.expect("DeviceIsSet").0;
+
+        if config.channel_count != source.channels() {
+            return Err(OsSinkError::WrongParams);
+        }
+        if config.sample_rate != source.sample_rate() {
+            return Err(OsSinkError::WrongParams);
+        }
+
         let cpal_config1 = config.into_cpal_config();
         let cpal_config2 = (&cpal_config1).into();
 

@@ -196,7 +196,7 @@ pub mod math;
 pub mod microphone;
 pub mod mixer;
 pub mod queue;
-#[cfg(feature = "experimental")]
+// #[cfg(feature = "experimental")] // TODO re-enable
 pub mod fixed_source;
 pub mod source;
 pub mod static_buffer;
@@ -205,7 +205,7 @@ pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate};
 pub use crate::decoder::Decoder;
 pub use crate::player::Player as Player;
 pub use crate::source::Source;
-#[cfg(feature = "experimental")]
+// #[cfg(feature = "experimental")] // TODO re-enable
 pub use crate::fixed_source::FixedSource;
 pub use crate::spatial_player::SpatialPlayer;
 #[cfg(feature = "playback")]

@@ -201,11 +201,11 @@ pub mod static_buffer;
 
 pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate};
 pub use crate::decoder::Decoder;
-pub use crate::player::Player as Player;
+pub use crate::player::Player;
 pub use crate::source::Source;
 pub use crate::spatial_player::SpatialPlayer;
 #[cfg(feature = "playback")]
-pub use crate::stream::{play, MixerOsSink, OsSinkBuilder, PlayError, OsSinkError};
+pub use crate::stream::{play, MixerOsSink, OsSinkBuilder, OsSinkError, PlayError};
 #[cfg(feature = "wav_output")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 pub use crate::wav_output::wav_to_file;

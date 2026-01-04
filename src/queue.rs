@@ -1,5 +1,6 @@
 //! Queue that plays sounds one after the other.
 
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -26,7 +27,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 ///
 pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
     let input = Arc::new(SourcesQueueInput {
-        next_sounds: Mutex::new(Vec::new()),
+        next_sounds: Mutex::new(VecDeque::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
     });
 
@@ -48,7 +49,7 @@ type SignalDone = Option<Sender<()>>;
 
 /// The input of the queue.
 pub struct SourcesQueueInput {
-    next_sounds: Mutex<Vec<(Sound, SignalDone)>>,
+    next_sounds: Mutex<VecDeque<(Sound, SignalDone)>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
@@ -64,7 +65,7 @@ impl SourcesQueueInput {
         self.next_sounds
             .lock()
             .unwrap()
-            .push((Box::new(source) as Box<_>, None));
+            .push_back((Box::new(source) as Box<_>, None));
     }
 
     /// Adds a new source to the end of the queue.
@@ -81,7 +82,7 @@ impl SourcesQueueInput {
         self.next_sounds
             .lock()
             .unwrap()
-            .push((Box::new(source) as Box<_>, Some(tx)));
+            .push_back((Box::new(source) as Box<_>, Some(tx)));
         rx
     }
 
@@ -175,7 +176,7 @@ impl Source for SourcesQueueOutput {
             // - After append: the appended source while playing
             // - With keep_alive: Zero (silence) while playing
             self.current.channels()
-        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().first() {
+        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
             // Current source exhausted, peek at next queued source
             // This is critical: UniformSourceIterator queries metadata during append,
             // before any samples are pulled. We must report the next source's metadata.
@@ -194,7 +195,7 @@ impl Source for SourcesQueueOutput {
         if !self.current.is_exhausted() {
             // Current source is active (producing samples)
             self.current.sample_rate()
-        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().first() {
+        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
             // Current source exhausted, peek at next queued source
             // This prevents wrong resampling setup in UniformSourceIterator
             next.sample_rate()
@@ -282,7 +283,9 @@ impl SourcesQueueOutput {
         let (next, signal_after_end) = {
             let mut next = self.input.next_sounds.lock().unwrap();
 
-            if next.is_empty() {
+            if let Some(next) = next.pop_front() {
+                next
+            } else {
                 let channels = self.current.channels();
                 let silence = Box::new(Zero::new_samples(
                     channels,
@@ -295,8 +298,6 @@ impl SourcesQueueOutput {
                 } else {
                     return Err(());
                 }
-            } else {
-                next.remove(0)
             }
         };
 

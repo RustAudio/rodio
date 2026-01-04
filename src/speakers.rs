@@ -13,7 +13,7 @@
 //! let speakers = SpeakersBuilder::new()
 //!     .default_device()?
 //!     .default_config()?
-//!     .open_mixer_sink()?;
+//!     .open_mixer()?;
 //! let mixer = speakers.mixer();
 //!
 //! // Play a beep for 4 seconds
@@ -46,7 +46,7 @@
 //!     ])
 //!     .prefer_buffer_sizes(512..);
 //!
-//! let mixer = builder.open_mixer_sink()?;
+//! let mixer = builder.open_mixer()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -73,7 +73,7 @@
 //!     // builder remains unchanged with default configuration
 //! }
 //!
-//! let speakers = builder.open_mixer_sink()?;
+//! let speakers = builder.open_mixer()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -94,7 +94,7 @@
 //! let speakers = SpeakersBuilder::new()
 //!     .device(outputs[1].clone())?
 //!     .default_config()?
-//!     .open_mixer_sink()?;
+//!     .open_mixer()?;
 //! # Ok(())
 //! # }
 //! ```

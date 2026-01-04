@@ -46,12 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Breaking: _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced
   with _Sink_. This is a simple rename, functionality is identical.
-    - `OutputStream` is now `MixerOsSink` (in anticipation of future `QueueOsSink`)
-    - `OutputStreamBuilder` is now `OsSinkBuilder`
+    - `OutputStream` is now `MixerDeviceSink` (in anticipation of future
+      `QueueDeviceSink`)
+    - `OutputStreamBuilder` is now `DeviceSinkBuilder`
     - `open_stream_or_fallback` is now `open_sink_or_fallback`
     - `open_default_stream` is now `open_default_sink`
-    - `open_stream` is now `open_mixer_sink` (in anticipation of future
-      `open_queue_sink`)
+    - `open_stream` is now `open_mixer` (in anticipation of future `open_queue`)
     - `Sink` is now `Player`
     - `SpatialSink` is now `SpatialPlayer`
     - `StreamError` is now `OsSinkError`

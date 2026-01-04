@@ -205,7 +205,7 @@ pub use crate::player::Player;
 pub use crate::source::Source;
 pub use crate::spatial_player::SpatialPlayer;
 #[cfg(feature = "playback")]
-pub use crate::stream::{play, MixerDeviceSink, DeviceSinkBuilder, DeviceSinkError, PlayError};
+pub use crate::stream::{play, DeviceSinkBuilder, DeviceSinkError, MixerDeviceSink, PlayError};
 #[cfg(feature = "wav_output")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 pub use crate::wav_output::wav_to_file;

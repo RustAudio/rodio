@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let default_device = cpal::default_host()
         .default_output_device()
         .ok_or("No default audio output device is found.")?;
-    let stream_handle = rodio::OutputStreamBuilder::from_device(default_device)?
+    let stream_handle = rodio::DeviceSinkBuilder::from_device(default_device)?
         // No need to set all parameters explicitly here,
         // the defaults were set from the device's description.
         .with_buffer_size(BufferSize::Fixed(256))
@@ -20,8 +20,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_sample_format(SampleFormat::F32)
         // Note that the function below still tries alternative configs if the specified one fails.
         // If you need to only use the exact specified configuration,
-        // then use OutputStreamBuilder::open_stream() instead.
-        .open_stream_or_fallback()?;
+        // then use DeviceSinkBuilder::open_sink() instead.
+        .open_sink_or_fallback()?;
     let mixer = stream_handle.mixer();
 
     let wave = SineWave::new(740.0)

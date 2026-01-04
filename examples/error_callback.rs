@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let stream_handle = rodio::OutputStreamBuilder::from_device(default_device)?
+    let stream_handle = rodio::DeviceSinkBuilder::from_device(default_device)?
         .with_error_callback(move |err| {
             // Filter for where err is an actionable error.
             if matches!(
@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         })
-        .open_stream_or_fallback()?;
+        .open_sink_or_fallback()?;
 
     let mixer = stream_handle.mixer();
 

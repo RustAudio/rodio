@@ -7,11 +7,11 @@ use rodio::{
     source::noise::{
         Blue, Brownian, Pink, Velvet, Violet, WhiteGaussian, WhiteTriangular, WhiteUniform,
     },
-    Sample, Source,
+    MixerDeviceSink, Sample, Source,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
     let sample_rate = stream_handle.config().sample_rate();
 
     play_noise(
@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// Helper function to play a noise type with description
-fn play_noise<S>(stream_handle: &rodio::OutputStream, source: S, name: &str, description: &str)
+fn play_noise<S>(stream_handle: &MixerDeviceSink, source: S, name: &str, description: &str)
 where
     S: Source<Item = Sample> + Send + 'static,
 {

@@ -44,6 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `Zero::current_span_len` returning remaining samples instead of span length.
 
 ### Changed
+- Breaking: _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced
+  with _Sink_. This is a simple rename, functionality is identical.
+    - `OutputStream` is now `MixerDeviceSink` (in anticipation of future
+      `QueueDeviceSink`)
+    - `OutputStreamBuilder` is now `DeviceSinkBuilder`
+    - `open_stream_or_fallback` is now `open_sink_or_fallback`
+    - `open_default_stream` is now `open_default_sink`
+    - `open_stream` is now `open_mixer` (in anticipation of future `open_queue`)
+    - `Sink` is now `Player`
+    - `SpatialSink` is now `SpatialPlayer`
+    - `StreamError` is now `OsSinkError`
 - `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
 - `Blue` noise generator uses uniform instead of Gaussian noise for better performance.
 - `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
@@ -166,7 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       implementation.
 
 ### Fixed
-- `Sink.try_seek` now updates `controls.position` before returning. Calls to `Sink.get_pos`
+- `player.try_seek` now updates `controls.position` before returning. Calls to `player.get_pos`
   done immediately after a seek will now return the correct value.
 
 ### Changed

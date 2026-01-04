@@ -6,15 +6,15 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
     let mixer = stream_handle.mixer();
 
     let beep1 = {
         // Play a WAV file.
         let file = std::fs::File::open("assets/beep.wav")?;
-        let sink = rodio::play(mixer, BufReader::new(file))?;
-        sink.set_volume(0.2);
-        sink
+        let player = rodio::play(mixer, BufReader::new(file))?;
+        player.set_volume(0.2);
+        player
     };
     println!("Started beep1");
     thread::sleep(Duration::from_millis(1500));
@@ -32,9 +32,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let beep3 = {
         // Play an OGG file.
         let file = std::fs::File::open("assets/beep3.ogg")?;
-        let sink = rodio::play(mixer, BufReader::new(file))?;
-        sink.set_volume(0.2);
-        sink
+        let player = rodio::play(mixer, BufReader::new(file))?;
+        player.set_volume(0.2);
+        player
     };
     println!("Started beep3");
     thread::sleep(Duration::from_millis(1500));

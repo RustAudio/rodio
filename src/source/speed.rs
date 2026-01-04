@@ -1,7 +1,7 @@
 //! Playback Speed control Module.
 //!
 //! The main concept of this module is the [`Speed`] struct, which
-//! encapsulates playback speed controls of the current sink.
+//! encapsulates playback speed controls of the current player.
 //!
 //! In order to speed up a sink, the speed struct:
 //! - Increases the current sample rate by the given factor.
@@ -14,18 +14,18 @@
 #![cfg_attr(not(feature = "playback"), doc = "```ignore")]
 #![cfg_attr(feature = "playback", doc = "```no_run")]
 //!# use std::fs::File;
-//!# use rodio::{Decoder, Sink, OutputStream, source::{Source, SineWave}};
+//!# use rodio::{Decoder, Player, source::{Source, SineWave}};
 //!
-//! // Get an output stream handle to the default physical sound device.
-//! // Note that no sound will be played if the _stream is dropped.
-//! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
-//!         .expect("open default audio stream");
+//! // Get an OS-Sink handle to the default physical sound device.
+//! // Note that no sound will be played if the _handle_ is dropped.
+//! let handle = rodio::DeviceSinkBuilder::open_default_sink()
+//!         .expect("open default audio sink");
 //! // Load a sound from a file, using a path relative to `Cargo.toml`
 //! let file = File::open("examples/music.ogg").unwrap();
 //! // Decode that sound file into a source
 //! let source = Decoder::try_from(file).unwrap();
 //! // Play the sound directly on the device 2x faster
-//! stream_handle.mixer().add(source.speed(2.0));
+//! handle.mixer().add(source.speed(2.0));
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //! Here is how you would do it using the sink:
@@ -35,11 +35,11 @@
 //! let source = SineWave::new(440.0)
 //!    .take_duration(std::time::Duration::from_secs_f32(20.25))
 //!    .amplify(0.20);
-//! let stream_handle = rodio::OutputStreamBuilder::open_default_stream()
-//!         .expect("open default audio stream");
-//! let sink = rodio::Sink::connect_new(&stream_handle.mixer());
-//! sink.set_speed(2.0);
-//! sink.append(source);
+//! let handle = rodio::DeviceSinkBuilder::open_default_sink()
+//!         .expect("open default audio sink");
+//! let player = rodio::Player::connect_new(&handle.mixer());
+//! player.set_speed(2.0);
+//! player.append(source);
 //! std::thread::sleep(std::time::Duration::from_secs(5));
 //! ```
 //! Notice the increase in pitch as the factor increases

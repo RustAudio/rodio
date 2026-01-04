@@ -8,7 +8,7 @@ use cpal::{
 use crate::{
     common::assert_error_traits,
     speakers::{self, config::OutputConfig},
-    ChannelCount, OutputStream, SampleRate,
+    ChannelCount, MixerDeviceSink, SampleRate,
 };
 
 /// Error configuring or opening speakers output
@@ -54,7 +54,7 @@ pub struct ConfigNotSet;
 /// Some methods are only available when this types counterpart: `DeviceIsSet` is present.
 pub struct DeviceNotSet;
 
-/// Builder for configuring and opening speakers output streams.
+/// Builder for configuring and opening an OS-Sink, usually a speaker or headphone.
 #[must_use]
 pub struct SpeakersBuilder<Device, Config, E = fn(cpal::StreamError)>
 where
@@ -528,7 +528,7 @@ impl<E> SpeakersBuilder<DeviceIsSet, ConfigIsSet, E>
 where
     E: FnMut(cpal::StreamError) + Send + Clone + 'static,
 {
-    /// Opens the speakers output stream.
+    /// Opens the OS-Sink and provide a mixer for playing sources on it.
     ///
     /// # Example
     /// ```no_run
@@ -538,14 +538,14 @@ where
     /// let speakers = SpeakersBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     .open_stream()?;
+    ///     .open_mixer()?;
     /// let mixer = speakers.mixer();
     /// mixer.add(SineWave::new(440.).take_duration(Duration::from_secs(4)));
     /// std::thread::sleep(Duration::from_secs(4));
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn open_stream(&self) -> Result<OutputStream, crate::StreamError> {
+    pub fn open_mixer(&self) -> Result<MixerDeviceSink, crate::DeviceSinkError> {
         speakers::Speakers::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
             *self.config.as_ref().expect("ConfigIsSet"),

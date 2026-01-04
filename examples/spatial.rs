@@ -18,10 +18,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let total_duration = iter_duration * 2 * repeats;
 
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
 
     let mut positions = ([0., 0., 0.], [-1., 0., 0.], [1., 0., 0.]);
-    let sink = rodio::SpatialSink::connect_new(
+    let player = rodio::SpatialPlayer::connect_new(
         stream_handle.mixer(),
         positions.0,
         positions.1,
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let source = rodio::Decoder::try_from(file)?
         .repeat_infinite()
         .take_duration(total_duration);
-    sink.append(source);
+    player.append(source);
     // A sound emitter playing the music starting at the centre gradually moves to the right
     // until it stops and begins traveling to the left, it will eventually pass through the
     // listener again and go to the far left.
@@ -41,20 +41,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         for _ in 0..num_steps {
             thread::sleep(refresh_duration);
             positions.0[0] += step_distance;
-            sink.set_emitter_position(positions.0);
+            player.set_emitter_position(positions.0);
         }
         for _ in 0..(num_steps * 2) {
             thread::sleep(refresh_duration);
             positions.0[0] -= step_distance;
-            sink.set_emitter_position(positions.0);
+            player.set_emitter_position(positions.0);
         }
         for _ in 0..num_steps {
             thread::sleep(refresh_duration);
             positions.0[0] += step_distance;
-            sink.set_emitter_position(positions.0);
+            player.set_emitter_position(positions.0);
         }
     }
-    sink.sleep_until_end();
+    player.sleep_until_end();
 
     Ok(())
 }

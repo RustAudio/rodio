@@ -1,6 +1,6 @@
 //! A speakers sink
 //!
-//! An audio *stream* originates at a [Source] and flows to a Sink. This is a
+//! An audio *stream* originates at a [Source] and flows to a player. This is a
 //! Sink that plays audio over the systems speakers or headphones through an
 //! audio output device;
 //!
@@ -13,7 +13,7 @@
 //! let speakers = SpeakersBuilder::new()
 //!     .default_device()?
 //!     .default_config()?
-//!     .open_stream()?;
+//!     .open_mixer()?;
 //! let mixer = speakers.mixer();
 //!
 //! // Play a beep for 4 seconds
@@ -46,7 +46,7 @@
 //!     ])
 //!     .prefer_buffer_sizes(512..);
 //!
-//! let mic = builder.open_stream()?;
+//! let mixer = builder.open_mixer()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -73,7 +73,7 @@
 //!     // builder remains unchanged with default configuration
 //! }
 //!
-//! let mic = builder.open_stream()?;
+//! let speakers = builder.open_mixer()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -91,10 +91,10 @@
 //! }
 //!
 //! // Use a specific device (e.g., the second one)
-//! let mic = SpeakersBuilder::new()
+//! let speakers = SpeakersBuilder::new()
 //!     .device(outputs[1].clone())?
 //!     .default_config()?
-//!     .open_stream()?;
+//!     .open_mixer()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -106,7 +106,7 @@ use cpal::{
     Device,
 };
 
-use crate::{common::assert_error_traits, StreamError};
+use crate::{common::assert_error_traits, DeviceSinkError};
 
 mod builder;
 mod config;
@@ -182,7 +182,7 @@ impl Speakers {
         device: Device,
         config: OutputConfig,
         error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
-    ) -> Result<crate::stream::OutputStream, StreamError> {
-        crate::stream::OutputStream::open(&device, &config.into_cpal_config(), error_callback)
+    ) -> Result<crate::stream::MixerDeviceSink, DeviceSinkError> {
+        crate::stream::MixerDeviceSink::open(&device, &config.into_cpal_config(), error_callback)
     }
 }

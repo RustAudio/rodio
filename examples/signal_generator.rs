@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     use std::thread;
     use std::time::Duration;
 
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
+    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
 
     let test_signal_duration = Duration::from_millis(1000);
     let interval_duration = Duration::from_millis(1500);

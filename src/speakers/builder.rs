@@ -8,7 +8,7 @@ use cpal::{
 use crate::{
     common::assert_error_traits,
     speakers::{self, config::OutputConfig},
-    ChannelCount, MixerOsSink, SampleRate,
+    ChannelCount, MixerDeviceSink, SampleRate,
 };
 
 /// Error configuring or opening speakers output
@@ -545,7 +545,7 @@ where
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn open_mixer_sink(&self) -> Result<MixerOsSink, crate::OsSinkError> {
+    pub fn open_mixer_sink(&self) -> Result<MixerDeviceSink, crate::DeviceSinkError> {
         speakers::Speakers::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
             *self.config.as_ref().expect("ConfigIsSet"),

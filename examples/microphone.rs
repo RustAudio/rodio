@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let recording = input.take_duration(Duration::from_secs(5)).record();
 
     println!("Playing the recording");
-    let mut output = rodio::OsSinkBuilder::open_default_sink()?;
+    let mut output = rodio::DeviceSinkBuilder::open_default_sink()?;
     output.mixer().add(recording);
 
     thread::sleep(Duration::from_secs(5));

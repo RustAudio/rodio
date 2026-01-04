@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::OsSinkBuilder::open_default_sink()?;
+    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
     let player = rodio::Player::connect_new(stream_handle.mixer());
 
     // Decode the sound file into a source

@@ -538,14 +538,14 @@ where
     /// let speakers = SpeakersBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     .open_mixer_sink()?;
+    ///     .open_mixer()?;
     /// let mixer = speakers.mixer();
     /// mixer.add(SineWave::new(440.).take_duration(Duration::from_secs(4)));
     /// std::thread::sleep(Duration::from_secs(4));
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn open_mixer_sink(&self) -> Result<MixerDeviceSink, crate::DeviceSinkError> {
+    pub fn open_mixer(&self) -> Result<MixerDeviceSink, crate::DeviceSinkError> {
         speakers::Speakers::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
             *self.config.as_ref().expect("ConfigIsSet"),

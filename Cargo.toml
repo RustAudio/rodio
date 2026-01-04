@@ -131,6 +131,7 @@ rstest_reuse = "0.7"
 approx = "0.5.1"
 divan = "0.1.14"
 inquire = "0.7.5"
+statrs = "0.18.0"
 
 [[bench]]
 name = "effects"

@@ -106,7 +106,7 @@ use cpal::{
     Device,
 };
 
-use crate::{common::assert_error_traits, OsSinkError};
+use crate::{common::assert_error_traits, DeviceSinkError};
 
 mod builder;
 mod config;
@@ -182,7 +182,7 @@ impl Speakers {
         device: Device,
         config: OutputConfig,
         error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
-    ) -> Result<crate::stream::MixerOsSink, OsSinkError> {
-        crate::stream::MixerOsSink::open(&device, &config.into_cpal_config(), error_callback)
+    ) -> Result<crate::stream::MixerDeviceSink, DeviceSinkError> {
+        crate::stream::MixerDeviceSink::open(&device, &config.into_cpal_config(), error_callback)
     }
 }

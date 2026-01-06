@@ -5,8 +5,8 @@ use symphonia::{core::codecs::CodecRegistry, default::register_enabled_codecs};
 use symphonia_adapter_libopus::OpusDecoder;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
-    let sink = rodio::Sink::connect_new(stream_handle.mixer());
+    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
+    let sink = rodio::Player::connect_new(stream_handle.mixer());
 
     let mut codec_registry = CodecRegistry::new();
     codec_registry.register_all::<OpusDecoder>();

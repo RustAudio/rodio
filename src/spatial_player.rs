@@ -6,13 +6,13 @@ use dasp_sample::FromSample;
 
 use crate::mixer::Mixer;
 use crate::source::{SeekError, Spatial};
-use crate::{Sink, Source};
+use crate::{Float, Player, Source};
 
 /// A sink that allows changing the position of the source and the listeners
 /// ears while playing. The sources played are then transformed to give a simple
 /// spatial effect. See [`Spatial`] for details.
-pub struct SpatialSink {
-    sink: Sink,
+pub struct SpatialPlayer {
+    player: Player,
     positions: Arc<Mutex<SoundPositions>>,
 }
 
@@ -22,16 +22,16 @@ struct SoundPositions {
     right_ear: [f32; 3],
 }
 
-impl SpatialSink {
-    /// Builds a new `SpatialSink`.
+impl SpatialPlayer {
+    /// Builds a new `SpatialPlayer`.
     pub fn connect_new(
         mixer: &Mixer,
         emitter_position: [f32; 3],
         left_ear: [f32; 3],
         right_ear: [f32; 3],
-    ) -> SpatialSink {
-        SpatialSink {
-            sink: Sink::connect_new(mixer),
+    ) -> SpatialPlayer {
+        SpatialPlayer {
+            player: Player::connect_new(mixer),
             positions: Arc::new(Mutex::new(SoundPositions {
                 emitter_position,
                 left_ear,
@@ -74,7 +74,7 @@ impl SpatialSink {
             let pos = positions.lock().unwrap();
             i.set_positions(pos.emitter_position, pos.left_ear, pos.right_ear);
         });
-        self.sink.append(source);
+        self.player.append(source);
     }
 
     // Gets the volume of the sound.
@@ -82,8 +82,8 @@ impl SpatialSink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
     /// multiply each sample by this value.
     #[inline]
-    pub fn volume(&self) -> f32 {
-        self.sink.volume()
+    pub fn volume(&self) -> Float {
+        self.player.volume()
     }
 
     /// Changes the volume of the sound.
@@ -91,8 +91,8 @@ impl SpatialSink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
     /// multiply each sample by this value.
     #[inline]
-    pub fn set_volume(&self, value: f32) {
-        self.sink.set_volume(value);
+    pub fn set_volume(&self, value: Float) {
+        self.player.set_volume(value);
     }
 
     /// Changes the play speed of the sound. Does not adjust the samples, only the playback speed.
@@ -111,7 +111,7 @@ impl SpatialSink {
     /// See [`Speed`](crate::source::Speed) for details
     #[inline]
     pub fn speed(&self) -> f32 {
-        self.sink.speed()
+        self.player.speed()
     }
 
     /// Changes the speed of the sound.
@@ -120,7 +120,7 @@ impl SpatialSink {
     /// change the play speed of the sound.
     #[inline]
     pub fn set_speed(&self, value: f32) {
-        self.sink.set_speed(value)
+        self.player.set_speed(value)
     }
 
     /// Resumes playback of a paused sound.
@@ -128,62 +128,62 @@ impl SpatialSink {
     /// No effect if not paused.
     #[inline]
     pub fn play(&self) {
-        self.sink.play();
+        self.player.play();
     }
 
-    /// Pauses playback of this sink.
+    /// Pauses playback of this player.
     ///
     /// No effect if already paused.
     ///
     /// A paused sound can be resumed with `play()`.
     pub fn pause(&self) {
-        self.sink.pause();
+        self.player.pause();
     }
 
     /// Gets if a sound is paused
     ///
     /// Sounds can be paused and resumed using pause() and play(). This gets if a sound is paused.
     pub fn is_paused(&self) -> bool {
-        self.sink.is_paused()
+        self.player.is_paused()
     }
 
-    /// Removes all currently loaded `Source`s from the `SpatialSink` and pauses it.
+    /// Removes all currently loaded `Source`s from the `SpatialPlayer` and pauses it.
     ///
-    /// See `pause()` for information about pausing a `Sink`.
+    /// See `pause()` for information about pausing a `Player`.
     #[inline]
     pub fn clear(&self) {
-        self.sink.clear();
+        self.player.clear();
     }
 
     /// Stops the sink by emptying the queue.
     #[inline]
     pub fn stop(&self) {
-        self.sink.stop()
+        self.player.stop()
     }
 
     /// Destroys the sink without stopping the sounds that are still playing.
     #[inline]
     pub fn detach(self) {
-        self.sink.detach();
+        self.player.detach();
     }
 
     /// Sleeps the current thread until the sound ends.
     #[inline]
     pub fn sleep_until_end(&self) {
-        self.sink.sleep_until_end();
+        self.player.sleep_until_end();
     }
 
     /// Returns true if this sink has no more sounds to play.
     #[inline]
     pub fn empty(&self) -> bool {
-        self.sink.empty()
+        self.player.empty()
     }
 
     /// Returns the number of sounds currently in the queue.
     #[allow(clippy::len_without_is_empty)]
     #[inline]
     pub fn len(&self) -> usize {
-        self.sink.len()
+        self.player.len()
     }
 
     /// Attempts to seek to a given position in the current source.
@@ -205,7 +205,7 @@ impl SpatialSink {
     /// When seeking beyond the end of a source this
     /// function might return an error if the duration of the source is not known.
     pub fn try_seek(&self, pos: Duration) -> Result<(), SeekError> {
-        self.sink.try_seek(pos)
+        self.player.try_seek(pos)
     }
 
     /// Returns the position of the sound that's being played.
@@ -213,10 +213,10 @@ impl SpatialSink {
     /// This takes into account any speedup or delay applied.
     ///
     /// Example: if you apply a speedup of *2* to an mp3 decoder source and
-    /// [`get_pos()`](Sink::get_pos) returns *5s* then the position in the mp3
+    /// [`get_pos()`](Player::get_pos) returns *5s* then the position in the mp3
     /// recording is *10s* from its start.
     #[inline]
     pub fn get_pos(&self) -> Duration {
-        self.sink.get_pos()
+        self.player.get_pos()
     }
 }

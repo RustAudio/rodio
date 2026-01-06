@@ -3,12 +3,16 @@
 
 #[cfg(feature = "symphonia-mp3")]
 use rodio::{decoder::symphonia, source::SeekError};
-use rodio::{ChannelCount, Decoder, Source};
+use rodio::{ChannelCount, Decoder, Sample, Source};
 use rstest::rstest;
 use rstest_reuse::{self, *};
 use std::io::{Read, Seek};
 use std::path::Path;
 use std::time::Duration;
+
+// Test constants
+const BASICALLY_ZERO: Sample = 0.0001;
+const ONE_SECOND: Duration = Duration::from_secs(1);
 
 #[cfg(any(
     feature = "claxon",
@@ -118,7 +122,7 @@ fn seek_beyond_end_saturates(#[case] format: &'static str, #[case] decoder_name:
     let res = decoder.try_seek(Duration::from_secs(999));
 
     assert!(res.is_ok(), "err: {res:?}");
-    assert!(time_remaining(decoder) < Duration::from_secs(1));
+    assert!(time_remaining(decoder) < ONE_SECOND);
 }
 
 #[cfg(any(
@@ -255,7 +259,7 @@ fn random_access_seeks() {
     );
     assert!(
         matches!(
-            decoder.try_seek(Duration::from_secs(1)),
+            decoder.try_seek(ONE_SECOND),
             Err(SeekError::SymphoniaDecoder(
                 symphonia::SeekError::RandomAccessNotSupported,
             ))
@@ -270,14 +274,14 @@ fn random_access_seeks() {
         "forward seek should work with byte_len"
     );
     assert!(
-        decoder.try_seek(Duration::from_secs(1)).is_ok(),
+        decoder.try_seek(ONE_SECOND).is_ok(),
         "backward seek should work with byte_len"
     );
 }
 
 fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Range<usize> {
     let channels = source.channels().get() as usize;
-    let samples: Vec<f32> = source.by_ref().collect();
+    let samples: Vec<Sample> = source.by_ref().collect();
 
     const WINDOW: usize = 50;
     let beep_starts = samples
@@ -289,14 +293,13 @@ fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Rang
                 .skip(1)
                 .step_by(channels)
                 .map(|s| s.abs())
-                .sum::<f32>()
+                .sum::<Sample>()
                 > 0.1
         })
         .expect("track should not be silent")
         .0
         .next_multiple_of(channels);
 
-    const BASICALLY_ZERO: f32 = 0.0001;
     let beep_ends = samples
         .chunks_exact(WINDOW)
         .enumerate()
@@ -325,16 +328,15 @@ fn second_channel_beep_range<R: rodio::Source>(source: &mut R) -> std::ops::Rang
     beep_starts..beep_ends
 }
 
-fn is_silent(samples: &[f32], channels: ChannelCount, channel: usize) -> bool {
+fn is_silent(samples: &[Sample], channels: ChannelCount, channel: usize) -> bool {
     assert_eq!(samples.len(), 100);
     let channel = samples
         .iter()
         .skip(channel)
         .step_by(channels.get() as usize);
-    let volume =
-        channel.map(|s| s.abs()).sum::<f32>() / samples.len() as f32 * channels.get() as f32;
+    let volume = channel.map(|s| s.abs()).sum::<Sample>() / samples.len() as Sample
+        * channels.get() as Sample;
 
-    const BASICALLY_ZERO: f32 = 0.0001;
     volume < BASICALLY_ZERO
 }
 

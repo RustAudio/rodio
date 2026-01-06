@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::{Float, Sample, Source};
 
 /// Combines channels in input into a single mono source, then plays that mono sound
 /// to each channel at the volume given for that channel.
@@ -12,7 +12,7 @@ where
     I: Source,
 {
     input: I,
-    channel_volumes: Vec<f32>,
+    channel_volumes: Vec<Float>,
     current_channel: usize,
     current_sample: Option<Sample>,
 }
@@ -24,7 +24,7 @@ where
     /// Wrap the input source and make it mono. Play that mono sound to each
     /// channel at the volume set by the user. The volume can be changed using
     /// [`ChannelVolume::set_volume`].
-    pub fn new(input: I, channel_volumes: Vec<f32>) -> ChannelVolume<I> {
+    pub fn new(input: I, channel_volumes: Vec<Float>) -> ChannelVolume<I> {
         let channel_count = channel_volumes.len(); // See next() implementation.
         ChannelVolume {
             input,
@@ -36,7 +36,7 @@ where
 
     /// Sets the volume for a given channel number. Will panic if channel number
     /// is invalid.
-    pub fn set_volume(&mut self, channel: usize, volume: f32) {
+    pub fn set_volume(&mut self, channel: usize, volume: Float) {
         self.channel_volumes[channel] = volume;
     }
 
@@ -77,7 +77,7 @@ where
                     self.current_sample = Some(self.current_sample.unwrap_or(0.0) + s);
                 }
             }
-            self.current_sample.map(|s| s / num_channels.get() as f32);
+            self.current_sample.map(|s| s / num_channels.get() as Float);
         }
         let result = self
             .current_sample

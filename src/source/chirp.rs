@@ -1,20 +1,20 @@
 //! Chirp/sweep source.
 
-use std::{f32::consts::TAU, time::Duration};
+use std::time::Duration;
 
 use crate::{
     common::{ChannelCount, SampleRate},
-    math::nz,
+    math::{nz, TAU},
     source::SeekError,
-    Source,
+    Float, Sample, Source,
 };
 
 /// Convenience function to create a new `Chirp` source.
 #[inline]
 pub fn chirp(
     sample_rate: SampleRate,
-    start_frequency: f32,
-    end_frequency: f32,
+    start_frequency: Float,
+    end_frequency: Float,
     duration: Duration,
 ) -> Chirp {
     Chirp::new(sample_rate, start_frequency, end_frequency, duration)
@@ -24,8 +24,8 @@ pub fn chirp(
 /// At the end of the chirp, once the `end_frequency` is reached, the source is exhausted.
 #[derive(Clone, Debug)]
 pub struct Chirp {
-    start_frequency: f32,
-    end_frequency: f32,
+    start_frequency: Float,
+    end_frequency: Float,
     sample_rate: SampleRate,
     total_samples: u64,
     elapsed_samples: u64,
@@ -34,8 +34,8 @@ pub struct Chirp {
 impl Chirp {
     fn new(
         sample_rate: SampleRate,
-        start_frequency: f32,
-        end_frequency: f32,
+        start_frequency: Float,
+        end_frequency: Float,
         duration: Duration,
     ) -> Self {
         Self {
@@ -60,7 +60,7 @@ impl Chirp {
 }
 
 impl Iterator for Chirp {
-    type Item = f32;
+    type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.elapsed_samples;
@@ -68,9 +68,9 @@ impl Iterator for Chirp {
             return None; // Exhausted
         }
 
-        let ratio = (i as f64 / self.total_samples as f64) as f32;
+        let ratio = (i as f64 / self.total_samples as f64) as Float;
         let freq = self.start_frequency * (1.0 - ratio) + self.end_frequency * ratio;
-        let t = (i as f64 / self.sample_rate().get() as f64) as f32 * TAU * freq;
+        let t = (i as f64 / self.sample_rate().get() as f64) as Float * TAU * freq;
 
         self.elapsed_samples += 1;
         Some(t.sin())

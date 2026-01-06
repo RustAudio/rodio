@@ -34,6 +34,8 @@ wav_output = ["dep:hound"]
 tracing = ["dep:tracing"]
 # Experimental features using atomic floating-point operations
 experimental = ["dep:atomic_float"]
+# Perform all calculations with 64-bit floats (instead of 32)
+64bit = []
 
 # Audio generation features
 #
@@ -46,8 +48,6 @@ noise = ["rand", "rand_distr"]
 #
 # Enable WebAssembly support for web browsers
 wasm-bindgen = ["cpal/wasm-bindgen"]
-# Use shared C++ stdlib on Android (reduces APK size, fixes linking issues)
-cpal-shared-stdcxx = ["cpal/oboe-shared-stdcxx"]
 
 # To decode an audio source with Rodio, you need to enable the appropriate features for *both* the
 # demuxer and the decoder.
@@ -108,7 +108,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-cpal = { version = "0.16", optional = true }
+cpal = { version = "0.17.0", optional = true }
 dasp_sample = "0.11.0"
 claxon = { version = "0.4.2", optional = true }
 hound = { version = "3.5", optional = true }

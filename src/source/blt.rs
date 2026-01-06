@@ -1,6 +1,6 @@
-use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
-use std::f32::consts::PI;
+use crate::common::{ChannelCount, Float, SampleRate};
+use crate::math::PI;
+use crate::{Sample, Source};
 use std::time::Duration;
 
 use super::SeekError;
@@ -10,22 +10,22 @@ use super::SeekError;
 /// Internal function that builds a `BltFilter` object.
 pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
 where
-    I: Source<Item = f32>,
+    I: Source<Item = Sample>,
 {
     low_pass_with_q(input, freq, 0.5)
 }
 
 pub fn high_pass<I>(input: I, freq: u32) -> BltFilter<I>
 where
-    I: Source<Item = f32>,
+    I: Source<Item = Sample>,
 {
     high_pass_with_q(input, freq, 0.5)
 }
 
 /// Same as low_pass but allows the q value (bandwidth) to be changed
-pub fn low_pass_with_q<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
+pub fn low_pass_with_q<I>(input: I, freq: u32, q: Float) -> BltFilter<I>
 where
-    I: Source<Item = f32>,
+    I: Source<Item = Sample>,
 {
     BltFilter {
         input,
@@ -39,9 +39,9 @@ where
 }
 
 /// Same as high_pass but allows the q value (bandwidth) to be changed
-pub fn high_pass_with_q<I>(input: I, freq: u32, q: f32) -> BltFilter<I>
+pub fn high_pass_with_q<I>(input: I, freq: u32, q: Float) -> BltFilter<I>
 where
-    I: Source<Item = f32>,
+    I: Source<Item = Sample>,
 {
     BltFilter {
         input,
@@ -60,10 +60,10 @@ pub struct BltFilter<I> {
     input: I,
     formula: BltFormula,
     applier: Option<BltApplier>,
-    x_n1: f32,
-    x_n2: f32,
-    y_n1: f32,
-    y_n2: f32,
+    x_n1: Float,
+    x_n2: Float,
+    y_n1: Float,
+    y_n2: Float,
 }
 
 impl<I> BltFilter<I> {
@@ -78,13 +78,13 @@ impl<I> BltFilter<I> {
     }
 
     /// Same as to_low_pass but allows the q value (bandwidth) to be changed
-    pub fn to_low_pass_with_q(&mut self, freq: u32, q: f32) {
+    pub fn to_low_pass_with_q(&mut self, freq: u32, q: Float) {
         self.formula = BltFormula::LowPass { freq, q };
         self.applier = None;
     }
 
     /// Same as to_high_pass but allows the q value (bandwidth) to be changed
-    pub fn to_high_pass_with_q(&mut self, freq: u32, q: f32) {
+    pub fn to_high_pass_with_q(&mut self, freq: u32, q: Float) {
         self.formula = BltFormula::HighPass { freq, q };
         self.applier = None;
     }
@@ -110,12 +110,12 @@ impl<I> BltFilter<I> {
 
 impl<I> Iterator for BltFilter<I>
 where
-    I: Source<Item = f32>,
+    I: Source<Item = Sample>,
 {
-    type Item = f32;
+    type Item = Sample;
 
     #[inline]
-    fn next(&mut self) -> Option<f32> {
+    fn next(&mut self) -> Option<Sample> {
         let last_in_span = self.input.current_span_len() == Some(1);
 
         if self.applier.is_none() {
@@ -147,11 +147,11 @@ where
     }
 }
 
-impl<I> ExactSizeIterator for BltFilter<I> where I: Source<Item = f32> + ExactSizeIterator {}
+impl<I> ExactSizeIterator for BltFilter<I> where I: Source<Item = Sample> + ExactSizeIterator {}
 
 impl<I> Source for BltFilter<I>
 where
-    I: Source<Item = f32>,
+    I: Source<Item = Sample>,
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
@@ -181,15 +181,15 @@ where
 
 #[derive(Clone, Debug)]
 enum BltFormula {
-    LowPass { freq: u32, q: f32 },
-    HighPass { freq: u32, q: f32 },
+    LowPass { freq: u32, q: Float },
+    HighPass { freq: u32, q: Float },
 }
 
 impl BltFormula {
     fn to_applier(&self, sampling_frequency: u32) -> BltApplier {
         match *self {
             BltFormula::LowPass { freq, q } => {
-                let w0 = 2.0 * PI * freq as f32 / sampling_frequency as f32;
+                let w0 = 2.0 * PI * freq as Float / sampling_frequency as Float;
 
                 let alpha = w0.sin() / (2.0 * q);
                 let b1 = 1.0 - w0.cos();
@@ -208,7 +208,7 @@ impl BltFormula {
                 }
             }
             BltFormula::HighPass { freq, q } => {
-                let w0 = 2.0 * PI * freq as f32 / sampling_frequency as f32;
+                let w0 = 2.0 * PI * freq as Float / sampling_frequency as Float;
                 let cos_w0 = w0.cos();
                 let alpha = w0.sin() / (2.0 * q);
 
@@ -233,16 +233,16 @@ impl BltFormula {
 
 #[derive(Clone, Debug)]
 struct BltApplier {
-    b0: f32,
-    b1: f32,
-    b2: f32,
-    a1: f32,
-    a2: f32,
+    b0: Float,
+    b1: Float,
+    b2: Float,
+    a1: Float,
+    a2: Float,
 }
 
 impl BltApplier {
     #[inline]
-    fn apply(&self, x_n: f32, x_n1: f32, x_n2: f32, y_n1: f32, y_n2: f32) -> f32 {
+    fn apply(&self, x_n: Float, x_n1: Float, x_n2: Float, y_n1: Float, y_n2: Float) -> Float {
         self.b0 * x_n + self.b1 * x_n1 + self.b2 * x_n2 - self.a1 * y_n1 - self.a2 * y_n2
     }
 }

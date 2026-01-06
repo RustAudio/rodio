@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Chirp` now implements `Iterator::size_hint` and `ExactSizeIterator`.
+- `Chirp` and `Empty` now implement `Iterator::size_hint` and `ExactSizeIterator`.
+- `SamplesBuffer` now implements `ExactSizeIterator`.
+- `Zero` now implements `try_seek`, `total_duration` and `Copy`.
+- Added `Source::is_exhausted()` helper method to check if a source has no more samples.
 - Added `Red` noise generator that is more practical than `Brownian` noise.
 - Added `std_dev()` to `WhiteUniform` and `WhiteTriangular`.
 - Added a macro `nz!` which facilitates creating NonZero's for `SampleRate` and
@@ -25,18 +28,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Four dithering algorithms: `TPDF`, `RPDF`, `GPDF`, and `HighPass`
   - `DitherAlgorithm` enum for algorithm selection
   - `Source::dither()` function for applying dithering
+- Added `64bit` feature to opt-in to 64-bit sample precision (`f64`).
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.
 - `Chirp::next` now returns `None` when the total duration has been reached, and will work
   correctly for a number of samples greater than 2^24.
 - `PeriodicAccess` is slightly more accurate for 44.1 kHz sample rate families.
+- Fixed audio distortion when queueing sources with different sample rates/channel counts or transitioning from empty queue.
+- Fixed `SamplesBuffer` to correctly report exhaustion and remaining samples.
+- Improved precision in `SkipDuration` to avoid off-by-a-few-samples errors.
+- Fixed channel misalignment in queue with non-power-of-2 channel counts (e.g., 6 channels) by ensuring frame-aligned span lengths.
+- Fixed channel misalignment when sources end before their promised span length by padding with silence to complete frames.
+- Fixed `Empty` source to properly report exhaustion.
+- Fixed `Zero::current_span_len` returning remaining samples instead of span length.
 
 ### Changed
+- Breaking: _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced
+  with _Sink_. This is a simple rename, functionality is identical.
+    - `OutputStream` is now `MixerDeviceSink` (in anticipation of future
+      `QueueDeviceSink`)
+    - `OutputStreamBuilder` is now `DeviceSinkBuilder`
+    - `open_stream_or_fallback` is now `open_sink_or_fallback`
+    - `open_default_stream` is now `open_default_sink`
+    - `open_stream` is now `open_mixer` (in anticipation of future `open_queue`)
+    - `Sink` is now `Player`
+    - `SpatialSink` is now `SpatialPlayer`
+    - `StreamError` is now `OsSinkError`
 - `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
 - `Blue` noise generator uses uniform instead of Gaussian noise for better performance.
 - `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
 - `Velvet` noise generator takes density in Hz as `usize` instead of `f32`.
+- Upgraded `cpal` to v0.17.
+- Clarified `Source::current_span_len()` contract documentation.
+- Improved queue, mixer and sample rate conversion performance.
 
 ## Version [0.21.1] (2025-07-14)
 
@@ -152,7 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       implementation.
 
 ### Fixed
-- `Sink.try_seek` now updates `controls.position` before returning. Calls to `Sink.get_pos`
+- `player.try_seek` now updates `controls.position` before returning. Calls to `player.get_pos`
   done immediately after a seek will now return the correct value.
 
 ### Changed

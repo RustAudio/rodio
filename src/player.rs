@@ -10,13 +10,14 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use crate::mixer::Mixer;
 use crate::source::SeekError;
+use crate::Float;
 use crate::{queue, source::Done, Source};
 
 /// Handle to a device that outputs sounds.
 ///
-/// Dropping the `Sink` stops all its sounds. You can use `detach` if you want the sounds to continue
+/// Dropping the `Player` stops all its sounds. You can use `detach` if you want the sounds to continue
 /// playing.
-pub struct Sink {
+pub struct Player {
     queue_tx: Arc<queue::SourcesQueueInput>,
     sleep_until_end: Mutex<Option<Receiver<()>>>,
 
@@ -58,7 +59,7 @@ impl SeekOrder {
 
 struct Controls {
     pause: AtomicBool,
-    volume: Mutex<f32>,
+    volume: Mutex<Float>,
     stopped: AtomicBool,
     speed: Mutex<f32>,
     to_clear: Mutex<u32>,
@@ -66,21 +67,21 @@ struct Controls {
     position: Mutex<Duration>,
 }
 
-impl Sink {
-    /// Builds a new `Sink`, beginning playback on a stream.
+impl Player {
+    /// Builds a new `Player`, beginning playback on a stream.
     #[inline]
-    pub fn connect_new(mixer: &Mixer) -> Sink {
-        let (sink, source) = Sink::new();
+    pub fn connect_new(mixer: &Mixer) -> Player {
+        let (sink, source) = Player::new();
         mixer.add(source);
         sink
     }
 
-    /// Builds a new `Sink`.
+    /// Builds a new `Player`.
     #[inline]
-    pub fn new() -> (Sink, queue::SourcesQueueOutput) {
+    pub fn new() -> (Player, queue::SourcesQueueOutput) {
         let (queue_tx, queue_rx) = queue::queue(true);
 
-        let sink = Sink {
+        let sink = Player {
             queue_tx,
             sleep_until_end: Mutex::new(None),
             controls: Arc::new(Controls {
@@ -138,7 +139,8 @@ impl Sink {
                         *to_clear -= 1;
                         *controls.position.lock().unwrap() = Duration::ZERO;
                     } else {
-                        *controls.position.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
+                        *controls.position.lock().unwrap() =
+                            src.inner().inner().inner().inner().get_pos();
                     }
                 }
                 let amp = src.inner_mut().inner_mut();
@@ -164,7 +166,7 @@ impl Sink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than 1.0 will
     /// multiply each sample by this value.
     #[inline]
-    pub fn volume(&self) -> f32 {
+    pub fn volume(&self) -> Float {
         *self.controls.volume.lock().unwrap()
     }
 
@@ -173,13 +175,13 @@ impl Sink {
     /// The value `1.0` is the "normal" volume (unfiltered input). Any value other than `1.0` will
     /// multiply each sample by this value.
     #[inline]
-    pub fn set_volume(&self, value: f32) {
+    pub fn set_volume(&self, value: Float) {
         *self.controls.volume.lock().unwrap() = value;
     }
 
     /// Gets the speed of the sound.
     ///
-    /// See [`Sink::set_speed`] for details on what *speed* means.
+    /// See [`Player::set_speed`] for details on what *speed* means.
     #[inline]
     pub fn speed(&self) -> f32 {
         *self.controls.speed.lock().unwrap()
@@ -203,7 +205,7 @@ impl Sink {
         *self.controls.speed.lock().unwrap() = value;
     }
 
-    /// Resumes playback of a paused sink.
+    /// Resumes playback of a paused player.
     ///
     /// No effect if not paused.
     #[inline]
@@ -254,7 +256,7 @@ impl Sink {
         }
     }
 
-    /// Pauses playback of this sink.
+    /// Pauses playback of this player.
     ///
     /// No effect if already paused.
     ///
@@ -265,15 +267,15 @@ impl Sink {
 
     /// Gets if a sink is paused
     ///
-    /// Sinks can be paused and resumed using `pause()` and `play()`. This returns `true` if the
+    /// Players can be paused and resumed using `pause()` and `play()`. This returns `true` if the
     /// sink is paused.
     pub fn is_paused(&self) -> bool {
         self.controls.pause.load(Ordering::SeqCst)
     }
 
-    /// Removes all currently loaded `Source`s from the `Sink`, and pauses it.
+    /// Removes all currently loaded `Source`s from the `Player`, and pauses it.
     ///
-    /// See `pause()` for information about pausing a `Sink`.
+    /// See `pause()` for information about pausing a `Player`.
     pub fn clear(&self) {
         let len = self.sound_count.load(Ordering::SeqCst) as u32;
         *self.controls.to_clear.lock().unwrap() = len;
@@ -281,10 +283,10 @@ impl Sink {
         self.pause();
     }
 
-    /// Skips to the next `Source` in the `Sink`
+    /// Skips to the next `Source` in the `Player`
     ///
-    /// If there are more `Source`s appended to the `Sink` at the time,
-    /// it will play the next one. Otherwise, the `Sink` will finish as if
+    /// If there are more `Source`s appended to the `Player` at the time,
+    /// it will play the next one. Otherwise, the `Player` will finish as if
     /// it had finished playing a `Source` all the way through.
     pub fn skip_one(&self) {
         let len = self.sound_count.load(Ordering::SeqCst) as u32;
@@ -332,7 +334,7 @@ impl Sink {
     /// This takes into account any speedup or delay applied.
     ///
     /// Example: if you apply a speedup of *2* to an mp3 decoder source and
-    /// [`get_pos()`](Sink::get_pos) returns *5s* then the position in the mp3
+    /// [`get_pos()`](Player::get_pos) returns *5s* then the position in the mp3
     /// recording is *10s* from its start.
     #[inline]
     pub fn get_pos(&self) -> Duration {
@@ -340,7 +342,7 @@ impl Sink {
     }
 }
 
-impl Drop for Sink {
+impl Drop for Player {
     #[inline]
     fn drop(&mut self) {
         self.queue_tx.set_keep_alive_if_empty(false);
@@ -357,11 +359,11 @@ mod tests {
 
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
-    use crate::{Sink, Source};
+    use crate::{Player, Source};
 
     #[test]
     fn test_pause_and_stop() {
-        let (sink, mut source) = Sink::new();
+        let (player, mut source) = Player::new();
 
         assert_eq!(source.next(), Some(0.0));
         // TODO (review) How did this test passed before? I might have broken something but
@@ -373,49 +375,49 @@ mod tests {
         let v = vec![10.0, -10.0, 20.0, -20.0, 30.0, -30.0];
 
         // Low rate to ensure immediate control.
-        sink.append(SamplesBuffer::new(nz!(1), nz!(1), v.clone()));
+        player.append(SamplesBuffer::new(nz!(1), nz!(1), v.clone()));
         let mut reference_src = SamplesBuffer::new(nz!(1), nz!(1), v);
 
         assert_eq!(source.next(), reference_src.next());
         assert_eq!(source.next(), reference_src.next());
 
-        sink.pause();
+        player.pause();
 
         assert_eq!(source.next(), Some(0.0));
 
-        sink.play();
+        player.play();
 
         assert_eq!(source.next(), reference_src.next());
         assert_eq!(source.next(), reference_src.next());
 
-        sink.stop();
+        player.stop();
 
         assert_eq!(source.next(), Some(0.0));
 
-        assert!(sink.empty());
+        assert!(player.empty());
     }
 
     #[test]
     fn test_stop_and_start() {
-        let (sink, mut queue_rx) = Sink::new();
+        let (player, mut queue_rx) = Player::new();
 
         let v = vec![10.0, -10.0, 20.0, -20.0, 30.0, -30.0];
 
-        sink.append(SamplesBuffer::new(nz!(1), nz!(1), v.clone()));
+        player.append(SamplesBuffer::new(nz!(1), nz!(1), v.clone()));
         let mut src = SamplesBuffer::new(nz!(1), nz!(1), v.clone());
 
         assert_eq!(queue_rx.next(), src.next());
         assert_eq!(queue_rx.next(), src.next());
 
-        sink.stop();
+        player.stop();
 
-        assert!(sink.controls.stopped.load(Ordering::SeqCst));
+        assert!(player.controls.stopped.load(Ordering::SeqCst));
         assert_eq!(queue_rx.next(), Some(0.0));
 
         src = SamplesBuffer::new(nz!(1), nz!(1), v.clone());
-        sink.append(SamplesBuffer::new(nz!(1), nz!(1), v));
+        player.append(SamplesBuffer::new(nz!(1), nz!(1), v));
 
-        assert!(!sink.controls.stopped.load(Ordering::SeqCst));
+        assert!(!player.controls.stopped.load(Ordering::SeqCst));
         // Flush silence
         let mut queue_rx = queue_rx.skip_while(|v| *v == 0.0);
 
@@ -425,16 +427,16 @@ mod tests {
 
     #[test]
     fn test_volume() {
-        let (sink, mut queue_rx) = Sink::new();
+        let (player, mut queue_rx) = Player::new();
 
         let v = vec![10.0, -10.0, 20.0, -20.0, 30.0, -30.0];
 
         // High rate to avoid immediate control.
-        sink.append(SamplesBuffer::new(nz!(2), nz!(44100), v.clone()));
+        player.append(SamplesBuffer::new(nz!(2), nz!(44100), v.clone()));
         let src = SamplesBuffer::new(nz!(2), nz!(44100), v.clone());
 
         let mut src = src.amplify(0.5);
-        sink.set_volume(0.5);
+        player.set_volume(0.5);
 
         for _ in 0..v.len() {
             assert_eq!(queue_rx.next(), src.next());

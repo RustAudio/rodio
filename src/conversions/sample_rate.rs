@@ -1,6 +1,7 @@
 use crate::common::{ChannelCount, SampleRate};
 use crate::{math, Sample};
 use num_rational::Ratio;
+use std::collections::VecDeque;
 use std::mem;
 
 /// Iterator that converts from a certain sample rate to another.
@@ -27,7 +28,7 @@ where
     /// This counter is incremented (modulo `to`) every time the iterator is called.
     next_output_span_pos_in_chunk: u32,
     /// The buffer containing the samples waiting to be output.
-    output_buffer: Vec<I::Item>,
+    output_buffer: VecDeque<I::Item>,
 }
 
 impl<I> SampleRateConverter<I>
@@ -81,7 +82,10 @@ where
             next_output_span_pos_in_chunk: 0,
             current_span: first_samples,
             next_frame: next_samples,
-            output_buffer: Vec::with_capacity(num_channels.get() as usize - 1),
+            // Capacity: worst case is upsampling where we buffer multiple frames worth of samples.
+            output_buffer: VecDeque::with_capacity(
+                (to as f32 / from as f32).ceil() as usize * num_channels.get() as usize,
+            ),
         }
     }
 
@@ -126,8 +130,8 @@ where
         }
 
         // Short circuit if there are some samples waiting.
-        if !self.output_buffer.is_empty() {
-            return Some(self.output_buffer.remove(0));
+        if let Some(sample) = self.output_buffer.pop_front() {
+            return Some(sample);
         }
 
         // The span we are going to return from this function will be a linear interpolation
@@ -167,12 +171,12 @@ where
             .zip(self.next_frame.iter())
             .enumerate()
         {
-            let sample = math::lerp(cur, next, numerator, self.to);
+            let sample = math::lerp(*cur, *next, numerator, self.to);
 
             if off == 0 {
                 result = Some(sample);
             } else {
-                self.output_buffer.push(sample);
+                self.output_buffer.push_back(sample);
             }
         }
 
@@ -183,14 +187,10 @@ where
             result
         } else {
             // draining `self.current_span`
-            if !self.current_span.is_empty() {
-                let r = Some(self.current_span.remove(0));
-                mem::swap(&mut self.output_buffer, &mut self.current_span);
-                self.current_span.clear();
-                r
-            } else {
-                None
-            }
+            let mut current_span = self.current_span.drain(..);
+            let r = current_span.next()?;
+            self.output_buffer.extend(current_span);
+            Some(r)
         }
     }
 

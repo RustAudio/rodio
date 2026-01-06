@@ -4,6 +4,7 @@
 //! to configure audio limiting parameters.
 
 use rodio::source::{LimitSettings, SineWave, Source};
+use rodio::Sample;
 use std::time::Duration;
 
 fn main() {
@@ -39,11 +40,11 @@ fn main() {
     let limited_wave = sine_wave.limit(LimitSettings::default());
 
     // Collect some samples to demonstrate
-    let samples: Vec<f32> = limited_wave.take(100).collect();
+    let samples: Vec<Sample> = limited_wave.take(100).collect();
     println!("  Generated {} limited samples", samples.len());
 
     // Show peak reduction
-    let max_sample = samples.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
+    let max_sample: Sample = samples.iter().fold(0.0, |acc, &x| acc.max(x.abs()));
     println!("  Peak amplitude after limiting: {max_sample:.3}");
     println!();
 
@@ -56,7 +57,7 @@ fn main() {
 
     // Apply the custom settings from Example 2
     let custom_limited = sine_wave2.limit(custom_limiting);
-    let custom_samples: Vec<f32> = custom_limited.take(50).collect();
+    let custom_samples: Vec<Sample> = custom_limited.take(50).collect();
     println!(
         "  Generated {} samples with custom settings",
         custom_samples.len()
@@ -66,15 +67,15 @@ fn main() {
     println!("Example 5: Comparing different limiting scenarios");
 
     let gentle_limiting = LimitSettings::default()
-        .with_threshold(-6.0)           // Higher threshold (less limiting)
-        .with_knee_width(8.0)           // Wide knee (softer)
-        .with_attack(Duration::from_millis(20))    // Slower attack
+        .with_threshold(-6.0) // Higher threshold (less limiting)
+        .with_knee_width(8.0) // Wide knee (softer)
+        .with_attack(Duration::from_millis(20)) // Slower attack
         .with_release(Duration::from_millis(200)); // Slower release
 
     let aggressive_limiting = LimitSettings::default()
-        .with_threshold(-1.0)           // Lower threshold (more limiting)
-        .with_knee_width(1.0)           // Narrow knee (harder)
-        .with_attack(Duration::from_millis(2))    // Fast attack
+        .with_threshold(-1.0) // Lower threshold (more limiting)
+        .with_knee_width(1.0) // Narrow knee (harder)
+        .with_attack(Duration::from_millis(2)) // Fast attack
         .with_release(Duration::from_millis(20)); // Fast release
 
     println!("  Gentle limiting:");
@@ -101,7 +102,7 @@ fn main() {
     println!("Example 6: Limiting with -6dB threshold");
 
     // Create a sine wave that will definitely trigger limiting
-    const AMPLITUDE: f32 = 2.5; // High amplitude to ensure limiting occurs
+    const AMPLITUDE: Sample = 2.5; // High amplitude to ensure limiting occurs
     let test_sine = SineWave::new(440.0)
         .amplify(AMPLITUDE)
         .take_duration(Duration::from_millis(100)); // 100ms = ~4410 samples
@@ -109,29 +110,29 @@ fn main() {
     // Apply limiting with -6dB threshold (should limit to ~0.5)
     let strict_limiting = LimitSettings::default()
         .with_threshold(-6.0)
-        .with_knee_width(0.5)                     // Narrow knee for precise limiting
-        .with_attack(Duration::from_millis(3))    // Fast attack
+        .with_knee_width(0.5) // Narrow knee for precise limiting
+        .with_attack(Duration::from_millis(3)) // Fast attack
         .with_release(Duration::from_millis(12)); // Moderate release
 
     let limited_sine = test_sine.limit(strict_limiting.clone());
-    let test_samples: Vec<f32> = limited_sine.take(4410).collect();
+    let test_samples: Vec<Sample> = limited_sine.take(4410).collect();
 
     // Analyze peaks at different time periods
-    let early_peak = test_samples[0..500]
+    let early_peak: Sample = test_samples[0..500]
         .iter()
-        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
-    let mid_peak = test_samples[1000..1500]
+        .fold(0.0, |acc, &x| acc.max(x.abs()));
+    let mid_peak: Sample = test_samples[1000..1500]
         .iter()
-        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
-    let settled_peak = test_samples[2000..]
+        .fold(0.0, |acc, &x| acc.max(x.abs()));
+    let settled_peak: Sample = test_samples[2000..]
         .iter()
-        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
+        .fold(0.0, |acc, &x| acc.max(x.abs()));
 
     // With -6dB threshold, ALL samples are well below 1.0!
-    let target_linear = 10.0_f32.powf(strict_limiting.threshold / 20.0);
-    let max_settled = test_samples[2000..]
+    let target_linear = (10.0 as Sample).powf(strict_limiting.threshold / 20.0);
+    let max_settled: Sample = test_samples[2000..]
         .iter()
-        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
+        .fold(0.0, |acc, &x| acc.max(x.abs()));
 
     println!(
         "  {}dB threshold limiting results:",

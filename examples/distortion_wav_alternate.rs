@@ -9,8 +9,8 @@ use std::time::Duration;
 use rodio::Source;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
-    let sink = rodio::Sink::connect_new(stream_handle.mixer());
+    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
+    let player = rodio::Player::connect_new(stream_handle.mixer());
 
     let file = std::fs::File::open("assets/music.wav")?;
     let source = rodio::Decoder::try_from(file)?;
@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 src.set_threshold(if enable { 0.3 } else { 1.0 });
             });
 
-    sink.append(distorted);
+    player.append(distorted);
 
     println!("Playing music.wav with alternating distortion effect...");
     // Alternate the distortion effect every second for 10 seconds
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Wait for playback to finish
-    sink.sleep_until_end();
+    player.sleep_until_end();
 
     Ok(())
 }

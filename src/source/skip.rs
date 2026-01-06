@@ -2,9 +2,8 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
+use crate::math::NANOS_PER_SEC;
 use crate::Source;
-
-const NS_PER_SECOND: u128 = 1_000_000_000;
 
 /// Internal function that builds a `SkipDuration` object.
 pub fn skip_duration<I>(mut input: I, duration: Duration) -> SkipDuration<I>
@@ -39,18 +38,22 @@ where
             return;
         }
 
-        let ns_per_sample: u128 =
-            NS_PER_SECOND / input.sample_rate().get() as u128 / input.channels().get() as u128;
+        let sample_rate = input.sample_rate().get() as u128;
+        let channels = input.channels().get() as u128;
+
+        let samples_per_channel = duration.as_nanos() * sample_rate / NANOS_PER_SEC as u128;
+        let samples_to_skip: u128 = samples_per_channel * channels;
 
         // Check if we need to skip only part of the current span.
-        if span_len as u128 * ns_per_sample > duration.as_nanos() {
-            skip_samples(input, (duration.as_nanos() / ns_per_sample) as usize);
+        if span_len as u128 > samples_to_skip {
+            skip_samples(input, samples_to_skip as usize);
             return;
         }
 
+        duration -= Duration::from_nanos(
+            (NANOS_PER_SEC as u128 * span_len as u128 / channels / sample_rate) as u64,
+        );
         skip_samples(input, span_len);
-
-        duration -= Duration::from_nanos((span_len * ns_per_sample as usize) as u64);
     }
 }
 
@@ -61,7 +64,7 @@ where
     I: Source,
 {
     let samples_per_channel: u128 =
-        duration.as_nanos() * input.sample_rate().get() as u128 / NS_PER_SECOND;
+        duration.as_nanos() * input.sample_rate().get() as u128 / NANOS_PER_SEC as u128;
     let samples_to_skip: u128 = samples_per_channel * input.channels().get() as u128;
 
     skip_samples(input, samples_to_skip as usize);
@@ -167,6 +170,8 @@ mod tests {
     use crate::common::{ChannelCount, SampleRate};
     use crate::math::nz;
     use crate::source::Source;
+    use crate::Sample;
+    use dasp_sample::Sample as DaspSample;
 
     fn test_skip_duration_samples_left(
         channels: ChannelCount,
@@ -176,7 +181,7 @@ mod tests {
     ) {
         let buf_len = (sample_rate.get() * channels.get() as u32 * seconds) as usize;
         assert!(buf_len < 10 * 1024 * 1024);
-        let data: Vec<f32> = vec![0f32; buf_len];
+        let data: Vec<Sample> = vec![Sample::EQUILIBRIUM; buf_len];
         let test_buffer = SamplesBuffer::new(channels, sample_rate, data);
         let seconds_left = seconds.saturating_sub(seconds_to_skip);
 

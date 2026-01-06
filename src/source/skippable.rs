@@ -5,7 +5,7 @@ use std::time::Duration;
 use super::SeekError;
 
 /// Wrap the source in a skippable. It allows ending the current source early by
-/// calling [`Skippable::skip`]. If this source is in a queue such as the Sink
+/// calling [`Skippable::skip`]. If this source is in a queue such as the Player
 /// ending the source early is equal to skipping the source.
 pub fn skippable<I>(source: I) -> Skippable<I> {
     Skippable {
@@ -15,7 +15,7 @@ pub fn skippable<I>(source: I) -> Skippable<I> {
 }
 
 /// Wrap the source in a skippable. It allows ending the current source early by
-/// calling [`Skippable::skip`]. If this source is in a queue such as the Sink
+/// calling [`Skippable::skip`]. If this source is in a queue such as the Player
 /// ending the source early is equal to skipping the source.
 #[derive(Clone, Debug)]
 pub struct Skippable<I> {

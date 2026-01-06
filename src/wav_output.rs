@@ -1,6 +1,7 @@
 use crate::common::assert_error_traits;
 use crate::Sample;
 use crate::Source;
+use dasp_sample::Sample as DaspSample;
 use hound::{SampleFormat, WavSpec};
 use std::io::{self, Write};
 use std::path;
@@ -23,7 +24,7 @@ assert_error_traits!(ToWavError);
 
 /// Saves Source's output into a wav file. The output samples format is 32-bit
 /// float. This function is intended primarily for testing and diagnostics. It can be used to see
-/// the output without opening output stream to a real audio device.
+/// the output without opening OS-Sink to a real audio device.
 ///
 /// If the file already exists it will be overwritten.
 ///
@@ -41,12 +42,12 @@ pub fn wav_to_file(
 
 /// Saves Source's output into a writer. The output samples format is 32-bit float. This function
 /// is intended primarily for testing and diagnostics. It can be used to see the output without
-/// opening output stream to a real audio device.
+/// opening an OS-Sink to a real audio device.
 ///
 /// # Example
 /// ```rust
 /// # use rodio::static_buffer::StaticSamplesBuffer;
-/// # use rodio::collect_to_wav;
+/// # use rodio::wav_to_writer;
 /// # const SAMPLES: [rodio::Sample; 5] = [0.0, 1.0, 2.0, 3.0, 4.0];
 /// # let source = StaticSamplesBuffer::new(
 /// #     1.try_into().unwrap(),
@@ -77,7 +78,7 @@ pub fn wav_to_writer(
         let whole_frames = WholeFrames::new(source);
         for sample in whole_frames {
             writer
-                .write_sample(sample)
+                .write_sample(sample.to_sample::<f32>())
                 .map_err(Arc::new)
                 .map_err(ToWavError::Writing)?;
         }
@@ -130,7 +131,8 @@ impl<I: Iterator<Item = Sample>> Iterator for WholeFrames<I> {
 #[cfg(test)]
 mod test {
     use super::wav_to_file;
-    use crate::Source;
+    use crate::{Sample, Source};
+    use dasp_sample::Sample as DaspSample;
     use std::io::BufReader;
     use std::time::Duration;
 
@@ -152,11 +154,20 @@ mod test {
         assert_eq!(reference.sample_rate().get(), reader.spec().sample_rate);
         assert_eq!(reference.channels().get(), reader.spec().channels);
 
+        // WAV files always use f32 samples (hound limitation)
         let actual_samples: Vec<f32> = reader.samples::<f32>().map(|x| x.unwrap()).collect();
-        let expected_samples: Vec<f32> = reference.collect();
-        assert!(
-            expected_samples == actual_samples,
-            "wav samples do not match the source"
+        let expected_samples: Vec<f32> = reference
+            .into_iter()
+            .map(|s| s.to_sample::<f32>())
+            .collect();
+
+        assert_eq!(
+            actual_samples.len(),
+            expected_samples.len(),
+            "sample counts should match"
         );
+        for (actual, expected) in actual_samples.iter().zip(expected_samples.iter()) {
+            assert_eq!(actual, expected, "wav samples do not match the source");
+        }
     }
 }

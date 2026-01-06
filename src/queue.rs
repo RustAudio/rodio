@@ -1,10 +1,10 @@
 //! Queue that plays sounds one after the other.
 
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::math::nz;
 use crate::source::{Empty, SeekError, Source, Zero};
 use crate::Sample;
 
@@ -27,7 +27,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 ///
 pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
     let input = Arc::new(SourcesQueueInput {
-        next_sounds: Mutex::new(Vec::new()),
+        next_sounds: Mutex::new(VecDeque::new()),
         keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
     });
 
@@ -35,6 +35,8 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
         current: Box::new(Empty::new()) as Box<_>,
         signal_after_end: None,
         input: input.clone(),
+        samples_consumed_in_span: 0,
+        padding_samples_remaining: 0,
     };
 
     (input, output)
@@ -47,7 +49,7 @@ type SignalDone = Option<Sender<()>>;
 
 /// The input of the queue.
 pub struct SourcesQueueInput {
-    next_sounds: Mutex<Vec<(Sound, SignalDone)>>,
+    next_sounds: Mutex<VecDeque<(Sound, SignalDone)>>,
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
@@ -63,7 +65,7 @@ impl SourcesQueueInput {
         self.next_sounds
             .lock()
             .unwrap()
-            .push((Box::new(source) as Box<_>, None));
+            .push_back((Box::new(source) as Box<_>, None));
     }
 
     /// Adds a new source to the end of the queue.
@@ -80,7 +82,7 @@ impl SourcesQueueInput {
         self.next_sounds
             .lock()
             .unwrap()
-            .push((Box::new(source) as Box<_>, Some(tx)));
+            .push_back((Box::new(source) as Box<_>, Some(tx)));
         rx
     }
 
@@ -110,9 +112,25 @@ pub struct SourcesQueueOutput {
 
     // The next sounds.
     input: Arc<SourcesQueueInput>,
+
+    // Track samples consumed in the current span to detect mid-span endings.
+    samples_consumed_in_span: usize,
+
+    // When a source ends mid-frame, this counts how many silence samples to inject
+    // to complete the frame before transitioning to the next source.
+    padding_samples_remaining: usize,
 }
 
-const THRESHOLD: usize = 512;
+/// Returns a threshold span length that ensures frame alignment.
+///
+/// Spans must end on frame boundaries (multiples of channel count) to prevent
+/// channel misalignment. Returns ~512 samples rounded to the nearest frame.
+#[inline]
+fn threshold(channels: ChannelCount) -> usize {
+    const BASE_SAMPLES: usize = 512;
+    let ch = channels.get() as usize;
+    BASE_SAMPLES.div_ceil(ch) * ch
+}
 
 impl Source for SourcesQueueOutput {
     #[inline]
@@ -129,15 +147,13 @@ impl Source for SourcesQueueOutput {
         // constant.
 
         // Try the current `current_span_len`.
-        if let Some(val) = self.current.current_span_len() {
-            if val != 0 {
-                return Some(val);
-            } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
-                && self.input.next_sounds.lock().unwrap().is_empty()
-            {
-                // The next source will be a filler silence which will have the length of `THRESHOLD`
-                return Some(THRESHOLD);
-            }
+        if !self.current.is_exhausted() {
+            return self.current.current_span_len();
+        } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
+            && self.input.next_sounds.lock().unwrap().is_empty()
+        {
+            // The next source will be a filler silence which will have a frame-aligned length
+            return Some(threshold(self.current.channels()));
         }
 
         // Try the size hint.
@@ -148,18 +164,45 @@ impl Source for SourcesQueueOutput {
             return Some(lower_bound);
         }
 
-        // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        // Otherwise we use a frame-aligned threshold value.
+        Some(threshold(self.current.channels()))
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.current.channels()
+        if !self.current.is_exhausted() {
+            // Current source is active (producing samples)
+            // - Initially: never (Empty is exhausted immediately)
+            // - After append: the appended source while playing
+            // - With keep_alive: Zero (silence) while playing
+            self.current.channels()
+        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
+            // Current source exhausted, peek at next queued source
+            // This is critical: UniformSourceIterator queries metadata during append,
+            // before any samples are pulled. We must report the next source's metadata.
+            next.channels()
+        } else {
+            // Queue is empty, no sources queued
+            // - Initially: Empty
+            // - With keep_alive: exhausted Zero between silence chunks (matches Empty)
+            // - Without keep_alive: Empty (will end on next())
+            self.current.channels()
+        }
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.current.sample_rate()
+        if !self.current.is_exhausted() {
+            // Current source is active (producing samples)
+            self.current.sample_rate()
+        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
+            // Current source exhausted, peek at next queued source
+            // This prevents wrong resampling setup in UniformSourceIterator
+            next.sample_rate()
+        } else {
+            // Queue is empty, no sources queued
+            self.current.sample_rate()
+        }
     }
 
     #[inline]
@@ -188,13 +231,33 @@ impl Iterator for SourcesQueueOutput {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         loop {
+            // If we're padding to complete a frame, return silence.
+            if self.padding_samples_remaining > 0 {
+                self.padding_samples_remaining -= 1;
+                return Some(0.0);
+            }
+
             // Basic situation that will happen most of the time.
             if let Some(sample) = self.current.next() {
+                self.samples_consumed_in_span += 1;
                 return Some(sample);
             }
 
-            // Since `self.current` has finished, we need to pick the next sound.
+            // Source ended - check if we ended mid-frame and need padding.
+            let channels = self.current.channels().get() as usize;
+            let incomplete_frame_samples = self.samples_consumed_in_span % channels;
+            if incomplete_frame_samples > 0 {
+                // We're mid-frame - need to pad with silence to complete it.
+                self.padding_samples_remaining = channels - incomplete_frame_samples;
+                // Reset counter now since we're transitioning to a new span.
+                self.samples_consumed_in_span = 0;
+                // Continue loop - next iteration will inject silence.
+                continue;
+            }
+
+            // Reset counter and move to next sound.
             // In order to avoid inlining this expensive operation, the code is in another function.
+            self.samples_consumed_in_span = 0;
             if self.go_next().is_err() {
                 return None;
             }
@@ -220,16 +283,21 @@ impl SourcesQueueOutput {
         let (next, signal_after_end) = {
             let mut next = self.input.next_sounds.lock().unwrap();
 
-            if next.is_empty() {
-                let silence = Box::new(Zero::new_samples(nz!(1), nz!(44100), THRESHOLD)) as Box<_>;
+            if let Some(next) = next.pop_front() {
+                next
+            } else {
+                let channels = self.current.channels();
+                let silence = Box::new(Zero::new_samples(
+                    channels,
+                    self.current.sample_rate(),
+                    threshold(channels),
+                )) as Box<_>;
                 if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
                     // Play a short silence in order to avoid spinlocking.
                     (silence, None)
                 } else {
                     return Err(());
                 }
-            } else {
-                next.remove(0)
             }
         };
 
@@ -243,11 +311,11 @@ impl SourcesQueueOutput {
 mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
-    use crate::queue;
-    use crate::source::Source;
+    use crate::source::{SeekError, Source};
+    use crate::{queue, ChannelCount, Sample, SampleRate};
+    use std::time::Duration;
 
     #[test]
-    #[ignore] // FIXME: samples rate and channel not updated immediately after transition
     fn basic() {
         let (tx, mut rx) = queue::queue(false);
 
@@ -320,5 +388,144 @@ mod tests {
         assert_eq!(rx.next(), Some(-10.0));
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));
+    }
+
+    #[test]
+    fn append_updates_metadata() {
+        for keep_alive in [false, true] {
+            let (tx, rx) = queue::queue(keep_alive);
+            assert_eq!(
+                rx.channels(),
+                nz!(1),
+                "Initial channels should be 1 (keep_alive={keep_alive})"
+            );
+            assert_eq!(
+                rx.sample_rate(),
+                nz!(48000),
+                "Initial sample rate should be 48000 (keep_alive={keep_alive})"
+            );
+
+            tx.append(SamplesBuffer::new(
+                nz!(2),
+                nz!(44100),
+                vec![0.1, 0.2, 0.3, 0.4],
+            ));
+
+            assert_eq!(
+                rx.channels(),
+                nz!(2),
+                "Channels should update to 2 (keep_alive={keep_alive})"
+            );
+            assert_eq!(
+                rx.sample_rate(),
+                nz!(44100),
+                "Sample rate should update to 44100 (keep_alive={keep_alive})"
+            );
+        }
+    }
+
+    #[test]
+    fn span_ending_mid_frame() {
+        let mut test_source1 = TestSource::new(&[0.1, 0.2, 0.1, 0.2, 0.1])
+            .with_channels(nz!(2))
+            .with_false_span_len(Some(6));
+        let mut test_source2 = TestSource::new(&[0.3, 0.4, 0.3, 0.4]).with_channels(nz!(2));
+
+        let (controls, mut source) = queue::queue(true);
+        controls.append(test_source1.clone());
+        controls.append(test_source2.clone());
+
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(source.next(), test_source1.next());
+        assert_eq!(None, test_source1.next());
+
+        // Source promised span of 6 but only delivered 5 samples.
+        // With 2 channels, that's 2.5 frames. Queue should pad with silence.
+        assert_eq!(
+            source.next(),
+            Some(0.0),
+            "Expected silence to complete frame"
+        );
+
+        assert_eq!(source.next(), test_source2.next());
+        assert_eq!(source.next(), test_source2.next());
+        assert_eq!(source.next(), test_source2.next());
+        assert_eq!(source.next(), test_source2.next());
+    }
+
+    /// Test helper source that allows setting false span length to simulate
+    /// sources that end before their promised span length.
+    #[derive(Debug, Clone)]
+    struct TestSource {
+        samples: Vec<Sample>,
+        pos: usize,
+        channels: ChannelCount,
+        sample_rate: SampleRate,
+        total_span_len: Option<usize>,
+    }
+
+    impl TestSource {
+        fn new(samples: &[Sample]) -> Self {
+            let samples = samples.to_vec();
+            Self {
+                total_span_len: Some(samples.len()),
+                pos: 0,
+                channels: nz!(1),
+                sample_rate: nz!(44100),
+                samples,
+            }
+        }
+
+        fn with_channels(mut self, count: ChannelCount) -> Self {
+            self.channels = count;
+            self
+        }
+
+        fn with_false_span_len(mut self, total_len: Option<usize>) -> Self {
+            self.total_span_len = total_len;
+            self
+        }
+    }
+
+    impl Iterator for TestSource {
+        type Item = Sample;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let res = self.samples.get(self.pos).copied();
+            self.pos += 1;
+            res
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let remaining = self.samples.len().saturating_sub(self.pos);
+            (remaining, Some(remaining))
+        }
+    }
+
+    impl Source for TestSource {
+        fn current_span_len(&self) -> Option<usize> {
+            self.total_span_len
+        }
+
+        fn channels(&self) -> ChannelCount {
+            self.channels
+        }
+
+        fn sample_rate(&self) -> SampleRate {
+            self.sample_rate
+        }
+
+        fn total_duration(&self) -> Option<Duration> {
+            None
+        }
+
+        fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+            Err(SeekError::NotSupported {
+                underlying_source: std::any::type_name::<Self>(),
+            })
+        }
     }
 }

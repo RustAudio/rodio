@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::source::ChannelVolume;
-use crate::Source;
+use crate::{Float, Source};
 
 /// A simple spatial audio source. The underlying source is transformed to Mono
 /// and then played in stereo. The left and right channel's volume are amplified
@@ -27,7 +27,7 @@ impl<I> Spatial<I>
 where
     I: Source,
 {
-    /// Builds a new `SpatialSink`, beginning playback on a stream.
+    /// Builds a new `SpatialPlayer`, beginning playback on a stream.
     pub fn new(
         input: I,
         emitter_position: [f32; 3],
@@ -63,9 +63,9 @@ where
         let left_dist_modifier = (1.0 / left_dist_sq).min(1.0);
         let right_dist_modifier = (1.0 / right_dist_sq).min(1.0);
         self.input
-            .set_volume(0, left_diff_modifier * left_dist_modifier);
+            .set_volume(0, (left_diff_modifier * left_dist_modifier) as Float);
         self.input
-            .set_volume(1, right_diff_modifier * right_dist_modifier);
+            .set_volume(1, (right_diff_modifier * right_dist_modifier) as Float);
     }
 }
 

@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::{Sample, Source};
+use crate::math::NANOS_PER_SEC;
+use crate::{Float, Sample, Source};
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -28,15 +29,13 @@ impl DurationFilter {
     fn apply<I: Iterator>(&self, sample: Sample, parent: &TakeDuration<I>) -> Sample {
         match self {
             DurationFilter::FadeOut => {
-                let remaining = parent.remaining_duration.as_millis() as f32;
-                let total = parent.requested_duration.as_millis() as f32;
+                let remaining = parent.remaining_duration.as_millis() as Float;
+                let total = parent.requested_duration.as_millis() as Float;
                 sample * remaining / total
             }
         }
     }
 }
-
-const NANOS_PER_SEC: u64 = 1_000_000_000;
 
 /// A source that truncates the given source to a certain duration.
 #[derive(Clone, Debug)]

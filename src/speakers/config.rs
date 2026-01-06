@@ -1,21 +1,21 @@
 use std::num::NonZero;
 
-use crate::{math::nz, ChannelCount, SampleRate};
+use crate::{math::nz, stream::DeviceSinkConfig, ChannelCount, SampleRate};
 
-/// Describes the input stream's configuration
+/// Describes the output stream's configuration
 #[derive(Copy, Clone, Debug)]
-pub struct InputConfig {
-    /// The number of channels (usually this should be one)
+pub struct OutputConfig {
+    /// The number of channels
     pub channel_count: ChannelCount,
-    /// The sample rate the microphone will be recording at
+    /// The sample rate the audio card will be playing back at
     pub sample_rate: SampleRate,
-    /// The buffersize, see a thorough explanation in MicrophoneBuilder::with_buffer_size
+    /// The buffersize, see a thorough explanation in SpeakerBuilder::with_buffer_size
     pub buffer_size: cpal::BufferSize,
-    /// The sample format used by the microphone.
-    /// Note we will always convert it to `Sample`
+    /// The sample format used by the audio card.
+    /// Note we will always convert to this from f32
     pub sample_format: cpal::SampleFormat,
 }
-impl InputConfig {
+impl OutputConfig {
     pub(crate) fn supported_given(&self, supported: &cpal::SupportedStreamConfigRange) -> bool {
         let buffer_ok = match (self.buffer_size, supported.buffer_size()) {
             (cpal::BufferSize::Default, _) | (_, cpal::SupportedBufferSize::Unknown) => true,
@@ -27,7 +27,7 @@ impl InputConfig {
                 },
             ) => {
                 let n_samples = n_frames * self.channel_count.get() as u32;
-                (*min_samples..*max_samples).contains(&n_samples)
+                (*min_samples..=*max_samples).contains(&n_samples)
             }
         };
 
@@ -44,16 +44,17 @@ impl InputConfig {
         this
     }
 
-    pub(crate) fn stream_config(&self) -> cpal::StreamConfig {
-        cpal::StreamConfig {
-            channels: self.channel_count.get(),
-            sample_rate: self.sample_rate.get(),
+    pub(crate) fn into_cpal_config(self) -> crate::stream::DeviceSinkConfig {
+        DeviceSinkConfig {
+            channel_count: self.channel_count,
+            sample_rate: self.sample_rate,
             buffer_size: self.buffer_size,
+            sample_format: self.sample_format,
         }
     }
 }
 
-impl From<cpal::SupportedStreamConfig> for InputConfig {
+impl From<cpal::SupportedStreamConfig> for OutputConfig {
     fn from(value: cpal::SupportedStreamConfig) -> Self {
         let buffer_size = match value.buffer_size() {
             cpal::SupportedBufferSize::Range { .. } => cpal::BufferSize::Default,
@@ -70,7 +71,7 @@ impl From<cpal::SupportedStreamConfig> for InputConfig {
     }
 }
 
-impl Default for InputConfig {
+impl Default for OutputConfig {
     fn default() -> Self {
         Self {
             channel_count: nz!(1),

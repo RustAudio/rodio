@@ -1,4 +1,4 @@
-use rodio::source::{AutomaticGainControlSettings, Source};
+use rodio::source::Source;
 use rodio::Decoder;
 use std::error::Error;
 use std::fs::File;
@@ -8,15 +8,15 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
-    let sink = rodio::Sink::connect_new(stream_handle.mixer());
+    let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
+    let player = rodio::Player::connect_new(stream_handle.mixer());
 
     // Decode the sound file into a source
     let file = File::open("assets/music.flac")?;
     let source = Decoder::try_from(file)?;
 
     // Apply automatic gain control to the source
-    let agc_source = source.automatic_gain_control(AutomaticGainControlSettings::default());
+    let agc_source = source.automatic_gain_control(Default::default());
 
     // Make it so that the source checks if automatic gain control should be
     // enabled or disabled every 5 milliseconds. We must clone `agc_enabled`,
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Add the source now equipped with automatic gain control and controlled via
     // periodic_access to the sink for the playback.
-    sink.append(controlled);
+    player.append(controlled);
 
     // After 5 seconds of playback disable automatic gain control using the
     // shared AtomicBool `agc_enabled`. You could do this from another part
@@ -42,6 +42,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     agc_enabled.store(false, Ordering::Relaxed);
 
     // Keep the program running until the playback is complete.
-    sink.sleep_until_end();
+    player.sleep_until_end();
     Ok(())
 }

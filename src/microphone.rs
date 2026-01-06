@@ -130,23 +130,38 @@ pub struct Input {
     inner: cpal::Device,
 }
 
-impl From<Input> for cpal::Device {
-    fn from(val: Input) -> Self {
-        val.inner
+impl Input {
+    /// Consumes the input and returns the inner device.
+    pub fn into_inner(self) -> cpal::Device {
+        self.inner
     }
 }
 
 impl fmt::Debug for Input {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Device")
-            .field("inner", &self.inner.name().unwrap_or("unknown".to_string()))
+            .field(
+                "inner",
+                &self
+                    .inner
+                    .description()
+                    .ok()
+                    .map_or("unknown".to_string(), |d| d.name().to_string()),
+            )
             .finish()
     }
 }
 
 impl fmt::Display for Input {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner.name().unwrap_or("unknown".to_string()))
+        write!(
+            f,
+            "{}",
+            self.inner
+                .description()
+                .ok()
+                .map_or("unknown".to_string(), |d| d.name().to_string())
+        )
     }
 }
 
@@ -188,7 +203,7 @@ impl Source for Microphone {
 }
 
 impl Iterator for Microphone {
-    type Item = f32;
+    type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -231,7 +246,7 @@ impl Microphone {
         let timeout = Some(Duration::from_millis(100));
         let hundred_ms_of_samples =
             config.channel_count.get() as u32 * config.sample_rate.get() / 10;
-        let (mut tx, rx) = RingBuffer::new(hundred_ms_of_samples as usize);
+        let (mut tx, rx) = RingBuffer::<Sample>::new(hundred_ms_of_samples as usize);
         let error_occurred = Arc::new(AtomicBool::new(false));
         let error_callback = {
             let error_occurred = error_occurred.clone();
@@ -248,7 +263,7 @@ impl Microphone {
                     cpal::SampleFormat::$sample_format => device.build_input_stream::<$generic, _, _>(
                         &config.stream_config(),
                         move |data, _info| {
-                            for sample in SampleTypeConverter::<_, f32>::new(data.into_iter().copied()) {
+                            for sample in SampleTypeConverter::<_, Sample>::new(data.into_iter().copied()) {
                                 let _skip_if_player_is_behind = tx.push(sample);
                             }
                         },
@@ -271,8 +286,7 @@ impl Microphone {
             I64, i64;
             U8, u8;
             U16, u16;
-            // TODO: uncomment when https://github.com/RustAudio/cpal/pull/1011 is merged
-            // U24, cpal::U24;
+            U24, cpal::U24;
             U32, u32;
             U64, u64
         )

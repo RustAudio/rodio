@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
-use crate::Source;
+use crate::{Float, Source};
 
 /// Internal function that builds a `Distortion` object.
-pub(crate) fn distortion<I>(input: I, gain: f32, threshold: f32) -> Distortion<I>
+pub(crate) fn distortion<I>(input: I, gain: Float, threshold: Float) -> Distortion<I>
 where
     I: Source,
 {
@@ -20,20 +20,20 @@ where
 #[derive(Clone, Debug)]
 pub struct Distortion<I> {
     input: I,
-    gain: f32,
-    threshold: f32,
+    gain: Float,
+    threshold: Float,
 }
 
 impl<I> Distortion<I> {
     /// Modifies the distortion gain.
     #[inline]
-    pub fn set_gain(&mut self, gain: f32) {
+    pub fn set_gain(&mut self, gain: Float) {
         self.gain = gain;
     }
 
     /// Modifies the distortion threshold.
     #[inline]
-    pub fn set_threshold(&mut self, threshold: f32) {
+    pub fn set_threshold(&mut self, threshold: Float) {
         self.threshold = threshold;
     }
 

@@ -35,9 +35,10 @@ mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
     use crate::source::Zero;
+    use crate::Sample;
 
     fn dummy_source(length: u8) -> SamplesBuffer {
-        let data: Vec<f32> = (1..=length).map(f32::from).collect();
+        let data: Vec<Sample> = (1..=length).map(Sample::from).collect();
         SamplesBuffer::new(nz!(1), nz!(1), data)
     }
 
@@ -50,11 +51,14 @@ mod tests {
             source2,
             Duration::from_secs(5) + Duration::from_nanos(1),
         );
-        assert_eq!(mixed.next(), Some(1.0));
-        assert_eq!(mixed.next(), Some(2.0));
-        assert_eq!(mixed.next(), Some(3.0));
-        assert_eq!(mixed.next(), Some(4.0));
-        assert_eq!(mixed.next(), Some(5.0));
+
+        // Use approximate equality for floating-point comparisons
+        let eps = 1e-6;
+        assert!((mixed.next().unwrap() - 1.0).abs() < eps);
+        assert!((mixed.next().unwrap() - 2.0).abs() < eps);
+        assert!((mixed.next().unwrap() - 3.0).abs() < eps);
+        assert!((mixed.next().unwrap() - 4.0).abs() < eps);
+        assert!((mixed.next().unwrap() - 5.0).abs() < eps);
         assert_eq!(mixed.next(), None);
     }
 

@@ -97,6 +97,7 @@ impl Default for Settings {
             hint: None,
             mime_type: None,
             is_seekable: false,
+            #[cfg(feature = "symphonia")]
             codec_registry: SymphoniaRegistry::Default,
         }
     }

@@ -121,12 +121,12 @@ impl SymphoniaDecoder {
             None => return Ok(None),
         };
 
-        let mut decoder = match &settings.codec_registry
-        {
+        let mut decoder = match &settings.codec_registry {
             SymphoniaRegistry::Default => symphonia::default::get_codecs(),
-            SymphoniaRegistry::Custom(cr) => cr.as_ref()
-        }.make(&track.codec_params, &DecoderOptions::default())?;
-        
+            SymphoniaRegistry::Custom(cr) => cr.as_ref(),
+        }
+        .make(&track.codec_params, &DecoderOptions::default())?;
+
         let total_duration = stream
             .codec_params
             .time_base

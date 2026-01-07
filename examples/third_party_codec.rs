@@ -16,8 +16,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let file = std::fs::File::open("../assets/music.opus")?;
     let decoder = DecoderBuilder::new()
-                    .with_codec_registry(codec_registry_arc)
-                    .with_data(file).build()?;
+        .with_codec_registry(codec_registry_arc)
+        .with_data(file)
+        .build()?;
     sink.append(decoder);
 
     sink.sleep_until_end();

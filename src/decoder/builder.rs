@@ -243,7 +243,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     }
 
     /// Set a custom codec registry
-    /// 
+    ///
     /// See the symphonia documentation of Registry for how to add additional (third party) codecs.
     #[cfg(feature = "symphonia")]
     pub fn with_codec_registry(mut self, codec_registry: Arc<CodecRegistry>) -> Self {

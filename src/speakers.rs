@@ -101,20 +101,15 @@
 
 use core::fmt;
 
-use cpal::{
-    traits::{DeviceTrait, HostTrait},
-    Device,
-};
+use cpal::traits::{DeviceTrait, HostTrait};
 
-use crate::{common::assert_error_traits, DeviceSinkError};
+use crate::common::assert_error_traits;
 
 mod builder;
 mod config;
 
 pub use builder::SpeakersBuilder;
 pub use config::OutputConfig;
-
-struct Speakers;
 
 /// Error that can occur when we can not list the output devices
 #[derive(Debug, thiserror::Error, Clone)]
@@ -176,88 +171,3 @@ pub fn available_outputs() -> Result<Vec<Output>, ListError> {
     });
     Ok(devices.collect())
 }
-
-impl Speakers {
-    pub fn open_mixer(
-        device: Device,
-        config: OutputConfig,
-        error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
-    ) -> Result<crate::stream::MixerDeviceSink, DeviceSinkError> {
-        crate::stream::MixerDeviceSink::open(&device, &config.into_cpal_config(), error_callback)
-    }
-
-    /// TODO
-    pub fn open_queue() -> Result<QueueSink, OsSinkError> {}
-
-    /// TODO
-    pub fn play(
-        self,
-        mut source: impl FixedSource + Send + 'static,
-    ) -> Result<SinkHandle, OsSinkError> {
-        use cpal::Sample as _;
-
-        let config = self.config.expect("ConfigIsSet");
-        let device = self.device.expect("DeviceIsSet").0;
-
-        if config.channel_count != source.channels() {
-            return Err(OsSinkError::WrongParams);
-        }
-        if config.sample_rate != source.sample_rate() {
-            return Err(OsSinkError::WrongParams);
-        }
-
-        let cpal_config1 = config.into_cpal_config();
-        let cpal_config2 = (&cpal_config1).into();
-
-        macro_rules! build_output_streams {
-        ($($sample_format:tt, $generic:ty);+) => {
-            match config.sample_format {
-                $(
-                    cpal::SampleFormat::$sample_format => device.build_output_stream::<$generic, _, _>(
-                        &cpal_config2,
-                        move |data, _| {
-                            data.iter_mut().for_each(|d| {
-                                *d = source
-                                    .next()
-                                    .map(cpal::Sample::from_sample)
-                                    .unwrap_or(<$generic>::EQUILIBRIUM)
-                            })
-                        },
-                        self.error_callback,
-                        None,
-                    ),
-                )+
-                _ => return Err(OsSinkError::UnsupportedSampleFormat),
-            }
-        };
-    }
-
-        let result = build_output_streams!(
-            F32, f32;
-            F64, f64;
-            I8, i8;
-            I16, i16;
-            I24, cpal::I24;
-            I32, i32;
-            I64, i64;
-            U8, u8;
-            U16, u16;
-            U24, cpal::U24;
-            U32, u32;
-            U64, u64
-        );
-
-        result
-            .map_err(OsSinkError::BuildError)
-            .map(|stream| {
-                stream
-                    .play()
-                    .map_err(OsSinkError::PlayError)
-                    .map(|()| stream)
-            })?
-            .map(SinkHandle)
-    }
-}
-
-// TODO
-pub struct QueueSink;

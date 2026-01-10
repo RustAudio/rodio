@@ -365,7 +365,7 @@ where
             mpeg_layer,
             seek_mode: settings.seek_mode,
             is_seekable: settings.is_seekable,
-            has_stable_parameters: settings.force_stable_parameters,
+            has_stable_parameters: settings.stable_parameters,
         })
     }
 

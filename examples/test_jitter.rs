@@ -17,24 +17,50 @@ use std::hint::black_box;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use hdrhistogram::Histogram;
 use rodio::Source;
+
+fn panic_if_debug() {
+    #[cfg(debug_assertions)]
+    panic!("This is a benchmark it *must* be build with optimizations!");
+}
 
 #[cfg(target_arch = "x86_64")]
 fn measure(mut source: impl Source) {
     use std::time::Instant;
+    use thread_priority::ThreadExt;
+
+    panic_if_debug();
 
     static CYCLES: Mutex<[u64; 100_000]> = Mutex::new([0u64; 100_000]);
     let mut cycles = CYCLES.lock().unwrap();
 
+    if !fastant::is_tsc_available() {
+        panic!("Platform does not support Time Stamp Counter or it is not stable")
+    }
+
     // TODO warm up CPU so we have a bigger change that the frequency stays the
     // same
 
+    // Try and keep pre-emption to an absolute minimum
+    let og_priority = std::thread::current().get_priority().unwrap();
+    thread_priority::ThreadPriority::Max
+        .set_for_current()
+        .expect("Could not set thread priority to max, are you running as super user?");
+
+    // TODO replace with FIFO sched.
+    //I don't think you can do that, but instead, you can call sched_setscheduler() to give your process SCHED_FIFO scheduling policy and a suitable (nonzero) priority. That makes it a real-time task which cannot be interrupted except by another higher-priority real-time task (of which there are probably none).
+
+
     let started = Instant::now();
     for cycle_count in cycles.iter_mut() {
-        // lock cycles since last reset
+        // We do not use any memory fencing that means this instruction can be
+        // reorderd slightly. That does not matter for finding the max/min
+        // latency
         *cycle_count = unsafe { core::arch::x86_64::_rdtsc() };
         black_box(source.next());
     }
+    og_priority.set_for_current().unwrap();
 
     print_statistics(&*cycles, started.elapsed());
 }
@@ -47,12 +73,22 @@ fn print_statistics(cycles: &[u64], elapsed: Duration) {
         .collect();
     let average = per_sample.iter().sum::<u64>() / per_sample.len() as u64;
     let min = per_sample.iter().min().copied().unwrap();
-    let max = per_sample.iter().max().copied().unwrap();
+    let max = per_sample
+        .iter()
+        // TODO detect time pre-empted.... if we where...
+        .max()
+        .copied()
+        .unwrap();
     let median = {
-        let mut per_sample = per_sample;
+        let mut per_sample = per_sample.clone();
         per_sample.sort();
         per_sample[per_sample.len() / 2]
     };
+
+    let mut histogram: Histogram<u64> = Histogram::new_with_max(max, 5).unwrap();
+    for sample in &per_sample {
+        histogram.record(*sample).unwrap();
+    }
 
     let total_cycles = cycles.last().unwrap() - cycles.first().unwrap();
     assert_eq!(
@@ -71,6 +107,9 @@ fn print_statistics(cycles: &[u64], elapsed: Duration) {
     println!("average\t  {dur_average:?}\t{average} cycles");
     println!("min    \t  {dur_min:?}\t{min} cycles");
     println!("max    \t  {dur_max:?}\t{max} cycles");
+    println!("5% lows\t  {}", histogram.value_at_quantile(0.95));
+    println!("1% lows\t  {}", histogram.value_at_quantile(0.99));
+    println!("0.1% lows\t {}", histogram.value_at_quantile(0.999));
 }
 
 #[cfg(not(target_arch = "x86_64"))]

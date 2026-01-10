@@ -123,6 +123,7 @@ tracing = { version = "0.1.40", optional = true }
 atomic_float = { version = "1.1.0", optional = true }
 rtrb = { version = "0.3.2", optional = true }
 num-rational = "0.4.2"
+hdrhistogram = "7.5.4"
 
 [dev-dependencies]
 quickcheck = "1"
@@ -132,6 +133,8 @@ approx = "0.5.1"
 divan = "0.1.14"
 inquire = "0.7.5"
 statrs = "0.18.0"
+thread-priority = "3.0.0"
+fastant = "0.1.11"
 
 [[bench]]
 name = "effects"

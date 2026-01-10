@@ -71,7 +71,7 @@ use claxon::{FlacReader, FlacReaderOptions};
 use dasp_sample::Sample as _;
 use dasp_sample::I24;
 
-use super::{utils, builder::Settings};
+use super::{builder::Settings, utils};
 use crate::{
     common::{BitDepth, ChannelCount, Sample, SampleRate},
     math::duration_to_float,

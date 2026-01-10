@@ -196,6 +196,7 @@ pub mod math;
 pub mod microphone;
 pub mod mixer;
 pub mod queue;
+pub mod fixed_source;
 pub mod source;
 pub mod static_buffer;
 

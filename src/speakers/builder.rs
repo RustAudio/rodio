@@ -551,12 +551,13 @@ where
         crate::stream::MixerDeviceSink::open(&device, &config.into_cpal_config(), error_callback)
     }
 
-    /// TODO
-    pub fn open_queue() -> Result<QueueSink, DeviceSinkError> {
-        todo!()
-    }
+    // TODO
+    // pub fn open_queue() -> Result<QueueSink, DeviceSinkError> {
+    //     todo!()
+    // }
 
-    /// TODO
+    /// Open the device with the current configuration and play a single
+    /// `FixedSource` on it.
     pub fn play(
         self,
         mut source: impl FixedSource + Send + 'static,
@@ -627,10 +628,11 @@ where
     }
 }
 
-// TODO
-pub struct QueueSink;
+// TODO cant introduce till we have introduced the other fixed source parts
+// pub struct QueueSink;
 
-// TODO
+/// A sink handle. When this is dropped anything playing through this Sink will
+/// stop playing.
 pub struct SinkHandle {
     _stream: cpal::Stream,
 }

@@ -125,7 +125,7 @@ pub struct Output {
 }
 
 impl Output {
-    /// TODO doc comment also mirror to microphone api
+    /// Whether this output is the default sound output for the OS
     pub fn is_default(&self) -> bool {
         self.default
     }

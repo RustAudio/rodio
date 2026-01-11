@@ -190,22 +190,22 @@ mod wav_output;
 pub mod buffer;
 pub mod conversions;
 pub mod decoder;
+#[cfg(feature = "experimental")]
+pub mod fixed_source;
 pub mod math;
 #[cfg(feature = "recording")]
 /// Microphone input support for audio recording.
 pub mod microphone;
 pub mod mixer;
 pub mod queue;
-#[cfg(feature = "experimental")]
-pub mod fixed_source;
 pub mod source;
 pub mod static_buffer;
 
 pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate};
 pub use crate::decoder::Decoder;
-pub use crate::player::Player;
 #[cfg(feature = "experimental")]
 pub use crate::fixed_source::FixedSource;
+pub use crate::player::Player;
 pub use crate::source::Source;
 pub use crate::spatial_player::SpatialPlayer;
 #[cfg(feature = "playback")]

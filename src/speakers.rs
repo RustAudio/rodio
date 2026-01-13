@@ -101,20 +101,15 @@
 
 use core::fmt;
 
-use cpal::{
-    traits::{DeviceTrait, HostTrait},
-    Device,
-};
+use cpal::traits::{DeviceTrait, HostTrait};
 
-use crate::{common::assert_error_traits, DeviceSinkError};
+use crate::common::assert_error_traits;
 
 mod builder;
 mod config;
 
 pub use builder::SpeakersBuilder;
 pub use config::OutputConfig;
-
-struct Speakers;
 
 /// Error that can occur when we can not list the output devices
 #[derive(Debug, thiserror::Error, Clone)]
@@ -130,7 +125,7 @@ pub struct Output {
 }
 
 impl Output {
-    /// TODO doc comment also mirror to microphone api
+    /// Whether this output is the default sound output for the OS
     pub fn is_default(&self) -> bool {
         self.default
     }
@@ -175,14 +170,4 @@ pub fn available_outputs() -> Result<Vec<Output>, ListError> {
         inner: dev,
     });
     Ok(devices.collect())
-}
-
-impl Speakers {
-    fn open(
-        device: Device,
-        config: OutputConfig,
-        error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
-    ) -> Result<crate::stream::MixerDeviceSink, DeviceSinkError> {
-        crate::stream::MixerDeviceSink::open(&device, &config.into_cpal_config(), error_callback)
-    }
 }

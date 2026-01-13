@@ -1,14 +1,13 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use cpal::{
-    traits::{DeviceTrait, HostTrait},
+    traits::{DeviceTrait, HostTrait, StreamTrait},
     SupportedStreamConfigRange,
 };
 
 use crate::{
-    common::assert_error_traits,
-    speakers::{self, config::OutputConfig},
-    ChannelCount, MixerDeviceSink, SampleRate,
+    common::assert_error_traits, speakers::config::OutputConfig, ChannelCount, DeviceSinkError,
+    FixedSource, MixerDeviceSink, SampleRate,
 };
 
 /// Error configuring or opening speakers output
@@ -546,10 +545,112 @@ where
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn open_mixer(&self) -> Result<MixerDeviceSink, crate::DeviceSinkError> {
-        speakers::Speakers::open(
-            self.device.as_ref().expect("DeviceIsSet").0.clone(),
-            *self.config.as_ref().expect("ConfigIsSet"),
-            self.error_callback.clone(),
-        )
+        let device = self.device.as_ref().expect("DeviceIsSet").0.clone();
+        let config = *self.config.as_ref().expect("ConfigIsSet");
+        let error_callback = self.error_callback.clone();
+        crate::stream::MixerDeviceSink::open(&device, &config.into_cpal_config(), error_callback)
     }
+
+    // TODO
+    // pub fn open_queue() -> Result<QueueSink, DeviceSinkError> {
+    //     todo!()
+    // }
+
+    /// Open the device with the current configuration and play a single
+    /// `FixedSource` on it.
+    pub fn play(
+        self,
+        mut source: impl FixedSource + Send + 'static,
+    ) -> Result<SinkHandle, PlayError> {
+        use cpal::Sample as _;
+
+        let config = self.config.expect("ConfigIsSet");
+        let device = self.device.expect("DeviceIsSet").0;
+
+        if config.channel_count != source.channels() {
+            return Err(PlayError::WrongChannelCount {
+                sink: config.channel_count,
+                fixed_source: source.channels(),
+            });
+        }
+        if config.sample_rate != source.sample_rate() {
+            return Err(PlayError::WrongSampleRate {
+                sink: config.sample_rate,
+                fixed_source: source.sample_rate(),
+            });
+        }
+
+        let cpal_config1 = config.into_cpal_config();
+        let cpal_config2 = (&cpal_config1).into();
+
+        macro_rules! build_output_streams {
+        ($($sample_format:tt, $generic:ty);+) => {
+            match config.sample_format {
+                $(
+                    cpal::SampleFormat::$sample_format => device.build_output_stream::<$generic, _, _>(
+                        &cpal_config2,
+                        move |data, _| {
+                            data.iter_mut().for_each(|d| {
+                                *d = source
+                                    .next()
+                                    .map(cpal::Sample::from_sample)
+                                    .unwrap_or(<$generic>::EQUILIBRIUM)
+                            })
+                        },
+                        self.error_callback,
+                        None,
+                    ),
+                )+
+                _ => return Err(DeviceSinkError::UnsupportedSampleFormat.into()),
+            }
+        };
+    }
+
+        let result = build_output_streams!(
+            F32, f32;
+            F64, f64;
+            I8, i8;
+            I16, i16;
+            I24, cpal::I24;
+            I32, i32;
+            I64, i64;
+            U8, u8;
+            U16, u16;
+            U24, cpal::U24;
+            U32, u32;
+            U64, u64
+        );
+
+        let stream = result.map_err(DeviceSinkError::BuildError)?;
+        stream.play().map_err(DeviceSinkError::PlayError)?;
+
+        Ok(SinkHandle { _stream: stream })
+    }
+}
+
+// TODO cant introduce till we have introduced the other fixed source parts
+// pub struct QueueSink;
+
+/// A sink handle. When this is dropped anything playing through this Sink will
+/// stop playing.
+pub struct SinkHandle {
+    _stream: cpal::Stream,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PlayError {
+    #[error("DeviceSink channel count ({sink}) does not match the source channel count ({fixed_source})")]
+    WrongChannelCount {
+        sink: ChannelCount,
+        fixed_source: ChannelCount,
+    },
+    #[error(
+        "DeviceSink sample rate ({sink}) does not match the source sample rate ({fixed_source})"
+    )]
+    WrongSampleRate {
+        sink: SampleRate,
+        fixed_source: SampleRate,
+    },
+    #[error(transparent)]
+    DeviceSink(#[from] crate::DeviceSinkError),
 }

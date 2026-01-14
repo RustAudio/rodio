@@ -164,17 +164,21 @@ pub use self::noise::{Pink, WhiteUniform};
 /// `sample_rate` too frequently.
 ///
 /// In order to properly handle this situation, the `current_span_len()` method should return
-/// the number of samples that remain in the iterator before the samples rate and number of
-/// channels can potentially change.
+/// the total number of samples in the current span (i.e., before the sample rate and number of
+/// channels can potentially change).
 ///
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends.
+    /// Returns the total length of the current span in samples.
+    ///
+    /// A span is a contiguous block of samples with unchanging channel count and sample rate.
+    /// This method returns the total number of samples in the current span, not the number
+    /// of samples remaining to be read.
     ///
     /// `None` means "infinite" or "until the sound ends". Sources that return `Some(x)` should
     /// return `Some(0)` if and only if when there's no more data.
     ///
-    /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// After the engine has finished reading the number of samples returned by this method,
+    /// it will check whether the value of `channels()` and/or `sample_rate()` have changed.
     ///
     /// # Frame Alignment
     ///

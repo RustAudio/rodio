@@ -84,6 +84,8 @@ where
     }
 }
 
+impl<I> ExactSizeIterator for Delay<I> where I: Iterator + Source + ExactSizeIterator {}
+
 impl<I> Source for Delay<I>
 where
     I: Iterator + Source,

@@ -161,7 +161,8 @@ pub struct Dither<I> {
     input: I,
     noise: NoiseGenerator,
     current_channel: usize,
-    remaining_in_span: Option<usize>,
+    last_sample_rate: SampleRate,
+    last_channels: ChannelCount,
     lsb_amplitude: Float,
 }
 
@@ -179,13 +180,13 @@ where
 
         let sample_rate = input.sample_rate();
         let channels = input.channels();
-        let active_span_len = input.current_span_len();
 
         Self {
             input,
             noise: NoiseGenerator::new(algorithm, sample_rate, channels),
             current_channel: 0,
-            remaining_in_span: active_span_len,
+            last_sample_rate: sample_rate,
+            last_channels: channels,
             lsb_amplitude,
         }
     }
@@ -213,22 +214,24 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(ref mut remaining) = self.remaining_in_span {
-            *remaining = remaining.saturating_sub(1);
-        }
-
-        // Consume next input sample *after* decrementing span position and *before* checking for
-        // span boundary crossing. This ensures that the source has its parameters updated
-        // correctly before we generate noise for the next sample.
         let input_sample = self.input.next()?;
-        let num_channels = self.input.channels();
 
-        if self.remaining_in_span == Some(0) {
-            self.noise
-                .update_parameters(self.input.sample_rate(), num_channels);
-            self.current_channel = 0;
-            self.remaining_in_span = self.input.current_span_len();
+        if self.input.current_span_len().is_some_and(|len| len > 0) {
+            let current_sample_rate = self.input.sample_rate();
+            let current_channels = self.input.channels();
+            let parameters_changed = current_sample_rate != self.last_sample_rate
+                || current_channels != self.last_channels;
+
+            if parameters_changed {
+                self.noise
+                    .update_parameters(current_sample_rate, current_channels);
+                self.current_channel = 0;
+                self.last_sample_rate = current_sample_rate;
+                self.last_channels = current_channels;
+            }
         }
+
+        let num_channels = self.input.channels();
 
         let noise_sample = self
             .noise

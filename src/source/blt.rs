@@ -116,10 +116,10 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Sample> {
-        let last_in_span = self.input.current_span_len() == Some(1);
+        let current_sample_rate = self.input.sample_rate();
 
         if self.applier.is_none() {
-            self.applier = Some(self.formula.to_applier(self.input.sample_rate().get()));
+            self.applier = Some(self.formula.to_applier(current_sample_rate.get()));
         }
 
         let sample = self.input.next()?;
@@ -134,7 +134,14 @@ where
         self.y_n1 = result;
         self.x_n1 = sample;
 
-        if last_in_span {
+        // Check if sample rate changed after getting the next sample.
+        // Only check when span is finite and not exhausted.
+        let sample_rate_changed = self
+            .input
+            .current_span_len()
+            .is_some_and(|len| len > 0 && current_sample_rate != self.input.sample_rate());
+
+        if sample_rate_changed {
             self.applier = None;
         }
 
@@ -175,7 +182,15 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.input.try_seek(pos)
+        self.input.try_seek(pos)?;
+
+        // Reset filter state to avoid artifacts from previous position
+        self.x_n1 = 0.0;
+        self.x_n2 = 0.0;
+        self.y_n1 = 0.0;
+        self.y_n2 = 0.0;
+
+        Ok(())
     }
 }
 

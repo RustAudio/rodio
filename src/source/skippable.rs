@@ -76,6 +76,8 @@ where
     }
 }
 
+impl<I> ExactSizeIterator for Skippable<I> where I: Source + ExactSizeIterator {}
+
 impl<I> Source for Skippable<I>
 where
     I: Source,

@@ -126,6 +126,11 @@ impl<I: Iterator<Item = Sample>> Iterator for WholeFrames<I> {
         self.pos += 1;
         Some(to_yield)
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.source.size_hint()
+    }
 }
 
 #[cfg(test)]

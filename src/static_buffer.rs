@@ -114,6 +114,8 @@ impl Iterator for StaticSamplesBuffer {
     }
 }
 
+impl ExactSizeIterator for StaticSamplesBuffer {}
+
 #[cfg(test)]
 mod tests {
     use crate::math::nz;

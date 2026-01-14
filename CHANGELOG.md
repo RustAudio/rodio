@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `Skippable::skipped` function to check if the inner source was skipped.
+- All sources now implement `ExactSizeIterator` when their inner source does.
+- All sources now implement `Iterator::size_hint()`.
 
 ### Changed
 
@@ -65,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `SampleRateConverter::inner` to get underlying iterator by ref.
 
 ### Fixed
+
 - docs.rs will now document all features, including those that are optional.
 - `Chirp::next` now returns `None` when the total duration has been reached, and will work
   correctly for a number of samples greater than 2^24.
@@ -75,9 +78,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed channel misalignment in queue with non-power-of-2 channel counts (e.g., 6 channels) by ensuring frame-aligned span lengths.
 - Fixed channel misalignment when sources end before their promised span length by padding with silence to complete frames.
 - Fixed `Empty` source to properly report exhaustion.
-- Fixed `Zero::current_span_len` returning remaining samples instead of span length.
+- Fixed `Source::current_span_len()` to consistently return total span length.
+- Fixed `Source::size_hint()` to consistently report actual bounds based on current sources.
+- Fixed `Pausable::size_hint()` to correctly account for paused samples.
+- Fixed `Limit`, `TakeDuration` and `TrackPosition` to handle mid-span seeks.
+- Fixed `MixerSource` to prevent overflow with very long playback.
+- Fixed `PeriodicAccess` to prevent overflow with very long periods.
 
 ### Changed
+
 - Breaking: _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced
   with _Sink_. This is a simple rename, functionality is identical.
     - `OutputStream` is now `MixerDeviceSink` (in anticipation of future
@@ -95,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.
 - `Velvet` noise generator takes density in Hz as `usize` instead of `f32`.
 - Upgraded `cpal` to v0.17.
-- Clarified `Source::current_span_len()` contract documentation.
+- Clarified `Source::current_span_len()` documentation to specify it returns total span length.
 - Improved queue, mixer and sample rate conversion performance.
 
 ## Version [0.21.1] (2025-07-14)

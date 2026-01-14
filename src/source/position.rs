@@ -1,19 +1,24 @@
 use std::time::Duration;
 
 use super::SeekError;
-use crate::common::{ChannelCount, SampleRate};
-use crate::math::nz;
+use crate::common::{ChannelCount, Float, SampleRate};
+use crate::math::{duration_from_secs, duration_to_float};
 use crate::Source;
 
 /// Internal function that builds a `TrackPosition` object. See trait docs for
 /// details
-pub fn track_position<I>(source: I) -> TrackPosition<I> {
+pub fn track_position<I>(source: I) -> TrackPosition<I>
+where
+    I: Source,
+{
+    let channels = source.channels();
+    let sample_rate = source.sample_rate();
     TrackPosition {
         input: source,
         samples_counted: 0,
         offset_duration: 0.0,
-        current_span_sample_rate: nz!(1),
-        current_span_channels: nz!(1),
+        current_span_sample_rate: sample_rate,
+        current_span_channels: channels,
         current_span_len: None,
     }
 }
@@ -23,7 +28,7 @@ pub fn track_position<I>(source: I) -> TrackPosition<I> {
 pub struct TrackPosition<I> {
     input: I,
     samples_counted: usize,
-    offset_duration: f64,
+    offset_duration: Float,
     current_span_sample_rate: SampleRate,
     current_span_channels: ChannelCount,
     current_span_len: Option<usize>,
@@ -65,15 +70,16 @@ where
     /// track_position after speedup's and delay's.
     #[inline]
     pub fn get_pos(&self) -> Duration {
-        let seconds = self.samples_counted as f64
-            / self.input.sample_rate().get() as f64
-            / self.input.channels().get() as f64
+        let seconds = self.samples_counted as Float
+            / self.input.sample_rate().get() as Float
+            / self.input.channels().get() as Float
             + self.offset_duration;
-        Duration::from_secs_f64(seconds)
+        duration_from_secs(seconds)
     }
 
     #[inline]
-    fn set_current_span(&mut self) {
+    fn reset_current_span(&mut self) {
+        self.samples_counted = 0;
         self.current_span_len = self.current_span_len();
         self.current_span_sample_rate = self.sample_rate();
         self.current_span_channels = self.channels();
@@ -88,28 +94,34 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        // This should only be executed once at the first call to next.
         if self.current_span_len.is_none() {
-            self.set_current_span();
+            self.current_span_len = self.input.current_span_len();
         }
 
-        let item = self.input.next();
-        if item.is_some() {
-            self.samples_counted += 1;
+        let item = self.input.next()?;
+        self.samples_counted += 1;
 
-            // At the end of a span add the duration of this span to
-            // offset_duration and start collecting samples again.
-            if Some(self.samples_counted) == self.current_span_len() {
-                self.offset_duration += self.samples_counted as f64
-                    / self.current_span_sample_rate.get() as f64
-                    / self.current_span_channels.get() as f64;
+        // Detect span boundaries by TWO mechanisms:
+        // 1. Reached end of span (by length) - handles same-parameter consecutive spans
+        // 2. Parameters changed - handles mid-stream parameter changes
+        let new_channels = self.input.channels();
+        let new_sample_rate = self.input.sample_rate();
 
-                // Reset.
-                self.samples_counted = 0;
-                self.set_current_span();
-            };
-        };
-        item
+        let length_boundary = self
+            .current_span_len
+            .is_some_and(|len| self.samples_counted >= len);
+        let parameter_boundary = new_channels != self.current_span_channels
+            || new_sample_rate != self.current_span_sample_rate;
+
+        if length_boundary || parameter_boundary {
+            // At span boundary - accumulate duration using OLD parameters
+            self.offset_duration += self.samples_counted as Float
+                / self.current_span_sample_rate.get() as Float
+                / self.current_span_channels.get() as Float;
+            self.reset_current_span();
+        }
+
+        Some(item)
     }
 
     #[inline]
@@ -117,6 +129,8 @@ where
         self.input.size_hint()
     }
 }
+
+impl<I> ExactSizeIterator for TrackPosition<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for TrackPosition<I>
 where
@@ -144,15 +158,15 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        let result = self.input.try_seek(pos);
-        if result.is_ok() {
-            self.offset_duration = pos.as_secs_f64();
-            // This assumes that the seek implementation of the codec always
-            // starts again at the beginning of a span. Which is the case with
-            // symphonia.
-            self.samples_counted = 0;
-        }
-        result
+        self.input.try_seek(pos)?;
+        self.offset_duration = duration_to_float(pos);
+        // Set current_span_len to None after seeking because we may have landed mid-span.
+        // We don't know how many samples remain in the current span, so we disable
+        // length-based boundary detection until the next parameter change, which will
+        // put us at the start of a fresh span where we can re-enable it.
+        self.reset_current_span();
+        self.current_span_len = None;
+        Ok(())
     }
 }
 

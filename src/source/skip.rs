@@ -22,7 +22,7 @@ fn do_skip_duration<I>(input: &mut I, mut duration: Duration)
 where
     I: Source,
 {
-    while duration > Duration::new(0, 0) {
+    while duration > Duration::ZERO {
         if input.current_span_len().is_none() {
             // Sample rate and the amount of channels will be the same till the end.
             do_skip_duration_unchecked(input, duration);
@@ -129,6 +129,8 @@ where
     }
 }
 
+impl<I> ExactSizeIterator for SkipDuration<I> where I: Source + ExactSizeIterator {}
+
 impl<I> Source for SkipDuration<I>
 where
     I: Source,
@@ -150,10 +152,9 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.input.total_duration().map(|val| {
-            val.checked_sub(self.skipped_duration)
-                .unwrap_or_else(|| Duration::from_secs(0))
-        })
+        self.input
+            .total_duration()
+            .map(|val| val.saturating_sub(self.skipped_duration))
     }
 
     #[inline]

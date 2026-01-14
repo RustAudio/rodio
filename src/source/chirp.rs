@@ -46,17 +46,6 @@ impl Chirp {
             elapsed_samples: 0,
         }
     }
-
-    #[allow(dead_code)]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        let mut target = (pos.as_secs_f64() * self.sample_rate.get() as f64) as u64;
-        if target >= self.total_samples {
-            target = self.total_samples;
-        }
-
-        self.elapsed_samples = target;
-        Ok(())
-    }
 }
 
 impl Iterator for Chirp {
@@ -100,5 +89,15 @@ impl Source for Chirp {
     fn total_duration(&self) -> Option<Duration> {
         let secs = self.total_samples as f64 / self.sample_rate.get() as f64;
         Some(Duration::from_secs_f64(secs))
+    }
+
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        let mut target = (pos.as_secs_f64() * self.sample_rate.get() as f64) as u64;
+        if target >= self.total_samples {
+            target = self.total_samples;
+        }
+
+        self.elapsed_samples = target;
+        Ok(())
     }
 }

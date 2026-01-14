@@ -135,37 +135,16 @@ fn threshold(channels: ChannelCount) -> usize {
 impl Source for SourcesQueueOutput {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        // This function is non-trivial because the boundary between two sounds in the queue should
-        // be a span boundary as well.
-        //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
-        // we *should* return the number of samples remaining the current sound.
-        // This can be estimated with `size_hint()`.
-        //
-        // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
-        // situation we force a span to have a maximum number of samples indicate by this
-        // constant.
-
-        // Try the current `current_span_len`.
         if !self.current.is_exhausted() {
             return self.current.current_span_len();
         } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
             && self.input.next_sounds.lock().unwrap().is_empty()
         {
-            // The next source will be a filler silence which will have a frame-aligned length
+            // Return what that Zero's current_span_len() will be: Some(threshold(channels)).
             return Some(threshold(self.current.channels()));
         }
 
-        // Try the size hint.
-        let (lower_bound, _) = self.current.size_hint();
-        // The iterator default implementation just returns 0.
-        // That's a problematic value, so skip it.
-        if lower_bound > 0 {
-            return Some(lower_bound);
-        }
-
-        // Otherwise we use a frame-aligned threshold value.
-        Some(threshold(self.current.channels()))
+        None
     }
 
     #[inline]

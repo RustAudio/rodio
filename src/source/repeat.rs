@@ -46,7 +46,7 @@ where
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         // infinite
-        (0, None)
+        (usize::MAX, None)
     }
 }
 

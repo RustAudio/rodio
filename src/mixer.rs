@@ -32,9 +32,10 @@ pub fn mixer(channels: ChannelCount, sample_rate: SampleRate) -> (Mixer, MixerSo
     }));
 
     let output = MixerSource {
-        current_sources: Vec::with_capacity(16),
+        current_sources: Vec::new(),
         input: input.clone(),
-        sample_count: 0,
+        current_channel: 0,
+        still_pending: Vec::new(),
         pending_rx: rx,
     };
 
@@ -73,8 +74,11 @@ pub struct MixerSource {
     // The pending sounds.
     input: Mixer,
 
-    // The number of samples produced so far.
-    sample_count: u16,
+    // Current channel position within the frame.
+    current_channel: u16,
+
+    // A temporary vec used in start_pending_sources.
+    still_pending: Vec<Box<dyn Source + Send>>,
 
     // Receiver for pending sources from the channel.
     pending_rx: Receiver<Box<dyn Source + Send>>,
@@ -116,10 +120,13 @@ impl Iterator for MixerSource {
     fn next(&mut self) -> Option<Self::Item> {
         self.start_pending_sources();
 
-        self.sample_count += 1;
-        self.sample_count %= self.channels().get();
-
         let sum = self.sum_current_sources();
+
+        // Advance frame position (wraps at channel count, never overflows)
+        self.current_channel += 1;
+        if self.current_channel >= self.input.0.channels.get() {
+            self.current_channel = 0;
+        }
 
         if self.current_sources.is_empty() {
             None
@@ -130,7 +137,33 @@ impl Iterator for MixerSource {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, None)
+        if self.current_sources.is_empty() {
+            return (0, Some(0));
+        }
+
+        // The mixer continues as long as ANY source is playing, so bounds are
+        // determined by the longest source, not the shortest.
+        let mut min = 0;
+        let mut max: Option<usize> = Some(0);
+
+        for source in &self.current_sources {
+            let (source_min, source_max) = source.size_hint();
+            // Lower bound: guaranteed to produce at least until longest source's lower bound
+            min = min.max(source_min);
+
+            match (max, source_max) {
+                (Some(current_max), Some(source_max_val)) => {
+                    // Upper bound: might produce up to longest source's upper bound
+                    max = Some(current_max.max(source_max_val));
+                }
+                _ => {
+                    // If any source is unbounded, the mixer is unbounded
+                    max = None;
+                }
+            }
+        }
+
+        (min, max)
     }
 }
 
@@ -140,8 +173,16 @@ impl MixerSource {
     // in-step with the modulo of the samples produced so far. Otherwise, the
     // sound will play on the wrong channels, e.g. left / right will be reversed.
     fn start_pending_sources(&mut self) {
-        if self.sample_count == 0 {
-            self.current_sources.extend(self.pending_rx.try_iter());
+        while let Ok(source) = self.pending_rx.try_recv() {
+            // Only start sources at frame boundaries (when current_channel == 0)
+            // to ensure correct channel alignment
+            let in_step = self.current_channel == 0;
+
+            if in_step {
+                self.current_sources.push(source);
+            } else {
+                self.still_pending.push(source);
+            }
         }
     }
 

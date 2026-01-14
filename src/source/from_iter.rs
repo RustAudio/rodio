@@ -66,7 +66,7 @@ where
         if let Some(cur) = &self.current_source {
             (cur.size_hint().0, None)
         } else {
-            (0, None)
+            (0, Some(0))
         }
     }
 }
@@ -78,36 +78,13 @@ where
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        // This function is non-trivial because the boundary between the current source and the
-        // next must be a span boundary as well.
-        //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
-        // we *should* return the number of samples remaining the current sound.
-        // This can be estimated with `size_hint()`.
-        //
-        // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
-        // situation we force a span to have a maximum number of samples indicate by this
-        // constant.
-        const THRESHOLD: usize = 10240;
-
-        // Try the current `current_span_len`.
         if let Some(src) = &self.current_source {
             if !src.is_exhausted() {
                 return src.current_span_len();
             }
         }
 
-        // Try the size hint.
-        if let Some(src) = &self.current_source {
-            if let Some(val) = src.size_hint().1 {
-                if val < THRESHOLD && val != 0 {
-                    return Some(val);
-                }
-            }
-        }
-
-        // Otherwise we use the constant value.
-        Some(THRESHOLD)
+        None
     }
 
     #[inline]

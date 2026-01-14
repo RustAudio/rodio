@@ -36,6 +36,11 @@ impl Iterator for TriangleWave {
     fn next(&mut self) -> Option<Sample> {
         self.test_tri.next()
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, None)
+    }
 }
 
 impl Source for TriangleWave {

@@ -36,6 +36,11 @@ impl Iterator for SineWave {
     fn next(&mut self) -> Option<Sample> {
         self.test_sine.next()
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, None)
+    }
 }
 
 impl Source for SineWave {

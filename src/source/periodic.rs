@@ -14,7 +14,7 @@ where
     // TODO: handle the fact that the samples rate can change
     let update_frequency = (period.as_secs_f32()
         * (source.sample_rate().get() as f32)
-        * (source.channels().get() as f32)) as u32;
+        * (source.channels().get() as f32)) as usize;
 
     PeriodicAccess {
         input: source,
@@ -35,10 +35,10 @@ pub struct PeriodicAccess<I, F> {
     modifier: F,
 
     // The frequency with which local_volume should be updated by remote_volume
-    update_frequency: u32,
+    update_frequency: usize,
 
     // How many samples remain until it is time to update local_volume with remote_volume.
-    samples_until_update: u32,
+    samples_until_update: usize,
 }
 
 impl<I, F> PeriodicAccess<I, F>
@@ -89,6 +89,13 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.input.size_hint()
     }
+}
+
+impl<I, F> ExactSizeIterator for PeriodicAccess<I, F>
+where
+    I: Source + ExactSizeIterator,
+    F: FnMut(&mut I),
+{
 }
 
 impl<I, F> Source for PeriodicAccess<I, F>

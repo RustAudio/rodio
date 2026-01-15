@@ -66,6 +66,8 @@ where
     }
 }
 
+impl<I> ExactSizeIterator for Done<I> where I: Source + ExactSizeIterator {}
+
 impl<I> Source for Done<I>
 where
     I: Source,

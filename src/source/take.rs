@@ -10,13 +10,16 @@ pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
 where
     I: Source,
 {
+    let sample_rate = input.sample_rate();
+    let channels = input.channels();
     TakeDuration {
-        current_span_len: input.current_span_len(),
         duration_per_sample: TakeDuration::get_duration_per_sample(&input),
         input,
         remaining_duration: duration,
         requested_duration: duration,
         filter: None,
+        last_sample_rate: sample_rate,
+        last_channels: channels,
     }
 }
 
@@ -44,10 +47,10 @@ pub struct TakeDuration<I> {
     remaining_duration: Duration,
     requested_duration: Duration,
     filter: Option<DurationFilter>,
-    // Remaining samples in current span.
-    current_span_len: Option<usize>,
-    // Only updated when the current span len is exhausted.
+    // Cached duration per sample, updated when sample rate or channels change.
     duration_per_sample: Duration,
+    last_sample_rate: SampleRate,
+    last_channels: ChannelCount,
 }
 
 impl<I> TakeDuration<I>
@@ -99,17 +102,18 @@ where
     type Item = <I as Iterator>::Item;
 
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if let Some(span_len) = self.current_span_len.take() {
-            if span_len > 0 {
-                self.current_span_len = Some(span_len - 1);
-            } else {
-                self.current_span_len = self.input.current_span_len();
-                // Sample rate might have changed
+        // Check if sample rate or channels changed (only if span is finite and not exhausted)
+        if self.input.current_span_len().is_some_and(|len| len > 0) {
+            let new_sample_rate = self.input.sample_rate();
+            let new_channels = self.input.channels();
+            if new_sample_rate != self.last_sample_rate || new_channels != self.last_channels {
+                self.last_sample_rate = new_sample_rate;
+                self.last_channels = new_channels;
                 self.duration_per_sample = Self::get_duration_per_sample(&self.input);
             }
         }
 
-        if self.remaining_duration <= self.duration_per_sample {
+        if self.remaining_duration < self.duration_per_sample {
             None
         } else if let Some(sample) = self.input.next() {
             let sample = match &self.filter {
@@ -125,8 +129,30 @@ where
         }
     }
 
-    // TODO: size_hint
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining_nanos = self.remaining_duration.as_secs() * 1_000_000_000
+            + self.remaining_duration.subsec_nanos() as u64;
+        let nanos_per_sample = self.duration_per_sample.as_secs() * 1_000_000_000
+            + self.duration_per_sample.subsec_nanos() as u64;
+
+        if nanos_per_sample == 0 || remaining_nanos == 0 {
+            return (0, Some(0));
+        }
+
+        let remaining_samples = (remaining_nanos / nanos_per_sample) as usize;
+
+        let (inner_lower, inner_upper) = self.input.size_hint();
+        let lower = inner_lower.min(remaining_samples);
+        let upper = inner_upper
+            .map(|u| u.min(remaining_samples))
+            .or(Some(remaining_samples));
+
+        (lower, upper)
+    }
 }
+
+impl<I> ExactSizeIterator for TakeDuration<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for TakeDuration<I>
 where
@@ -138,6 +164,11 @@ where
             + self.remaining_duration.subsec_nanos() as u64;
         let nanos_per_sample = self.duration_per_sample.as_secs() * NANOS_PER_SEC
             + self.duration_per_sample.subsec_nanos() as u64;
+
+        if nanos_per_sample == 0 || remaining_nanos == 0 {
+            return Some(0);
+        }
+
         let remaining_samples = (remaining_nanos / nanos_per_sample) as usize;
 
         self.input
@@ -171,6 +202,40 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.input.try_seek(pos)
+        let result = self.input.try_seek(pos);
+        if result.is_ok() {
+            // Recalculate remaining duration after seek
+            self.remaining_duration = self.requested_duration.saturating_sub(pos);
+            // Don't update last_sample_rate or last_channels here - let next() detect the change
+        }
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::source::SineWave;
+
+    #[test]
+    fn test_size_hint_with_zero_remaining() {
+        let source = SineWave::new(440.0).take_duration(Duration::ZERO);
+        assert_eq!(source.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn test_exact_duration_boundary() {
+        use crate::source::SineWave;
+
+        let sample_rate = 48000;
+        let nanos_per_sample = (1_000_000_000 as Float / sample_rate as Float) as usize;
+
+        let n_samples = 10;
+        let exact_duration = Duration::from_nanos((nanos_per_sample * n_samples) as u64);
+
+        let source = SineWave::new(440.0).take_duration(exact_duration);
+
+        let count = source.count();
+        assert_eq!(count, n_samples);
     }
 }

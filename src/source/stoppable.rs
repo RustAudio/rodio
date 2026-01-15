@@ -66,6 +66,8 @@ where
     }
 }
 
+impl<I> ExactSizeIterator for Stoppable<I> where I: Source + ExactSizeIterator {}
+
 impl<I> Source for Stoppable<I>
 where
     I: Source,

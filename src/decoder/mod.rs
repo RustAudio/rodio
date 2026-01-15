@@ -101,6 +101,7 @@ pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 pub struct LoopedDecoder<R: Read + Seek> {
     /// The underlying decoder implementation.
     inner: Option<DecoderImpl<R>>,
+
     /// Configuration settings for the decoder.
     settings: Settings,
 }
@@ -249,7 +250,10 @@ impl<R: Read + Seek> DecoderImpl<R> {
             DecoderImpl::Mp3(source) => source.try_seek(pos),
             #[cfg(feature = "symphonia")]
             DecoderImpl::Symphonia(source, PhantomData) => source.try_seek(pos),
-            DecoderImpl::None(_, _) => unreachable!(),
+            DecoderImpl::None(_, _) => {
+                let _ = pos;
+                unreachable!()
+            }
         }
     }
 }
@@ -622,6 +626,7 @@ where
 
             // Take ownership of the decoder to reset it
             let decoder = self.inner.take()?;
+
             let (new_decoder, sample) = match decoder {
                 #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
                 DecoderImpl::Wav(source) => {
@@ -667,9 +672,16 @@ where
                     let sample = source.next();
                     (DecoderImpl::Symphonia(source, PhantomData), sample)
                 }
+                DecoderImpl::None(unreachable, phantom) => {
+                    let _ = self.settings;
+                    (DecoderImpl::None(unreachable, phantom), None)
+                }
             };
-            self.inner = Some(new_decoder);
-            sample
+
+            {
+                self.inner = Some(new_decoder);
+                sample
+            }
         } else {
             None
         }

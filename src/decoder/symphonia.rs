@@ -28,6 +28,7 @@ pub(crate) struct SymphoniaDecoder {
     buffer: SampleBuffer<Sample>,
     spec: SignalSpec,
     seek_mode: SeekMode,
+    selected_track_id: u32,
 }
 
 impl SymphoniaDecoder {
@@ -82,25 +83,15 @@ impl SymphoniaDecoder {
         };
 
         // Select the first supported track
-        let track_id = probed
+        let track = probed
             .format
             .tracks()
             .iter()
             .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
             .ok_or(symphonia::core::errors::Error::Unsupported(
                 "No track with supported codec",
-            ))?
-            .id;
-
-        let track = match probed
-            .format
-            .tracks()
-            .iter()
-            .find(|track| track.id == track_id)
-        {
-            Some(track) => track,
-            None => return Ok(None),
-        };
+            ))?;
+        let track_id = track.id;
 
         let mut decoder = symphonia::default::get_codecs()
             .make(&track.codec_params, &DecoderOptions::default())?;
@@ -145,6 +136,7 @@ impl SymphoniaDecoder {
             buffer,
             spec,
             seek_mode,
+            selected_track_id: track_id,
         }))
     }
 
@@ -300,6 +292,12 @@ impl Iterator for SymphoniaDecoder {
         if self.current_span_offset >= self.buffer.len() {
             let decoded = loop {
                 let packet = self.format.next_packet().ok()?;
+
+                // If the packet does not belong to the selected track, skip over it
+                if packet.track_id() != self.selected_track_id {
+                    continue;
+                }
+
                 let decoded = match self.decoder.decode(&packet) {
                     Ok(decoded) => decoded,
                     Err(Error::DecodeError(_)) => {

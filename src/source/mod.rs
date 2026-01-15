@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::{
     buffer::SamplesBuffer,
     common::{assert_error_traits, ChannelCount, SampleRate},
-    math, BitDepth, Float, Sample,
+    math, Float, Sample,
 };
 
 use dasp_sample::FromSample;
@@ -231,7 +231,7 @@ pub trait Source: Iterator<Item = Sample> {
     #[cfg(feature = "dither")]
     #[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
     #[inline]
-    fn dither(self, target_bits: BitDepth, algorithm: DitherAlgorithm) -> Dither<Self>
+    fn dither(self, target_bits: crate::BitDepth, algorithm: DitherAlgorithm) -> Dither<Self>
     where
         Self: Sized,
     {

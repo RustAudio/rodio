@@ -8,6 +8,7 @@ repository = "https://github.com/RustAudio/rodio"
 documentation = "https://docs.rs/rodio"
 exclude = ["assets/**", "tests/**"]
 edition = "2021"
+rust-version = "1.87"
 
 [features]
 # Default feature set provides audio playback and common format support

@@ -32,6 +32,10 @@ Rodio playback works in environments supported by [cpal](https://github.com/Rust
 
 The CPU of the target system should have hardware support for 32-bit floating point (`f32`), and atomic operations that are at least 32 bit wide. Without these the CPU may not be fast enough to keep up with real-time.
 
+### Minimum Supported Rust Version (MSRV)
+
+Rodio requires Rust 1.87 or later.
+
 ## Dependencies (Linux only)
 
 Rodio uses `cpal` library to send audio to the OS for playback. ALSA development files are needed to build `cpal` on Linux. These are provided as part of the `libasound2-dev` package on Debian and Ubuntu distributions and `alsa-lib-devel` on Fedora.

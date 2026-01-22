@@ -5,7 +5,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::source::{Empty, SeekError, Source, Zero};
+use dasp_sample::Sample as _;
+
+use crate::source::{Empty, SeekError, Source};
 use crate::Sample;
 
 use crate::common::{ChannelCount, SampleRate};
@@ -36,7 +38,7 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
         signal_after_end: None,
         input: input.clone(),
         samples_consumed_in_span: 0,
-        padding_samples_remaining: 0,
+        silence_samples_remaining: 0,
     };
 
     (input, output)
@@ -72,7 +74,8 @@ impl SourcesQueueInput {
     ///
     /// The `Receiver` will be signalled when the sound has finished playing.
     ///
-    /// Enable the feature flag `crossbeam-channel` in rodio to use a `crossbeam_channel::Receiver` instead.
+    /// Enable the feature flag `crossbeam-channel` in rodio to use a `crossbeam_channel::Receiver`
+    /// instead.
     #[inline]
     pub fn append_with_signal<T>(&self, source: T) -> Receiver<()>
     where
@@ -94,6 +97,11 @@ impl SourcesQueueInput {
             .store(keep_alive_if_empty, Ordering::Release);
     }
 
+    /// Returns whether the queue stays alive if there's no more sound to play.
+    pub fn keep_alive_if_empty(&self) -> bool {
+        self.keep_alive_if_empty.load(Ordering::Acquire)
+    }
+
     /// Removes all the sounds from the queue. Returns the number of sounds cleared.
     pub fn clear(&self) -> usize {
         let mut sounds = self.next_sounds.lock().unwrap();
@@ -102,6 +110,7 @@ impl SourcesQueueInput {
         len
     }
 }
+
 /// The output of the queue. Implements `Source`.
 pub struct SourcesQueueOutput {
     // The current iterator that produces samples.
@@ -116,72 +125,74 @@ pub struct SourcesQueueOutput {
     // Track samples consumed in the current span to detect mid-span endings.
     samples_consumed_in_span: usize,
 
-    // When a source ends mid-frame, this counts how many silence samples to inject
-    // to complete the frame before transitioning to the next source.
-    padding_samples_remaining: usize,
-}
-
-/// Returns a threshold span length that ensures frame alignment.
-///
-/// Spans must end on frame boundaries (multiples of channel count) to prevent
-/// channel misalignment. Returns ~512 samples rounded to the nearest frame.
-#[inline]
-fn threshold(channels: ChannelCount) -> usize {
-    const BASE_SAMPLES: usize = 512;
-    let ch = channels.get() as usize;
-    BASE_SAMPLES.div_ceil(ch) * ch
+    // This counts how many silence samples to inject when a source ends.
+    silence_samples_remaining: usize,
 }
 
 impl Source for SourcesQueueOutput {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        if !self.current.is_exhausted() {
-            return self.current.current_span_len();
-        } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
-            && self.input.next_sounds.lock().unwrap().is_empty()
+        let len = match self.current.current_span_len() {
+            Some(len) if len == 0 && self.silence_samples_remaining > 0 => {
+                // - Current source ended mid-frame, and we're injecting silence to frame-align it.
+                self.silence_samples_remaining
+            }
+            Some(len) if len > 0 || !self.input.keep_alive_if_empty() => {
+                // - Current source is not exhausted, and is reporting some span length, or
+                // - Current source is exhausted, and won't output silence after it: end of queue.
+                len
+            }
+            _ => {
+                // - Current source is not exhausted, and is reporting no span length, or
+                // - Current source is exhausted, and will output silence after it.
+                self.current.channels().get() as usize
+            }
+        };
+
+        // Special case: if the current source is `Empty` and there are queued sounds after it.
+        if len == 0
+            && self
+                .current
+                .total_duration()
+                .is_some_and(|duration| duration.is_zero())
         {
-            // Return what that Zero's current_span_len() will be: Some(threshold(channels)).
-            return Some(threshold(self.current.channels()));
+            if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
+                return next
+                    .current_span_len()
+                    .or_else(|| Some(next.channels().get() as usize));
+            }
         }
 
-        None
+        // A queue must never return None: that could cause downstream sources to assume sample
+        // rate or channel count would never change from one queue item to the next.
+        Some(len)
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        if !self.current.is_exhausted() {
-            // Current source is active (producing samples)
-            // - Initially: never (Empty is exhausted immediately)
-            // - After append: the appended source while playing
-            // - With keep_alive: Zero (silence) while playing
-            self.current.channels()
-        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
-            // Current source exhausted, peek at next queued source
-            // This is critical: UniformSourceIterator queries metadata during append,
-            // before any samples are pulled. We must report the next source's metadata.
-            next.channels()
-        } else {
-            // Queue is empty, no sources queued
-            // - Initially: Empty
-            // - With keep_alive: exhausted Zero between silence chunks (matches Empty)
-            // - Without keep_alive: Empty (will end on next())
-            self.current.channels()
+        if self.current.is_exhausted() && self.silence_samples_remaining == 0 {
+            if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
+                // Current source exhausted, peek at next queued source
+                // This is critical: UniformSourceIterator queries metadata during append,
+                // before any samples are pulled. We must report the next source's metadata.
+                return next.channels();
+            }
         }
+
+        self.current.channels()
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        if !self.current.is_exhausted() {
-            // Current source is active (producing samples)
-            self.current.sample_rate()
-        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
-            // Current source exhausted, peek at next queued source
-            // This prevents wrong resampling setup in UniformSourceIterator
-            next.sample_rate()
-        } else {
-            // Queue is empty, no sources queued
-            self.current.sample_rate()
+        if self.current.is_exhausted() && self.silence_samples_remaining == 0 {
+            if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
+                // Current source exhausted, peek at next queued source
+                // This prevents wrong resampling setup in UniformSourceIterator
+                return next.sample_rate();
+            }
         }
+
+        self.current.sample_rate()
     }
 
     #[inline]
@@ -211,34 +222,45 @@ impl Iterator for SourcesQueueOutput {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // If we're padding to complete a frame, return silence.
-            if self.padding_samples_remaining > 0 {
-                self.padding_samples_remaining -= 1;
-                return Some(0.0);
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
+                return Some(Sample::EQUILIBRIUM);
             }
 
             // Basic situation that will happen most of the time.
             if let Some(sample) = self.current.next() {
-                self.samples_consumed_in_span += 1;
+                self.samples_consumed_in_span = self
+                    .samples_consumed_in_span
+                    .checked_add(1)
+                    .unwrap_or_else(|| {
+                        self.samples_consumed_in_span % self.current.channels().get() as usize + 1
+                    });
                 return Some(sample);
             }
 
-            // Source ended - check if we ended mid-frame and need padding.
-            let channels = self.current.channels().get() as usize;
-            let incomplete_frame_samples = self.samples_consumed_in_span % channels;
-            if incomplete_frame_samples > 0 {
-                // We're mid-frame - need to pad with silence to complete it.
-                self.padding_samples_remaining = channels - incomplete_frame_samples;
-                // Reset counter now since we're transitioning to a new span.
-                self.samples_consumed_in_span = 0;
-                // Continue loop - next iteration will inject silence.
-                continue;
+            // Current source is exhausted - check if we ended mid-frame and need padding.
+            if self.samples_consumed_in_span > 0 {
+                let channels = self.current.channels().get() as usize;
+                let incomplete_frame_samples = self.samples_consumed_in_span % channels;
+                if incomplete_frame_samples > 0 {
+                    // We're mid-frame - need to pad with silence to complete it.
+                    self.silence_samples_remaining = channels - incomplete_frame_samples;
+                    // Reset counter now since we're transitioning to a new span.
+                    self.samples_consumed_in_span = 0;
+                    // Continue loop - next iterations will inject silence.
+                    continue;
+                }
             }
 
-            // Reset counter and move to next sound.
-            // In order to avoid inlining this expensive operation, the code is in another function.
-            self.samples_consumed_in_span = 0;
+            // Move to next sound, play silence, or end.
+            // In order to avoid inlining that expensive operation, the code is in another function.
             if self.go_next().is_err() {
-                return None;
+                if self.input.keep_alive_if_empty() {
+                    self.silence_samples_remaining = self.current.channels().get() as usize;
+                    continue;
+                } else {
+                    return None;
+                }
             }
         }
     }
@@ -251,7 +273,7 @@ impl Iterator for SourcesQueueOutput {
 
 impl SourcesQueueOutput {
     // Called when `current` is empty, and we must jump to the next element.
-    // Returns `Ok` if the sound should continue playing, or an error if it should stop.
+    // Returns `Ok` if there is another sound should continue playing, or `Err` when there is not.
     //
     // This method is separate so that it is not inlined.
     fn go_next(&mut self) -> Result<(), ()> {
@@ -261,23 +283,7 @@ impl SourcesQueueOutput {
 
         let (next, signal_after_end) = {
             let mut next = self.input.next_sounds.lock().unwrap();
-
-            if let Some(next) = next.pop_front() {
-                next
-            } else {
-                let channels = self.current.channels();
-                let silence = Box::new(Zero::new_samples(
-                    channels,
-                    self.current.sample_rate(),
-                    threshold(channels),
-                )) as Box<_>;
-                if self.input.keep_alive_if_empty.load(Ordering::Acquire) {
-                    // Play a short silence in order to avoid spinlocking.
-                    (silence, None)
-                } else {
-                    return Err(());
-                }
-            }
+            next.pop_front().ok_or(())?
         };
 
         self.current = next;
@@ -350,7 +356,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: not yet implemented
     fn no_delay_when_added() {
         let (tx, mut rx) = queue::queue(true);
 

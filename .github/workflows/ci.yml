@@ -14,12 +14,11 @@ jobs:
   tests:
     name: Tests
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
-        toolchain: [stable, beta, nightly]
+        toolchain: ["1.87"]
         include:
           - os: macos-latest
             MACOS: true
@@ -35,15 +34,17 @@ jobs:
       - name: Install ${{ matrix.toolchain }} toolchain
         run: rustup toolchain install ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
 
-      - run: |
-          rustup component add clippy
-          cargo clippy --all-features -- -D warnings
-        if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
+      - name: Install stable toolchain for clippy
+        run: rustup toolchain install stable
+        if: matrix.os == 'ubuntu-latest'
+
+      - run: cargo +stable clippy --all-features -- -D warnings
+        if: matrix.os == 'ubuntu-latest'
 
       - run: |
           rustup component add rustfmt
           cargo fmt --all -- --check
-        if: matrix.toolchain == 'stable' && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
 
       - run: cargo test --all-targets
       - run: cargo test --all-targets --all-features

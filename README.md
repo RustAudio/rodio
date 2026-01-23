@@ -64,6 +64,18 @@ This will work for other Linux targets too if you change the architecture in the
 
 You might want to look at [cross](https://github.com/cross-rs/cross) if you are running on a non debian system or want to make this more repeatable.
 
+# Goals
+- Simple API
+    - you should not need to know anything about audio to use rodio
+    - its hard to make mistakes
+    - easy to move rodio parts around your program
+- Optimal
+    - rodio should be a zero cost abstraction
+    - rodio should offer options between perfect and fast
+- extensible
+    - if something is missing in rodio it should be easy to add
+    - you should be able to control rodio parts easily
+
 # Contributing
 
 We love it when people join making rodio better. There are many ways to help not matter how experienced you are with audio or Rust. We would especially love help with:

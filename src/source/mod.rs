@@ -840,3 +840,58 @@ source_pointer_impl!(Source for Box<dyn Source + Send>);
 source_pointer_impl!(Source for Box<dyn Source + Send + Sync>);
 
 source_pointer_impl!(<'a, Src> Source for &'a mut Src where Src: Source,);
+
+/// Detects if we're at a span boundary using dual-mode tracking.
+/// Returns a tuple indicating whether we're at a span boundary and if parameters changed.
+#[inline]
+pub(crate) fn detect_span_boundary(
+    samples_counted: &mut usize,
+    cached_span_len: &mut Option<usize>,
+    input_span_len: Option<usize>,
+    current_sample_rate: SampleRate,
+    last_sample_rate: SampleRate,
+    current_channels: ChannelCount,
+    last_channels: ChannelCount,
+) -> (bool, bool) {
+    *samples_counted = samples_counted.saturating_add(1);
+
+    // If input reports no span length, then by contract parameters are stable.
+    let mut parameters_changed = false;
+    let at_boundary = input_span_len.is_some_and(|_| {
+        let known_boundary = cached_span_len.map(|cached_len| *samples_counted >= cached_len);
+
+        // In span-counting mode, the only moment that parameters can change is at a span boundary.
+        // In detection mode after try_seek, we check every sample until we detect a boundary.
+        if known_boundary.is_none_or(|at_boundary| at_boundary) {
+            parameters_changed =
+                current_channels != last_channels || current_sample_rate != last_sample_rate;
+        }
+
+        known_boundary.unwrap_or(parameters_changed)
+    });
+
+    if at_boundary {
+        *samples_counted = 0;
+        *cached_span_len = input_span_len;
+    }
+
+    (at_boundary, parameters_changed)
+}
+
+/// Resets span tracking state after a seek operation.
+#[inline]
+pub(crate) fn reset_seek_span_tracking(
+    samples_counted: &mut usize,
+    cached_span_len: &mut Option<usize>,
+    pos: Duration,
+    input_span_len: Option<usize>,
+) {
+    *samples_counted = 0;
+    if pos == Duration::ZERO {
+        // Set span-counting mode when seeking to start
+        *cached_span_len = input_span_len;
+    } else {
+        // Set detection mode for arbitrary positions
+        *cached_span_len = None;
+    }
+}

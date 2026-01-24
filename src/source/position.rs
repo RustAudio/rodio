@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::SeekError;
+use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
 use crate::common::{ChannelCount, Float, SampleRate};
 use crate::math::{duration_from_secs, duration_to_float};
 use crate::Source;
@@ -19,7 +19,7 @@ where
         offset_duration: 0.0,
         current_span_sample_rate: sample_rate,
         current_span_channels: channels,
-        current_span_len: None,
+        cached_span_len: None,
     }
 }
 
@@ -31,7 +31,7 @@ pub struct TrackPosition<I> {
     offset_duration: Float,
     current_span_sample_rate: SampleRate,
     current_span_channels: ChannelCount,
-    current_span_len: Option<usize>,
+    cached_span_len: Option<usize>,
 }
 
 impl<I> TrackPosition<I> {
@@ -76,14 +76,6 @@ where
             + self.offset_duration;
         duration_from_secs(seconds)
     }
-
-    #[inline]
-    fn reset_current_span(&mut self) {
-        self.samples_counted = 0;
-        self.current_span_len = self.current_span_len();
-        self.current_span_sample_rate = self.sample_rate();
-        self.current_span_channels = self.channels();
-    }
 }
 
 impl<I> Iterator for TrackPosition<I>
@@ -94,31 +86,39 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        if self.current_span_len.is_none() {
-            self.current_span_len = self.input.current_span_len();
-        }
-
         let item = self.input.next()?;
-        self.samples_counted += 1;
 
-        // Detect span boundaries by TWO mechanisms:
-        // 1. Reached end of span (by length) - handles same-parameter consecutive spans
-        // 2. Parameters changed - handles mid-stream parameter changes
-        let new_channels = self.input.channels();
-        let new_sample_rate = self.input.sample_rate();
+        let input_span_len = self.input.current_span_len();
+        let current_sample_rate = self.input.sample_rate();
+        let current_channels = self.input.channels();
 
-        let length_boundary = self
-            .current_span_len
-            .is_some_and(|len| self.samples_counted >= len);
-        let parameter_boundary = new_channels != self.current_span_channels
-            || new_sample_rate != self.current_span_sample_rate;
+        // Capture samples_counted before detect_span_boundary resets it
+        let samples_before_boundary = self.samples_counted;
 
-        if length_boundary || parameter_boundary {
-            // At span boundary - accumulate duration using OLD parameters
-            self.offset_duration += self.samples_counted as Float
+        let (at_boundary, parameters_changed) = detect_span_boundary(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            input_span_len,
+            current_sample_rate,
+            self.current_span_sample_rate,
+            current_channels,
+            self.current_span_channels,
+        );
+
+        if at_boundary {
+            // At span boundary - accumulate duration using OLD parameters and the sample
+            // count from before the boundary (detect_span_boundary increments first, then
+            // resets at boundary, so samples_before_boundary + 1 gives us the completed count)
+            let completed_samples = samples_before_boundary.saturating_add(1);
+
+            self.offset_duration += completed_samples as Float
                 / self.current_span_sample_rate.get() as Float
                 / self.current_span_channels.get() as Float;
-            self.reset_current_span();
+
+            if parameters_changed {
+                self.current_span_sample_rate = current_sample_rate;
+                self.current_span_channels = current_channels;
+            }
         }
 
         Some(item)
@@ -160,12 +160,14 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)?;
         self.offset_duration = duration_to_float(pos);
-        // Set current_span_len to None after seeking because we may have landed mid-span.
-        // We don't know how many samples remain in the current span, so we disable
-        // length-based boundary detection until the next parameter change, which will
-        // put us at the start of a fresh span where we can re-enable it.
-        self.reset_current_span();
-        self.current_span_len = None;
+        reset_seek_span_tracking(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            pos,
+            self.input.current_span_len(),
+        );
+        self.current_span_sample_rate = self.input.sample_rate();
+        self.current_span_channels = self.input.channels();
         Ok(())
     }
 }

@@ -30,8 +30,9 @@ use std::time::Duration;
 
 use crate::{
     source::{
+        detect_span_boundary,
         noise::{Blue, WhiteGaussian, WhiteTriangular, WhiteUniform},
-        SeekError,
+        reset_seek_span_tracking, SeekError,
     },
     BitDepth, ChannelCount, Float, Sample, SampleRate, Source,
 };
@@ -168,7 +169,7 @@ pub struct Dither<I> {
     last_channels: ChannelCount,
     lsb_amplitude: Float,
     samples_counted: usize,
-    current_span_len: Option<usize>,
+    cached_span_len: Option<usize>,
 }
 
 impl<I> Dither<I>
@@ -194,7 +195,7 @@ where
             last_channels: channels,
             lsb_amplitude,
             samples_counted: 0,
-            current_span_len: None,
+            cached_span_len: None,
         }
     }
 
@@ -222,28 +223,20 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let input_sample = self.input.next()?;
-        self.samples_counted = self.samples_counted.saturating_add(1);
 
         let input_span_len = self.input.current_span_len();
         let current_sample_rate = self.input.sample_rate();
         let current_channels = self.input.channels();
 
-        // If input reports no span length, then by contract parameters are stable.
-        let mut parameters_changed = false;
-        let at_boundary = input_span_len.is_some_and(|_| {
-            let known_boundary = self
-                .current_span_len
-                .map(|cached_len| self.samples_counted >= cached_len);
-
-            // In span-counting mode, the only way parameters can change is at a span boundary.
-            // In detection mode after try_seek, we check every sample until we detect a boundary.
-            if known_boundary.is_none_or(|at_boundary| at_boundary) {
-                parameters_changed = current_channels != self.last_channels
-                    || current_sample_rate != self.last_sample_rate;
-            }
-
-            known_boundary.unwrap_or(parameters_changed)
-        });
+        let (at_boundary, parameters_changed) = detect_span_boundary(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            input_span_len,
+            current_sample_rate,
+            self.last_sample_rate,
+            current_channels,
+            self.last_channels,
+        );
 
         if at_boundary {
             if parameters_changed {
@@ -252,10 +245,7 @@ where
                 self.last_sample_rate = current_sample_rate;
                 self.last_channels = current_channels;
             }
-
-            self.samples_counted = 0;
             self.current_channel = 0;
-            self.current_span_len = input_span_len;
         }
 
         let noise_sample = self
@@ -305,19 +295,13 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)?;
-        self.samples_counted = 0;
         self.current_channel = 0;
-
-        // After seeking, we may be mid-span at an unknown position.
-        // Special case: seeking to Duration::ZERO means we're at the start of the first span.
-        // Otherwise, enter detection mode (current_span_len = None) to check parameters
-        // every sample until we detect a span boundary by parameter change.
-        if pos == Duration::ZERO {
-            self.current_span_len = self.input.current_span_len();
-        } else {
-            self.current_span_len = None;
-        }
-
+        reset_seek_span_tracking(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            pos,
+            self.input.current_span_len(),
+        );
         Ok(())
     }
 }

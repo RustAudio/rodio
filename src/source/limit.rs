@@ -60,7 +60,7 @@
 
 use std::time::Duration;
 
-use super::SeekError;
+use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
 use crate::{
     common::{ChannelCount, Sample, SampleRate},
     math::{self, duration_to_coefficient},
@@ -128,7 +128,7 @@ pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
         last_channels: channels,
         last_sample_rate: sample_rate,
         samples_counted: 0,
-        current_span_len: None,
+        cached_span_len: None,
     }
 }
 
@@ -572,7 +572,7 @@ where
     last_channels: ChannelCount,
     last_sample_rate: SampleRate,
     samples_counted: usize,
-    current_span_len: Option<usize>,
+    cached_span_len: Option<usize>,
 }
 
 impl<I> Source for Limit<I>
@@ -601,22 +601,14 @@ where
 
     #[inline]
     fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
-        let result = self.inner.as_mut().unwrap().try_seek(position);
-        if result.is_ok() {
-            // Reset span tracking
-            self.samples_counted = 0;
-
-            // After seeking, we may be mid-span at an unknown position.
-            // Special case: seeking to Duration::ZERO means we're at the start of the first span.
-            // Otherwise, enter detection mode (current_span_len = None) to check parameters
-            // every sample until we detect a span boundary by parameter change.
-            if position == Duration::ZERO {
-                self.current_span_len = self.inner.as_ref().unwrap().current_span_len();
-            } else {
-                self.current_span_len = None;
-            }
-        }
-        result
+        self.inner.as_mut().unwrap().try_seek(position)?;
+        reset_seek_span_tracking(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            position,
+            self.inner.as_ref().unwrap().current_span_len(),
+        );
+        Ok(())
     }
 }
 
@@ -667,79 +659,66 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let sample = self.inner.as_mut().unwrap().next()?;
-        self.samples_counted = self.samples_counted.saturating_add(1);
 
         let input_span_len = self.inner.as_ref().unwrap().current_span_len();
         let current_channels = self.inner.as_ref().unwrap().channels();
         let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
 
-        // If input reports no span length, then by contract parameters are stable.
-        let mut parameters_changed = false;
-        let at_boundary = input_span_len.is_some_and(|_| {
-            let known_boundary = self
-                .current_span_len
-                .map(|cached_len| self.samples_counted >= cached_len);
+        let (at_boundary, parameters_changed) = detect_span_boundary(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            input_span_len,
+            current_sample_rate,
+            self.last_sample_rate,
+            current_channels,
+            self.last_channels,
+        );
 
-            // In span-counting mode, the only way parameters can change is at a span boundary.
-            // In detection mode after try_seek, we check every sample until we detect a boundary.
-            if known_boundary.is_none_or(|at_boundary| at_boundary) {
-                parameters_changed = current_channels != self.last_channels
-                    || current_sample_rate != self.last_sample_rate;
-            }
+        if at_boundary && parameters_changed {
+            self.last_channels = current_channels;
+            self.last_sample_rate = current_sample_rate;
+            let new_channels_count = current_channels.get() as usize;
 
-            known_boundary.unwrap_or(parameters_changed)
-        });
+            let needs_reconstruction = match self.inner.as_ref().unwrap() {
+                LimitInner::Mono(_) => new_channels_count != 1,
+                LimitInner::Stereo(_) => new_channels_count != 2,
+                LimitInner::MultiChannel(multi) => {
+                    new_channels_count != multi.limiter_integrators.len()
+                }
+            };
 
-        if at_boundary {
-            if parameters_changed {
-                self.last_channels = current_channels;
-                self.last_sample_rate = current_sample_rate;
-                let new_channels_count = current_channels.get() as usize;
+            if needs_reconstruction {
+                let old_inner = self.inner.take().unwrap();
 
-                let needs_reconstruction = match self.inner.as_ref().unwrap() {
-                    LimitInner::Mono(_) => new_channels_count != 1,
-                    LimitInner::Stereo(_) => new_channels_count != 2,
-                    LimitInner::MultiChannel(multi) => {
-                        new_channels_count != multi.limiter_integrators.len()
-                    }
+                let (input, base) = match old_inner {
+                    LimitInner::Mono(mono) => (mono.input, mono.base),
+                    LimitInner::Stereo(stereo) => (stereo.input, stereo.base),
+                    LimitInner::MultiChannel(multi) => (multi.input, multi.base),
                 };
 
-                if needs_reconstruction {
-                    let old_inner = self.inner.take().unwrap();
-
-                    let (input, base) = match old_inner {
-                        LimitInner::Mono(mono) => (mono.input, mono.base),
-                        LimitInner::Stereo(stereo) => (stereo.input, stereo.base),
-                        LimitInner::MultiChannel(multi) => (multi.input, multi.base),
-                    };
-
-                    self.inner = Some(match new_channels_count {
-                        1 => LimitInner::Mono(LimitMono {
-                            input,
-                            base,
-                            limiter_integrator: 0.0,
-                            limiter_peak: 0.0,
-                        }),
-                        2 => LimitInner::Stereo(LimitStereo {
-                            input,
-                            base,
-                            limiter_integrators: [0.0; 2],
-                            limiter_peaks: [0.0; 2],
-                            is_right_channel: false,
-                        }),
-                        n => LimitInner::MultiChannel(LimitMulti {
-                            input,
-                            base,
-                            limiter_integrators: vec![0.0; n].into_boxed_slice(),
-                            limiter_peaks: vec![0.0; n].into_boxed_slice(),
-                            position: 0,
-                        }),
-                    });
-                }
+                self.inner = Some(match new_channels_count {
+                    1 => LimitInner::Mono(LimitMono {
+                        input,
+                        base,
+                        limiter_integrator: 0.0,
+                        limiter_peak: 0.0,
+                    }),
+                    2 => LimitInner::Stereo(LimitStereo {
+                        input,
+                        base,
+                        limiter_integrators: [0.0; 2],
+                        limiter_peaks: [0.0; 2],
+                        is_right_channel: false,
+                    }),
+                    n => LimitInner::MultiChannel(LimitMulti {
+                        input,
+                        base,
+                        limiter_integrators: vec![0.0; n].into_boxed_slice(),
+                        limiter_peaks: vec![0.0; n].into_boxed_slice(),
+                        position: 0,
+                    }),
+                });
             }
-
-            self.samples_counted = 0;
-            self.current_span_len = input_span_len;
         }
 
         Some(sample)

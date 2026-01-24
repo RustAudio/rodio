@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use dasp_sample::Sample as _;
+
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::{Float, Sample, Source};
@@ -67,18 +69,33 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO Need a test for this
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             self.current_sample = None;
-            let num_channels = self.input.channels();
-            for _ in 0..num_channels.get() {
+
+            let mut samples_read = 0;
+            for _ in 0..self.input.channels().get() {
                 if let Some(s) = self.input.next() {
-                    self.current_sample = Some(self.current_sample.unwrap_or(0.0) + s);
+                    self.current_sample =
+                        Some(self.current_sample.unwrap_or(Sample::EQUILIBRIUM) + s);
+                    samples_read += 1;
+                } else {
+                    // Input ended mid-frame. This shouldn't happen per the Source contract,
+                    // but handle it defensively: average only the samples we actually got.
+                    break;
                 }
             }
-            self.current_sample.map(|s| s / num_channels.get() as Float);
+
+            // Divide by actual samples read, not the expected channel count.
+            // This handles the case where the input stream ends mid-frame.
+            if samples_read > 0 {
+                self.current_sample = self.current_sample.map(|s| s / samples_read as Float);
+            } else {
+                // No samples were read - input is exhausted
+                return None;
+            }
         }
+
         let result = self
             .current_sample
             .map(|s| s * self.channel_volumes[self.current_channel]);
@@ -122,5 +139,138 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::math::nz;
+
+    /// Test helper source that allows setting false span length to simulate
+    /// sources that end before their promised span length.
+    #[derive(Debug, Clone)]
+    struct TestSource {
+        samples: Vec<Sample>,
+        pos: usize,
+        channels: ChannelCount,
+        sample_rate: SampleRate,
+        total_span_len: Option<usize>,
+    }
+
+    impl TestSource {
+        fn new(samples: &[Sample]) -> Self {
+            let samples = samples.to_vec();
+            Self {
+                total_span_len: Some(samples.len()),
+                pos: 0,
+                channels: nz!(1),
+                sample_rate: nz!(44100),
+                samples,
+            }
+        }
+
+        fn with_channels(mut self, count: ChannelCount) -> Self {
+            self.channels = count;
+            self
+        }
+
+        fn with_false_span_len(mut self, total_len: Option<usize>) -> Self {
+            self.total_span_len = total_len;
+            self
+        }
+    }
+
+    impl Iterator for TestSource {
+        type Item = Sample;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let res = self.samples.get(self.pos).copied();
+            self.pos += 1;
+            res
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let remaining = self.samples.len().saturating_sub(self.pos);
+            (remaining, Some(remaining))
+        }
+    }
+
+    impl Source for TestSource {
+        fn current_span_len(&self) -> Option<usize> {
+            self.total_span_len
+        }
+
+        fn channels(&self) -> ChannelCount {
+            self.channels
+        }
+
+        fn sample_rate(&self) -> SampleRate {
+            self.sample_rate
+        }
+
+        fn total_duration(&self) -> Option<Duration> {
+            None
+        }
+
+        fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+            Err(SeekError::NotSupported {
+                underlying_source: std::any::type_name::<Self>(),
+            })
+        }
+    }
+
+    #[test]
+    fn test_mono_to_stereo() {
+        let input = TestSource::new(&[1.0, 2.0, 3.0]).with_channels(nz!(1));
+        let mut channel_vol = ChannelVolume::new(input, vec![0.5, 0.8]);
+        assert_eq!(channel_vol.next(), Some(1.0 * 0.5));
+        assert_eq!(channel_vol.next(), Some(1.0 * 0.8));
+        assert_eq!(channel_vol.next(), Some(2.0 * 0.5));
+        assert_eq!(channel_vol.next(), Some(2.0 * 0.8));
+        assert_eq!(channel_vol.next(), Some(3.0 * 0.5));
+        assert_eq!(channel_vol.next(), Some(3.0 * 0.8));
+        assert_eq!(channel_vol.next(), None);
+    }
+
+    #[test]
+    fn test_stereo_to_mono() {
+        let input = TestSource::new(&[1.0, 2.0, 3.0, 4.0]).with_channels(nz!(2));
+        let mut channel_vol = ChannelVolume::new(input, vec![1.0]);
+        assert_eq!(channel_vol.next(), Some(1.5));
+        assert_eq!(channel_vol.next(), Some(3.5));
+        assert_eq!(channel_vol.next(), None);
+    }
+
+    #[test]
+    fn test_stereo_to_stereo_with_mixing() {
+        let input = TestSource::new(&[1.0, 3.0, 2.0, 4.0]).with_channels(nz!(2));
+        let mut channel_vol = ChannelVolume::new(input, vec![0.5, 2.0]);
+        assert_eq!(channel_vol.next(), Some(2.0 * 0.5)); // 1.0
+        assert_eq!(channel_vol.next(), Some(2.0 * 2.0)); // 4.0
+        assert_eq!(channel_vol.next(), Some(3.0 * 0.5)); // 1.5
+        assert_eq!(channel_vol.next(), Some(3.0 * 2.0)); // 6.0
+        assert_eq!(channel_vol.next(), None);
+    }
+
+    #[test]
+    fn test_stream_ends_mid_frame() {
+        let input = TestSource::new(&[1.0, 2.0, 3.0, 4.0, 5.0])
+            .with_channels(nz!(2))
+            .with_false_span_len(Some(6)); // Promises 6 but only delivers 5
+
+        let mut channel_vol = ChannelVolume::new(input, vec![1.0, 1.0]);
+
+        assert_eq!(channel_vol.next(), Some(1.5));
+        assert_eq!(channel_vol.next(), Some(1.5));
+
+        assert_eq!(channel_vol.next(), Some(3.5));
+        assert_eq!(channel_vol.next(), Some(3.5));
+
+        // Third partial frame: only got 5.0, divide by 1 (actual count) not 2
+        assert_eq!(channel_vol.next(), Some(5.0));
+        assert_eq!(channel_vol.next(), Some(5.0));
+
+        assert_eq!(channel_vol.next(), None);
     }
 }

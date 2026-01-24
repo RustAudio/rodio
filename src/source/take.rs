@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::SeekError;
+use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::NANOS_PER_SEC;
 use crate::{Float, Sample, Source};
@@ -21,7 +21,7 @@ where
         last_sample_rate: sample_rate,
         last_channels: channels,
         samples_counted: 0,
-        current_span_len: None,
+        cached_span_len: None,
     }
 }
 
@@ -54,7 +54,7 @@ pub struct TakeDuration<I> {
     last_sample_rate: SampleRate,
     last_channels: ChannelCount,
     samples_counted: usize,
-    current_span_len: Option<usize>,
+    cached_span_len: Option<usize>,
 }
 
 impl<I> TakeDuration<I>
@@ -109,38 +109,24 @@ where
         if self.remaining_duration < self.duration_per_sample {
             None
         } else if let Some(sample) = self.input.next() {
-            self.samples_counted = self.samples_counted.saturating_add(1);
-
             let input_span_len = self.input.current_span_len();
             let current_sample_rate = self.input.sample_rate();
             let current_channels = self.input.channels();
 
-            // If input reports no span length, then by contract parameters are stable.
-            let mut parameters_changed = false;
-            let at_boundary = input_span_len.is_some_and(|_| {
-                let known_boundary = self
-                    .current_span_len
-                    .map(|cached_len| self.samples_counted >= cached_len);
+            let (at_boundary, parameters_changed) = detect_span_boundary(
+                &mut self.samples_counted,
+                &mut self.cached_span_len,
+                input_span_len,
+                current_sample_rate,
+                self.last_sample_rate,
+                current_channels,
+                self.last_channels,
+            );
 
-                // In span-counting mode, the only way parameters can change is at a span boundary.
-                // In detection mode after try_seek, we check every sample until we detect a boundary.
-                if known_boundary.is_none_or(|at_boundary| at_boundary) {
-                    parameters_changed = current_channels != self.last_channels
-                        || current_sample_rate != self.last_sample_rate;
-                }
-
-                known_boundary.unwrap_or(parameters_changed)
-            });
-
-            if at_boundary {
-                if parameters_changed {
-                    self.last_sample_rate = current_sample_rate;
-                    self.last_channels = current_channels;
-                    self.duration_per_sample = Self::get_duration_per_sample(&self.input);
-                }
-
-                self.samples_counted = 0;
-                self.current_span_len = input_span_len;
+            if at_boundary && parameters_changed {
+                self.last_sample_rate = current_sample_rate;
+                self.last_channels = current_channels;
+                self.duration_per_sample = Self::get_duration_per_sample(&self.input);
             }
 
             let sample = match &self.filter {
@@ -233,17 +219,12 @@ where
         if result.is_ok() {
             // Recalculate remaining duration after seek
             self.remaining_duration = self.requested_duration.saturating_sub(pos);
-            self.samples_counted = 0;
-
-            // After seeking, we may be mid-span at an unknown position.
-            // Special case: seeking to Duration::ZERO means we're at the start of the first span.
-            // Otherwise, enter detection mode (current_span_len = None) to check parameters
-            // every sample until we detect a span boundary by parameter change.
-            if pos == Duration::ZERO {
-                self.current_span_len = self.input.current_span_len();
-            } else {
-                self.current_span_len = None;
-            }
+            reset_seek_span_tracking(
+                &mut self.samples_counted,
+                &mut self.cached_span_len,
+                pos,
+                self.input.current_span_len(),
+            );
         }
         result
     }

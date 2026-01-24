@@ -229,12 +229,8 @@ impl Iterator for SourcesQueueOutput {
 
             // Basic situation that will happen most of the time.
             if let Some(sample) = self.current.next() {
-                self.samples_consumed_in_span = self
-                    .samples_consumed_in_span
-                    .checked_add(1)
-                    .unwrap_or_else(|| {
-                        self.samples_consumed_in_span % self.current.channels().get() as usize + 1
-                    });
+                let channels = self.current.channels().get() as usize;
+                self.samples_consumed_in_span = (self.samples_consumed_in_span + 1) % channels;
                 return Some(sample);
             }
 
@@ -288,6 +284,7 @@ impl SourcesQueueOutput {
 
         self.current = next;
         self.signal_after_end = signal_after_end;
+        self.samples_consumed_in_span = 0;
         Ok(())
     }
 }

@@ -126,6 +126,9 @@ pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
     Limit {
         inner: Some(inner),
         last_channels: channels,
+        last_sample_rate: sample_rate,
+        samples_counted: 0,
+        current_span_len: None,
     }
 }
 
@@ -567,6 +570,9 @@ where
 {
     inner: Option<LimitInner<I>>,
     last_channels: ChannelCount,
+    last_sample_rate: SampleRate,
+    samples_counted: usize,
+    current_span_len: Option<usize>,
 }
 
 impl<I> Source for Limit<I>
@@ -595,7 +601,22 @@ where
 
     #[inline]
     fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
-        self.inner.as_mut().unwrap().try_seek(position)
+        let result = self.inner.as_mut().unwrap().try_seek(position);
+        if result.is_ok() {
+            // Reset span tracking
+            self.samples_counted = 0;
+
+            // After seeking, we may be mid-span at an unknown position.
+            // Special case: seeking to Duration::ZERO means we're at the start of the first span.
+            // Otherwise, enter detection mode (current_span_len = None) to check parameters
+            // every sample until we detect a span boundary by parameter change.
+            if position == Duration::ZERO {
+                self.current_span_len = self.inner.as_ref().unwrap().current_span_len();
+            } else {
+                self.current_span_len = None;
+            }
+        }
+        result
     }
 }
 
@@ -646,21 +667,36 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let sample = self.inner.as_mut().unwrap().next()?;
+        self.samples_counted = self.samples_counted.saturating_add(1);
 
-        if self
-            .inner
-            .as_ref()
-            .unwrap()
-            .current_span_len()
-            .is_some_and(|len| len > 0)
-        {
-            let new_channels = self.inner.as_ref().unwrap().channels();
+        let input_span_len = self.inner.as_ref().unwrap().current_span_len();
+        let current_channels = self.inner.as_ref().unwrap().channels();
+        let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
 
-            if new_channels != self.last_channels {
-                self.last_channels = new_channels;
-                let new_channels_count = new_channels.get() as usize;
+        // If input reports no span length, then by contract parameters are stable.
+        let mut parameters_changed = false;
+        let at_boundary = input_span_len.is_some_and(|_| {
+            let known_boundary = self
+                .current_span_len
+                .map(|cached_len| self.samples_counted >= cached_len);
 
-                let parameters_changed = match self.inner.as_ref().unwrap() {
+            // In span-counting mode, the only way parameters can change is at a span boundary.
+            // In detection mode after try_seek, we check every sample until we detect a boundary.
+            if known_boundary.is_none_or(|at_boundary| at_boundary) {
+                parameters_changed = current_channels != self.last_channels
+                    || current_sample_rate != self.last_sample_rate;
+            }
+
+            known_boundary.unwrap_or(parameters_changed)
+        });
+
+        if at_boundary {
+            if parameters_changed {
+                self.last_channels = current_channels;
+                self.last_sample_rate = current_sample_rate;
+                let new_channels_count = current_channels.get() as usize;
+
+                let needs_reconstruction = match self.inner.as_ref().unwrap() {
                     LimitInner::Mono(_) => new_channels_count != 1,
                     LimitInner::Stereo(_) => new_channels_count != 2,
                     LimitInner::MultiChannel(multi) => {
@@ -668,7 +704,7 @@ where
                     }
                 };
 
-                if parameters_changed {
+                if needs_reconstruction {
                     let old_inner = self.inner.take().unwrap();
 
                     let (input, base) = match old_inner {
@@ -701,6 +737,9 @@ where
                     });
                 }
             }
+
+            self.samples_counted = 0;
+            self.current_span_len = input_span_len;
         }
 
         Some(sample)

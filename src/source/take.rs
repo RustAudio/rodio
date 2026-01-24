@@ -20,6 +20,8 @@ where
         filter: None,
         last_sample_rate: sample_rate,
         last_channels: channels,
+        samples_counted: 0,
+        current_span_len: None,
     }
 }
 
@@ -51,6 +53,8 @@ pub struct TakeDuration<I> {
     duration_per_sample: Duration,
     last_sample_rate: SampleRate,
     last_channels: ChannelCount,
+    samples_counted: usize,
+    current_span_len: Option<usize>,
 }
 
 impl<I> TakeDuration<I>
@@ -102,20 +106,43 @@ where
     type Item = <I as Iterator>::Item;
 
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        // Check if sample rate or channels changed (only if span is finite and not exhausted)
-        if self.input.current_span_len().is_some_and(|len| len > 0) {
-            let new_sample_rate = self.input.sample_rate();
-            let new_channels = self.input.channels();
-            if new_sample_rate != self.last_sample_rate || new_channels != self.last_channels {
-                self.last_sample_rate = new_sample_rate;
-                self.last_channels = new_channels;
-                self.duration_per_sample = Self::get_duration_per_sample(&self.input);
-            }
-        }
-
         if self.remaining_duration < self.duration_per_sample {
             None
         } else if let Some(sample) = self.input.next() {
+            self.samples_counted = self.samples_counted.saturating_add(1);
+
+            let input_span_len = self.input.current_span_len();
+            let current_sample_rate = self.input.sample_rate();
+            let current_channels = self.input.channels();
+
+            // If input reports no span length, then by contract parameters are stable.
+            let mut parameters_changed = false;
+            let at_boundary = input_span_len.is_some_and(|_| {
+                let known_boundary = self
+                    .current_span_len
+                    .map(|cached_len| self.samples_counted >= cached_len);
+
+                // In span-counting mode, the only way parameters can change is at a span boundary.
+                // In detection mode after try_seek, we check every sample until we detect a boundary.
+                if known_boundary.is_none_or(|at_boundary| at_boundary) {
+                    parameters_changed = current_channels != self.last_channels
+                        || current_sample_rate != self.last_sample_rate;
+                }
+
+                known_boundary.unwrap_or(parameters_changed)
+            });
+
+            if at_boundary {
+                if parameters_changed {
+                    self.last_sample_rate = current_sample_rate;
+                    self.last_channels = current_channels;
+                    self.duration_per_sample = Self::get_duration_per_sample(&self.input);
+                }
+
+                self.samples_counted = 0;
+                self.current_span_len = input_span_len;
+            }
+
             let sample = match &self.filter {
                 Some(filter) => filter.apply(sample, self),
                 None => sample,
@@ -206,7 +233,17 @@ where
         if result.is_ok() {
             // Recalculate remaining duration after seek
             self.remaining_duration = self.requested_duration.saturating_sub(pos);
-            // Don't update last_sample_rate or last_channels here - let next() detect the change
+            self.samples_counted = 0;
+
+            // After seeking, we may be mid-span at an unknown position.
+            // Special case: seeking to Duration::ZERO means we're at the start of the first span.
+            // Otherwise, enter detection mode (current_span_len = None) to check parameters
+            // every sample until we detect a span boundary by parameter change.
+            if pos == Duration::ZERO {
+                self.current_span_len = self.input.current_span_len();
+            } else {
+                self.current_span_len = None;
+            }
         }
         result
     }

@@ -167,7 +167,7 @@ pub use self::noise::{Pink, WhiteUniform};
 /// the total number of samples in the current span (i.e., before the sample rate and number of
 /// channels can potentially change).
 ///
-/// # Frame Alignment Contract
+/// # Frame alignment requirement
 ///
 /// All `Source` implementors MUST ensure that when the iterator returns `None`, all previously
 /// emitted samples form complete frames. That is, the total number of samples emitted must be a

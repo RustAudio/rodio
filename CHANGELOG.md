@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `DitherAlgorithm` enum for algorithm selection
   - `Source::dither()` function for applying dithering
 - Added `64bit` feature to opt-in to 64-bit sample precision (`f64`).
+- `Chirp` now implements `try_seek`.
 
 ### Fixed
 
@@ -39,15 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed audio distortion when queueing sources with different sample rates/channel counts or transitioning from empty queue.
 - Fixed `SamplesBuffer` to correctly report exhaustion and remaining samples.
 - Improved precision in `SkipDuration` to avoid off-by-a-few-samples errors.
-- Fixed channel misalignment in queue with non-power-of-2 channel counts (e.g., 6 channels) by ensuring frame-aligned span lengths.
-- Fixed channel misalignment when sources end before their promised span length by padding with silence to complete frames.
 - Fixed `Empty` source to properly report exhaustion.
 - Fixed `Source::current_span_len()` to consistently return total span length.
 - Fixed `Source::size_hint()` to consistently report actual bounds based on current sources.
 - Fixed `Pausable::size_hint()` to correctly account for paused samples.
-- Fixed `Limit`, `TakeDuration` and `TrackPosition` to handle mid-span seeks.
-- Fixed `MixerSource` to prevent overflow with very long playback.
+- Fixed `MixerSource` and `LinearRamp` to prevent overflow with very long playback.
 - Fixed `PeriodicAccess` to prevent overflow with very long periods.
+- Fixed `BltFilter` to work correctly with stereo and multi-channel audio.
+- Fixed `ChannelVolume` to work correclty with stereo and multi-channel audio.
+- Fixed `Brownian` and `Red` noise generators to reset after seeking.
+- Fixed sources to correctly handle sample rate and channel count changes at span boundaries.
+- Fixed sources to detect parameter updates after mid-span seeks.
 
 ### Changed
 
@@ -68,7 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Velvet` noise generator takes density in Hz as `usize` instead of `f32`.
 - Upgraded `cpal` to v0.17.
 - Clarified `Source::current_span_len()` documentation to specify it returns total span length.
-- Improved queue, mixer and sample rate conversion performance.
+- Explicitly document the requirement for sources to return complete frames.
+- Ensured decoders to always return complete frames, as well as `TakeDuration` when expired.
+- `Zero::new_samples()` now panics when it is not a multiple of the channel count.
+- Improved queue, buffer, mixer and sample rate conversion performance. 
 
 ## Version [0.21.1] (2025-07-14)
 

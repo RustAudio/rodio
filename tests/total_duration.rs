@@ -12,7 +12,6 @@ use rstest_reuse::{self, *};
 
 #[cfg(any(
     feature = "claxon",
-    feature = "minimp3",
     feature = "symphonia-aac",
     feature = "symphonia-flac",
     feature = "symphonia-mp3",
@@ -26,10 +25,6 @@ use rstest_reuse::{self, *};
 #[cfg_attr(
     feature = "symphonia-vorbis",
     case("ogg", Duration::from_secs_f64(69.328979591), "symphonia")
-)]
-#[cfg_attr(
-    all(feature = "minimp3", not(feature = "symphonia-mp3")),
-    case("mp3", Duration::ZERO, "minimp3")
 )]
 #[cfg_attr(
     all(feature = "hound", not(feature = "symphonia-wav")),
@@ -55,7 +50,7 @@ use rstest_reuse::{self, *};
     feature = "symphonia-flac",
     case("flac", Duration::from_secs_f64(10.152380952), "symphonia flac")
 )]
-fn all_decoders(
+fn supported_decoders(
     #[case] format: &'static str,
     #[case] correct_duration: Duration,
     #[case] decoder_name: &'static str,
@@ -77,7 +72,6 @@ fn get_music(format: &str) -> Decoder<impl Read + Seek> {
 
 #[cfg(any(
     feature = "claxon",
-    feature = "minimp3",
     feature = "symphonia-flac",
     feature = "symphonia-mp3",
     feature = "symphonia-isomp4",
@@ -85,7 +79,7 @@ fn get_music(format: &str) -> Decoder<impl Read + Seek> {
     feature = "symphonia-wav",
     feature = "hound",
 ))]
-#[apply(all_decoders)]
+#[apply(supported_decoders)]
 #[trace]
 fn decoder_returns_total_duration(
     #[case] format: &'static str,

@@ -72,30 +72,14 @@ where
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             self.current_sample = None;
-
-            let mut samples_read = 0;
             for _ in 0..self.input.channels().get() {
-                if let Some(s) = self.input.next() {
-                    self.current_sample =
-                        Some(self.current_sample.unwrap_or(Sample::EQUILIBRIUM) + s);
-                    samples_read += 1;
-                } else {
-                    // Input ended mid-frame. This shouldn't happen per the Source contract,
-                    // but handle it defensively: average only the samples we actually got.
-                    break;
-                }
+                let s = self.input.next()?;
+                self.current_sample = Some(self.current_sample.unwrap_or(Sample::EQUILIBRIUM) + s);
             }
-
-            // Divide by actual samples read, not the expected channel count.
-            // This handles the case where the input stream ends mid-frame.
-            if samples_read > 0 {
-                self.current_sample = self.current_sample.map(|s| s / samples_read as Float);
-            } else {
-                // No samples were read - input is exhausted
-                return None;
-            }
+            self.current_sample = self
+                .current_sample
+                .map(|s| s / self.input.channels().get() as Float);
         }
-
         let result = self
             .current_sample
             .map(|s| s * self.channel_volumes[self.current_channel]);
@@ -178,26 +162,6 @@ mod tests {
         assert_eq!(channel_vol.next(), Some(2.0 * 2.0)); // 4.0
         assert_eq!(channel_vol.next(), Some(3.0 * 0.5)); // 1.5
         assert_eq!(channel_vol.next(), Some(3.0 * 2.0)); // 6.0
-        assert_eq!(channel_vol.next(), None);
-    }
-
-    #[test]
-    fn test_stream_ends_mid_frame() {
-        let input = TestSource::new(&[1.0, 2.0, 3.0, 4.0, 5.0], nz!(2), nz!(44100))
-            .with_false_span_len(Some(6)); // Promises 6 but only delivers 5
-
-        let mut channel_vol = ChannelVolume::new(input, vec![1.0, 1.0]);
-
-        assert_eq!(channel_vol.next(), Some(1.5));
-        assert_eq!(channel_vol.next(), Some(1.5));
-
-        assert_eq!(channel_vol.next(), Some(3.5));
-        assert_eq!(channel_vol.next(), Some(3.5));
-
-        // Third partial frame: only got 5.0, divide by 1 (actual count) not 2
-        assert_eq!(channel_vol.next(), Some(5.0));
-        assert_eq!(channel_vol.next(), Some(5.0));
-
         assert_eq!(channel_vol.next(), None);
     }
 }

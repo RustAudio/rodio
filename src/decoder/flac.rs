@@ -2,7 +2,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::time::Duration;
 
-use crate::source::SeekError;
+use crate::source::{padding_samples_needed, SeekError};
 use crate::Source;
 
 use crate::common::{ChannelCount, Sample, SampleRate};
@@ -24,6 +24,8 @@ where
     sample_rate: SampleRate,
     channels: ChannelCount,
     total_duration: Option<Duration>,
+    samples_in_current_frame: usize,
+    silence_samples_remaining: usize,
 }
 
 impl<R> FlacDecoder<R>
@@ -69,6 +71,8 @@ where
             )
             .expect("flac should never have zero channels"),
             total_duration,
+            samples_in_current_frame: 0,
+            silence_samples_remaining: 0,
         })
     }
 
@@ -119,6 +123,12 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         loop {
+            // If padding to complete a frame, return silence
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
+                return Some(Sample::EQUILIBRIUM);
+            }
+
             if self.current_block_off < self.current_block.len() {
                 // Read from current block.
                 let real_offset = (self.current_block_off % self.channels.get() as usize)
@@ -142,6 +152,8 @@ where
                         (raw_val << (32 - bits)).to_sample()
                     }
                 };
+                self.samples_in_current_frame =
+                    (self.samples_in_current_frame + 1) % self.channels.get() as usize;
                 return Some(real_val);
             }
 
@@ -153,7 +165,16 @@ where
                     self.current_block_channel_len = (block.len() / block.channels()) as usize;
                     self.current_block = block.into_buffer();
                 }
-                _ => return None,
+                _ => {
+                    // Input exhausted - check if mid-frame
+                    self.silence_samples_remaining =
+                        padding_samples_needed(self.samples_in_current_frame, self.channels);
+                    if self.silence_samples_remaining > 0 {
+                        self.samples_in_current_frame = 0;
+                        continue; // Loop will inject silence
+                    }
+                    return None;
+                }
             }
         }
     }

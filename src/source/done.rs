@@ -73,7 +73,12 @@ where
     }
 }
 
-impl<I, F> ExactSizeIterator for Done<I, F> where I: Source + ExactSizeIterator, F: FnMut(&mut I) {}
+impl<I, F> ExactSizeIterator for Done<I, F>
+where
+    I: Source + ExactSizeIterator,
+    F: FnMut(&mut I),
+{
+}
 
 impl<I, F> Source for Done<I, F>
 where

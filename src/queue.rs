@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use dasp_sample::Sample as _;
 
-use crate::source::{padding_samples_needed, Empty, SeekError, Source};
+use crate::source::{Empty, SeekError, Source};
 use crate::Sample;
 
 use crate::common::{ChannelCount, SampleRate};
@@ -37,7 +37,6 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
         current: Box::new(Empty::new()) as Box<_>,
         signal_after_end: None,
         input: input.clone(),
-        samples_consumed_in_span: 0,
         silence_samples_remaining: 0,
     };
 
@@ -122,10 +121,7 @@ pub struct SourcesQueueOutput {
     // The next sounds.
     input: Arc<SourcesQueueInput>,
 
-    // Track samples consumed in the current span to detect mid-span endings.
-    samples_consumed_in_span: usize,
-
-    // This counts how many silence samples to inject when a source ends.
+    // This counts how many silence samples to inject for keep-alive behavior.
     silence_samples_remaining: usize,
 }
 
@@ -221,7 +217,7 @@ impl Iterator for SourcesQueueOutput {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            // If we're padding to complete a frame, return silence.
+            // If we're playing silence for keep-alive, return silence.
             if self.silence_samples_remaining > 0 {
                 self.silence_samples_remaining -= 1;
                 return Some(Sample::EQUILIBRIUM);
@@ -229,26 +225,10 @@ impl Iterator for SourcesQueueOutput {
 
             // Basic situation that will happen most of the time.
             if let Some(sample) = self.current.next() {
-                let channels = self.current.channels().get() as usize;
-                self.samples_consumed_in_span = (self.samples_consumed_in_span + 1) % channels;
                 return Some(sample);
             }
 
-            // Current source is exhausted - check if we ended mid-frame and need padding.
-            if self.samples_consumed_in_span > 0 {
-                let channels = self.current.channels();
-                self.silence_samples_remaining =
-                    padding_samples_needed(self.samples_consumed_in_span, channels);
-                if self.silence_samples_remaining > 0 {
-                    // We're mid-frame - need to pad with silence to complete it.
-                    // Reset counter now since we're transitioning to a new span.
-                    self.samples_consumed_in_span = 0;
-                    // Continue loop - next iterations will inject silence.
-                    continue;
-                }
-            }
-
-            // Move to next sound, play silence, or end.
+            // Current source is exhausted. Move to next sound, play silence, or end.
             // In order to avoid inlining that expensive operation, the code is in another function.
             if self.go_next().is_err() {
                 if self.input.keep_alive_if_empty() {
@@ -284,7 +264,6 @@ impl SourcesQueueOutput {
 
         self.current = next;
         self.signal_after_end = signal_after_end;
-        self.samples_consumed_in_span = 0;
         Ok(())
     }
 }
@@ -403,36 +382,5 @@ mod tests {
                 "Sample rate should update to 44100 (keep_alive={keep_alive})"
             );
         }
-    }
-
-    #[test]
-    fn span_ending_mid_frame() {
-        let mut test_source1 = TestSource::new(&[0.1, 0.2, 0.1, 0.2, 0.1], nz!(2), nz!(44100))
-            .with_false_span_len(Some(6));
-        let mut test_source2 = TestSource::new(&[0.3, 0.4, 0.3, 0.4], nz!(2), nz!(44100));
-
-        let (controls, mut source) = queue::queue(true);
-        controls.append(test_source1.clone());
-        controls.append(test_source2.clone());
-
-        assert_eq!(source.next(), test_source1.next());
-        assert_eq!(source.next(), test_source1.next());
-        assert_eq!(source.next(), test_source1.next());
-        assert_eq!(source.next(), test_source1.next());
-        assert_eq!(source.next(), test_source1.next());
-        assert_eq!(None, test_source1.next());
-
-        // Source promised span of 6 but only delivered 5 samples.
-        // With 2 channels, that's 2.5 frames. Queue should pad with silence.
-        assert_eq!(
-            source.next(),
-            Some(0.0),
-            "Expected silence to complete frame"
-        );
-
-        assert_eq!(source.next(), test_source2.next());
-        assert_eq!(source.next(), test_source2.next());
-        assert_eq!(source.next(), test_source2.next());
-        assert_eq!(source.next(), test_source2.next());
     }
 }

@@ -1,10 +1,11 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
-use crate::source::SeekError;
+use crate::source::{padding_samples_needed, SeekError};
 use crate::Source;
 
 use crate::common::{ChannelCount, Sample, SampleRate};
+use dasp_sample::Sample as _;
 use lewton::inside_ogg::OggStreamReader;
 use lewton::samples::InterleavedSamples;
 
@@ -16,6 +17,8 @@ where
     stream_reader: OggStreamReader<R>,
     current_data: Vec<Sample>,
     next: usize,
+    samples_in_current_frame: usize,
+    silence_samples_remaining: usize,
 }
 
 impl<R> VorbisDecoder<R>
@@ -49,6 +52,8 @@ where
             stream_reader,
             current_data: data,
             next: 0,
+            samples_in_current_frame: 0,
+            silence_samples_remaining: 0,
         }
     }
 
@@ -109,9 +114,29 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(sample) = self.current_data.get(self.next).copied() {
-            self.next += 1;
-            if self.current_data.is_empty() {
+        loop {
+            // If padding to complete a frame, return silence
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
+                return Some(Sample::EQUILIBRIUM);
+            }
+
+            if let Some(sample) = self.current_data.get(self.next).copied() {
+                self.next += 1;
+                if self.current_data.is_empty() {
+                    if let Ok(Some(data)) = self
+                        .stream_reader
+                        .read_dec_packet_generic::<InterleavedSamples<Sample>>()
+                    {
+                        self.current_data = data.samples;
+                        self.next = 0;
+                    }
+                }
+                let channels = self.channels();
+                self.samples_in_current_frame =
+                    (self.samples_in_current_frame + 1) % channels.get() as usize;
+                return Some(sample);
+            } else {
                 if let Ok(Some(data)) = self
                     .stream_reader
                     .read_dec_packet_generic::<InterleavedSamples<Sample>>()
@@ -119,19 +144,24 @@ where
                     self.current_data = data.samples;
                     self.next = 0;
                 }
+                if let Some(sample) = self.current_data.get(self.next).copied() {
+                    self.next += 1;
+                    let channels = self.channels();
+                    self.samples_in_current_frame =
+                        (self.samples_in_current_frame + 1) % channels.get() as usize;
+                    return Some(sample);
+                } else {
+                    // Input exhausted - check if mid-frame
+                    let channels = self.channels();
+                    self.silence_samples_remaining =
+                        padding_samples_needed(self.samples_in_current_frame, channels);
+                    if self.silence_samples_remaining > 0 {
+                        self.samples_in_current_frame = 0;
+                        continue; // Loop will inject silence
+                    }
+                    return None;
+                }
             }
-            Some(sample)
-        } else {
-            if let Ok(Some(data)) = self
-                .stream_reader
-                .read_dec_packet_generic::<InterleavedSamples<Sample>>()
-            {
-                self.current_data = data.samples;
-                self.next = 0;
-            }
-            let sample = self.current_data.get(self.next).copied();
-            self.next += 1;
-            sample
         }
     }
 

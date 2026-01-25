@@ -164,17 +164,31 @@ pub use self::noise::{Pink, WhiteUniform};
 /// `sample_rate` too frequently.
 ///
 /// In order to properly handle this situation, the `current_span_len()` method should return
-/// the number of samples that remain in the iterator before the samples rate and number of
-/// channels can potentially change.
+/// the total number of samples in the current span (i.e., before the sample rate and number of
+/// channels can potentially change).
 ///
+/// # Frame alignment requirement
+///
+/// All `Source` implementors MUST ensure that when the iterator returns `None`, all previously
+/// emitted samples form complete frames. That is, the total number of samples emitted must be a
+/// multiple of `channels()`.
+///
+/// A "frame" is one sample for each channel in the audio stream. For example, stereo audio (2
+/// channels) must emit samples in pairs: left, right, left, right, etc. Should a `Source` find
+/// itself in a situation where it would need to emit an incomplete final frame, it MUST pad
+/// the remaining samples with silence before returning `None`.
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends.
+    /// Returns the total length of the current span in samples.
+    ///
+    /// A span is a contiguous block of samples with unchanging channel count and sample rate.
+    /// This method returns the total number of samples in the current span, not the number
+    /// of samples remaining to be read.
     ///
     /// `None` means "infinite" or "until the sound ends". Sources that return `Some(x)` should
     /// return `Some(0)` if and only if when there's no more data.
     ///
-    /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// After the engine has finished reading the number of samples returned by this method,
+    /// it will check whether the value of `channels()` and/or `sample_rate()` have changed.
     ///
     /// # Frame Alignment
     ///
@@ -836,3 +850,141 @@ source_pointer_impl!(Source for Box<dyn Source + Send>);
 source_pointer_impl!(Source for Box<dyn Source + Send + Sync>);
 
 source_pointer_impl!(<'a, Src> Source for &'a mut Src where Src: Source,);
+
+/// Detects if we're at a span boundary using dual-mode tracking.
+/// Returns a tuple indicating whether we're at a span boundary and if parameters changed.
+#[inline]
+pub(crate) fn detect_span_boundary(
+    samples_counted: &mut usize,
+    cached_span_len: &mut Option<usize>,
+    input_span_len: Option<usize>,
+    current_sample_rate: SampleRate,
+    last_sample_rate: SampleRate,
+    current_channels: ChannelCount,
+    last_channels: ChannelCount,
+) -> (bool, bool) {
+    *samples_counted = samples_counted.saturating_add(1);
+
+    // If input reports no span length, then by contract parameters are stable.
+    let mut parameters_changed = false;
+    let at_boundary = input_span_len.is_some_and(|_| {
+        let known_boundary = cached_span_len.map(|cached_len| *samples_counted >= cached_len);
+
+        // In span-counting mode, the only moment that parameters can change is at a span boundary.
+        // In detection mode after try_seek, we check every sample until we detect a boundary.
+        if known_boundary.is_none_or(|at_boundary| at_boundary) {
+            parameters_changed =
+                current_channels != last_channels || current_sample_rate != last_sample_rate;
+        }
+
+        known_boundary.unwrap_or(parameters_changed)
+    });
+
+    if at_boundary {
+        *samples_counted = 0;
+        *cached_span_len = input_span_len;
+    }
+
+    (at_boundary, parameters_changed)
+}
+
+/// Resets span tracking state after a seek operation.
+#[inline]
+pub(crate) fn reset_seek_span_tracking(
+    samples_counted: &mut usize,
+    cached_span_len: &mut Option<usize>,
+    pos: Duration,
+    input_span_len: Option<usize>,
+) {
+    *samples_counted = 0;
+    if pos == Duration::ZERO {
+        // Set span-counting mode when seeking to start
+        *cached_span_len = input_span_len;
+    } else {
+        // Set detection mode for arbitrary positions
+        *cached_span_len = None;
+    }
+}
+
+/// Helper to check if we're mid-frame and need padding when input exhausts.
+#[inline]
+pub(crate) fn padding_samples_needed(
+    samples_in_current_frame: usize,
+    channels: ChannelCount,
+) -> usize {
+    if samples_in_current_frame > 0 {
+        channels.get() as usize - samples_in_current_frame
+    } else {
+        0
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_utils {
+    use super::*;
+
+    /// Test helper source that can end mid-frame for testing incomplete frame handling.
+    ///
+    /// This provides a simple way to create test sources with a specific number of samples
+    /// and channels, which is useful for testing frame alignment logic.
+    #[derive(Debug, Clone)]
+    pub struct TestSource {
+        samples: Vec<Sample>,
+        pos: usize,
+        channels: ChannelCount,
+        sample_rate: SampleRate,
+        total_span_len: Option<usize>,
+    }
+
+    impl TestSource {
+        /// Creates a new test source with the given samples and channel configuration.
+        pub fn new(samples: &[Sample], channels: ChannelCount, sample_rate: SampleRate) -> Self {
+            Self {
+                samples: samples.to_vec(),
+                pos: 0,
+                channels,
+                sample_rate,
+                total_span_len: Some(samples.len()),
+            }
+        }
+    }
+
+    impl Iterator for TestSource {
+        type Item = Sample;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let res = self.samples.get(self.pos).copied();
+            self.pos += 1;
+            res
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let remaining = self.samples.len().saturating_sub(self.pos);
+            (remaining, Some(remaining))
+        }
+    }
+
+    impl Source for TestSource {
+        fn current_span_len(&self) -> Option<usize> {
+            self.total_span_len
+        }
+
+        fn channels(&self) -> ChannelCount {
+            self.channels
+        }
+
+        fn sample_rate(&self) -> SampleRate {
+            self.sample_rate
+        }
+
+        fn total_duration(&self) -> Option<Duration> {
+            None
+        }
+
+        fn try_seek(&mut self, _pos: Duration) -> Result<(), SeekError> {
+            Err(SeekError::NotSupported {
+                underlying_source: std::any::type_name::<Self>(),
+            })
+        }
+    }
+}

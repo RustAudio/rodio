@@ -13,27 +13,29 @@
 //   Crafted with love. Enjoy! :)
 //
 
-use super::SeekError;
-use crate::math::duration_to_coefficient;
-use crate::{Float, Sample, Source};
+use std::time::Duration;
+
+use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use crate::{math::duration_to_coefficient, ChannelCount, Float, Sample, SampleRate, Source};
+
+#[cfg(feature = "tracing")]
+use tracing;
+
+#[cfg(feature = "experimental")]
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 #[cfg(all(feature = "experimental", not(feature = "64bit")))]
 use atomic_float::AtomicF32;
 #[cfg(all(feature = "experimental", feature = "64bit"))]
 use atomic_float::AtomicF64;
-#[cfg(feature = "experimental")]
-use std::sync::atomic::{AtomicBool, Ordering};
-#[cfg(feature = "experimental")]
-use std::sync::Arc;
-use std::time::Duration;
 
 #[cfg(all(feature = "experimental", not(feature = "64bit")))]
 type AtomicFloat = AtomicF32;
 #[cfg(all(feature = "experimental", feature = "64bit"))]
 type AtomicFloat = AtomicF64;
-
-use crate::common::{ChannelCount, SampleRate};
-#[cfg(feature = "tracing")]
-use tracing;
 
 /// Ensures `RMS_WINDOW_SIZE` is a power of two
 const fn power_of_two(n: usize) -> usize {
@@ -90,12 +92,18 @@ pub struct AutomaticGainControl<I> {
     target_level: Arc<AtomicFloat>,
     floor: Float,
     absolute_max_gain: Arc<AtomicFloat>,
+    attack_time: Duration,
+    release_time: Duration,
     current_gain: Float,
     attack_coeff: Arc<AtomicFloat>,
     release_coeff: Arc<AtomicFloat>,
     peak_level: Float,
     rms_window: CircularBuffer,
     is_enabled: Arc<AtomicBool>,
+    samples_counted: usize,
+    cached_span_len: Option<usize>,
+    last_sample_rate: SampleRate,
+    last_channels: ChannelCount,
 }
 
 #[cfg(not(feature = "experimental"))]
@@ -109,12 +117,18 @@ pub struct AutomaticGainControl<I> {
     target_level: Float,
     floor: Float,
     absolute_max_gain: Float,
+    attack_time: Duration,
+    release_time: Duration,
     current_gain: Float,
     attack_coeff: Float,
     release_coeff: Float,
     peak_level: Float,
     rms_window: CircularBuffer,
     is_enabled: bool,
+    samples_counted: usize,
+    cached_span_len: Option<usize>,
+    last_sample_rate: SampleRate,
+    last_channels: ChannelCount,
 }
 
 /// A circular buffer for efficient RMS calculation over a sliding window.
@@ -188,33 +202,47 @@ where
 
     #[cfg(feature = "experimental")]
     {
+        let channels = input.channels();
         AutomaticGainControl {
             input,
             target_level: Arc::new(AtomicFloat::new(target_level)),
             floor: 0.0,
             absolute_max_gain: Arc::new(AtomicFloat::new(absolute_max_gain)),
+            attack_time,
+            release_time,
             current_gain: 1.0,
             attack_coeff: Arc::new(AtomicFloat::new(attack_coeff)),
             release_coeff: Arc::new(AtomicFloat::new(release_coeff)),
             peak_level: 0.0,
             rms_window: CircularBuffer::new(),
             is_enabled: Arc::new(AtomicBool::new(true)),
+            samples_counted: 0,
+            cached_span_len: None,
+            last_sample_rate: sample_rate,
+            last_channels: channels,
         }
     }
 
     #[cfg(not(feature = "experimental"))]
     {
+        let channels = input.channels();
         AutomaticGainControl {
             input,
             target_level,
             floor: 0.0,
             absolute_max_gain,
+            attack_time,
+            release_time,
             current_gain: 1.0,
             attack_coeff,
             release_coeff,
             peak_level: 0.0,
             rms_window: CircularBuffer::new(),
             is_enabled: true,
+            samples_counted: 0,
+            cached_span_len: None,
+            last_sample_rate: sample_rate,
+            last_channels: channels,
         }
     }
 }
@@ -312,6 +340,9 @@ where
     /// Use this to dynamically modify how quickly the AGC responds to level increases.
     /// Smaller values result in faster response, larger values in slower response.
     /// Adjust during runtime to fine-tune AGC behavior for different audio content.
+    ///
+    /// Note: if the sample rate or channel count changes, any value set through this handle will
+    /// be overwritten with the attack time that this AGC was constructed with.
     #[inline]
     pub fn get_attack_coeff(&self) -> Arc<AtomicFloat> {
         Arc::clone(&self.attack_coeff)
@@ -324,6 +355,9 @@ where
     /// Use this to dynamically modify how quickly the AGC responds to level decreases.
     /// Smaller values result in faster response, larger values in slower response.
     /// Adjust during runtime to optimize AGC behavior for varying audio dynamics.
+    ///
+    /// Note: if the sample rate or channel count changes, any value set through this handle will
+    /// be overwritten with the release time that this AGC was constructed with.
     #[inline]
     pub fn get_release_coeff(&self) -> Arc<AtomicFloat> {
         Arc::clone(&self.release_coeff)
@@ -505,13 +539,53 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.input.next().map(|sample| {
-            if self.is_enabled() {
-                self.process_sample(sample)
-            } else {
-                sample
+        let current_sample_rate = self.input.sample_rate();
+        let current_channels = self.input.channels();
+        let input_span_len = self.input.current_span_len();
+
+        let (at_boundary, parameters_changed) = detect_span_boundary(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            input_span_len,
+            current_sample_rate,
+            self.last_sample_rate,
+            current_channels,
+            self.last_channels,
+        );
+
+        if at_boundary && parameters_changed {
+            self.last_sample_rate = current_sample_rate;
+            self.last_channels = current_channels;
+
+            // Recalculate coefficients for new sample rate
+            #[cfg(feature = "experimental")]
+            {
+                let attack_coeff = duration_to_coefficient(self.attack_time, current_sample_rate);
+                let release_coeff = duration_to_coefficient(self.release_time, current_sample_rate);
+                self.attack_coeff.store(attack_coeff, Ordering::Relaxed);
+                self.release_coeff.store(release_coeff, Ordering::Relaxed);
             }
-        })
+            #[cfg(not(feature = "experimental"))]
+            {
+                self.attack_coeff = duration_to_coefficient(self.attack_time, current_sample_rate);
+                self.release_coeff =
+                    duration_to_coefficient(self.release_time, current_sample_rate);
+            }
+
+            // Reset RMS window to avoid mixing samples from different parameter sets
+            self.rms_window = CircularBuffer::new();
+            self.peak_level = 0.0;
+            self.current_gain = 1.0;
+        }
+
+        let sample = self.input.next()?;
+
+        let output = if self.is_enabled() {
+            self.process_sample(sample)
+        } else {
+            sample
+        };
+        Some(output)
     }
 
     #[inline]
@@ -548,6 +622,20 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.input.try_seek(pos)
+        self.input.try_seek(pos)?;
+        reset_seek_span_tracking(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            pos,
+            self.input.current_span_len(),
+        );
+        Ok(())
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::math::nz;
+    use crate::source::test_utils::TestSource;
 }

@@ -166,6 +166,11 @@ impl<R: Rng> Iterator for WhiteUniform<R> {
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.sampler.sample())
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, None)
+    }
 }
 
 impl_noise_source!(WhiteUniform<R>);
@@ -220,6 +225,11 @@ impl<R: Rng> Iterator for WhiteTriangular<R> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.sampler.sample())
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, None)
     }
 }
 
@@ -319,6 +329,11 @@ impl<R: Rng> Iterator for Velvet<R> {
 
         Some(output)
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, None)
+    }
 }
 
 impl_noise_source!(Velvet<R>);
@@ -392,6 +407,11 @@ impl<R: Rng> Iterator for WhiteGaussian<R> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.sampler.sample())
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, None)
     }
 }
 
@@ -492,6 +512,11 @@ impl<R: Rng> Iterator for Pink<R> {
         // Normalize by number of generators to keep output in reasonable range
         Some(sum / PINK_NOISE_GENERATORS as Sample)
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.white_noise.size_hint()
+    }
 }
 
 impl_noise_source!(Pink<R>);
@@ -554,6 +579,11 @@ impl<R: Rng> Iterator for Blue<R> {
         let blue = white - self.prev_white;
         self.prev_white = white;
         Some(blue)
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.white_noise.size_hint()
     }
 }
 
@@ -618,6 +648,11 @@ impl<R: Rng> Iterator for Violet<R> {
         self.prev = blue;
         Some(violet)
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.blue_noise.size_hint()
+    }
 }
 
 impl_noise_source!(Violet<R>);
@@ -673,6 +708,11 @@ impl<W: Iterator<Item = Sample>> Iterator for IntegratedNoise<W> {
         self.accumulator = self.accumulator * self.leak_factor + white;
         Some(self.accumulator * self.scale)
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.white_noise.size_hint()
+    }
 }
 
 /// Brownian noise generator - true stochastic Brownian motion with Gaussian increments.
@@ -724,6 +764,11 @@ impl<R: Rng> Iterator for Brownian<R> {
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 impl<R: Rng> Source for Brownian<R> {
@@ -746,6 +791,7 @@ impl<R: Rng> Source for Brownian<R> {
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
         // Stateless noise generators can seek to any position since all positions
         // are equally random and don't depend on previous state
+        self.inner.accumulator = 0.0;
         Ok(())
     }
 }
@@ -801,6 +847,11 @@ impl<R: Rng> Iterator for Red<R> {
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 impl<R: Rng> Source for Red<R> {
@@ -823,6 +874,7 @@ impl<R: Rng> Source for Red<R> {
     fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {
         // Stateless noise generators can seek to any position since all positions
         // are equally random and don't depend on previous state
+        self.inner.accumulator = 0.0;
         Ok(())
     }
 }

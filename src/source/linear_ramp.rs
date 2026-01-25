@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::SeekError;
+use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::{duration_to_float, NANOS_PER_SEC};
 use crate::{Float, Source};
@@ -18,6 +18,9 @@ where
 {
     assert!(!duration.is_zero(), "duration must be greater than zero");
 
+    let sample_rate = input.sample_rate();
+    let channels = input.channels();
+
     LinearGainRamp {
         input,
         elapsed: Duration::ZERO,
@@ -25,7 +28,11 @@ where
         start_gain,
         end_gain,
         clamp_end,
-        sample_idx: 0u64,
+        sample_idx: 0,
+        samples_counted: 0,
+        cached_span_len: None,
+        last_sample_rate: sample_rate,
+        last_channels: channels,
     }
 }
 
@@ -39,6 +46,10 @@ pub struct LinearGainRamp<I> {
     end_gain: Float,
     clamp_end: bool,
     sample_idx: u64,
+    samples_counted: usize,
+    cached_span_len: Option<usize>,
+    last_sample_rate: SampleRate,
+    last_channels: ChannelCount,
 }
 
 impl<I> LinearGainRamp<I>
@@ -72,30 +83,51 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        let factor: Float;
+        let current_sample_rate = self.input.sample_rate();
+        let current_channels = self.input.channels();
+        let input_span_len = self.input.current_span_len();
 
-        if self.elapsed >= self.total {
-            if self.clamp_end {
-                factor = self.end_gain;
-            } else {
-                factor = 1.0;
-            }
-        } else {
-            self.sample_idx += 1;
+        let (at_boundary, parameters_changed) = detect_span_boundary(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            input_span_len,
+            current_sample_rate,
+            self.last_sample_rate,
+            current_channels,
+            self.last_channels,
+        );
 
-            // Calculate progress (0.0 to 1.0) using appropriate precision for Float type
-            let p = duration_to_float(self.elapsed) / duration_to_float(self.total);
-
-            factor = self.start_gain * (1.0 - p) + self.end_gain * p;
+        if at_boundary && parameters_changed {
+            // Parameters changed - need to handle elapsed time carefully
+            // The elapsed time was accumulated using the OLD sample rate
+            // We keep elapsed as-is since it represents real time passed
+            self.last_sample_rate = current_sample_rate;
+            self.last_channels = current_channels;
         }
 
-        if self.sample_idx.is_multiple_of(self.channels().get() as u64) {
+        let factor = if self.elapsed >= self.total {
+            if self.clamp_end {
+                self.end_gain
+            } else {
+                1.0
+            }
+        } else {
+            self.sample_idx = self.sample_idx.wrapping_add(1);
+            let p = duration_to_float(self.elapsed) / duration_to_float(self.total);
+            self.start_gain * (1.0 - p) + self.end_gain * p
+        };
+
+        if self
+            .sample_idx
+            .is_multiple_of(current_channels.get() as u64)
+        {
             let sample_duration =
-                Duration::from_nanos(NANOS_PER_SEC / self.input.sample_rate().get() as u64);
+                Duration::from_nanos(NANOS_PER_SEC / current_sample_rate.get() as u64);
             self.elapsed += sample_duration;
         }
 
-        self.input.next().map(|value| value * factor)
+        let value = self.input.next()?;
+        Some(value * factor)
     }
 
     #[inline]
@@ -133,7 +165,14 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.elapsed = pos;
-        self.input.try_seek(pos)
+        self.input.try_seek(pos)?;
+        reset_seek_span_tracking(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            pos,
+            self.input.current_span_len(),
+        );
+        Ok(())
     }
 }
 
@@ -144,6 +183,7 @@ mod tests {
     use super::*;
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
+    use crate::source::test_utils::TestSource;
     use crate::Sample;
 
     /// Create a SamplesBuffer of identical samples with value `value`.

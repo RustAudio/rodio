@@ -29,13 +29,23 @@ impl Zero {
         }
     }
 
-    /// Create a new source that never ends and produces total silence.
+    /// Create a new source that produces a finite amount of silence samples.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `num_samples` is not a multiple of `channels`.
     #[inline]
     pub fn new_samples(
         channels: ChannelCount,
         sample_rate: SampleRate,
         num_samples: usize,
     ) -> Self {
+        assert_eq!(
+            num_samples % channels.get() as usize,
+            0,
+            "Zero sample count must be a multiple of channel count",
+        );
+
         Self {
             channels,
             sample_rate,

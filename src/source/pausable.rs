@@ -98,9 +98,13 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.input.size_hint()
+        let (lower, upper) = self.input.size_hint();
+        let paused_samples = self.remaining_paused_samples as usize;
+        (lower + paused_samples, upper.map(|u| u + paused_samples))
     }
 }
+
+impl<I> ExactSizeIterator for Pausable<I> where I: Source + ExactSizeIterator {}
 
 impl<I> Source for Pausable<I>
 where

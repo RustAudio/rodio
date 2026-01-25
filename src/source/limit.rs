@@ -60,12 +60,77 @@
 
 use std::time::Duration;
 
-use super::SeekError;
+use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
 use crate::{
     common::{ChannelCount, Sample, SampleRate},
     math::{self, duration_to_coefficient},
     Float, Source,
 };
+
+/// Creates a limiter that processes the input audio source.
+///
+/// This function applies the specified limiting settings to control audio peaks.
+/// The limiter uses feedforward processing with configurable attack/release times
+/// and soft-knee characteristics for natural-sounding dynamic range control.
+///
+/// # Arguments
+///
+/// * `input` - Audio source to process
+/// * `settings` - Limiter configuration (threshold, knee, timing)
+///
+/// # Returns
+///
+/// A [`Limit`] source that applies the limiting to the input audio.
+///
+/// # Example
+///
+/// ```rust
+/// use rodio::source::{SineWave, Source, LimitSettings};
+///
+/// let source = SineWave::new(440.0).amplify(2.0);
+/// let settings = LimitSettings::default().with_threshold(-6.0);
+/// let limited = source.limit(settings);
+/// ```
+pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
+    let sample_rate = input.sample_rate();
+    let attack = duration_to_coefficient(settings.attack, sample_rate);
+    let release = duration_to_coefficient(settings.release, sample_rate);
+    let channels = input.channels();
+    let channels_count = channels.get() as usize;
+
+    let base = LimitBase::new(settings.threshold, settings.knee_width, attack, release);
+
+    let inner = match channels_count {
+        1 => LimitInner::Mono(LimitMono {
+            input,
+            base,
+            limiter_integrator: 0.0,
+            limiter_peak: 0.0,
+        }),
+        2 => LimitInner::Stereo(LimitStereo {
+            input,
+            base,
+            limiter_integrators: [0.0; 2],
+            limiter_peaks: [0.0; 2],
+            is_right_channel: false,
+        }),
+        n => LimitInner::MultiChannel(LimitMulti {
+            input,
+            base,
+            limiter_integrators: vec![0.0; n].into_boxed_slice(),
+            limiter_peaks: vec![0.0; n].into_boxed_slice(),
+            position: 0,
+        }),
+    };
+
+    Limit {
+        inner: Some(inner),
+        last_channels: channels,
+        last_sample_rate: sample_rate,
+        samples_counted: 0,
+        cached_span_len: None,
+    }
+}
 
 /// Configuration settings for audio limiting.
 ///
@@ -126,8 +191,6 @@ use crate::{
 ///     .with_attack(Duration::from_millis(3))    // Faster attack
 ///     .with_release(Duration::from_millis(50)); // Faster release
 /// ```
-#[derive(Debug, Clone)]
-/// Configuration settings for audio limiting.
 ///
 /// # dB vs. dBFS Reference
 ///
@@ -146,6 +209,7 @@ use crate::{
 /// - **-6 dBFS**: Generous headroom (gentle limiting)
 /// - **-12 dBFS**: Conservative level (preserves significant dynamics)
 /// - **-20 dBFS**: Very quiet level (background/ambient sounds)
+#[derive(Debug, Clone)]
 pub struct LimitSettings {
     /// Level where limiting begins (dBFS, must be negative).
     ///
@@ -454,64 +518,6 @@ impl LimitSettings {
     }
 }
 
-/// Creates a limiter that processes the input audio source.
-///
-/// This function applies the specified limiting settings to control audio peaks.
-/// The limiter uses feedforward processing with configurable attack/release times
-/// and soft-knee characteristics for natural-sounding dynamic range control.
-///
-/// # Arguments
-///
-/// * `input` - Audio source to process
-/// * `settings` - Limiter configuration (threshold, knee, timing)
-///
-/// # Returns
-///
-/// A [`Limit`] source that applies the limiting to the input audio.
-///
-/// # Example
-///
-/// ```rust
-/// use rodio::source::{SineWave, Source, LimitSettings};
-///
-/// let source = SineWave::new(440.0).amplify(2.0);
-/// let settings = LimitSettings::default().with_threshold(-6.0);
-/// let limited = source.limit(settings);
-/// ```
-pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
-    let sample_rate = input.sample_rate();
-    let attack = duration_to_coefficient(settings.attack, sample_rate);
-    let release = duration_to_coefficient(settings.release, sample_rate);
-    let channels = input.channels().get() as usize;
-
-    let base = LimitBase::new(settings.threshold, settings.knee_width, attack, release);
-
-    let inner = match channels {
-        1 => LimitInner::Mono(LimitMono {
-            input,
-            base,
-            limiter_integrator: 0.0,
-            limiter_peak: 0.0,
-        }),
-        2 => LimitInner::Stereo(LimitStereo {
-            input,
-            base,
-            limiter_integrators: [0.0; 2],
-            limiter_peaks: [0.0; 2],
-            position: 0,
-        }),
-        n => LimitInner::MultiChannel(LimitMulti {
-            input,
-            base,
-            limiter_integrators: vec![0.0; n],
-            limiter_peaks: vec![0.0; n],
-            position: 0,
-        }),
-    };
-
-    Limit(inner)
-}
-
 /// A source filter that applies audio limiting to prevent peaks from exceeding a threshold.
 ///
 /// This filter reduces the amplitude of audio signals that exceed the configured threshold
@@ -554,23 +560,20 @@ pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
 /// - **Stereo**: Two-channel optimized with interleaved processing
 /// - **Multi-channel**: Generic implementation for 3+ channels
 ///
-/// # Channel Count Stability
-///
-/// **Important**: The limiter is optimized for sources with fixed channel counts.
-/// Most audio files (music, podcasts, etc.) maintain constant channel counts,
-/// making this optimization safe and beneficial.
-///
-/// If the underlying source changes channel count mid-stream (rare), the limiter
-/// will continue to function but performance may be degraded. For such cases,
-/// recreate the limiter when the channel count changes.
-///
 /// # Type Parameters
 ///
 /// * `I` - The input audio source type that implements [`Source`]
 #[derive(Clone, Debug)]
-pub struct Limit<I>(LimitInner<I>)
+pub struct Limit<I>
 where
-    I: Source;
+    I: Source,
+{
+    inner: Option<LimitInner<I>>,
+    last_channels: ChannelCount,
+    last_sample_rate: SampleRate,
+    samples_counted: usize,
+    cached_span_len: Option<usize>,
+}
 
 impl<I> Source for Limit<I>
 where
@@ -578,27 +581,34 @@ where
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        self.0.current_span_len()
+        self.inner.as_ref().unwrap().current_span_len()
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        self.0.sample_rate()
+        self.inner.as_ref().unwrap().sample_rate()
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.0.channels()
+        self.inner.as_ref().unwrap().channels()
     }
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.0.total_duration()
+        self.inner.as_ref().unwrap().total_duration()
     }
 
     #[inline]
     fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
-        self.0.try_seek(position)
+        self.inner.as_mut().unwrap().try_seek(position)?;
+        reset_seek_span_tracking(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            position,
+            self.inner.as_ref().unwrap().current_span_len(),
+        );
+        Ok(())
     }
 }
 
@@ -615,7 +625,7 @@ where
     /// Useful for inspecting source properties without consuming the filter.
     #[inline]
     pub fn inner(&self) -> &I {
-        self.0.inner()
+        self.inner.as_ref().unwrap().inner()
     }
 
     /// Returns a mutable reference to the inner audio source.
@@ -625,7 +635,7 @@ where
     /// underlying source.
     #[inline]
     pub fn inner_mut(&mut self) -> &mut I {
-        self.0.inner_mut()
+        self.inner.as_mut().unwrap().inner_mut()
     }
 
     /// Consumes the limiter and returns the inner audio source.
@@ -635,7 +645,7 @@ where
     /// Useful when limiting is no longer needed but the source should continue.
     #[inline]
     pub fn into_inner(self) -> I {
-        self.0.into_inner()
+        self.inner.unwrap().into_inner()
     }
 }
 
@@ -648,15 +658,80 @@ where
     /// Provides the next limited sample.
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        let sample = self.inner.as_mut().unwrap().next()?;
+
+        let input_span_len = self.inner.as_ref().unwrap().current_span_len();
+        let current_channels = self.inner.as_ref().unwrap().channels();
+        let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
+
+        let (at_boundary, parameters_changed) = detect_span_boundary(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            input_span_len,
+            current_sample_rate,
+            self.last_sample_rate,
+            current_channels,
+            self.last_channels,
+        );
+
+        if at_boundary && parameters_changed {
+            self.last_channels = current_channels;
+            self.last_sample_rate = current_sample_rate;
+            let new_channels_count = current_channels.get() as usize;
+
+            let needs_reconstruction = match self.inner.as_ref().unwrap() {
+                LimitInner::Mono(_) => new_channels_count != 1,
+                LimitInner::Stereo(_) => new_channels_count != 2,
+                LimitInner::MultiChannel(multi) => {
+                    new_channels_count != multi.limiter_integrators.len()
+                }
+            };
+
+            if needs_reconstruction {
+                let old_inner = self.inner.take().unwrap();
+
+                let (input, base) = match old_inner {
+                    LimitInner::Mono(mono) => (mono.input, mono.base),
+                    LimitInner::Stereo(stereo) => (stereo.input, stereo.base),
+                    LimitInner::MultiChannel(multi) => (multi.input, multi.base),
+                };
+
+                self.inner = Some(match new_channels_count {
+                    1 => LimitInner::Mono(LimitMono {
+                        input,
+                        base,
+                        limiter_integrator: 0.0,
+                        limiter_peak: 0.0,
+                    }),
+                    2 => LimitInner::Stereo(LimitStereo {
+                        input,
+                        base,
+                        limiter_integrators: [0.0; 2],
+                        limiter_peaks: [0.0; 2],
+                        is_right_channel: false,
+                    }),
+                    n => LimitInner::MultiChannel(LimitMulti {
+                        input,
+                        base,
+                        limiter_integrators: vec![0.0; n].into_boxed_slice(),
+                        limiter_peaks: vec![0.0; n].into_boxed_slice(),
+                        position: 0,
+                    }),
+                });
+            }
+        }
+
+        Some(sample)
     }
 
     /// Provides size hints from the inner limiter.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
+        self.inner.as_ref().unwrap().size_hint()
     }
 }
+
+impl<I> ExactSizeIterator for Limit<I> where I: Source + ExactSizeIterator {}
 
 /// Internal limiter implementation that adapts to different channel configurations.
 ///
@@ -716,13 +791,8 @@ struct LimitBase {
 /// This variant is automatically selected by [`Limit`] for mono audio sources.
 /// It uses minimal state (single integrator and peak detector) for optimal
 /// performance with single-channel audio.
-///
-/// # Internal Use
-///
-/// This struct is used internally by [`LimitInner::Mono`] and is not intended
-/// for direct construction. Use [`Source::limit()`] instead.
 #[derive(Clone, Debug)]
-pub struct LimitMono<I> {
+struct LimitMono<I> {
     /// Input audio source
     input: I,
     /// Common limiter parameters
@@ -744,13 +814,8 @@ pub struct LimitMono<I> {
 /// The fixed arrays and channel position tracking provide optimal performance
 /// for interleaved stereo sample processing, avoiding the dynamic allocation
 /// overhead of the multi-channel variant.
-///
-/// # Internal Use
-///
-/// This struct is used internally by [`LimitInner::Stereo`] and is not intended
-/// for direct construction. Use [`Source::limit()`] instead.
 #[derive(Clone, Debug)]
-pub struct LimitStereo<I> {
+struct LimitStereo<I> {
     /// Input audio source
     input: I,
     /// Common limiter parameters
@@ -759,8 +824,8 @@ pub struct LimitStereo<I> {
     limiter_integrators: [Float; 2],
     /// Peak detection states for left and right channels
     limiter_peaks: [Float; 2],
-    /// Current channel position (0 = left, 1 = right)
-    position: u8,
+    /// Current channel: true = right, false = left
+    is_right_channel: bool,
 }
 
 /// Generic multi-channel limiter for surround sound or other configurations.
@@ -775,21 +840,16 @@ pub struct LimitStereo<I> {
 /// While this variant has slightly more overhead than the mono/stereo variants
 /// due to vector allocation and dynamic indexing, it provides the flexibility
 /// needed for complex audio setups while maintaining good performance.
-///
-/// # Internal Use
-///
-/// This struct is used internally by [`LimitInner::MultiChannel`] and is not
-/// intended for direct construction. Use [`Source::limit()`] instead.
 #[derive(Clone, Debug)]
-pub struct LimitMulti<I> {
+struct LimitMulti<I> {
     /// Input audio source
     input: I,
     /// Common limiter parameters
     base: LimitBase,
     /// Peak detector integrator states (one per channel)
-    limiter_integrators: Vec<Float>,
+    limiter_integrators: Box<[Float]>,
     /// Peak detector states (one per channel)
-    limiter_peaks: Vec<Float>,
+    limiter_peaks: Box<[Float]>,
     /// Current channel position (0 to channels-1)
     position: usize,
 }
@@ -908,8 +968,8 @@ where
     /// updates.
     #[inline]
     fn process_next(&mut self, sample: I::Item) -> I::Item {
-        let channel = self.position as usize;
-        self.position ^= 1;
+        let channel = self.is_right_channel as usize;
+        self.is_right_channel = !self.is_right_channel;
 
         let processed = self.base.process_channel(
             sample,
@@ -1131,7 +1191,7 @@ mod tests {
     use std::time::Duration;
 
     fn create_test_buffer(
-        samples: Vec<Sample>,
+        samples: &[Sample],
         channels: ChannelCount,
         sample_rate: SampleRate,
     ) -> SamplesBuffer {
@@ -1141,26 +1201,35 @@ mod tests {
     #[test]
     fn test_limiter_creation() {
         // Test mono
-        let buffer = create_test_buffer(vec![0.5, 0.8, 1.0, 0.3], nz!(1), nz!(44100));
+        let buffer = create_test_buffer(&[0.5, 0.8, 1.0, 0.3], nz!(1), nz!(44100));
         let limiter = limit(buffer, LimitSettings::default());
         assert_eq!(limiter.channels(), nz!(1));
         assert_eq!(limiter.sample_rate(), nz!(44100));
-        matches!(limiter.0, LimitInner::Mono(_));
+        assert!(matches!(
+            limiter.inner.as_ref().unwrap(),
+            LimitInner::Mono(_)
+        ));
 
         // Test stereo
         let buffer = create_test_buffer(
-            vec![0.5, 0.8, 1.0, 0.3, 0.2, 0.6, 0.9, 0.4],
+            &[0.5, 0.8, 1.0, 0.3, 0.2, 0.6, 0.9, 0.4],
             nz!(2),
             nz!(44100),
         );
         let limiter = limit(buffer, LimitSettings::default());
         assert_eq!(limiter.channels(), nz!(2));
-        matches!(limiter.0, LimitInner::Stereo(_));
+        assert!(matches!(
+            limiter.inner.as_ref().unwrap(),
+            LimitInner::Stereo(_)
+        ));
 
         // Test multichannel
-        let buffer = create_test_buffer(vec![0.5; 12], nz!(3), nz!(44100));
+        let buffer = create_test_buffer(&[0.5; 12], nz!(3), nz!(44100));
         let limiter = limit(buffer, LimitSettings::default());
         assert_eq!(limiter.channels(), nz!(3));
-        matches!(limiter.0, LimitInner::MultiChannel(_));
+        assert!(matches!(
+            limiter.inner.as_ref().unwrap(),
+            LimitInner::MultiChannel(_)
+        ));
     }
 }

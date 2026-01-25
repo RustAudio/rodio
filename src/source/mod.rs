@@ -167,6 +167,16 @@ pub use self::noise::{Pink, WhiteUniform};
 /// the total number of samples in the current span (i.e., before the sample rate and number of
 /// channels can potentially change).
 ///
+/// # Frame Alignment Contract
+///
+/// All `Source` implementors MUST ensure that when the iterator returns `None`, all previously
+/// emitted samples form complete frames. That is, the total number of samples emitted must be a
+/// multiple of `channels()`.
+///
+/// A "frame" is one sample for each channel in the audio stream. For example, stereo audio (2
+/// channels) must emit samples in pairs: left, right, left, right, etc. Should a `Source` find
+/// itself in a situation where it would need to emit an incomplete final frame, it MUST pad
+/// the remaining samples with silence before returning `None`.
 pub trait Source: Iterator<Item = Sample> {
     /// Returns the total length of the current span in samples.
     ///
@@ -936,12 +946,6 @@ pub(crate) mod test_utils {
                 sample_rate,
                 total_span_len: Some(samples.len()),
             }
-        }
-
-        /// Overrides the reported span length for testing early exhaustion.
-        pub fn with_false_span_len(mut self, total_len: Option<usize>) -> Self {
-            self.total_span_len = total_len;
-            self
         }
     }
 

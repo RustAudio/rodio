@@ -13,10 +13,10 @@
 //   Crafted with love. Enjoy! :)
 //
 
-use super::{detect_span_boundary, padding_samples_needed, reset_seek_span_tracking, SeekError};
-use crate::{math::duration_to_coefficient, ChannelCount, Float, Sample, SampleRate, Source};
-use dasp_sample::Sample as _;
 use std::time::Duration;
+
+use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use crate::{math::duration_to_coefficient, ChannelCount, Float, Sample, SampleRate, Source};
 
 #[cfg(feature = "tracing")]
 use tracing;
@@ -104,8 +104,6 @@ pub struct AutomaticGainControl<I> {
     cached_span_len: Option<usize>,
     last_sample_rate: SampleRate,
     last_channels: ChannelCount,
-    samples_in_current_frame: usize,
-    silence_samples_remaining: usize,
 }
 
 #[cfg(not(feature = "experimental"))]
@@ -131,8 +129,6 @@ pub struct AutomaticGainControl<I> {
     cached_span_len: Option<usize>,
     last_sample_rate: SampleRate,
     last_channels: ChannelCount,
-    samples_in_current_frame: usize,
-    silence_samples_remaining: usize,
 }
 
 /// A circular buffer for efficient RMS calculation over a sliding window.
@@ -224,8 +220,6 @@ where
             cached_span_len: None,
             last_sample_rate: sample_rate,
             last_channels: channels,
-            samples_in_current_frame: 0,
-            silence_samples_remaining: 0,
         }
     }
 
@@ -249,8 +243,6 @@ where
             cached_span_len: None,
             last_sample_rate: sample_rate,
             last_channels: channels,
-            samples_in_current_frame: 0,
-            silence_samples_remaining: 0,
         }
     }
 }
@@ -547,80 +539,53 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.silence_samples_remaining > 0 {
-                self.silence_samples_remaining -= 1;
-                return Some(Sample::EQUILIBRIUM);
+        let current_sample_rate = self.input.sample_rate();
+        let current_channels = self.input.channels();
+        let input_span_len = self.input.current_span_len();
+
+        let (at_boundary, parameters_changed) = detect_span_boundary(
+            &mut self.samples_counted,
+            &mut self.cached_span_len,
+            input_span_len,
+            current_sample_rate,
+            self.last_sample_rate,
+            current_channels,
+            self.last_channels,
+        );
+
+        if at_boundary && parameters_changed {
+            self.last_sample_rate = current_sample_rate;
+            self.last_channels = current_channels;
+
+            // Recalculate coefficients for new sample rate
+            #[cfg(feature = "experimental")]
+            {
+                let attack_coeff = duration_to_coefficient(self.attack_time, current_sample_rate);
+                let release_coeff = duration_to_coefficient(self.release_time, current_sample_rate);
+                self.attack_coeff.store(attack_coeff, Ordering::Relaxed);
+                self.release_coeff.store(release_coeff, Ordering::Relaxed);
+            }
+            #[cfg(not(feature = "experimental"))]
+            {
+                self.attack_coeff = duration_to_coefficient(self.attack_time, current_sample_rate);
+                self.release_coeff =
+                    duration_to_coefficient(self.release_time, current_sample_rate);
             }
 
-            let current_sample_rate = self.input.sample_rate();
-            let current_channels = self.input.channels();
-            let input_span_len = self.input.current_span_len();
-
-            let (at_boundary, parameters_changed) = detect_span_boundary(
-                &mut self.samples_counted,
-                &mut self.cached_span_len,
-                input_span_len,
-                current_sample_rate,
-                self.last_sample_rate,
-                current_channels,
-                self.last_channels,
-            );
-
-            if at_boundary && parameters_changed {
-                self.last_sample_rate = current_sample_rate;
-                self.last_channels = current_channels;
-
-                // Recalculate coefficients for new sample rate
-                #[cfg(feature = "experimental")]
-                {
-                    let attack_coeff =
-                        duration_to_coefficient(self.attack_time, current_sample_rate);
-                    let release_coeff =
-                        duration_to_coefficient(self.release_time, current_sample_rate);
-                    self.attack_coeff.store(attack_coeff, Ordering::Relaxed);
-                    self.release_coeff.store(release_coeff, Ordering::Relaxed);
-                }
-                #[cfg(not(feature = "experimental"))]
-                {
-                    self.attack_coeff =
-                        duration_to_coefficient(self.attack_time, current_sample_rate);
-                    self.release_coeff =
-                        duration_to_coefficient(self.release_time, current_sample_rate);
-                }
-
-                // Reset RMS window to avoid mixing samples from different parameter sets
-                self.rms_window = CircularBuffer::new();
-                self.peak_level = 0.0;
-                self.current_gain = 1.0;
-
-                self.samples_in_current_frame = 0;
-            }
-
-            match self.input.next() {
-                Some(sample) => {
-                    self.samples_in_current_frame =
-                        (self.samples_in_current_frame + 1) % current_channels.get() as usize;
-
-                    let output = if self.is_enabled() {
-                        self.process_sample(sample)
-                    } else {
-                        sample
-                    };
-                    return Some(output);
-                }
-                None => {
-                    // Input exhausted - check if we're mid-frame
-                    self.silence_samples_remaining =
-                        padding_samples_needed(self.samples_in_current_frame, current_channels);
-                    if self.silence_samples_remaining > 0 {
-                        self.samples_in_current_frame = 0;
-                        continue; // Loop will inject silence samples
-                    }
-                    return None;
-                }
-            }
+            // Reset RMS window to avoid mixing samples from different parameter sets
+            self.rms_window = CircularBuffer::new();
+            self.peak_level = 0.0;
+            self.current_gain = 1.0;
         }
+
+        let sample = self.input.next()?;
+
+        let output = if self.is_enabled() {
+            self.process_sample(sample)
+        } else {
+            sample
+        };
+        Some(output)
     }
 
     #[inline]
@@ -664,7 +629,6 @@ where
             pos,
             self.input.current_span_len(),
         );
-        self.samples_in_current_frame = 0;
         Ok(())
     }
 }
@@ -674,25 +638,4 @@ mod tests {
     use super::*;
     use crate::math::nz;
     use crate::source::test_utils::TestSource;
-
-    #[test]
-    fn test_incomplete_frame_padding() {
-        let samples = vec![0.1, 0.2, 0.3, 0.4, 0.5];
-        let source = TestSource::new(&samples, nz!(2), nz!(44100));
-
-        let agc = automatic_gain_control(
-            source,
-            1.0,
-            Duration::from_millis(100),
-            Duration::from_millis(50),
-            2.0,
-        );
-        let output: Vec<Sample> = agc.collect();
-
-        assert_eq!(
-            output.get(5),
-            Some(&Sample::EQUILIBRIUM),
-            "6th sample should be silence for frame padding"
-        );
-    }
 }

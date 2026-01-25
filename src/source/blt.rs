@@ -1,10 +1,11 @@
 use crate::common::{ChannelCount, Float, SampleRate};
 use crate::math::PI;
 use crate::{Sample, Source};
+use dasp_sample::Sample as _;
 use std::time::Duration;
 
 // Implemented following https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
-use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use super::{detect_span_boundary, padding_samples_needed, reset_seek_span_tracking, SeekError};
 
 /// Builds a `BltFilter` object with a low-pass filter.
 pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
@@ -52,6 +53,8 @@ where
         last_channels: channels,
         samples_counted: 0,
         cached_span_len: None,
+        samples_in_current_frame: 0,
+        silence_samples_remaining: 0,
     }
 }
 
@@ -63,6 +66,8 @@ pub struct BltFilter<I> {
     last_channels: ChannelCount,
     samples_counted: usize,
     cached_span_len: Option<usize>,
+    samples_in_current_frame: usize,
+    silence_samples_remaining: usize,
 }
 
 impl<I> BltFilter<I>
@@ -122,44 +127,65 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Sample> {
-        let sample = self.inner.as_mut().unwrap().next()?;
-
-        let input_span_len = self.inner.as_ref().unwrap().current_span_len();
-        let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
-        let current_channels = self.inner.as_ref().unwrap().channels();
-
-        let (at_boundary, parameters_changed) = detect_span_boundary(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            input_span_len,
-            current_sample_rate,
-            self.last_sample_rate,
-            current_channels,
-            self.last_channels,
-        );
-
-        if at_boundary && parameters_changed {
-            let sample_rate_changed = current_sample_rate != self.last_sample_rate;
-            let channels_changed = current_channels != self.last_channels;
-
-            self.last_sample_rate = current_sample_rate;
-            self.last_channels = current_channels;
-
-            // If channel count changed, reconstruct with new variant (this also recreates applier)
-            // Otherwise, just recreate applier if sample rate changed
-            if channels_changed {
-                let old_inner = self.inner.take().unwrap();
-                let (input, formula) = old_inner.into_parts();
-                self.inner = Some(BltInner::new(input, formula, current_channels));
-            } else if sample_rate_changed {
-                self.inner
-                    .as_mut()
-                    .unwrap()
-                    .recreate_applier(current_sample_rate);
+        loop {
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
+                return Some(Sample::EQUILIBRIUM);
             }
-        }
 
-        Some(sample)
+            let sample = match self.inner.as_mut().unwrap().next() {
+                Some(s) => s,
+                None => {
+                    self.silence_samples_remaining =
+                        padding_samples_needed(self.samples_in_current_frame, self.last_channels);
+                    if self.silence_samples_remaining > 0 {
+                        self.samples_in_current_frame = 0;
+                        continue;
+                    }
+                    return None;
+                }
+            };
+
+            let input_span_len = self.inner.as_ref().unwrap().current_span_len();
+            let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
+            let current_channels = self.inner.as_ref().unwrap().channels();
+
+            let (at_boundary, parameters_changed) = detect_span_boundary(
+                &mut self.samples_counted,
+                &mut self.cached_span_len,
+                input_span_len,
+                current_sample_rate,
+                self.last_sample_rate,
+                current_channels,
+                self.last_channels,
+            );
+
+            if at_boundary && parameters_changed {
+                let sample_rate_changed = current_sample_rate != self.last_sample_rate;
+                let channels_changed = current_channels != self.last_channels;
+
+                self.last_sample_rate = current_sample_rate;
+                self.last_channels = current_channels;
+
+                if channels_changed {
+                    let old_inner = self.inner.take().unwrap();
+                    let (input, formula) = old_inner.into_parts();
+                    self.inner = Some(BltInner::new(input, formula, current_channels));
+                } else if sample_rate_changed {
+                    self.inner
+                        .as_mut()
+                        .unwrap()
+                        .recreate_applier(current_sample_rate);
+                }
+
+                self.samples_in_current_frame = 0;
+            }
+
+            self.samples_in_current_frame =
+                (self.samples_in_current_frame + 1) % current_channels.get() as usize;
+
+            return Some(sample);
+        }
     }
 
     #[inline]
@@ -204,6 +230,8 @@ where
             pos,
             self.inner.as_ref().unwrap().current_span_len(),
         );
+
+        self.samples_in_current_frame = 0;
 
         Ok(())
     }
@@ -585,5 +613,27 @@ impl BltApplier {
     #[inline]
     fn apply(&self, x_n: Float, x_n1: Float, x_n2: Float, y_n1: Float, y_n2: Float) -> Float {
         self.b0 * x_n + self.b1 * x_n1 + self.b2 * x_n2 - self.a1 * y_n1 - self.a2 * y_n2
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::math::nz;
+    use crate::source::test_utils::TestSource;
+
+    #[test]
+    fn test_incomplete_frame_padding() {
+        let samples = vec![0.1, 0.2, 0.3, 0.4, 0.5];
+        let source = TestSource::new(&samples, nz!(2), nz!(44100));
+
+        let filter = low_pass(source, 1000);
+        let output: Vec<Sample> = filter.collect();
+
+        assert_eq!(
+            output.get(5),
+            Some(&Sample::EQUILIBRIUM),
+            "6th sample should be silence for frame padding"
+        );
     }
 }

@@ -146,83 +146,11 @@ where
 mod tests {
     use super::*;
     use crate::math::nz;
-
-    /// Test helper source that allows setting false span length to simulate
-    /// sources that end before their promised span length.
-    #[derive(Debug, Clone)]
-    struct TestSource {
-        samples: Vec<Sample>,
-        pos: usize,
-        channels: ChannelCount,
-        sample_rate: SampleRate,
-        total_span_len: Option<usize>,
-    }
-
-    impl TestSource {
-        fn new(samples: &[Sample]) -> Self {
-            let samples = samples.to_vec();
-            Self {
-                total_span_len: Some(samples.len()),
-                pos: 0,
-                channels: nz!(1),
-                sample_rate: nz!(44100),
-                samples,
-            }
-        }
-
-        fn with_channels(mut self, count: ChannelCount) -> Self {
-            self.channels = count;
-            self
-        }
-
-        fn with_false_span_len(mut self, total_len: Option<usize>) -> Self {
-            self.total_span_len = total_len;
-            self
-        }
-    }
-
-    impl Iterator for TestSource {
-        type Item = Sample;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            let res = self.samples.get(self.pos).copied();
-            self.pos += 1;
-            res
-        }
-
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            let remaining = self.samples.len().saturating_sub(self.pos);
-            (remaining, Some(remaining))
-        }
-    }
-
-    impl Source for TestSource {
-        fn current_span_len(&self) -> Option<usize> {
-            self.total_span_len
-        }
-
-        fn channels(&self) -> ChannelCount {
-            self.channels
-        }
-
-        fn sample_rate(&self) -> SampleRate {
-            self.sample_rate
-        }
-
-        fn total_duration(&self) -> Option<Duration> {
-            None
-        }
-
-        fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-            Err(SeekError::NotSupported {
-                underlying_source: std::any::type_name::<Self>(),
-            })
-        }
-    }
+    use crate::source::test_utils::TestSource;
 
     #[test]
     fn test_mono_to_stereo() {
-        let input = TestSource::new(&[1.0, 2.0, 3.0]).with_channels(nz!(1));
+        let input = TestSource::new(&[1.0, 2.0, 3.0], nz!(1), nz!(44100));
         let mut channel_vol = ChannelVolume::new(input, vec![0.5, 0.8]);
         assert_eq!(channel_vol.next(), Some(1.0 * 0.5));
         assert_eq!(channel_vol.next(), Some(1.0 * 0.8));
@@ -235,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_stereo_to_mono() {
-        let input = TestSource::new(&[1.0, 2.0, 3.0, 4.0]).with_channels(nz!(2));
+        let input = TestSource::new(&[1.0, 2.0, 3.0, 4.0], nz!(2), nz!(44100));
         let mut channel_vol = ChannelVolume::new(input, vec![1.0]);
         assert_eq!(channel_vol.next(), Some(1.5));
         assert_eq!(channel_vol.next(), Some(3.5));
@@ -244,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_stereo_to_stereo_with_mixing() {
-        let input = TestSource::new(&[1.0, 3.0, 2.0, 4.0]).with_channels(nz!(2));
+        let input = TestSource::new(&[1.0, 3.0, 2.0, 4.0], nz!(2), nz!(44100));
         let mut channel_vol = ChannelVolume::new(input, vec![0.5, 2.0]);
         assert_eq!(channel_vol.next(), Some(2.0 * 0.5)); // 1.0
         assert_eq!(channel_vol.next(), Some(2.0 * 2.0)); // 4.0
@@ -255,8 +183,7 @@ mod tests {
 
     #[test]
     fn test_stream_ends_mid_frame() {
-        let input = TestSource::new(&[1.0, 2.0, 3.0, 4.0, 5.0])
-            .with_channels(nz!(2))
+        let input = TestSource::new(&[1.0, 2.0, 3.0, 4.0, 5.0], nz!(2), nz!(44100))
             .with_false_span_len(Some(6)); // Promises 6 but only delivers 5
 
         let mut channel_vol = ChannelVolume::new(input, vec![1.0, 1.0]);

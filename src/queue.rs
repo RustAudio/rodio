@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use dasp_sample::Sample as _;
 
-use crate::source::{Empty, SeekError, Source};
+use crate::source::{padding_samples_needed, Empty, SeekError, Source};
 use crate::Sample;
 
 use crate::common::{ChannelCount, SampleRate};
@@ -236,11 +236,11 @@ impl Iterator for SourcesQueueOutput {
 
             // Current source is exhausted - check if we ended mid-frame and need padding.
             if self.samples_consumed_in_span > 0 {
-                let channels = self.current.channels().get() as usize;
-                let incomplete_frame_samples = self.samples_consumed_in_span % channels;
-                if incomplete_frame_samples > 0 {
+                let channels = self.current.channels();
+                self.silence_samples_remaining =
+                    padding_samples_needed(self.samples_consumed_in_span, channels);
+                if self.silence_samples_remaining > 0 {
                     // We're mid-frame - need to pad with silence to complete it.
-                    self.silence_samples_remaining = channels - incomplete_frame_samples;
                     // Reset counter now since we're transitioning to a new span.
                     self.samples_consumed_in_span = 0;
                     // Continue loop - next iterations will inject silence.
@@ -293,9 +293,9 @@ impl SourcesQueueOutput {
 mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
-    use crate::source::{SeekError, Source};
-    use crate::{queue, ChannelCount, Sample, SampleRate};
-    use std::time::Duration;
+    use crate::queue;
+    use crate::source::test_utils::TestSource;
+    use crate::source::Source;
 
     #[test]
     fn basic() {
@@ -407,10 +407,9 @@ mod tests {
 
     #[test]
     fn span_ending_mid_frame() {
-        let mut test_source1 = TestSource::new(&[0.1, 0.2, 0.1, 0.2, 0.1])
-            .with_channels(nz!(2))
+        let mut test_source1 = TestSource::new(&[0.1, 0.2, 0.1, 0.2, 0.1], nz!(2), nz!(44100))
             .with_false_span_len(Some(6));
-        let mut test_source2 = TestSource::new(&[0.3, 0.4, 0.3, 0.4]).with_channels(nz!(2));
+        let mut test_source2 = TestSource::new(&[0.3, 0.4, 0.3, 0.4], nz!(2), nz!(44100));
 
         let (controls, mut source) = queue::queue(true);
         controls.append(test_source1.clone());
@@ -435,78 +434,5 @@ mod tests {
         assert_eq!(source.next(), test_source2.next());
         assert_eq!(source.next(), test_source2.next());
         assert_eq!(source.next(), test_source2.next());
-    }
-
-    /// Test helper source that allows setting false span length to simulate
-    /// sources that end before their promised span length.
-    #[derive(Debug, Clone)]
-    struct TestSource {
-        samples: Vec<Sample>,
-        pos: usize,
-        channels: ChannelCount,
-        sample_rate: SampleRate,
-        total_span_len: Option<usize>,
-    }
-
-    impl TestSource {
-        fn new(samples: &[Sample]) -> Self {
-            let samples = samples.to_vec();
-            Self {
-                total_span_len: Some(samples.len()),
-                pos: 0,
-                channels: nz!(1),
-                sample_rate: nz!(44100),
-                samples,
-            }
-        }
-
-        fn with_channels(mut self, count: ChannelCount) -> Self {
-            self.channels = count;
-            self
-        }
-
-        fn with_false_span_len(mut self, total_len: Option<usize>) -> Self {
-            self.total_span_len = total_len;
-            self
-        }
-    }
-
-    impl Iterator for TestSource {
-        type Item = Sample;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            let res = self.samples.get(self.pos).copied();
-            self.pos += 1;
-            res
-        }
-
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            let remaining = self.samples.len().saturating_sub(self.pos);
-            (remaining, Some(remaining))
-        }
-    }
-
-    impl Source for TestSource {
-        fn current_span_len(&self) -> Option<usize> {
-            self.total_span_len
-        }
-
-        fn channels(&self) -> ChannelCount {
-            self.channels
-        }
-
-        fn sample_rate(&self) -> SampleRate {
-            self.sample_rate
-        }
-
-        fn total_duration(&self) -> Option<Duration> {
-            None
-        }
-
-        fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
-            Err(SeekError::NotSupported {
-                underlying_source: std::any::type_name::<Self>(),
-            })
-        }
     }
 }

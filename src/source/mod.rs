@@ -895,3 +895,92 @@ pub(crate) fn reset_seek_span_tracking(
         *cached_span_len = None;
     }
 }
+
+/// Helper to check if we're mid-frame and need padding when input exhausts.
+#[inline]
+pub(crate) fn padding_samples_needed(
+    samples_in_current_frame: usize,
+    channels: ChannelCount,
+) -> usize {
+    if samples_in_current_frame > 0 {
+        channels.get() as usize - samples_in_current_frame
+    } else {
+        0
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_utils {
+    use super::*;
+
+    /// Test helper source that can end mid-frame for testing incomplete frame handling.
+    ///
+    /// This provides a simple way to create test sources with a specific number of samples
+    /// and channels, which is useful for testing frame alignment logic.
+    #[derive(Debug, Clone)]
+    pub struct TestSource {
+        samples: Vec<Sample>,
+        pos: usize,
+        channels: ChannelCount,
+        sample_rate: SampleRate,
+        total_span_len: Option<usize>,
+    }
+
+    impl TestSource {
+        /// Creates a new test source with the given samples and channel configuration.
+        pub fn new(samples: &[Sample], channels: ChannelCount, sample_rate: SampleRate) -> Self {
+            Self {
+                samples: samples.to_vec(),
+                pos: 0,
+                channels,
+                sample_rate,
+                total_span_len: Some(samples.len()),
+            }
+        }
+
+        /// Overrides the reported span length for testing early exhaustion.
+        pub fn with_false_span_len(mut self, total_len: Option<usize>) -> Self {
+            self.total_span_len = total_len;
+            self
+        }
+    }
+
+    impl Iterator for TestSource {
+        type Item = Sample;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let res = self.samples.get(self.pos).copied();
+            self.pos += 1;
+            res
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let remaining = self.samples.len().saturating_sub(self.pos);
+            (remaining, Some(remaining))
+        }
+    }
+
+    impl Source for TestSource {
+        fn current_span_len(&self) -> Option<usize> {
+            self.total_span_len
+        }
+
+        fn channels(&self) -> ChannelCount {
+            self.channels
+        }
+
+        fn sample_rate(&self) -> SampleRate {
+            self.sample_rate
+        }
+
+        fn total_duration(&self) -> Option<Duration> {
+            None
+        }
+
+        fn try_seek(&mut self, _pos: Duration) -> Result<(), SeekError> {
+            Err(SeekError::NotSupported {
+                underlying_source: std::any::type_name::<Self>(),
+            })
+        }
+    }
+}

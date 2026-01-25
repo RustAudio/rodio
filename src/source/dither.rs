@@ -25,6 +25,7 @@
 //! When you later change volume (e.g., with `Player::set_volume()`), both the signal
 //! and dither noise scale together, maintaining proper dithering behavior.
 
+use dasp_sample::Sample as _;
 use rand::{rngs::SmallRng, Rng};
 use std::time::Duration;
 
@@ -170,6 +171,7 @@ pub struct Dither<I> {
     lsb_amplitude: Float,
     samples_counted: usize,
     cached_span_len: Option<usize>,
+    silence_samples_remaining: usize,
 }
 
 impl<I> Dither<I>
@@ -196,6 +198,7 @@ where
             lsb_amplitude,
             samples_counted: 0,
             cached_span_len: None,
+            silence_samples_remaining: 0,
         }
     }
 
@@ -222,42 +225,68 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let input_sample = self.input.next()?;
+        loop {
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
 
-        let input_span_len = self.input.current_span_len();
-        let current_sample_rate = self.input.sample_rate();
-        let current_channels = self.input.channels();
+                let noise_sample = self
+                    .noise
+                    .next(self.current_channel)
+                    .expect("Noise generator should always produce samples");
 
-        let (at_boundary, parameters_changed) = detect_span_boundary(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            input_span_len,
-            current_sample_rate,
-            self.last_sample_rate,
-            current_channels,
-            self.last_channels,
-        );
-
-        if at_boundary {
-            if parameters_changed {
-                self.noise
-                    .update_parameters(current_sample_rate, current_channels);
-                self.last_sample_rate = current_sample_rate;
-                self.last_channels = current_channels;
+                self.current_channel =
+                    (self.current_channel + 1) % self.last_channels.get() as usize;
+                return Some(Sample::EQUILIBRIUM - noise_sample * self.lsb_amplitude);
             }
-            self.current_channel = 0;
+
+            let input_sample = match self.input.next() {
+                Some(s) => s,
+                None => {
+                    if self.current_channel > 0 {
+                        let channels = self.last_channels.get() as usize;
+                        self.silence_samples_remaining = channels - self.current_channel;
+                        continue; // Loop will inject dithered silence samples
+                    }
+                    return None;
+                }
+            };
+
+            let input_span_len = self.input.current_span_len();
+            let current_sample_rate = self.input.sample_rate();
+            let current_channels = self.input.channels();
+
+            let (at_boundary, parameters_changed) = detect_span_boundary(
+                &mut self.samples_counted,
+                &mut self.cached_span_len,
+                input_span_len,
+                current_sample_rate,
+                self.last_sample_rate,
+                current_channels,
+                self.last_channels,
+            );
+
+            if at_boundary {
+                if parameters_changed {
+                    self.noise
+                        .update_parameters(current_sample_rate, current_channels);
+                    self.last_sample_rate = current_sample_rate;
+                    self.last_channels = current_channels;
+                }
+                self.current_channel = 0;
+            }
+
+            let noise_sample = self
+                .noise
+                .next(self.current_channel)
+                .expect("Noise generator should always produce samples");
+
+            // Advance to next channel (wrapping around)
+            self.current_channel =
+                (self.current_channel + 1) % self.input.channels().get() as usize;
+
+            // Apply subtractive dithering at the target quantization level
+            return Some(input_sample - noise_sample * self.lsb_amplitude);
         }
-
-        let noise_sample = self
-            .noise
-            .next(self.current_channel)
-            .expect("Noise generator should always produce samples");
-
-        // Advance to next channel (wrapping around)
-        self.current_channel = (self.current_channel + 1) % self.input.channels().get() as usize;
-
-        // Apply subtractive dithering at the target quantization level
-        Some(input_sample - noise_sample * self.lsb_amplitude)
     }
 
     #[inline]
@@ -309,6 +338,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::test_utils::TestSource;
     use crate::source::{SineWave, Source};
     use crate::{nz, BitDepth, SampleRate};
 
@@ -407,6 +437,23 @@ mod tests {
             cross_corr.abs() < 0.1,
             "Channels should be independent, cross-correlation should be near 0, got {}",
             cross_corr
+        );
+    }
+
+    #[test]
+    fn test_incomplete_frame_padding_stereo() {
+        let samples = vec![0.1, 0.2, 0.3, 0.4, 0.5];
+        let source = TestSource::new(&samples, nz!(2), TEST_SAMPLE_RATE);
+
+        let dithered = Dither::new(source, TEST_BIT_DEPTH, Algorithm::TPDF);
+        let output: Vec<Sample> = dithered.collect();
+
+        // The last sample should be dithered silence (small non-zero value from dither noise)
+        let lsb = 1.0 / (1_i64 << (TEST_BIT_DEPTH.get() - 1)) as Float;
+        let max_dither_amplitude = lsb * 2.0; // Max TPDF dither amplitude
+        assert!(
+            output.get(5).map(|i| i.abs()) <= Some(max_dither_amplitude),
+            "6th sample should be dithered silence (small noise)"
         );
     }
 }

@@ -1,9 +1,10 @@
 use std::time::Duration;
 
-use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use super::{detect_span_boundary, padding_samples_needed, reset_seek_span_tracking, SeekError};
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::NANOS_PER_SEC;
 use crate::{Float, Sample, Source};
+use dasp_sample::Sample as _;
 
 /// Internal function that builds a `TakeDuration` object.
 pub fn take_duration<I>(input: I, duration: Duration) -> TakeDuration<I>
@@ -22,6 +23,8 @@ where
         last_channels: channels,
         samples_counted: 0,
         cached_span_len: None,
+        samples_in_current_frame: 0,
+        silence_samples_remaining: 0,
     }
 }
 
@@ -55,6 +58,8 @@ pub struct TakeDuration<I> {
     last_channels: ChannelCount,
     samples_counted: usize,
     cached_span_len: Option<usize>,
+    samples_in_current_frame: usize,
+    silence_samples_remaining: usize,
 }
 
 impl<I> TakeDuration<I>
@@ -106,39 +111,71 @@ where
     type Item = <I as Iterator>::Item;
 
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
-        if self.remaining_duration < self.duration_per_sample {
-            None
-        } else if let Some(sample) = self.input.next() {
-            let input_span_len = self.input.current_span_len();
-            let current_sample_rate = self.input.sample_rate();
-            let current_channels = self.input.channels();
-
-            let (at_boundary, parameters_changed) = detect_span_boundary(
-                &mut self.samples_counted,
-                &mut self.cached_span_len,
-                input_span_len,
-                current_sample_rate,
-                self.last_sample_rate,
-                current_channels,
-                self.last_channels,
-            );
-
-            if at_boundary && parameters_changed {
-                self.last_sample_rate = current_sample_rate;
-                self.last_channels = current_channels;
-                self.duration_per_sample = Self::get_duration_per_sample(&self.input);
+        loop {
+            // If we're padding to complete a frame, return silence.
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
+                return Some(Sample::EQUILIBRIUM);
             }
 
-            let sample = match &self.filter {
-                Some(filter) => filter.apply(sample, self),
-                None => sample,
-            };
+            // Check if duration has expired.
+            if self.remaining_duration < self.duration_per_sample {
+                self.silence_samples_remaining =
+                    padding_samples_needed(self.samples_in_current_frame, self.last_channels);
+                if self.silence_samples_remaining > 0 {
+                    self.samples_in_current_frame = 0;
+                    continue;
+                }
+                return None;
+            }
 
-            self.remaining_duration -= self.duration_per_sample;
+            // Try to get the next sample from the input.
+            match self.input.next() {
+                Some(sample) => {
+                    let input_span_len = self.input.current_span_len();
+                    let current_sample_rate = self.input.sample_rate();
+                    let current_channels = self.input.channels();
 
-            Some(sample)
-        } else {
-            None
+                    let (at_boundary, parameters_changed) = detect_span_boundary(
+                        &mut self.samples_counted,
+                        &mut self.cached_span_len,
+                        input_span_len,
+                        current_sample_rate,
+                        self.last_sample_rate,
+                        current_channels,
+                        self.last_channels,
+                    );
+
+                    if at_boundary && parameters_changed {
+                        self.last_sample_rate = current_sample_rate;
+                        self.last_channels = current_channels;
+                        self.duration_per_sample = Self::get_duration_per_sample(&self.input);
+                        self.samples_in_current_frame = 0;
+                    }
+
+                    self.samples_in_current_frame =
+                        (self.samples_in_current_frame + 1) % current_channels.get() as usize;
+
+                    let sample = match &self.filter {
+                        Some(filter) => filter.apply(sample, self),
+                        None => sample,
+                    };
+
+                    self.remaining_duration -= self.duration_per_sample;
+
+                    return Some(sample);
+                }
+                None => {
+                    // Input exhausted - check if we ended mid-frame and need padding.
+                    self.silence_samples_remaining =
+                        padding_samples_needed(self.samples_in_current_frame, self.last_channels);
+                    if self.silence_samples_remaining > 0 {
+                        self.samples_in_current_frame = 0;
+                        continue;
+                    }
+                    return None;
+                }
+            }
         }
     }
 
@@ -225,6 +262,7 @@ where
                 pos,
                 self.input.current_span_len(),
             );
+            self.samples_in_current_frame = 0;
         }
         result
     }
@@ -233,6 +271,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::math::nz;
+    use crate::source::test_utils::TestSource;
     use crate::source::SineWave;
 
     #[test]
@@ -255,5 +295,42 @@ mod tests {
 
         let count = source.count();
         assert_eq!(count, n_samples);
+    }
+
+    #[test]
+    fn test_take_duration_expires_mid_frame() {
+        let samples = vec![1.0; 10];
+        let source = TestSource::new(&samples, nz!(2), nz!(44100));
+
+        let sample_rate = 44100;
+        let nanos_per_sample = 1_000_000_000 / (sample_rate * source.channels().get() as u64);
+        let duration = Duration::from_nanos((nanos_per_sample * 5) as u64);
+
+        let taken = take_duration(source, duration);
+        let output: Vec<Sample> = taken.collect();
+
+        assert_eq!(
+            output.get(5),
+            Some(&Sample::EQUILIBRIUM),
+            "6th sample should be silence"
+        );
+    }
+
+    #[test]
+    fn test_take_input_exhausts_mid_frame() {
+        let samples = vec![1.0; 5];
+        let source = TestSource::new(&samples, nz!(2), nz!(44100));
+
+        // Take duration is longer than the source
+        let duration = Duration::from_secs(10);
+
+        let taken = take_duration(source, duration);
+        let output: Vec<Sample> = taken.collect();
+
+        assert_eq!(
+            output.get(5),
+            Some(&Sample::EQUILIBRIUM),
+            "6th sample should be silence"
+        );
     }
 }

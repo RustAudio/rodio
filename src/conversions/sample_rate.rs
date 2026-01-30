@@ -101,9 +101,9 @@ where
         &mut self.input
     }
 
-    /// Get a reference to the underlying interator
+    /// Get a reference to the underlying iterator
     #[inline]
-    pub fn get_ref(&self) -> &I {
+    pub fn inner(&self) -> &I {
         &self.input
     }
 

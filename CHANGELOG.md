@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `DitherAlgorithm` enum for algorithm selection
   - `Source::dither()` function for applying dithering
 - Added `64bit` feature to opt-in to 64-bit sample precision (`f64`).
+- Added `SampleRateConverter::inner` to get underlying iterator by ref.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.

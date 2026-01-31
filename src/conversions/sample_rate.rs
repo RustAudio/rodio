@@ -95,10 +95,16 @@ where
         self.input
     }
 
-    /// get mutable access to the iterator
+    /// Get mutable access to the iterator
     #[inline]
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input
+    }
+
+    /// Get a reference to the underlying iterator
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
     }
 
     fn next_input_span(&mut self) {

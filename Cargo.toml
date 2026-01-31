@@ -103,6 +103,7 @@ lewton = ["dep:lewton"]         # Ogg Vorbis
 
 # Third party codec example
 libopus = ["dep:symphonia-adapter-libopus"]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

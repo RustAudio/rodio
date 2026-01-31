@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let codec_registry_arc = Arc::new(codec_registry);
 
-    let file = std::fs::File::open("../assets/music.opus")?;
+    let file = std::fs::File::open("assets/music.opus")?;
     let decoder = DecoderBuilder::new()
         .with_codec_registry(codec_registry_arc)
         .with_data(file)

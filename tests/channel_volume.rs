@@ -1,3 +1,5 @@
+#![cfg(any(feature = "symphonia-mp3", feature = "minimp3"))]
+
 use std::fs;
 use std::io::BufReader;
 

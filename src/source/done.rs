@@ -27,8 +27,10 @@ impl<I> Done<I> {
         }
     }
 
-    /// If this source didn't decrement the number already, calling this with
-    /// `false` will prevent it from decrementing after the inner source ends.
+    /// Controls whether the number decrement will happen.
+    ///
+    /// If this function is called with `true` after it has already decremented a number,
+    /// the number will be decremented again after it recieves a [`Iterator::next`] call.
     pub fn should_decrement(&mut self, should_decrement: bool) {
         self.signal_sent = !should_decrement;
     }

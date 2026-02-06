@@ -118,46 +118,50 @@ impl Player {
 
         let start_played = AtomicBool::new(false);
 
-        let source = source
-            .speed(1.0)
-            // Must be placed before pausable but after speed & delay
-            .track_position()
-            .pausable(false)
-            .amplify(1.0)
-            .skippable()
-            .stoppable()
-            // If you change the duration update the docs for try_seek!
-            .periodic_access(Duration::from_millis(5), move |src| {
-                if controls.stopped.load(Ordering::SeqCst) {
-                    src.stop();
+        let source = Done::new(
+            source
+                .speed(1.0)
+                // Must be placed before pausable but after speed & delay
+                .track_position()
+                .pausable(false)
+                .amplify(1.0)
+                .skippable()
+                .stoppable(),
+            self.sound_count.clone(),
+        )
+        // If you change the duration update the docs for try_seek!
+        .periodic_access(Duration::from_millis(5), move |src| {
+            if controls.stopped.load(Ordering::SeqCst) {
+                src.inner_mut().stop();
+                *controls.position.lock().unwrap() = Duration::ZERO;
+            }
+            {
+                let mut to_clear = controls.to_clear.lock().unwrap();
+                if *to_clear > 0 {
+                    src.inner_mut().inner_mut().skip();
+                    src.should_decrement(false);
+                    *to_clear -= 1;
                     *controls.position.lock().unwrap() = Duration::ZERO;
+                } else {
+                    *controls.position.lock().unwrap() =
+                        src.inner().inner().inner().inner().inner().get_pos();
                 }
-                {
-                    let mut to_clear = controls.to_clear.lock().unwrap();
-                    if *to_clear > 0 {
-                        src.inner_mut().skip();
-                        *to_clear -= 1;
-                        *controls.position.lock().unwrap() = Duration::ZERO;
-                    } else {
-                        *controls.position.lock().unwrap() =
-                            src.inner().inner().inner().inner().get_pos();
-                    }
-                }
-                let amp = src.inner_mut().inner_mut();
-                amp.set_factor(*controls.volume.lock().unwrap());
-                amp.inner_mut()
-                    .set_paused(controls.pause.load(Ordering::SeqCst));
-                amp.inner_mut()
-                    .inner_mut()
-                    .inner_mut()
-                    .set_factor(*controls.speed.lock().unwrap());
-                if let Some(seek) = controls.seek.lock().unwrap().take() {
-                    seek.attempt(amp)
-                }
-                start_played.store(true, Ordering::SeqCst);
-            });
+            }
+            let amp = src.inner_mut().inner_mut().inner_mut();
+            amp.set_factor(*controls.volume.lock().unwrap());
+            amp.inner_mut()
+                .set_paused(controls.pause.load(Ordering::SeqCst));
+            amp.inner_mut()
+                .inner_mut()
+                .inner_mut()
+                .set_factor(*controls.speed.lock().unwrap());
+            if let Some(seek) = controls.seek.lock().unwrap().take() {
+                seek.attempt(amp)
+            }
+            start_played.store(true, Ordering::SeqCst);
+        });
+
         self.sound_count.fetch_add(1, Ordering::Relaxed);
-        let source = Done::new(source, self.sound_count.clone());
         *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
     }
 
@@ -279,6 +283,8 @@ impl Player {
     pub fn clear(&self) {
         let len = self.sound_count.load(Ordering::SeqCst) as u32;
         *self.controls.to_clear.lock().unwrap() = len;
+        self.queue_tx.clear();
+        self.sound_count.store(0, Ordering::Relaxed);
         self.sleep_until_end();
         self.pause();
     }
@@ -294,6 +300,7 @@ impl Player {
         if len > *to_clear {
             *to_clear += 1;
         }
+        self.sound_count.fetch_sub(1, Ordering::SeqCst);
     }
 
     /// Stops the sink by emptying the queue.
@@ -360,6 +367,22 @@ mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
     use crate::{Player, Source};
+
+    #[test]
+    fn test_immediate_length_changes() {
+        let (player, source) = Player::new();
+        let v = vec![1.0, 2.0, 3.0];
+
+        player.append(SamplesBuffer::new(nz!(1), nz!(1), v.clone()));
+        player.append(SamplesBuffer::new(nz!(1), nz!(1), v));
+        assert_eq!(player.len(), 2);
+
+        player.skip_one();
+        assert_eq!(player.len(), 1);
+
+        player.clear();
+        assert_eq!(player.len(), 0);
+    }
 
     #[test]
     fn test_pause_and_stop() {

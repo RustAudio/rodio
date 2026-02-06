@@ -283,9 +283,7 @@ impl Player {
     pub fn clear(&self) {
         let len = self.sound_count.load(Ordering::SeqCst) as u32;
         *self.controls.to_clear.lock().unwrap() = len;
-        self.queue_tx.clear();
         self.sound_count.store(0, Ordering::Relaxed);
-        self.sleep_until_end();
         self.pause();
     }
 
@@ -370,15 +368,16 @@ mod tests {
 
     #[test]
     fn test_immediate_length_changes() {
-        let (player, source) = Player::new();
-        let v = vec![1.0, 2.0, 3.0];
+        let (player, mut source) = Player::new();
 
-        player.append(SamplesBuffer::new(nz!(1), nz!(1), v.clone()));
-        player.append(SamplesBuffer::new(nz!(1), nz!(1), v));
+        player.append(SamplesBuffer::new(nz!(1), nz!(1), vec![2.0, 3.0]));
+        player.append(SamplesBuffer::new(nz!(1), nz!(1), vec![1.0, 0.5]));
         assert_eq!(player.len(), 2);
+        assert_eq!(source.next(), Some(2.0));
 
         player.skip_one();
         assert_eq!(player.len(), 1);
+        assert_eq!(source.next(), Some(1.0));
 
         player.clear();
         assert_eq!(player.len(), 0);

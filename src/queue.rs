@@ -36,7 +36,7 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
         signal_after_end: None,
         input: input.clone(),
         samples_consumed_in_span: 0,
-        padding_samples_remaining: 0,
+        silence_samples_remaining: 0,
     };
 
     (input, output)
@@ -118,7 +118,7 @@ pub struct SourcesQueueOutput {
 
     // When a source ends mid-frame, this counts how many silence samples to inject
     // to complete the frame before transitioning to the next source.
-    padding_samples_remaining: usize,
+    silence_samples_remaining: usize,
 }
 
 /// Returns a threshold span length that ensures frame alignment.
@@ -135,74 +135,43 @@ fn threshold(channels: ChannelCount) -> usize {
 impl Source for SourcesQueueOutput {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        // This function is non-trivial because the boundary between two sounds in the queue should
-        // be a span boundary as well.
-        //
-        // The current sound is free to return `None` for `current_span_len()`, in which case
-        // we *should* return the number of samples remaining the current sound.
-        // This can be estimated with `size_hint()`.
-        //
-        // If the `size_hint` is `None` as well, we are in the worst case scenario. To handle this
-        // situation we force a span to have a maximum number of samples indicate by this
-        // constant.
-
-        // Try the current `current_span_len`.
         if !self.current.is_exhausted() {
             return self.current.current_span_len();
         } else if self.input.keep_alive_if_empty.load(Ordering::Acquire)
             && self.input.next_sounds.lock().unwrap().is_empty()
         {
-            // The next source will be a filler silence which will have a frame-aligned length
+            // Return what that Zero's current_span_len() will be: Some(threshold(channels)).
             return Some(threshold(self.current.channels()));
         }
 
-        // Try the size hint.
-        let (lower_bound, _) = self.current.size_hint();
-        // The iterator default implementation just returns 0.
-        // That's a problematic value, so skip it.
-        if lower_bound > 0 {
-            return Some(lower_bound);
-        }
-
-        // Otherwise we use a frame-aligned threshold value.
-        Some(threshold(self.current.channels()))
+        None
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        if !self.current.is_exhausted() {
-            // Current source is active (producing samples)
-            // - Initially: never (Empty is exhausted immediately)
-            // - After append: the appended source while playing
-            // - With keep_alive: Zero (silence) while playing
-            self.current.channels()
-        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
-            // Current source exhausted, peek at next queued source
-            // This is critical: UniformSourceIterator queries metadata during append,
-            // before any samples are pulled. We must report the next source's metadata.
-            next.channels()
-        } else {
-            // Queue is empty, no sources queued
-            // - Initially: Empty
-            // - With keep_alive: exhausted Zero between silence chunks (matches Empty)
-            // - Without keep_alive: Empty (will end on next())
-            self.current.channels()
+        if self.current.is_exhausted() && self.silence_samples_remaining == 0 {
+            if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
+                // Current source exhausted, peek at next queued source
+                // This is critical: UniformSourceIterator queries metadata during append,
+                // before any samples are pulled. We must report the next source's metadata.
+                return next.channels();
+            }
         }
+
+        self.current.channels()
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        if !self.current.is_exhausted() {
-            // Current source is active (producing samples)
-            self.current.sample_rate()
-        } else if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
-            // Current source exhausted, peek at next queued source
-            // This prevents wrong resampling setup in UniformSourceIterator
-            next.sample_rate()
-        } else {
-            // Queue is empty, no sources queued
-            self.current.sample_rate()
+        if self.current.is_exhausted() && self.silence_samples_remaining == 0 {
+            if let Some((next, _)) = self.input.next_sounds.lock().unwrap().front() {
+                // Current source exhausted, peek at next queued source
+                // This prevents wrong resampling setup in UniformSourceIterator
+                return next.sample_rate();
+            }
         }
+
+        self.current.sample_rate()
     }
 
     #[inline]
@@ -232,8 +201,8 @@ impl Iterator for SourcesQueueOutput {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // If we're padding to complete a frame, return silence.
-            if self.padding_samples_remaining > 0 {
-                self.padding_samples_remaining -= 1;
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
                 return Some(0.0);
             }
 
@@ -248,7 +217,7 @@ impl Iterator for SourcesQueueOutput {
             let incomplete_frame_samples = self.samples_consumed_in_span % channels;
             if incomplete_frame_samples > 0 {
                 // We're mid-frame - need to pad with silence to complete it.
-                self.padding_samples_remaining = channels - incomplete_frame_samples;
+                self.silence_samples_remaining = channels - incomplete_frame_samples;
                 // Reset counter now since we're transitioning to a new span.
                 self.samples_consumed_in_span = 0;
                 // Continue loop - next iteration will inject silence.

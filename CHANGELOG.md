@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `64bit` feature to opt-in to 64-bit sample precision (`f64`).
 - Added `SampleRateConverter::inner` to get underlying iterator by ref.
 - Added `Resample` source for high-quality sample rate conversion.
+- Added `FromIter` source that wraps a sample iterator.
+- Added `ChannelCountConverter::inner()` for immutable access to the underlying iterator.
+- `ChannelCountConverter` now implements `Source`.
+- Added `FromIter::{inner, inner_mut, into_inner}` accessor methods.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.
@@ -43,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed channel misalignment when sources end before their promised span length by padding with silence to complete frames.
 - Fixed `Empty` source to properly report exhaustion.
 - Fixed `Zero::current_span_len` returning remaining samples instead of span length.
+
+### Deprecated
+- `SampleRateConverter` is deprecated in favor of using `Resample` with `FromIter`.
+- `FromFactoryIter` type is deprecated, renamed to `FromFn`.
+- `from_factory()` function is deprecated, renamed to `from_fn()`.
 
 ### Changed
 - Breaking: _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced
@@ -65,6 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified `Source::current_span_len()` contract documentation.
 - Improved queue, mixer and sample rate conversion performance.
 - `SampleRateConverter` uses the new `Resample` source for better quality.
+- Renamed `FromIter` for sequencing multiple sources to `Chain`.
+- Renamed `FromFactoryIter` for generating sources from a function to `FromFn`.
 
 ## Version [0.21.1] (2025-07-14)
 

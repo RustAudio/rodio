@@ -1225,7 +1225,7 @@ impl<I: Source> RubatoAsyncResample<I> {
         let resample_ratio = target_rate.get() as Float / source_rate.get() as Float;
 
         let resampler = rubato::Async::new_poly(
-            resample_ratio.into(),
+            resample_ratio as _,
             1.0,
             degree.into(),
             chunk_size,
@@ -1296,7 +1296,7 @@ impl<I: Source> RubatoAsyncResample<I> {
         let resample_ratio = target_rate.get() as Float / source_rate.get() as Float;
 
         let resampler = rubato::Async::new_sinc(
-            resample_ratio.into(),
+            resample_ratio as _,
             1.0,
             &parameters,
             chunk_size,

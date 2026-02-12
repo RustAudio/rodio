@@ -24,7 +24,13 @@ impl<I, O> SampleTypeConverter<I, O> {
         self.input
     }
 
-    /// get mutable access to the iterator
+    /// Get immutable access to the underlying iterator.
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Get mutable access to the underlying iterator.
     #[inline]
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input

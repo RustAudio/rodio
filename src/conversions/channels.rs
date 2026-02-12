@@ -1,5 +1,6 @@
 use crate::common::ChannelCount;
-use crate::Sample;
+use crate::{Sample, Source};
+use dasp_sample::Sample as _;
 
 /// Iterator that converts from a certain channel count to another.
 #[derive(Clone, Debug)]
@@ -19,11 +20,6 @@ where
     I: Iterator<Item = Sample>,
 {
     /// Initializes the iterator.
-    ///
-    /// # Panic
-    ///
-    /// Panics if `from` or `to` are equal to 0.
-    ///
     #[inline]
     pub fn new(input: I, from: ChannelCount, to: ChannelCount) -> ChannelCountConverter<I> {
         ChannelCountConverter {
@@ -41,7 +37,13 @@ where
         self.input
     }
 
-    /// Get mutable access to the iterator
+    /// Get immutable access to the underlying iterator.
+    #[inline]
+    pub fn inner(&self) -> &I {
+        &self.input
+    }
+
+    /// Get mutable access to the underlying iterator.
     #[inline]
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input
@@ -64,7 +66,7 @@ where
             }
             x if x < self.from.get() => self.input.next(),
             1 => self.sample_repeat,
-            _ => Some(0.0),
+            _ => Some(Sample::EQUILIBRIUM),
         };
 
         if result.is_some() {
@@ -103,6 +105,38 @@ where
 }
 
 impl<I> ExactSizeIterator for ChannelCountConverter<I> where I: ExactSizeIterator<Item = Sample> {}
+
+impl<I> crate::Source for ChannelCountConverter<I>
+where
+    I: Source,
+{
+    #[inline]
+    fn current_span_len(&self) -> Option<usize> {
+        self.input
+            .current_span_len()
+            .map(|input_len| input_len / self.from.get() as usize * self.to.get() as usize)
+    }
+
+    #[inline]
+    fn channels(&self) -> crate::common::ChannelCount {
+        self.to
+    }
+
+    #[inline]
+    fn sample_rate(&self) -> crate::common::SampleRate {
+        self.input.sample_rate()
+    }
+
+    #[inline]
+    fn total_duration(&self) -> Option<std::time::Duration> {
+        self.input.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: std::time::Duration) -> Result<(), crate::source::SeekError> {
+        self.input.try_seek(pos)
+    }
+}
 
 #[cfg(test)]
 mod test {

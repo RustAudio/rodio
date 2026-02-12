@@ -11,16 +11,17 @@ edition = "2021"
 rust-version = "1.87"
 
 [features]
-# Default feature set provides audio playback and common format support
 default = [
     "playback",
     "recording",
+    "dither",
+    "rubato-fft",
+    "simd",
     "flac",
     "mp3",
     "mp4",
     "vorbis",
     "wav",
-    "dither",
 ]
 
 # Core functionality features
@@ -35,8 +36,10 @@ wav_output = ["dep:hound"]
 tracing = ["dep:tracing"]
 # Experimental features using atomic floating-point operations
 experimental = ["dep:atomic_float"]
-# Perform all calculations with 64-bit floats (instead of 32)
+# Perform calculations with 64-bit floats (instead of 32)
 64bit = []
+# Enable SIMD optimizations
+simd = ["symphonia/opt-simd"]
 
 # Audio generation features
 #
@@ -57,13 +60,15 @@ wasm-bindgen = ["cpal/wasm-bindgen"]
 # - .mp3 is an MPEG-1 Audio Layer III file, which is a container format that uses the MP3 codec
 # - .mp4 is an MPEG-4 container, typically (but not always) with an AAC-encoded audio stream
 # - .ogg is an Ogg container with a Vorbis-encoded audio stream
-#
-# A reasonable set of audio demuxers and decoders for most applications.
 flac = ["symphonia-flac"]
 mp3 = ["symphonia-mp3"]
 mp4 = ["symphonia-isomp4", "symphonia-aac"]
 vorbis = ["symphonia-ogg", "symphonia-vorbis"]
 wav = ["symphonia-wav", "symphonia-pcm"]
+
+# Aliases
+aac = ["mp4"]
+ogg = ["vorbis"]
 
 # The following features are combinations of demuxers and decoders provided by Symphonia.
 # Unless you are developing a generic audio player, this is probably overkill.
@@ -96,11 +101,19 @@ symphonia-wav = ["symphonia/wav"]
 # Enable SIMD optimisations for Symphonia
 symphonia-simd = ["symphonia/opt-simd"]
 
+# Resampling features
+#
+# Enable FFT-based synchronous resampling as an optimization for fixed-ratio conversions. When
+# enabled, conversions between standard sample rates (e.g., 48 kHz and 96 kHz, as well as 44.1 kHz
+# and 48 kHz) that simplify to small integer ratios automatically use FFT processing for faster
+# processing at the cost of a larger binary.
+rubato-fft = ["rubato/fft_resampler"]
+
 # Alternative decoders and demuxers
 claxon = ["dep:claxon"]         # FLAC
 hound = ["dep:hound"]           # WAV
-minimp3 = ["dep:minimp3_fixed"] # MP3
 lewton = ["dep:lewton"]         # Ogg Vorbis
+minimp3 = ["dep:minimp3_fixed"] # MP3
 
 [package.metadata.docs.rs]
 all-features = true
@@ -123,6 +136,10 @@ tracing = { version = "0.1.40", optional = true }
 
 atomic_float = { version = "1.1.0", optional = true }
 rtrb = { version = "0.3.2", optional = true }
+
+# Rubato resampling
+rubato = { version = "1.0", default-features = false }
+audioadapter-buffers = "2.0"
 num-rational = "0.4.2"
 
 [dev-dependencies]
@@ -232,6 +249,10 @@ required-features = ["playback", "wav"]
 [[example]]
 name = "noise_generator"
 required-features = ["playback", "noise"]
+
+[[example]]
+name = "resample"
+required-features = ["playback"]
 
 [[example]]
 name = "reverb"

@@ -104,11 +104,12 @@ impl SymphoniaDecoder {
 
         let mut decoder = symphonia::default::get_codecs()
             .make(&track.codec_params, &DecoderOptions::default())?;
-        let total_duration = stream
+        let total_duration: Option<Duration> = track
             .codec_params
             .time_base
             .zip(stream.codec_params.n_frames)
-            .map(|(base, spans)| base.calc_time(spans).into());
+            .map(|(base, spans)| base.calc_time(spans).into())
+            .filter(|d: &Duration| !d.is_zero());
 
         let decoded = loop {
             let current_span = match probed.format.next_packet() {

@@ -77,8 +77,8 @@
 
 use std::time::Duration;
 
-use num_rational::Ratio;
 use ::rubato::Resampler as _;
+use num_rational::Ratio;
 
 use super::{reset_seek_span_tracking, SeekError};
 use crate::{
@@ -89,9 +89,9 @@ use crate::{
 mod builder;
 mod rubato;
 
-use rubato::{ResampleInner, RubatoAsyncResample};
 #[cfg(feature = "rubato-fft")]
 use rubato::RubatoFftResample;
+use rubato::{ResampleInner, RubatoAsyncResample};
 
 pub use builder::{
     Poly, PolyConfigBuilder, ResampleConfig, Sinc, SincConfigBuilder, WindowFunction,

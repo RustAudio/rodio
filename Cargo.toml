@@ -1,9 +1,9 @@
 [package]
 name = "rodio"
-version = "0.21.1"
+version = "0.22.0"
 license = "MIT OR Apache-2.0"
-description = "Audio playback library"
-keywords = ["audio", "playback", "gamedev"]
+description = "Audio playback and recording library"
+keywords = ["audio", "playback", "recording", "gamedev"]
 repository = "https://github.com/RustAudio/rodio"
 documentation = "https://docs.rs/rodio"
 exclude = ["assets/**", "tests/**"]
@@ -107,18 +107,18 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-cpal = { version = "0.17.0", optional = true }
-dasp_sample = "0.11.0"
-claxon = { version = "0.4.2", optional = true }
+cpal = { version = "0.17", optional = true }
+dasp_sample = "0.11"
+claxon = { version = "0.4", optional = true }
 hound = { version = "3.5", optional = true }
 lewton = { version = "0.10", optional = true }
 minimp3_fixed = { version = "0.5.4", optional = true }
-symphonia = { version = "0.5.4", optional = true, default-features = false }
+symphonia = { version = "0.5.5", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.15", optional = true }
 thiserror = "2"
 
-rand = { version = "0.9", features = ["small_rng"], optional = true }
-rand_distr = { version = "0.5", optional = true }
+rand = { version = "0.10", optional = true }
+rand_distr = { version = "0.6", optional = true }
 tracing = { version = "0.1.40", optional = true }
 
 atomic_float = { version = "1.1.0", optional = true }
@@ -127,11 +127,11 @@ num-rational = "0.4.2"
 
 [dev-dependencies]
 quickcheck = "1"
-rstest = "0.25"
+rstest = "0.26"
 rstest_reuse = "0.7"
 approx = "0.5.1"
 divan = "0.1.14"
-inquire = "0.7.5"
+inquire = "0.9.3"
 
 [[bench]]
 name = "effects"

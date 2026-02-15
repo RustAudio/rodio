@@ -15,6 +15,7 @@
         devShell = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
             rust
+			cargo-outdated
           ] ++ lib.optionals pkgs.stdenv.isLinux [
             pkg-config
           ];

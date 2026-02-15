@@ -46,7 +46,7 @@ use std::{num::NonZero, time::Duration};
 use rand::{
     distr::{Distribution, Uniform},
     rngs::SmallRng,
-    Rng, SeedableRng,
+    Rng, RngExt,
 };
 use rand_distr::{Normal, Triangular};
 
@@ -135,7 +135,7 @@ pub struct WhiteUniform<R: Rng = SmallRng> {
 impl WhiteUniform<SmallRng> {
     /// Create a new white noise generator with `SmallRng` seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng())
     }
 }
 
@@ -191,7 +191,7 @@ pub struct WhiteTriangular<R: Rng = SmallRng> {
 impl WhiteTriangular {
     /// Create a new triangular white noise generator with SmallRng seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng())
     }
 }
 
@@ -252,7 +252,7 @@ pub struct Velvet<R: Rng = SmallRng> {
 impl Velvet {
     /// Create a new velvet noise generator with SmallRng seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng::<SmallRng>())
     }
 }
 
@@ -361,7 +361,7 @@ impl<R: Rng> WhiteGaussian<R> {
 impl WhiteGaussian {
     /// Create a new Gaussian white noise generator with `SmallRng` seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng())
     }
 }
 
@@ -445,7 +445,7 @@ pub struct Pink<R: Rng = SmallRng> {
 impl Pink {
     /// Create a new pink noise generator with `SmallRng` seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng())
     }
 }
 
@@ -527,7 +527,7 @@ pub struct Blue<R: Rng = SmallRng> {
 impl Blue {
     /// Create a new blue noise generator with `SmallRng` seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng())
     }
 }
 
@@ -590,7 +590,7 @@ pub struct Violet<R: Rng = SmallRng> {
 impl Violet {
     /// Create a new violet noise generator with `SmallRng` seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng())
     }
 }
 
@@ -702,7 +702,7 @@ pub struct Brownian<R: Rng = SmallRng> {
 impl Brownian {
     /// Create a new brownian noise generator with `SmallRng` seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng())
     }
 }
 
@@ -779,7 +779,7 @@ pub struct Red<R: Rng = SmallRng> {
 impl Red {
     /// Create a new red noise generator with `SmallRng` seeded from system entropy.
     pub fn new(sample_rate: SampleRate) -> Self {
-        Self::new_with_rng(sample_rate, SmallRng::from_os_rng())
+        Self::new_with_rng(sample_rate, rand::make_rng())
     }
 }
 
@@ -1167,8 +1167,8 @@ mod tests {
     #[test]
     fn test_velvet_custom_density() {
         let density = nz!(1000); // impulses per second for testing
-        let mut generator =
-            Velvet::new_with_density(TEST_SAMPLE_RATE, density, SmallRng::from_os_rng());
+        let mut generator: Velvet<SmallRng> =
+            Velvet::new_with_density(TEST_SAMPLE_RATE, density, rand::make_rng());
 
         let mut impulse_count = 0;
         for _ in 0..TEST_SAMPLE_RATE.get() {

@@ -34,7 +34,7 @@ The CPU of the target system should have hardware support for 32-bit floating po
 
 ### Minimum Supported Rust Version (MSRV)
 
-Rodio requires Rust 1.87 or later.
+Rodio will keep a rolling MSRV (minimum supported rust version) policy of at least 6 months. When increasing the MSRV, the new Rust version must have been released at least six months ago.
 
 ## Dependencies (Linux only)
 

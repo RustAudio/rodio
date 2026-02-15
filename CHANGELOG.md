@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `Sink` is now `Player`
     - `SpatialSink` is now `SpatialPlayer`
     - `StreamError` is now `OsSinkError`
-    - `SamplesBuffer::new(1, 16000, samples)` would now look like `SamplesBuffer::new(nz!(1), nz!(16000), samples)` using the new `nz!` macro
+- `SamplesBuffer::new(1, 16000, samples)` would now look like `SamplesBuffer::new(nz!(1), nz!(16000), samples)` using the new `nz!` macro
 - `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
 - `Blue` noise generator uses uniform instead of Gaussian noise for better performance.
 - `Gaussian` noise generator has standard deviation of 0.6 for perceptual equivalence.

@@ -5,9 +5,29 @@ guide are very welcome!
 The list below only contains required code changes. For a complete list of
 changes and new features, see [CHANGELOG.md](CHANGELOG.md).
 
-# rodio 0.21.1 to current GitHub version
+# rodio 0.22 to current github version
+Nothing yet!
 
-No changes are required.
+# rodio 0.21.1 to 0.22
+- _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced
+  with _Sink_. This is a simple rename, functionality is identical.
+
+  We recommend a search replace for the following terms, in no particular order:
+    - `OutputStream` is now `MixerDeviceSink` (in anticipation of future
+      `QueueDeviceSink`)
+    - `OutputStreamBuilder` is now `DeviceSinkBuilder`
+    - `open_stream_or_fallback` is now `open_sink_or_fallback`
+    - `open_default_stream` is now `open_default_sink`
+    - `open_stream` is now `open_mixer` (in anticipation of future `open_queue`)
+    - `Sink` is now `Player`
+    - `SpatialSink` is now `SpatialPlayer`
+    - `StreamError` is now `OsSinkError`
+- `output_to_wav` renamed to `wav_to_file` and now takes ownership of the `Source`.
+- `SamplesBuffer::new` now takes ChannelCount and SampleRate as arguments. Use
+  the `nz!` macro to easily create those from literals like this: 
+  `SamplesBuffer::new(nz!(1), nz!(44100))` 
+  or construct them at runtime like this:
+  `SamplesBuffer::new(NonZero::new(channel_count)?, NonZero::new(sample_rate)?)`; 
 
 # rodio 0.20 or earlier to 0.21.1
 

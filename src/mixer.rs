@@ -255,6 +255,7 @@ mod tests {
         assert_eq!(rx.next(), Some(15.0));
         assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), Some(-5.0));
+        assert_eq!(rx.next(), Some(-2.5));
         assert_eq!(rx.next(), None);
     }
 

@@ -1,6 +1,6 @@
 //! Math utilities for audio processing.
 
-use crate::common::SampleRate;
+use crate::{Float, SampleRate};
 use std::time::Duration;
 
 /// Nanoseconds per second, used for Duration calculations.
@@ -12,18 +12,6 @@ pub(crate) const NANOS_PER_SEC: u64 = 1_000_000_000;
 pub use std::f32::consts::{E, LN_10, LN_2, LOG10_2, LOG10_E, LOG2_10, LOG2_E, PI, TAU};
 #[cfg(feature = "64bit")]
 pub use std::f64::consts::{E, LN_10, LN_2, LOG10_2, LOG10_E, LOG2_10, LOG2_E, PI, TAU};
-
-/// Linear interpolation between two samples.
-///
-/// The result should be equivalent to
-/// `first * (1 - numerator / denominator) + second * numerator / denominator`.
-///
-/// To avoid numeric overflows pick smaller numerator.
-// TODO (refactoring) Streamline this using coefficient instead of numerator and denominator.
-#[inline]
-pub(crate) fn lerp(first: Sample, second: Sample, numerator: u32, denominator: u32) -> Sample {
-    first + (second - first) * numerator as Float / denominator as Float
-}
 
 /// Converts decibels to linear amplitude scale.
 ///
@@ -148,44 +136,9 @@ macro_rules! nz {
 
 pub use nz;
 
-use crate::{common::Float, Sample};
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use num_rational::Ratio;
-    use quickcheck::{quickcheck, TestResult};
-
-    quickcheck! {
-        fn lerp_random(first: Sample, second: Sample, numerator: u32, denominator: u32) -> TestResult {
-            if denominator == 0 { return TestResult::discard(); }
-
-            // Constrain to realistic audio sample range [-1.0, 1.0]
-            // Audio samples rarely exceed this range, and large values cause floating-point error accumulation
-            if first.abs() > 1.0 || second.abs() > 1.0 { return TestResult::discard(); }
-
-            // Discard infinite or NaN samples (can occur in quickcheck)
-            if !first.is_finite() || !second.is_finite() { return TestResult::discard(); }
-
-            let (numerator, denominator) = Ratio::new(numerator, denominator).into_raw();
-            // Reduce max numerator to avoid floating-point error accumulation with large ratios
-            if numerator > 1000 { return TestResult::discard(); }
-
-            let a = first as f64;
-            let b = second as f64;
-            let c = numerator as f64 / denominator as f64;
-            if !(0.0..=1.0).contains(&c) { return TestResult::discard(); };
-
-            let reference = a * (1.0 - c) + b * c;
-            let x = lerp(first, second, numerator, denominator);
-
-            // With realistic audio-range inputs, lerp should be very precise
-            // f32 has ~7 decimal digits, so 1e-6 tolerance is reasonable
-            // This is well below 16-bit audio precision (~1.5e-5)
-            let tolerance = 1e-6;
-            TestResult::from_bool((x as f64 - reference).abs() < tolerance)
-        }
-    }
 
     /// Tolerance values for precision tests, derived from empirical measurement
     /// of actual implementation errors across the full ±100dB range.

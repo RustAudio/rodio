@@ -54,6 +54,16 @@ impl MixerDeviceSink {
     pub fn mixer(&self) -> &Mixer {
         &self.mixer
     }
+    /// pause underlaying audio stream
+    ///
+    /// this will prevent audio from playing until play() is called
+    pub fn pause(&self) {
+        let _ = self._stream.pause();
+    }
+    /// resumes underlaying audio stream
+    pub fn play(&self) {
+        let _ = self._stream.play();
+    }
 
     /// Access the sink's config.
     pub fn config(&self) -> &DeviceSinkConfig {

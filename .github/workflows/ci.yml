@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install linux build requirements
-        run: sudo apt install --yes --no-install-recommends libasound2-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config
         if: contains(matrix.os, 'ubuntu')
 
       - name: Install ${{ matrix.toolchain }} toolchain

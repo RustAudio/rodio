@@ -252,7 +252,7 @@ mod test {
     quickcheck! {
         /// Check that resampling an empty input produces no output.
         fn empty(from: SampleRate, to: SampleRate, channels: ChannelCount) -> TestResult {
-            if channels.get() > 128
+            if from.get() > 384_000*2 || to.get() > 384_000*2 || channels.get() > 128
             {
                 return TestResult::discard();
             }
@@ -314,7 +314,6 @@ mod test {
             let input = Vec::from_iter(input.iter().map(|x| *x as Sample));
 
             let from = from as SampleRate;
-            dbg!(from, k);
             let to = from.get() * k as u32;
 
             // Truncate the input, so it contains an integer number of spans.

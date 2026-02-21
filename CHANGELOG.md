@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added Opus support via `symphonia-adapter-libopus`.
+- Third-party Symphonia codecs can be registered with `DecoderBuilder::with_decoder`.
+
 ## Version [0.22.1] (2026-02-22)
 
 ### Fixed

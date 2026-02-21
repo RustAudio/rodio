@@ -40,7 +40,7 @@
 use std::io::{Read, Seek};
 
 #[cfg(feature = "symphonia")]
-use crate::decoder::symphonia::SymphoniaRegistry;
+use crate::decoder::symphonia::Registry;
 
 #[cfg(feature = "symphonia")]
 use self::read_seek_source::ReadSeekSource;
@@ -49,6 +49,8 @@ use ::symphonia::core::{
     codecs::CodecRegistry,
     io::{MediaSource, MediaSourceStream},
 };
+#[cfg(feature = "symphonia")]
+use ::symphonia::default::register_enabled_codecs;
 
 use super::*;
 
@@ -85,7 +87,7 @@ pub struct Settings {
     pub(crate) is_seekable: bool,
 
     #[cfg(feature = "symphonia")]
-    pub(crate) codec_registry: SymphoniaRegistry,
+    pub(crate) codec_registry: Registry,
 }
 
 impl Default for Settings {
@@ -98,7 +100,13 @@ impl Default for Settings {
             mime_type: None,
             is_seekable: false,
             #[cfg(feature = "symphonia")]
-            codec_registry: SymphoniaRegistry::Default,
+            codec_registry: {
+                let mut codec_registry = CodecRegistry::new();
+                register_enabled_codecs(&mut codec_registry);
+                #[cfg(feature = "symphonia-libopus")]
+                codec_registry.register_all::<symphonia_adapter_libopus::OpusDecoder>();
+                Registry::new(codec_registry)
+            },
         }
     }
 }
@@ -242,12 +250,16 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
         self
     }
 
-    /// Set a custom codec registry
+    /// Adds a third-party decoder.
+    /// If multiple decoders for the same codec are registered, the one registered last will take precedence.
     ///
-    /// See the symphonia documentation of Registry for how to add additional (third party) codecs.
+    /// See the documentation for [CodecRegistry] for more info.
     #[cfg(feature = "symphonia")]
-    pub fn with_codec_registry(mut self, codec_registry: Arc<CodecRegistry>) -> Self {
-        self.settings.codec_registry = SymphoniaRegistry::Custom(codec_registry);
+    pub fn with_decoder<D>(self) -> Self
+    where
+        D: ::symphonia::core::codecs::Decoder,
+    {
+        self.settings.codec_registry.write().register_all::<D>();
         self
     }
 

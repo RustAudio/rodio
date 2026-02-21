@@ -1,5 +1,8 @@
 use core::time::Duration;
-use std::{fmt::Debug, sync::Arc};
+use std::{
+    fmt::{self, Debug},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+};
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
@@ -21,21 +24,25 @@ use crate::{
 };
 
 #[derive(Clone)]
-/// Enum for choosing which codec registry to used with Symphonia decoders.
-pub enum SymphoniaRegistry {
-    /// Use the symphonia default registry symphonia::default::get_codecs()
-    Default,
+pub(crate) struct Registry(Arc<RwLock<CodecRegistry>>);
 
-    ///Use a custom CodecRegistry
-    Custom(Arc<CodecRegistry>),
+impl Debug for Registry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Registry")
+    }
 }
 
-impl Debug for SymphoniaRegistry {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Default => write!(f, "Default"),
-            Self::Custom(_) => write!(f, "Custom"),
-        }
+impl Registry {
+    pub(crate) fn new(registry: CodecRegistry) -> Self {
+        Self(Arc::new(RwLock::new(registry)))
+    }
+
+    pub(crate) fn write(&self) -> RwLockWriteGuard<'_, CodecRegistry> {
+        self.0.write().unwrap()
+    }
+
+    pub(crate) fn read(&self) -> RwLockReadGuard<'_, CodecRegistry> {
+        self.0.read().unwrap()
     }
 }
 
@@ -121,13 +128,12 @@ impl SymphoniaDecoder {
             None => return Ok(None),
         };
 
-        let mut decoder = match &settings.codec_registry {
-            SymphoniaRegistry::Default => symphonia::default::get_codecs(),
-            SymphoniaRegistry::Custom(cr) => cr.as_ref(),
-        }
-        .make(&track.codec_params, &DecoderOptions::default())?;
+        let mut decoder = settings
+            .codec_registry
+            .read()
+            .make(&track.codec_params, &DecoderOptions::default())?;
 
-        let total_duration = stream
+        let total_duration = track
             .codec_params
             .time_base
             .zip(stream.codec_params.n_frames)

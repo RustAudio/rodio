@@ -1,23 +1,19 @@
-use std::{error::Error, sync::Arc};
-
 use rodio::decoder::DecoderBuilder;
-use symphonia::{core::codecs::CodecRegistry, default::register_enabled_codecs};
-use symphonia_adapter_libopus::OpusDecoder;
+use std::error::Error;
+use symphonia_adapter_fdk_aac::AacDecoder;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()?;
     let sink = rodio::Player::connect_new(stream_handle.mixer());
 
-    let mut codec_registry = CodecRegistry::new();
-    codec_registry.register_all::<OpusDecoder>();
-    register_enabled_codecs(&mut codec_registry);
-
-    let codec_registry_arc = Arc::new(codec_registry);
-
-    let file = std::fs::File::open("assets/music.opus")?;
+    let file = std::fs::File::open("assets/music.m4a")?;
+    let len = file.metadata()?.len();
     let decoder = DecoderBuilder::new()
-        .with_codec_registry(codec_registry_arc)
         .with_data(file)
+        // Note: the length must be known for Symphonia to properly detect the format for this file
+        // This limitation will be removed in Symphonia 0.6
+        .with_byte_len(len)
+        .with_decoder::<AacDecoder>()
         .build()?;
     sink.append(decoder);
 

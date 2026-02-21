@@ -86,17 +86,13 @@ mod uniform;
 mod zero;
 
 #[cfg(feature = "dither")]
-#[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
 pub mod dither;
 #[cfg(feature = "dither")]
-#[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
 pub use self::dither::{Algorithm as DitherAlgorithm, Dither};
 
 #[cfg(feature = "noise")]
-#[cfg_attr(docsrs, doc(cfg(feature = "noise")))]
 pub mod noise;
 #[cfg(feature = "noise")]
-#[cfg_attr(docsrs, doc(cfg(feature = "noise")))]
 pub use self::noise::{Pink, WhiteUniform};
 
 /// A source of samples.
@@ -229,7 +225,6 @@ pub trait Source: Iterator<Item = Sample> {
     ///     .dither(BitDepth::new(16).unwrap(), DitherAlgorithm::default());
     /// ```
     #[cfg(feature = "dither")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "dither")))]
     #[inline]
     fn dither(self, target_bits: BitDepth, algorithm: DitherAlgorithm) -> Dither<Self>
     where
@@ -764,7 +759,6 @@ pub enum SeekError {
     #[error("Symphonia decoder returned an error")]
     SymphoniaDecoder(#[source] crate::decoder::symphonia::SeekError),
     #[cfg(feature = "hound")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "hound")))]
     /// The hound (wav) decoder ran into an issue
     #[error("Hound decoder returned an error")]
     HoundDecoder(#[source] Arc<std::io::Error>),

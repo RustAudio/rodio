@@ -105,6 +105,7 @@ lewton = ["dep:lewton"]         # Ogg Vorbis
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+cargo-args = ["-Zunstable-options"]
 
 [dependencies]
 cpal = { version = "0.17", optional = true }

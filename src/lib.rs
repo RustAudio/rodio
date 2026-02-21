@@ -180,6 +180,7 @@
     allow(unused_variables),
     allow(unreachable_code)
 )]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "playback")]
 pub use cpal::{
@@ -195,7 +196,6 @@ pub mod speakers;
 #[cfg(feature = "playback")]
 pub mod stream;
 #[cfg(feature = "wav_output")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 mod wav_output;
 
 pub mod buffer;
@@ -222,8 +222,6 @@ pub use crate::spatial_player::SpatialPlayer;
 #[cfg(feature = "playback")]
 pub use crate::stream::{play, DeviceSinkBuilder, DeviceSinkError, MixerDeviceSink, PlayError};
 #[cfg(feature = "wav_output")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 pub use crate::wav_output::wav_to_file;
 #[cfg(feature = "wav_output")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wav_output")))]
 pub use crate::wav_output::wav_to_writer;

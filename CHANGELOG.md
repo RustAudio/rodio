@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Audio output fallback picked null device leading to no output.
 - Mixer did not actually add sources sometimes.
 
+### Added
+
+- Added Opus support via `symphonia-adapter-libopus`.
+- Third-party Symphonia codecs can be registered with `DecoderBuilder::with_symphonia_decoder`.
+
 ## Version [0.22.1] (2026-02-22)
 
 ### Fixed

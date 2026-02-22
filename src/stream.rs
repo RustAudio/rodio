@@ -27,7 +27,7 @@ const HZ_44100: SampleRate = nz!(44_100);
 /// # Note
 /// On drop this will print a message to stderr or emit a log msg when tracing is
 /// enabled. Though we recommend you do not you can disable that print/log with:
-/// [`DeviceSink::log_on_drop(false)`](DeviceSink::log_on_drop).
+/// [`MixerDeviceSink::log_on_drop(false)`](MixerDeviceSink::log_on_drop).
 /// If the `DeviceSink` is dropped because the program is panicking we do not print
 /// or log anything.
 ///
@@ -60,7 +60,7 @@ impl MixerDeviceSink {
         &self.config
     }
 
-    /// When [`OS-Sink`] is dropped a message is logged to stderr or
+    /// When [`MixerDeviceSink`] is dropped a message is logged to stderr or
     /// emitted through tracing if the tracing feature is enabled.
     pub fn log_on_drop(&mut self, enabled: bool) {
         self.log_on_drop = enabled;

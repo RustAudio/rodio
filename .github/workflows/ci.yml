@@ -63,3 +63,8 @@ jobs:
       # Check examples compile in both modes
       - run: cargo check --examples
       - run: cargo check --examples --features 64bit
+      
+      # Verify docs
+      - run: cargo +nightly doc -Zunstable-options --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: --cfg docsrs -D warnings

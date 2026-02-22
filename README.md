@@ -47,7 +47,7 @@ It is possible to build `rodio` without support for audio playback. In this conf
 In order to use `rodio` in this configuration disable default features and add the necessary ones. In this case the `Cargo.toml` dependency would look like:
 ```toml
 [dependencies]
-rodio = { version = "0.21.0", default-features = false, features = ["symphonia-all"] }
+rodio = { version = "0.22.1", default-features = false, features = ["symphonia-all"] }
 ```
 ### Cross compling aarch64/arm
 

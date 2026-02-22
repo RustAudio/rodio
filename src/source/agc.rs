@@ -284,7 +284,6 @@ where
     }
 
     #[cfg(feature = "experimental")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
     /// Access the target output level for real-time adjustment.
     ///
     /// Use this to dynamically modify the AGC's target level while audio is processing.
@@ -295,7 +294,6 @@ where
     }
 
     #[cfg(feature = "experimental")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
     /// Access the maximum gain limit for real-time adjustment.
     ///
     /// Use this to dynamically modify the AGC's maximum allowable gain during runtime.
@@ -306,7 +304,6 @@ where
     }
 
     #[cfg(feature = "experimental")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
     /// Access the attack coefficient for real-time adjustment.
     ///
     /// Use this to dynamically modify how quickly the AGC responds to level increases.
@@ -318,7 +315,6 @@ where
     }
 
     #[cfg(feature = "experimental")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
     /// Access the release coefficient for real-time adjustment.
     ///
     /// Use this to dynamically modify how quickly the AGC responds to level decreases.
@@ -330,7 +326,6 @@ where
     }
 
     #[cfg(feature = "experimental")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
     /// Access the AGC on/off control.
     /// Use this to dynamically enable or disable AGC processing during runtime.
     ///

@@ -4,10 +4,10 @@
 //! represents a sound (streaming or not). In order to play a sound, there are three steps:
 //!
 //! - Get an OS-Sink handle to a physical device. For example, get a sink to the system's
-//!   default sound device with [`DeviceSinkBuilder::open_default_stream()`].
+//!   default sound device with [`DeviceSinkBuilder::open_default_sink()`].
 //! - Create an object that represents the streaming sound. It can be a sine wave, a buffer, a
 //!   [`decoder`], etc. or even your own type that implements the [`Source`] trait.
-//! - Add the source to the OS-Sink using [`DeviceSink::mixer()`](OutputStream::mixer)
+//! - Add the source to the OS-Sink using [`MixerDeviceSink::mixer()`]
 //!   on the OS-Sink handle.
 //!
 //! Here is a complete example of how you would play an audio file:

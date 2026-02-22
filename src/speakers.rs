@@ -1,6 +1,6 @@
 //! A speakers sink
 //!
-//! An audio *stream* originates at a [Source] and flows to a player. This is a
+//! An audio *stream* originates at a [`Source`](crate::Source) and flows to a player. This is a
 //! Sink that plays audio over the systems speakers or headphones through an
 //! audio output device;
 //!

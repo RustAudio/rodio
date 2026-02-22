@@ -159,7 +159,10 @@ After the crate is successfully published a new version's git tag is created in 
 
 So to publish a new version
 1. Run `cargo outdated -R` to ensure all dependencies are up to date
-2. Update `version` field in `Cargo.toml`.
-3. Push the changes to the `master` branch.
-4. Wait until GitHub build job completes successfully.
-5. [On the Actions page](https://github.com/RustAudio/rodio/actions) start `.github/workflows/publish.yml`.
+3. Update `version` field in `Cargo.toml`.
+4. Update the version in the Readme.
+5. Rename `Unreleased` to current version in Changelog then add new `Unreleased` section.
+6. Same in the upgrade guide.
+7. Push the changes to the `master` branch.
+8. Wait until GitHub build job completes successfully.
+9. [On the Actions page](https://github.com/RustAudio/rodio/actions) start `.github/workflows/publish.yml`.

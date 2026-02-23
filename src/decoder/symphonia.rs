@@ -1,9 +1,12 @@
 use core::time::Duration;
-use std::sync::Arc;
+use std::{
+    fmt::{self, Debug},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+};
 use symphonia::{
     core::{
         audio::{AudioBufferRef, SampleBuffer, SignalSpec},
-        codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
+        codecs::{CodecRegistry, Decoder, DecoderOptions, CODEC_TYPE_NULL},
         errors::Error,
         formats::{FormatOptions, FormatReader, SeekMode, SeekTo, SeekedTo},
         io::MediaSourceStream,
@@ -19,6 +22,29 @@ use crate::{
     common::{assert_error_traits, ChannelCount, Sample, SampleRate},
     source, Source,
 };
+
+#[derive(Clone)]
+pub(crate) struct Registry(Arc<RwLock<CodecRegistry>>);
+
+impl Debug for Registry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Registry")
+    }
+}
+
+impl Registry {
+    pub(crate) fn new(registry: CodecRegistry) -> Self {
+        Self(Arc::new(RwLock::new(registry)))
+    }
+
+    pub(crate) fn write(&self) -> RwLockWriteGuard<'_, CodecRegistry> {
+        self.0.write().unwrap()
+    }
+
+    pub(crate) fn read(&self) -> RwLockReadGuard<'_, CodecRegistry> {
+        self.0.read().unwrap()
+    }
+}
 
 pub(crate) struct SymphoniaDecoder {
     decoder: Box<dyn Decoder>,
@@ -102,9 +128,12 @@ impl SymphoniaDecoder {
             None => return Ok(None),
         };
 
-        let mut decoder = symphonia::default::get_codecs()
+        let mut decoder = settings
+            .codec_registry
+            .read()
             .make(&track.codec_params, &DecoderOptions::default())?;
-        let total_duration: Option<Duration> = track
+
+        let total_duration = track
             .codec_params
             .time_base
             .zip(stream.codec_params.n_frames)

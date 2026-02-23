@@ -8,7 +8,7 @@ repository = "https://github.com/RustAudio/rodio"
 documentation = "https://docs.rs/rodio"
 exclude = ["assets/**", "tests/**"]
 edition = "2021"
-rust-version = "1.87"
+rust-version = "1.89"
 
 [features]
 # Default feature set provides audio playback and common format support
@@ -49,6 +49,9 @@ noise = ["rand", "rand_distr"]
 #
 # Enable WebAssembly support for web browsers
 wasm-bindgen = ["cpal/wasm-bindgen"]
+
+# Base symphonia feature (doesn't enable any codecs)
+symphonia = ["dep:symphonia"]
 
 # To decode an audio source with Rodio, you need to enable the appropriate features for *both* the
 # demuxer and the decoder.
@@ -96,6 +99,9 @@ symphonia-wav = ["symphonia/wav"]
 # Enable SIMD optimisations for Symphonia
 symphonia-simd = ["symphonia/opt-simd"]
 
+# libopus adapter for Symphonia
+symphonia-libopus = ["symphonia", "dep:symphonia-adapter-libopus"]
+
 # Alternative decoders and demuxers
 claxon = ["dep:claxon"]         # FLAC
 hound = ["dep:hound"]           # WAV
@@ -126,6 +132,8 @@ atomic_float = { version = "1.1.0", optional = true }
 rtrb = { version = "0.3.2", optional = true }
 num-rational = "0.4.2"
 
+symphonia-adapter-libopus = { version = "0.2", optional = true }
+
 [dev-dependencies]
 quickcheck = "1"
 rstest = "0.26"
@@ -133,6 +141,7 @@ rstest_reuse = "0.7"
 approx = "0.5.1"
 divan = "0.1.14"
 inquire = "0.9.3"
+symphonia-adapter-fdk-aac = "0.1"
 
 [[bench]]
 name = "effects"
@@ -231,6 +240,10 @@ name = "music_wav"
 required-features = ["playback", "wav"]
 
 [[example]]
+name = "music_opus"
+required-features = ["playback", "symphonia-libopus"]
+
+[[example]]
 name = "noise_generator"
 required-features = ["playback", "noise"]
 
@@ -253,3 +266,7 @@ required-features = ["playback", "vorbis"]
 [[example]]
 name = "stereo"
 required-features = ["playback", "vorbis"]
+
+[[example]]
+name = "third_party_codec"
+required-features = ["playback", "symphonia", "symphonia-isomp4"]

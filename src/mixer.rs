@@ -35,7 +35,6 @@ pub fn mixer(channels: ChannelCount, sample_rate: SampleRate) -> (Mixer, MixerSo
         current_sources: Vec::with_capacity(16),
         input: input.clone(),
         sample_count: 0,
-        still_pending: vec![],
         pending_rx: rx,
     };
 
@@ -75,10 +74,7 @@ pub struct MixerSource {
     input: Mixer,
 
     // The number of samples produced so far.
-    sample_count: usize,
-
-    // A temporary vec used in start_pending_sources.
-    still_pending: Vec<Box<dyn Source + Send>>,
+    sample_count: u16,
 
     // Receiver for pending sources from the channel.
     pending_rx: Receiver<Box<dyn Source + Send>>,
@@ -121,6 +117,7 @@ impl Iterator for MixerSource {
         self.start_pending_sources();
 
         self.sample_count += 1;
+        self.sample_count %= self.channels().get();
 
         let sum = self.sum_current_sources();
 
@@ -143,16 +140,8 @@ impl MixerSource {
     // in-step with the modulo of the samples produced so far. Otherwise, the
     // sound will play on the wrong channels, e.g. left / right will be reversed.
     fn start_pending_sources(&mut self) {
-        while let Ok(source) = self.pending_rx.try_recv() {
-            let in_step = self
-                .sample_count
-                .is_multiple_of(source.channels().get() as usize);
-
-            if in_step {
-                self.current_sources.push(source);
-            } else {
-                self.still_pending.push(source);
-            }
+        if self.sample_count == 0 {
+            self.current_sources.extend(self.pending_rx.try_iter());
         }
     }
 
@@ -277,7 +266,7 @@ mod tests {
             vec![5.0, 5.0, 6.0, 6.0, 7.0, 7.0, 7.0],
         ));
 
-        assert_eq!(rx.next(), Some(15.0));
+        assert_eq!(rx.next(), Some(15.0)); // 10 + 5
         assert_eq!(rx.next(), Some(-5.0));
 
         assert_eq!(rx.next(), Some(6.0));
@@ -290,5 +279,27 @@ mod tests {
         assert_eq!(rx.next(), Some(7.0));
 
         assert_eq!(rx.next(), None);
+    }
+
+    #[test]
+    fn added_taking_phase_into_account() {
+        let (tx, mut rx) = mixer::mixer(nz!(2), nz!(48000));
+
+        tx.add(SamplesBuffer::new(
+            nz!(2),
+            nz!(48000),
+            vec![10.0, -10.0, 10.0, -10.0],
+        ));
+
+        assert_eq!(rx.next(), Some(10.0));
+
+        tx.add(SamplesBuffer::new(
+            nz!(2),
+            nz!(48000),
+            vec![5.0, -5.0, 6.0, -6.0],
+        ));
+
+        assert_eq!(rx.next(), Some(-10.0)); // not yet mixed (out of phase)
+        assert_eq!(rx.next(), Some(15.0)); // mixing starts
     }
 }

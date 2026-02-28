@@ -54,6 +54,22 @@ impl MixerDeviceSink {
     pub fn mixer(&self) -> &Mixer {
         &self.mixer
     }
+    /// pause underlaying audio stream reducing cpu usage
+    ///
+    /// will silenty fail to play audio until play() is called
+    ///
+    /// This is an experimental API it is likely to removed once a better solution is found without notice or a change log entry
+    #[cfg(feature = "experimental")]
+    pub fn pause(&self) {
+        let _ = self._stream.pause();
+    }
+    /// resume underlaying audio stream
+    ///
+    /// This is an experimental API it is likely to removed once a better solution is found without notice or a change log entry
+    #[cfg(feature = "experimental")]
+    pub fn play(&self) {
+        let _ = self._stream.play();
+    }
 
     /// Access the sink's config.
     pub fn config(&self) -> &DeviceSinkConfig {

@@ -171,6 +171,18 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.input.try_seek(pos)
+        let result = self.input.try_seek(pos);
+        if result.is_ok() {
+            // This assumes that the seek implementation of the codec always
+            // starts again at the beginning of a span. Which is the case with
+            // symphonia.
+            self.remaining_duration = self
+                .total_duration()
+                .unwrap_or(self.requested_duration)
+                .checked_sub(pos)
+                .unwrap_or(Duration::ZERO);
+            self.current_span_len = self.current_span_len();
+        }
+        result
     }
 }

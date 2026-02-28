@@ -158,7 +158,7 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.input.try_seek(pos)
+        self.input.try_seek(pos + self.skipped_duration)
     }
 }
 

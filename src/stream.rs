@@ -191,10 +191,9 @@ impl DeviceSinkBuilder {
             .with_device(device)
             .with_supported_config(&default_config);
 
-        // 50 ms of audio
-        let safe_buffer_size =
-            device.config.sample_rate().get() * device.config.channel_count().get() as u32 / 20;
-        let safe_buffer_size = safe_buffer_size.next_power_of_two();
+        // minimum 40ms of audio
+        let sample_rate = device.config.sample_rate().get();
+        let safe_buffer_size = (sample_rate / (1000 / 40)).next_power_of_two();
 
         // This is suboptimal, the builder might still change the sample rate or
         // channel count which would throw the buffer size off. We have fixed

@@ -302,7 +302,10 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
         }
 
         #[cfg(not(feature = "symphonia"))]
-        Err(DecoderError::UnrecognizedFormat)
+        {
+            let _ = data;
+            Err(DecoderError::UnrecognizedFormat)
+        }
     }
 
     /// Creates a new decoder with previously configured settings.

@@ -7,6 +7,7 @@ use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
 
 /// When the inner source is empty this decrements a `AtomicUsize`.
+/// Decrementing can be toggled using [`should_decrement`](Self::should_decrement).
 #[derive(Debug, Clone)]
 pub struct Done<I> {
     input: I,
@@ -24,6 +25,14 @@ impl<I> Done<I> {
             signal,
             signal_sent: false,
         }
+    }
+
+    /// Controls whether the number decrement will happen.
+    ///
+    /// If this function is called with `true` after it has already decremented a number,
+    /// the number will be decremented again after it recieves a [`Iterator::next`] call.
+    pub fn should_decrement(&mut self, should_decrement: bool) {
+        self.signal_sent = !should_decrement;
     }
 
     /// Returns a reference to the inner source.

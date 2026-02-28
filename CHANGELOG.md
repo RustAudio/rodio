@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Source::dither()` function for applying dithering
 - Added `64bit` feature to opt-in to 64-bit sample precision (`f64`).
 - Added `SampleRateConverter::inner` to get underlying iterator by ref.
+- Added `Done::should_decrement` to allow Done to not decrement their number.
 
 ### Fixed
 - docs.rs will now document all features, including those that are optional.
@@ -53,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed channel misalignment when sources end before their promised span length by padding with silence to complete frames.
 - Fixed `Empty` source to properly report exhaustion.
 - Fixed `Zero::current_span_len` returning remaining samples instead of span length.
+- Fixed `Player::skip_one` not decreasing the player's length immediately.
 
 ### Changed
 - Breaking: _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced

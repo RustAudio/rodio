@@ -10,6 +10,10 @@ use crate::{
     FixedSource, MixerDeviceSink, SampleRate,
 };
 
+use super::BufferSize;
+
+mod buffer_duration;
+
 /// Error configuring or opening speakers output
 #[allow(missing_docs)]
 #[derive(Debug, thiserror::Error, Clone)]
@@ -210,7 +214,7 @@ where
             })?
             .into();
 
-        // Lets try getting f32 output from the default config, as thats
+        // Lets try getting f32 output from the default config, as that's
         // what rodio uses internally
         let config = if self
             .check_config(&default_config.with_f32_samples())
@@ -234,12 +238,12 @@ where
     ///
     /// # Example
     /// ```no_run
-    /// # use rodio::speakers::{SpeakersBuilder, OutputConfig};
+    /// # use rodio::speakers::{SpeakersBuilder, OutputConfig, BufferSize};
     /// # use std::num::NonZero;
     /// let config = OutputConfig {
     ///     sample_rate: NonZero::new(44_100).expect("44100 is not zero"),
     ///     channel_count: NonZero::new(2).expect("2 is not zero"),
-    ///     buffer_size: cpal::BufferSize::Fixed(42_000),
+    ///     buffer_size: BufferSize::FrameCount(4096),
     ///     sample_format: cpal::SampleFormat::U16,
     /// };
     /// let builder = SpeakersBuilder::new()
@@ -404,7 +408,7 @@ where
     /// let builder = SpeakersBuilder::new()
     ///     .default_device()?
     ///     .default_config()?
-    ///     // We want mono, if thats not possible give
+    ///     // We want mono, if that's not possible give
     ///     // us the lowest channel count
     ///     .prefer_channel_counts([
     ///         1.try_into().expect("not zero"),
@@ -424,9 +428,11 @@ where
 
     /// Sets the buffer size for the output.
     ///
-    /// This has no impact on latency, though a too small buffer can lead to audio
-    /// artifacts if your program can not get samples out of the buffer before they
-    /// get overridden again.
+    /// Note: You probably want to use [`SpeakersBuilder::try_buffer_duration`]
+    ///
+    /// Larger buffer sizes will increase the maximum latency. A too small
+    /// buffer can lead to audio artifacts if your program can not get samples
+    /// into the buffer at a consistent pace.
     ///
     /// Normally the default output config will have this set up correctly.
     ///
@@ -441,10 +447,10 @@ where
     /// ```
     pub fn try_buffer_size(
         &self,
-        buffer_size: u32,
+        frame_count: u32,
     ) -> Result<SpeakersBuilder<DeviceIsSet, ConfigIsSet, E>, Error> {
         let mut new_config = self.config.expect("ConfigIsSet");
-        new_config.buffer_size = cpal::BufferSize::Fixed(buffer_size);
+        new_config.buffer_size = BufferSize::FrameCount(frame_count);
         self.check_config(&new_config)?;
 
         Ok(SpeakersBuilder {
@@ -458,6 +464,8 @@ where
 
     /// See the docs of [`try_buffer_size`](SpeakersBuilder::try_buffer_size)
     /// for more.
+    ///
+    /// Note: You probably want to use [`SpeakersBuilder::prefer_buffer_durations`]
     ///
     /// Try multiple buffer sizes, fall back to the default it non match. The
     /// buffer sizes are in order of preference. If the first can be supported
@@ -491,12 +499,12 @@ where
     /// ```
     pub fn prefer_buffer_sizes(
         &self,
-        buffer_sizes: impl IntoIterator<Item = u32>,
+        frame_counts: impl IntoIterator<Item = u32>,
     ) -> SpeakersBuilder<DeviceIsSet, ConfigIsSet, E> {
-        let buffer_sizes = buffer_sizes.into_iter().take_while(|size| *size < 100_000);
+        let frame_counts = frame_counts.into_iter().take_while(|size| *size < 100_000);
 
-        self.set_preferred_if_supported(buffer_sizes, |config, size| {
-            config.buffer_size = cpal::BufferSize::Fixed(size)
+        self.set_preferred_if_supported(frame_counts, |config, frame_count| {
+            config.buffer_size = BufferSize::FrameCount(frame_count)
         })
     }
 }

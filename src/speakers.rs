@@ -109,7 +109,7 @@ mod builder;
 mod config;
 
 pub use builder::SpeakersBuilder;
-pub use config::OutputConfig;
+pub use config::{BufferSize, OutputConfig};
 
 /// Error that can occur when we can not list the output devices
 #[derive(Debug, thiserror::Error, Clone)]

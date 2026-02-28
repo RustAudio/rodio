@@ -187,9 +187,22 @@ impl DeviceSinkBuilder {
             .default_output_config()
             .map_err(DeviceSinkError::DefaultSinkConfigError)?;
 
-        Ok(Self::default()
+        let mut device = Self::default()
             .with_device(device)
-            .with_supported_config(&default_config))
+            .with_supported_config(&default_config);
+
+        // minimum 40ms of audio
+        let sample_rate = device.config.sample_rate().get();
+        let safe_buffer_size = (sample_rate / (1000 / 40)).next_power_of_two();
+
+        // This is suboptimal, the builder might still change the sample rate or
+        // channel count which would throw the buffer size off. We have fixed
+        // that in the new speakers API, which will eventually replace this.
+        device.config.buffer_size = match device.config.buffer_size {
+            BufferSize::Default => BufferSize::Fixed(safe_buffer_size),
+            fixed @ BufferSize::Fixed(_) => fixed,
+        };
+        Ok(device)
     }
 
     /// Sets default OS-Sink parameters for default output audio device.

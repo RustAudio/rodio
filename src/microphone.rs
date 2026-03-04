@@ -166,13 +166,19 @@ impl fmt::Display for Input {
 }
 
 /// Returns a list of available input devices on the system.
+///
+/// Note: this hides the 'null' device which generates zeros.
 pub fn available_inputs() -> Result<Vec<Input>, ListError> {
-    let host = cpal::default_host();
-    let devices = host
+    Ok(cpal::default_host()
         .input_devices()
         .map_err(ListError)?
-        .map(|dev| Input { inner: dev });
-    Ok(devices.collect())
+        .filter(|dev| {
+            dev.description()
+                .map(|descr| descr.driver().is_none_or(|driver| driver != "null"))
+                .unwrap_or(false)
+        })
+        .map(|dev| Input { inner: dev })
+        .collect::<Vec<_>>())
 }
 
 /// A microphone input stream that can be used as `Source`.

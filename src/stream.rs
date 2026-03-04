@@ -234,7 +234,7 @@ impl DeviceSinkBuilder {
         Self::from_default_device()
             .and_then(|x| x.open_stream())
             .or_else(|original_err| {
-                let mut devices = match cpal::default_host().output_devices() {
+                let devices = match cpal::default_host().output_devices() {
                     Ok(devices) => devices,
                     Err(err) => {
                         #[cfg(feature = "tracing")]
@@ -245,6 +245,11 @@ impl DeviceSinkBuilder {
                     }
                 };
                 devices
+                    .filter(|dev| {
+                        dev.description()
+                            .map(|desc| desc.driver().is_some_and(|driver| driver != "null"))
+                            .unwrap_or(false)
+                    })
                     .find_map(|d| {
                         Self::from_device(d)
                             .and_then(|x| x.open_sink_or_fallback())

@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## Version [0.22.2] (2026-02-22)
+
 ### Fixed
-- Mixer did not actually add sources sometimes
+- Incorrectly set system default audio buffer size breaks playback. We no longer use the system default (introduced in 0.22 through cpal upgrade) and instead set a safe buffer duration. 
+- Audio output fallback picked null device leading to no output.
+- Mixer did not actually add sources sometimes.
 
 ## Version [0.22.1] (2026-02-22)
 
 ### Fixed
-- docs.rs could not build the documentation
+- docs.rs could not build the documentation.
 
 ## Version [0.22] (2026-02-22)
 

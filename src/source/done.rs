@@ -1,27 +1,32 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
 
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::Source;
 
-/// When the inner source is empty this decrements a `AtomicUsize`.
+/// When the inner source is exhausted, this source calls a callback once
+/// with the mutable reference to the inner source.
 #[derive(Debug, Clone)]
-pub struct Done<I> {
+pub struct Done<I, F>
+where
+    F: FnMut(&mut I),
+{
     input: I,
-    signal: Arc<AtomicUsize>,
+    callback: F,
     signal_sent: bool,
 }
 
-impl<I> Done<I> {
-    /// When the inner source is empty the AtomicUsize passed in is decremented.
-    /// If it was zero it will overflow negatively.
+impl<I, F> Done<I, F>
+where
+    F: FnMut(&mut I),
+{
+    /// When the inner source is exhausted, this source calls a callback once
+    /// with the mutable reference to the inner source.
     #[inline]
-    pub fn new(input: I, signal: Arc<AtomicUsize>) -> Done<I> {
+    pub fn new(input: I, callback: F) -> Done<I, F> {
         Done {
             input,
-            signal,
+            callback,
             signal_sent: false,
         }
     }
@@ -45,9 +50,10 @@ impl<I> Done<I> {
     }
 }
 
-impl<I: Source> Iterator for Done<I>
+impl<I, F> Iterator for Done<I, F>
 where
     I: Source,
+    F: FnMut(&mut I),
 {
     type Item = I::Item;
 
@@ -55,20 +61,22 @@ where
     fn next(&mut self) -> Option<I::Item> {
         let next = self.input.next();
         if !self.signal_sent && next.is_none() {
-            self.signal.fetch_sub(1, Ordering::Relaxed);
             self.signal_sent = true;
+            (self.callback)(&mut self.input);
         }
         next
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.input.size_hint()
     }
 }
 
-impl<I> Source for Done<I>
+impl<I, F> Source for Done<I, F>
 where
     I: Source,
+    F: FnMut(&mut I),
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {

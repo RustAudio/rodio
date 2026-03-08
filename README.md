@@ -78,11 +78,13 @@ You might want to look at [cross](https://github.com/cross-rs/cross) if you are 
 
 # Contributing
 
-We love it when people join making rodio better. There are many ways to help not matter how experienced you are with audio or Rust. We would especially love help with:
+We love it when people help us make rodio better. There are many ways to help no matter how experienced you are with audio or Rust. We would especially love help with:
 
 - Reviewing PR's: we rely on the community to keep rodio correct, fast and maintainable. Absolutely anyone is welcome to leave reviews. Anyone can catch missing or unnecessary tests, unclear docs logic mistakes etc.
 - Improving the docs: You only learn something for the first time once. Many of us forgot what was hard when things where new. Your experience using rodio for the first time can really help out here. You probably know best what needs clearification and how it should be written down. It can be anything, maybe a  paragraph on audio theory or an extra example.
 - Adding features: we love it when we get new features or existing onces get even better. Let us know what you are working on early. Not only can the rest of the community help out with the design we can help make the review and merge smooth. Please see our [Contributing Guide](CONTRIBUTING.md) for more to get you started.
+
+If you are considering using generative AI please take a look at RustAudio's [AI policy](https://rust.audio/community/ai) before you do.
 
 ## License
 [License]: #license

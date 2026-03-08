@@ -727,12 +727,11 @@ where
 
     /// Returns the total duration of this audio source.
     ///
-    /// Always returns `None` for looped decoders since they have no fixed end point -
-    /// they will continue playing indefinitely by seeking back to the start when reaching
-    /// the end of the audio data.
+    /// Always returns `Duration::MAX` for looped decoders since they play
+    /// indefinitely by seeking back to the start when reaching the end.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        None
+        Some(Duration::MAX)
     }
 
     /// Attempts to seek to a specific position in the audio stream.

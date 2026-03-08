@@ -204,7 +204,7 @@ impl Source for Microphone {
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {
-        None
+        Some(std::time::Duration::MAX)
     }
 }
 
@@ -219,7 +219,7 @@ impl crate::FixedSource for Microphone {
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {
-        None
+        Some(std::time::Duration::MAX)
     }
 }
 

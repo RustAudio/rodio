@@ -165,7 +165,7 @@ where
                 Some(self.requested_duration)
             }
         } else {
-            None
+            Some(self.requested_duration)
         }
     }
 

@@ -2,10 +2,12 @@
 #![allow(unused_imports)]
 
 use std::io::{Read, Seek};
+use std::num::NonZero;
 use std::path::Path;
 use std::time::Duration;
 
-use rodio::{Decoder, Source};
+use rodio::source::{SineWave, Source};
+use rodio::Decoder;
 
 use rstest::rstest;
 use rstest_reuse::{self, *};
@@ -104,4 +106,28 @@ fn decoder_returns_total_duration(
         abs_diff < 0.0001,
         "decoder got {res}, correct is: {correct_duration}"
     );
+}
+
+#[test]
+fn infinite_sources_return_duration_max() {
+    let sine = SineWave::new(440.0);
+    assert_eq!(sine.total_duration(), Some(Duration::MAX));
+}
+
+#[test]
+fn take_duration_on_infinite_source() {
+    let sine = SineWave::new(440.0);
+    let take = sine.take_duration(Duration::from_secs(5));
+    assert_eq!(take.total_duration(), Some(Duration::from_secs(5)));
+}
+
+#[test]
+fn repeat_returns_duration_max() {
+    let buf = rodio::buffer::SamplesBuffer::new(
+        NonZero::new(1).unwrap(),
+        NonZero::new(44100).unwrap(),
+        vec![0.0f32; 44100],
+    );
+    let repeated = buf.repeat_infinite();
+    assert_eq!(repeated.total_duration(), Some(Duration::MAX));
 }

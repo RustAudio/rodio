@@ -153,7 +153,7 @@ impl Source for SignalGenerator {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        None
+        Some(Duration::MAX)
     }
 
     #[inline]

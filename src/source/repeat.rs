@@ -83,7 +83,7 @@ where
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        None
+        Some(Duration::MAX)
     }
 
     #[inline]

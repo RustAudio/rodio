@@ -83,7 +83,7 @@ macro_rules! impl_noise_source {
             }
 
             fn total_duration(&self) -> Option<Duration> {
-                None
+                Some(Duration::MAX)
             }
 
             fn try_seek(&mut self, _pos: Duration) -> Result<(), crate::source::SeekError> {

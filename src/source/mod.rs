@@ -197,7 +197,10 @@ pub trait Source: Iterator<Item = Sample> {
 
     /// Returns the total duration of this source, if known.
     ///
-    /// `None` indicates at the same time "infinite" or "unknown".
+    /// `None` indicates that the duration is unknown. Infinite sources
+    /// (e.g. sine wave generators, repeating sources) return
+    /// `Some(Duration::MAX)` to distinguish them from sources with an
+    /// unknown but finite duration.
     fn total_duration(&self) -> Option<Duration>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.

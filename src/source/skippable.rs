@@ -30,6 +30,12 @@ impl<I> Skippable<I> {
         self.do_skip = true;
     }
 
+    /// Returns true if the inner source was skipped.
+    #[inline]
+    pub fn skipped(&self) -> bool {
+        self.do_skip
+    }
+
     /// Returns a reference to the inner source.
     #[inline]
     pub fn inner(&self) -> &I {

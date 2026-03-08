@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+- Breaking: `Done` now calls a callback instead of decrementing an `Arc<AtomicUsize>`.
+- Added `Skippable::skipped` function to check if the inner source was skipped.
+- Fixed `Player::skip_one` not decreasing the player's length immediately.
 
 ## Version [0.22.2] (2026-02-22)
 

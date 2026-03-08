@@ -6,7 +6,10 @@ The list below only contains required code changes. For a complete list of
 changes and new features, see [CHANGELOG.md](CHANGELOG.md).
 
 # rodio 0.22 to current github version
-Nothing yet!
+- `Done` now calls a callback instead of decrementing an `Arc<AtomicUsize>`.
+  - To retain old behavior replace the `Arc<AtomicUsize>` argument in `Done::new` with
+    `move |_| { number.fetch_sub(1, std::sync::atomic::Ordering::Relaxed) }`.
+  - `Done` has now two generics instead of one: `<I: Source, F: FnMut(&mut I)>`.
 
 # rodio 0.21.1 to 0.22
 - _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced

@@ -118,6 +118,9 @@
 //! or enabling specific codecs using one of the `symphonia-{codec name}` features.
 //! By default, decoders for the most common file types (flac, mp3, mp4, vorbis, wav) are enabled.
 //!
+//! See the [symphonia docs](https://docs.rs/symphonia/latest/symphonia) for the complete
+//! list of supported formats.
+//!
 //! ### Alternative Decoders
 //!
 //! Alternative decoder libraries are available for some filetypes:

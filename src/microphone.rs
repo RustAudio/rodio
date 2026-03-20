@@ -282,7 +282,7 @@ impl Microphone {
             match config.sample_format {
                 $(
                     cpal::SampleFormat::$sample_format => device.build_input_stream::<$generic, _, _>(
-                        &config.stream_config(),
+                        config.stream_config(),
                         move |data, _info| {
                             for sample in SampleTypeConverter::<_, Sample>::new(data.into_iter().copied()) {
                                 let _skip_if_player_is_behind = tx.push(sample);

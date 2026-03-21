@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use super::{SeekError, SpanTracker};
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::{duration_to_float, NANOS_PER_SEC};
 use crate::{Float, Source};
@@ -29,10 +29,7 @@ where
         end_gain,
         clamp_end,
         sample_idx: 0,
-        samples_counted: 0,
-        cached_span_len: None,
-        last_sample_rate: sample_rate,
-        last_channels: channels,
+        span: SpanTracker::new(sample_rate, channels),
     }
 }
 
@@ -46,10 +43,7 @@ pub struct LinearGainRamp<I> {
     end_gain: Float,
     clamp_end: bool,
     sample_idx: u64,
-    samples_counted: usize,
-    cached_span_len: Option<usize>,
-    last_sample_rate: SampleRate,
-    last_channels: ChannelCount,
+    span: SpanTracker,
 }
 
 impl<I> LinearGainRamp<I>
@@ -87,23 +81,10 @@ where
         let current_channels = self.input.channels();
         let input_span_len = self.input.current_span_len();
 
-        let (at_boundary, parameters_changed) = detect_span_boundary(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            input_span_len,
-            current_sample_rate,
-            self.last_sample_rate,
-            current_channels,
-            self.last_channels,
-        );
-
-        if at_boundary && parameters_changed {
-            // Parameters changed - need to handle elapsed time carefully
-            // The elapsed time was accumulated using the OLD sample rate
-            // We keep elapsed as-is since it represents real time passed
-            self.last_sample_rate = current_sample_rate;
-            self.last_channels = current_channels;
-        }
+        // Elapsed time was accumulated in real time and remains valid across parameter changes.
+        let _ = self
+            .span
+            .advance(input_span_len, current_sample_rate, current_channels);
 
         let factor = if self.elapsed >= self.total {
             if self.clamp_end {
@@ -166,12 +147,7 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.elapsed = pos;
         self.input.try_seek(pos)?;
-        reset_seek_span_tracking(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            pos,
-            self.input.current_span_len(),
-        );
+        self.span.seek(pos, &self.input);
         Ok(())
     }
 }

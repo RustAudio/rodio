@@ -30,9 +30,8 @@ use std::time::Duration;
 
 use crate::{
     source::{
-        detect_span_boundary,
         noise::{Blue, WhiteGaussian, WhiteTriangular, WhiteUniform},
-        reset_seek_span_tracking, SeekError,
+        SeekError, SpanTracker,
     },
     BitDepth, ChannelCount, Float, Sample, SampleRate, Source,
 };
@@ -165,11 +164,8 @@ pub struct Dither<I> {
     input: I,
     noise: NoiseGenerator,
     current_channel: usize,
-    last_sample_rate: SampleRate,
-    last_channels: ChannelCount,
     lsb_amplitude: Float,
-    samples_counted: usize,
-    cached_span_len: Option<usize>,
+    span: SpanTracker,
 }
 
 impl<I> Dither<I>
@@ -191,11 +187,8 @@ where
             input,
             noise: NoiseGenerator::new(algorithm, sample_rate, channels),
             current_channel: 0,
-            last_sample_rate: sample_rate,
-            last_channels: channels,
             lsb_amplitude,
-            samples_counted: 0,
-            cached_span_len: None,
+            span: SpanTracker::new(sample_rate, channels),
         }
     }
 
@@ -228,22 +221,14 @@ where
         let current_sample_rate = self.input.sample_rate();
         let current_channels = self.input.channels();
 
-        let (at_boundary, parameters_changed) = detect_span_boundary(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            input_span_len,
-            current_sample_rate,
-            self.last_sample_rate,
-            current_channels,
-            self.last_channels,
-        );
+        let detection = self
+            .span
+            .advance(input_span_len, current_sample_rate, current_channels);
 
-        if at_boundary {
-            if parameters_changed {
+        if detection.at_span_boundary {
+            if detection.parameters_changed {
                 self.noise
                     .update_parameters(current_sample_rate, current_channels);
-                self.last_sample_rate = current_sample_rate;
-                self.last_channels = current_channels;
             }
             self.current_channel = 0;
         }
@@ -296,12 +281,7 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)?;
         self.current_channel = 0;
-        reset_seek_span_tracking(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            pos,
-            self.input.current_span_len(),
-        );
+        self.span.seek(pos, &self.input);
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use super::{SeekError, SpanTracker};
 use crate::common::{ChannelCount, Float, SampleRate};
 use crate::math::{duration_from_secs, duration_to_float};
 use crate::Source;
@@ -14,12 +14,9 @@ where
     let channels = source.channels();
     let sample_rate = source.sample_rate();
     TrackPosition {
+        span: SpanTracker::new(sample_rate, channels),
         input: source,
-        samples_counted: 0,
         offset_duration: 0.0,
-        current_span_sample_rate: sample_rate,
-        current_span_channels: channels,
-        cached_span_len: None,
     }
 }
 
@@ -27,11 +24,8 @@ where
 #[derive(Debug)]
 pub struct TrackPosition<I> {
     input: I,
-    samples_counted: usize,
     offset_duration: Float,
-    current_span_sample_rate: SampleRate,
-    current_span_channels: ChannelCount,
-    cached_span_len: Option<usize>,
+    span: SpanTracker,
 }
 
 impl<I> TrackPosition<I> {
@@ -70,7 +64,7 @@ where
     /// track_position after speedup's and delay's.
     #[inline]
     pub fn get_pos(&self) -> Duration {
-        let seconds = self.samples_counted as Float
+        let seconds = self.span.samples_counted as Float
             / self.input.sample_rate().get() as Float
             / self.input.channels().get() as Float
             + self.offset_duration;
@@ -92,33 +86,21 @@ where
         let current_sample_rate = self.input.sample_rate();
         let current_channels = self.input.channels();
 
-        // Capture samples_counted before detect_span_boundary resets it
-        let samples_before_boundary = self.samples_counted;
+        // Capture state before advance() resets samples_counted at a boundary.
+        let samples_before_boundary = self.span.samples_counted;
+        let old_rate = self.span.last_sample_rate;
+        let old_channels = self.span.last_channels;
 
-        let (at_boundary, parameters_changed) = detect_span_boundary(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            input_span_len,
-            current_sample_rate,
-            self.current_span_sample_rate,
-            current_channels,
-            self.current_span_channels,
-        );
+        let detection = self
+            .span
+            .advance(input_span_len, current_sample_rate, current_channels);
 
-        if at_boundary {
-            // At span boundary - accumulate duration using OLD parameters and the sample
-            // count from before the boundary (detect_span_boundary increments first, then
-            // resets at boundary, so samples_before_boundary + 1 gives us the completed count)
+        if detection.at_span_boundary {
+            // Accumulate duration using the OLD parameters. advance() increments
+            // samples_counted before resetting, so +1 gives the completed span count.
             let completed_samples = samples_before_boundary.saturating_add(1);
-
-            self.offset_duration += completed_samples as Float
-                / self.current_span_sample_rate.get() as Float
-                / self.current_span_channels.get() as Float;
-
-            if parameters_changed {
-                self.current_span_sample_rate = current_sample_rate;
-                self.current_span_channels = current_channels;
-            }
+            self.offset_duration +=
+                completed_samples as Float / old_rate.get() as Float / old_channels.get() as Float;
         }
 
         Some(item)
@@ -160,14 +142,7 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)?;
         self.offset_duration = duration_to_float(pos);
-        reset_seek_span_tracking(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            pos,
-            self.input.current_span_len(),
-        );
-        self.current_span_sample_rate = self.input.sample_rate();
-        self.current_span_channels = self.input.channels();
+        self.span.seek(pos, &self.input);
         Ok(())
     }
 }

@@ -15,7 +15,7 @@
 
 use std::time::Duration;
 
-use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use super::{SeekError, SpanTracker};
 use crate::{math::duration_to_coefficient, ChannelCount, Float, Sample, SampleRate, Source};
 
 #[cfg(feature = "tracing")]
@@ -100,10 +100,7 @@ pub struct AutomaticGainControl<I> {
     peak_level: Float,
     rms_window: CircularBuffer,
     is_enabled: Arc<AtomicBool>,
-    samples_counted: usize,
-    cached_span_len: Option<usize>,
-    last_sample_rate: SampleRate,
-    last_channels: ChannelCount,
+    span: SpanTracker,
 }
 
 #[cfg(not(feature = "experimental"))]
@@ -125,10 +122,7 @@ pub struct AutomaticGainControl<I> {
     peak_level: Float,
     rms_window: CircularBuffer,
     is_enabled: bool,
-    samples_counted: usize,
-    cached_span_len: Option<usize>,
-    last_sample_rate: SampleRate,
-    last_channels: ChannelCount,
+    span: SpanTracker,
 }
 
 /// A circular buffer for efficient RMS calculation over a sliding window.
@@ -216,10 +210,7 @@ where
             peak_level: 0.0,
             rms_window: CircularBuffer::new(),
             is_enabled: Arc::new(AtomicBool::new(true)),
-            samples_counted: 0,
-            cached_span_len: None,
-            last_sample_rate: sample_rate,
-            last_channels: channels,
+            span: SpanTracker::new(sample_rate, channels),
         }
     }
 
@@ -239,10 +230,7 @@ where
             peak_level: 0.0,
             rms_window: CircularBuffer::new(),
             is_enabled: true,
-            samples_counted: 0,
-            cached_span_len: None,
-            last_sample_rate: sample_rate,
-            last_channels: channels,
+            span: SpanTracker::new(sample_rate, channels),
         }
     }
 }
@@ -538,20 +526,11 @@ where
         let current_channels = self.input.channels();
         let input_span_len = self.input.current_span_len();
 
-        let (at_boundary, parameters_changed) = detect_span_boundary(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            input_span_len,
-            current_sample_rate,
-            self.last_sample_rate,
-            current_channels,
-            self.last_channels,
-        );
+        let detection = self
+            .span
+            .advance(input_span_len, current_sample_rate, current_channels);
 
-        if at_boundary && parameters_changed {
-            self.last_sample_rate = current_sample_rate;
-            self.last_channels = current_channels;
-
+        if detection.at_span_boundary && detection.parameters_changed {
             // Recalculate coefficients for new sample rate
             #[cfg(feature = "experimental")]
             {
@@ -618,12 +597,7 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)?;
-        reset_seek_span_tracking(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            pos,
-            self.input.current_span_len(),
-        );
+        self.span.seek(pos, &self.input);
         Ok(())
     }
 }

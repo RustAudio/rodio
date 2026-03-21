@@ -6,6 +6,10 @@ use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::{Sample, Source};
 
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+#[error("num_samples must be a multiple of the channel count")]
+pub struct ZeroError;
+
 /// An source that produces samples with value zero (silence). Depending on if
 /// it where created with [`Zero::new`] or [`Zero::new_samples`] it can be never
 /// ending or finite.
@@ -31,27 +35,23 @@ impl Zero {
 
     /// Create a new source that produces a finite amount of silence samples.
     ///
-    /// # Panics
-    ///
-    /// Panics if `num_samples` is not a multiple of `channels`.
+    /// Returns [`ZeroError`] if `num_samples` is not a multiple of `channels`.
     #[inline]
     pub fn new_samples(
         channels: ChannelCount,
         sample_rate: SampleRate,
         num_samples: usize,
-    ) -> Self {
-        assert_eq!(
-            num_samples % channels.get() as usize,
-            0,
-            "Zero sample count must be a multiple of channel count",
-        );
+    ) -> Result<Self, ZeroError> {
+        if !num_samples.is_multiple_of(channels.get() as usize) {
+            return Err(ZeroError);
+        }
 
-        Self {
+        Ok(Self {
             channels,
             sample_rate,
             total_samples: Some(num_samples),
             position: 0,
-        }
+        })
     }
 }
 

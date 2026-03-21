@@ -60,7 +60,7 @@
 
 use std::time::Duration;
 
-use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use super::{SeekError, SpanTracker};
 use crate::{
     common::{ChannelCount, Sample, SampleRate},
     math::{self, duration_to_coefficient},
@@ -125,10 +125,7 @@ pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
 
     Limit {
         inner: Some(inner),
-        last_channels: channels,
-        last_sample_rate: sample_rate,
-        samples_counted: 0,
-        cached_span_len: None,
+        span: SpanTracker::new(sample_rate, channels),
     }
 }
 
@@ -569,10 +566,7 @@ where
     I: Source,
 {
     inner: Option<LimitInner<I>>,
-    last_channels: ChannelCount,
-    last_sample_rate: SampleRate,
-    samples_counted: usize,
-    cached_span_len: Option<usize>,
+    span: SpanTracker,
 }
 
 impl<I> Source for Limit<I>
@@ -602,12 +596,7 @@ where
     #[inline]
     fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
         self.inner.as_mut().unwrap().try_seek(position)?;
-        reset_seek_span_tracking(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            position,
-            self.inner.as_ref().unwrap().current_span_len(),
-        );
+        self.span.seek(position, self.inner.as_ref().unwrap());
         Ok(())
     }
 }
@@ -664,19 +653,11 @@ where
         let current_channels = self.inner.as_ref().unwrap().channels();
         let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
 
-        let (at_boundary, parameters_changed) = detect_span_boundary(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            input_span_len,
-            current_sample_rate,
-            self.last_sample_rate,
-            current_channels,
-            self.last_channels,
-        );
+        let detection = self
+            .span
+            .advance(input_span_len, current_sample_rate, current_channels);
 
-        if at_boundary && parameters_changed {
-            self.last_channels = current_channels;
-            self.last_sample_rate = current_sample_rate;
+        if detection.at_span_boundary && detection.parameters_changed {
             let new_channels_count = current_channels.get() as usize;
 
             let needs_reconstruction = match self.inner.as_ref().unwrap() {

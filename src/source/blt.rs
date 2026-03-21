@@ -5,7 +5,7 @@ use crate::math::PI;
 use crate::{Sample, Source};
 
 // Implemented following https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
-use super::{detect_span_boundary, reset_seek_span_tracking, SeekError};
+use super::{SeekError, SpanTracker};
 
 /// Builds a `BltFilter` object with a low-pass filter.
 pub fn low_pass<I>(input: I, freq: u32) -> BltFilter<I>
@@ -49,10 +49,7 @@ where
 
     BltFilter {
         inner: Some(BltInner::new(input, formula, channels)),
-        last_sample_rate: sample_rate,
-        last_channels: channels,
-        samples_counted: 0,
-        cached_span_len: None,
+        span: SpanTracker::new(sample_rate, channels),
     }
 }
 
@@ -60,10 +57,7 @@ where
 #[derive(Clone, Debug)]
 pub struct BltFilter<I> {
     inner: Option<BltInner<I>>,
-    last_sample_rate: SampleRate,
-    last_channels: ChannelCount,
-    samples_counted: usize,
-    cached_span_len: Option<usize>,
+    span: SpanTracker,
 }
 
 impl<I> BltFilter<I>
@@ -129,28 +123,16 @@ where
         let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
         let current_channels = self.inner.as_ref().unwrap().channels();
 
-        let (at_boundary, parameters_changed) = detect_span_boundary(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            input_span_len,
-            current_sample_rate,
-            self.last_sample_rate,
-            current_channels,
-            self.last_channels,
-        );
+        let detection = self
+            .span
+            .advance(input_span_len, current_sample_rate, current_channels);
 
-        if at_boundary && parameters_changed {
-            let sample_rate_changed = current_sample_rate != self.last_sample_rate;
-            let channels_changed = current_channels != self.last_channels;
-
-            self.last_sample_rate = current_sample_rate;
-            self.last_channels = current_channels;
-
-            if channels_changed {
+        if detection.at_span_boundary && detection.parameters_changed {
+            if current_channels != self.inner.as_ref().unwrap().channels() {
                 let old_inner = self.inner.take().unwrap();
                 let (input, formula) = old_inner.into_parts();
                 self.inner = Some(BltInner::new(input, formula, current_channels));
-            } else if sample_rate_changed {
+            } else {
                 self.inner
                     .as_mut()
                     .unwrap()
@@ -196,13 +178,7 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.inner.as_mut().unwrap().try_seek(pos)?;
-
-        reset_seek_span_tracking(
-            &mut self.samples_counted,
-            &mut self.cached_span_len,
-            pos,
-            self.inner.as_ref().unwrap().current_span_len(),
-        );
+        self.span.seek(pos, self.inner.as_ref().unwrap());
 
         Ok(())
     }

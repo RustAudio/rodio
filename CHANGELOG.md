@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified `Source::current_span_len()` documentation to specify it returns total span length.
 - Explicitly document the requirement for sources to return complete frames.
 - Ensured decoders to always return complete frames, as well as `TakeDuration` when expired.
-- `Zero::new_samples()` now panics when it is not a multiple of the channel count.
-- Improved queue, buffer, mixer and sample rate conversion performance. 
+- Breaking: `Zero::new_samples()` now returns `Result<Self, ZeroError>` requiring a frame-aligned number of samples.
+- Improved queue, buffer, mixer and sample rate conversion performance.
 
 ### Fixed
 

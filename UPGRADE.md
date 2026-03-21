@@ -10,6 +10,9 @@ changes and new features, see [CHANGELOG.md](CHANGELOG.md).
   - To retain old behavior replace the `Arc<AtomicUsize>` argument in `Done::new` with
     `move |_| { number.fetch_sub(1, std::sync::atomic::Ordering::Relaxed) }`.
   - `Done` has now two generics instead of one: `<I: Source, F: FnMut(&mut I)>`.
+- `Zero::new_samples()` now returns `Result<Zero, ZeroError>` instead of `Zero`.
+  Previously the function accepted any `num_samples` value; passing one that is not a
+  multiple of `channels` now returns an `Err` instead of producing a mis-aligned source.
 
 # rodio 0.21.1 to 0.22
 - _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced

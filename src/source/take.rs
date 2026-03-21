@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::{detect_span_boundary, padding_samples_needed, reset_seek_span_tracking, SeekError};
+use super::{padding_samples_needed, SeekError, SpanTracker};
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::NANOS_PER_SEC;
 use crate::{Float, Sample, Source};
@@ -19,10 +19,7 @@ where
         remaining_duration: duration,
         requested_duration: duration,
         filter: None,
-        last_sample_rate: sample_rate,
-        last_channels: channels,
-        samples_counted: 0,
-        cached_span_len: None,
+        span: SpanTracker::new(sample_rate, channels),
         samples_in_current_frame: 0,
         silence_samples_remaining: 0,
     }
@@ -54,10 +51,7 @@ pub struct TakeDuration<I> {
     filter: Option<DurationFilter>,
     // Cached duration per sample, updated when sample rate or channels change.
     duration_per_sample: Duration,
-    last_sample_rate: SampleRate,
-    last_channels: ChannelCount,
-    samples_counted: usize,
-    cached_span_len: Option<usize>,
+    span: SpanTracker,
     samples_in_current_frame: usize,
     silence_samples_remaining: usize,
 }
@@ -121,7 +115,7 @@ where
             // Check if duration has expired.
             if self.remaining_duration < self.duration_per_sample {
                 self.silence_samples_remaining =
-                    padding_samples_needed(self.samples_in_current_frame, self.last_channels);
+                    padding_samples_needed(self.samples_in_current_frame, self.span.last_channels);
                 if self.silence_samples_remaining > 0 {
                     self.samples_in_current_frame = 0;
                     continue;
@@ -136,19 +130,11 @@ where
             let current_sample_rate = self.input.sample_rate();
             let current_channels = self.input.channels();
 
-            let (at_boundary, parameters_changed) = detect_span_boundary(
-                &mut self.samples_counted,
-                &mut self.cached_span_len,
-                input_span_len,
-                current_sample_rate,
-                self.last_sample_rate,
-                current_channels,
-                self.last_channels,
-            );
+            let detection =
+                self.span
+                    .advance(input_span_len, current_sample_rate, current_channels);
 
-            if at_boundary && parameters_changed {
-                self.last_sample_rate = current_sample_rate;
-                self.last_channels = current_channels;
+            if detection.at_span_boundary && detection.parameters_changed {
                 self.duration_per_sample = Self::get_duration_per_sample(&self.input);
                 self.samples_in_current_frame = 0;
             }
@@ -244,12 +230,7 @@ where
         if result.is_ok() {
             // Recalculate remaining duration after seek
             self.remaining_duration = self.requested_duration.saturating_sub(pos);
-            reset_seek_span_tracking(
-                &mut self.samples_counted,
-                &mut self.cached_span_len,
-                pos,
-                self.input.current_span_len(),
-            );
+            self.span.seek(pos, &self.input);
             self.samples_in_current_frame = 0;
         }
         result

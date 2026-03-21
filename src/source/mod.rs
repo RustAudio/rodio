@@ -46,7 +46,7 @@ pub use self::stoppable::Stoppable;
 pub use self::take::TakeDuration;
 pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
-pub use self::zero::Zero;
+pub use self::zero::{Zero, ZeroError};
 
 mod agc;
 mod amplify;

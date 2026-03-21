@@ -168,21 +168,17 @@ impl Iterator for MixerSource {
 }
 
 impl MixerSource {
-    // Samples from the #next() function are interlaced for each of the channels.
-    // We need to ensure we start playing sources so that their samples are
-    // in-step with the modulo of the samples produced so far. Otherwise, the
-    // sound will play on the wrong channels, e.g. left / right will be reversed.
+    // Samples from the `next()` function are interlaced for each of the channels.
+    // New sources are held in `still_pending` until a frame boundary so their
+    // samples stay in-step with the channel layout. Otherwise the sound will
+    // play on the wrong channels, e.g. left / right will be reversed.
     fn start_pending_sources(&mut self) {
         while let Ok(source) = self.pending_rx.try_recv() {
-            // Only start sources at frame boundaries (when current_channel == 0)
-            // to ensure correct channel alignment
-            let in_step = self.current_channel == 0;
+            self.still_pending.push(source);
+        }
 
-            if in_step {
-                self.current_sources.push(source);
-            } else {
-                self.still_pending.push(source);
-            }
+        if self.current_channel == 0 {
+            self.current_sources.append(&mut self.still_pending);
         }
     }
 

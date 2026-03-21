@@ -6,6 +6,8 @@ use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::{Sample, Source};
 
+/// Error returned by [`Zero::new_samples`] when `num_samples` is not a
+/// multiple of the channel count.
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
 #[error("num_samples must be a multiple of the channel count")]
 pub struct ZeroError;

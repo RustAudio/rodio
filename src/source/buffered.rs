@@ -1,4 +1,3 @@
-use std::cmp;
 use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -59,7 +58,7 @@ struct SpanData<I>
 where
     I: Source,
 {
-    data: Vec<I::Item>,
+    data: Box<[I::Item]>,
     channels: ChannelCount,
     rate: SampleRate,
     next: Mutex<Arc<Span<I>>>,
@@ -107,10 +106,12 @@ where
 
     let channels = input.channels();
     let rate = input.sample_rate();
-    let data: Vec<I::Item> = input
+    let max_samples = span_len.unwrap_or(32768);
+    let data: Box<[I::Item]> = input
         .by_ref()
-        .take(cmp::min(span_len.unwrap_or(32768), 32768))
-        .collect();
+        .take(max_samples)
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
 
     if data.is_empty() {
         return Arc::new(Span::End);
@@ -204,11 +205,12 @@ where
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        match &*self.current_span {
-            Span::Data(SpanData { data, .. }) => Some(data.len() - self.position_in_span),
-            Span::End => Some(0),
+        let len = match &*self.current_span {
+            Span::Data(SpanData { data, .. }) => data.len(),
+            Span::End => 0,
             Span::Input(_) => unreachable!(),
-        }
+        };
+        Some(len)
     }
 
     #[inline]

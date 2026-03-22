@@ -46,7 +46,7 @@ pub use self::stoppable::Stoppable;
 pub use self::take::TakeDuration;
 pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
-pub use self::zero::Zero;
+pub use self::zero::{Zero, ZeroError};
 
 mod agc;
 mod amplify;
@@ -76,6 +76,7 @@ mod signal_generator;
 mod sine;
 mod skip;
 mod skippable;
+mod span;
 mod spatial;
 mod speed;
 mod square;
@@ -84,6 +85,8 @@ mod take;
 mod triangle;
 mod uniform;
 mod zero;
+
+pub(crate) use self::span::SpanTracker;
 
 #[cfg(feature = "dither")]
 pub mod dither;
@@ -160,17 +163,31 @@ pub use self::noise::{Pink, WhiteUniform};
 /// `sample_rate` too frequently.
 ///
 /// In order to properly handle this situation, the `current_span_len()` method should return
-/// the number of samples that remain in the iterator before the samples rate and number of
-/// channels can potentially change.
+/// the total number of samples in the current span (i.e., before the sample rate and number of
+/// channels can potentially change).
 ///
+/// # Frame alignment requirement
+///
+/// All `Source` implementors MUST ensure that when the iterator returns `None`, all previously
+/// emitted samples form complete frames. That is, the total number of samples emitted must be a
+/// multiple of `channels()`.
+///
+/// A "frame" is one sample for each channel in the audio stream. For example, stereo audio (2
+/// channels) must emit samples in pairs: left, right, left, right, etc. Should a `Source` find
+/// itself in a situation where it would need to emit an incomplete final frame, it MUST pad
+/// the remaining samples with silence before returning `None`.
 pub trait Source: Iterator<Item = Sample> {
-    /// Returns the number of samples before the current span ends.
+    /// Returns the total length of the current span in samples.
+    ///
+    /// A span is a contiguous block of samples with unchanging channel count and sample rate.
+    /// This method returns the total number of samples in the current span, not the number
+    /// of samples remaining to be read.
     ///
     /// `None` means "infinite" or "until the sound ends". Sources that return `Some(x)` should
     /// return `Some(0)` if and only if when there's no more data.
     ///
-    /// After the engine has finished reading the specified number of samples, it will check
-    /// whether the value of `channels()` and/or `sample_rate()` have changed.
+    /// After the engine has finished reading the number of samples returned by this method,
+    /// it will check whether the value of `channels()` and/or `sample_rate()` have changed.
     ///
     /// # Frame Alignment
     ///
@@ -830,3 +847,84 @@ source_pointer_impl!(Source for Box<dyn Source + Send>);
 source_pointer_impl!(Source for Box<dyn Source + Send + Sync>);
 
 source_pointer_impl!(<'a, Src> Source for &'a mut Src where Src: Source,);
+
+/// Returns the number of silence samples needed to complete the current audio frame.
+#[inline]
+pub(crate) fn padding_samples_needed(
+    samples_in_current_frame: usize,
+    channels: ChannelCount,
+) -> usize {
+    if samples_in_current_frame > 0 {
+        channels.get() as usize - samples_in_current_frame
+    } else {
+        0
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_utils {
+    use super::*;
+
+    /// Test helper source that may end mid-frame, unlike [`SamplesBuffer`] which always
+    /// pads to a complete frame. Use this to test how sources handle incomplete frames.
+    #[derive(Debug, Clone)]
+    pub struct TestSource {
+        samples: Vec<Sample>,
+        pos: usize,
+        channels: ChannelCount,
+        sample_rate: SampleRate,
+        total_span_len: Option<usize>,
+    }
+
+    impl TestSource {
+        /// Creates a new test source with the given samples and channel configuration.
+        pub fn new(samples: &[Sample], channels: ChannelCount, sample_rate: SampleRate) -> Self {
+            Self {
+                samples: samples.to_vec(),
+                pos: 0,
+                channels,
+                sample_rate,
+                total_span_len: Some(samples.len()),
+            }
+        }
+    }
+
+    impl Iterator for TestSource {
+        type Item = Sample;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let res = self.samples.get(self.pos).copied();
+            self.pos += 1;
+            res
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let remaining = self.samples.len().saturating_sub(self.pos);
+            (remaining, Some(remaining))
+        }
+    }
+
+    impl Source for TestSource {
+        fn current_span_len(&self) -> Option<usize> {
+            self.total_span_len
+        }
+
+        fn channels(&self) -> ChannelCount {
+            self.channels
+        }
+
+        fn sample_rate(&self) -> SampleRate {
+            self.sample_rate
+        }
+
+        fn total_duration(&self) -> Option<Duration> {
+            None
+        }
+
+        fn try_seek(&mut self, _pos: Duration) -> Result<(), SeekError> {
+            Err(SeekError::NotSupported {
+                underlying_source: std::any::type_name::<Self>(),
+            })
+        }
+    }
+}

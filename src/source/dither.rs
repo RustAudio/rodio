@@ -29,7 +29,10 @@ use rand::{rngs::SmallRng, Rng};
 use std::time::Duration;
 
 use crate::{
-    source::noise::{Blue, WhiteGaussian, WhiteTriangular, WhiteUniform},
+    source::{
+        noise::{Blue, WhiteGaussian, WhiteTriangular, WhiteUniform},
+        SeekError, SpanTracker,
+    },
     BitDepth, ChannelCount, Float, Sample, SampleRate, Source,
 };
 
@@ -161,8 +164,8 @@ pub struct Dither<I> {
     input: I,
     noise: NoiseGenerator,
     current_channel: usize,
-    remaining_in_span: Option<usize>,
     lsb_amplitude: Float,
+    span: SpanTracker,
 }
 
 impl<I> Dither<I>
@@ -179,14 +182,13 @@ where
 
         let sample_rate = input.sample_rate();
         let channels = input.channels();
-        let active_span_len = input.current_span_len();
 
         Self {
             input,
             noise: NoiseGenerator::new(algorithm, sample_rate, channels),
             current_channel: 0,
-            remaining_in_span: active_span_len,
             lsb_amplitude,
+            span: SpanTracker::new(sample_rate, channels),
         }
     }
 
@@ -213,21 +215,22 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(ref mut remaining) = self.remaining_in_span {
-            *remaining = remaining.saturating_sub(1);
-        }
-
-        // Consume next input sample *after* decrementing span position and *before* checking for
-        // span boundary crossing. This ensures that the source has its parameters updated
-        // correctly before we generate noise for the next sample.
         let input_sample = self.input.next()?;
-        let num_channels = self.input.channels();
 
-        if self.remaining_in_span == Some(0) {
-            self.noise
-                .update_parameters(self.input.sample_rate(), num_channels);
+        let input_span_len = self.input.current_span_len();
+        let current_sample_rate = self.input.sample_rate();
+        let current_channels = self.input.channels();
+
+        let detection = self
+            .span
+            .advance(input_span_len, current_sample_rate, current_channels);
+
+        if detection.at_span_boundary {
+            if detection.parameters_changed {
+                self.noise
+                    .update_parameters(current_sample_rate, current_channels);
+            }
             self.current_channel = 0;
-            self.remaining_in_span = self.input.current_span_len();
         }
 
         let noise_sample = self
@@ -236,7 +239,7 @@ where
             .expect("Noise generator should always produce samples");
 
         // Advance to next channel (wrapping around)
-        self.current_channel = (self.current_channel + 1) % num_channels.get() as usize;
+        self.current_channel = (self.current_channel + 1) % self.input.channels().get() as usize;
 
         // Apply subtractive dithering at the target quantization level
         Some(input_sample - noise_sample * self.lsb_amplitude)
@@ -275,14 +278,18 @@ where
     }
 
     #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), crate::source::SeekError> {
-        self.input.try_seek(pos)
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.input.try_seek(pos)?;
+        self.current_channel = 0;
+        self.span.seek(pos, &self.input);
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::test_utils::TestSource;
     use crate::source::{SineWave, Source};
     use crate::{nz, BitDepth, SampleRate};
 

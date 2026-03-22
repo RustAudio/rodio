@@ -3,7 +3,7 @@ use std::num::NonZero;
 use std::time::Duration;
 
 use crate::common::{ChannelCount, Sample, SampleRate};
-use crate::source::SeekError;
+use crate::source::{padding_samples_needed, SeekError};
 use crate::Source;
 
 use dasp_sample::Sample as _;
@@ -21,6 +21,8 @@ where
     // what minimp3 calls frames rodio calls spans
     current_span: Frame,
     current_span_offset: usize,
+    samples_in_current_frame: usize,
+    silence_samples_remaining: usize,
 }
 
 impl<R> Mp3Decoder<R>
@@ -43,6 +45,8 @@ where
             decoder,
             current_span,
             current_span_offset: 0,
+            samples_in_current_frame: 0,
+            silence_samples_remaining: 0,
         })
     }
 
@@ -98,21 +102,40 @@ where
     type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let current_span_len = self.current_span_len()?;
-        if self.current_span_offset == current_span_len {
-            if let Ok(span) = self.decoder.next_frame() {
-                // if let Ok(span) = self.decoder.decode_frame() {
-                self.current_span = span;
-                self.current_span_offset = 0;
-            } else {
-                return None;
+        loop {
+            // If padding to complete a frame, return silence
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
+                return Some(Sample::EQUILIBRIUM);
             }
+
+            let current_span_len = self.current_span_len()?;
+            if self.current_span_offset == current_span_len {
+                if let Ok(span) = self.decoder.next_frame() {
+                    self.current_span = span;
+                    self.current_span_offset = 0;
+                } else {
+                    // Input exhausted - check if mid-frame
+                    let channels = self.channels();
+                    self.silence_samples_remaining =
+                        padding_samples_needed(self.samples_in_current_frame, channels);
+                    if self.silence_samples_remaining > 0 {
+                        self.samples_in_current_frame = 0;
+                        continue; // Loop will inject silence
+                    }
+                    return None;
+                }
+            }
+
+            let v = self.current_span.data[self.current_span_offset];
+            self.current_span_offset += 1;
+
+            let channels = self.channels();
+            self.samples_in_current_frame =
+                (self.samples_in_current_frame + 1) % channels.get() as usize;
+
+            return Some(v.to_sample());
         }
-
-        let v = self.current_span.data[self.current_span_offset];
-        self.current_span_offset += 1;
-
-        Some(v.to_sample())
     }
 }
 

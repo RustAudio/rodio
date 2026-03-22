@@ -12,21 +12,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `Skippable::skipped` function to check if the inner source was skipped.
+- All sources now implement `ExactSizeIterator` when their inner source does.
+- All sources now implement `Iterator::size_hint()`.
+- `Chirp` now implements `try_seek`.
 
 ### Changed
 
 - Breaking: `Done` now calls a callback instead of decrementing an `Arc<AtomicUsize>`.
 - Updated `cpal` to v0.18.
+- Clarified `Source::current_span_len()` documentation to specify it returns total span length.
+- Explicitly document the requirement for sources to return complete frames.
+- Ensured decoders to always return complete frames, as well as `TakeDuration` when expired.
+- Breaking: `Zero::new_samples()` now returns `Result<Self, ZeroError>` requiring a frame-aligned number of samples.
+- Improved queue, buffer, mixer and sample rate conversion performance.
 
 ### Fixed
 
 - Fixed `Player::skip_one` not decreasing the player's length immediately.
+- Fixed `Source::current_span_len()` to consistently return total span length.
+- Fixed `Source::size_hint()` to consistently report actual bounds based on current sources.
+- Fixed `Pausable::size_hint()` to correctly account for paused samples.
+- Fixed `MixerSource` and `LinearRamp` to prevent overflow with very long playback.
+- Fixed `PeriodicAccess` to prevent overflow with very long periods.
+- Fixed `BltFilter` to work correctly with stereo and multi-channel audio.
+- Fixed `ChannelVolume` to work correclty with stereo and multi-channel audio.
+- Fixed `Brownian` and `Red` noise generators to reset after seeking.
+- Fixed sources to correctly handle sample rate and channel count changes at span boundaries.
+- Fixed sources to detect parameter updates after mid-span seeks.
 
 ## Version [0.22.2] (2026-02-22)
 
 ### Fixed
 
-- Incorrectly set system default audio buffer size breaks playback. We no longer use the system default (introduced in 0.22 through cpal upgrade) and instead set a safe buffer duration. 
+- Incorrectly set system default audio buffer size breaks playback. We no longer use the system default (introduced in 0.22 through cpal upgrade) and instead set a safe buffer duration.
 - Audio output fallback picked null device leading to no output.
 - Mixer did not actually add sources sometimes.
 
@@ -38,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Version [0.22.1] (2026-02-22)
 
 ### Fixed
+
 - docs.rs could not build the documentation.
 
 ## Version [0.22] (2026-02-22)
@@ -65,6 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `SampleRateConverter::inner` to get underlying iterator by ref.
 
 ### Fixed
+
 - docs.rs will now document all features, including those that are optional.
 - `Chirp::next` now returns `None` when the total duration has been reached, and will work
   correctly for a number of samples greater than 2^24.
@@ -72,12 +92,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed audio distortion when queueing sources with different sample rates/channel counts or transitioning from empty queue.
 - Fixed `SamplesBuffer` to correctly report exhaustion and remaining samples.
 - Improved precision in `SkipDuration` to avoid off-by-a-few-samples errors.
-- Fixed channel misalignment in queue with non-power-of-2 channel counts (e.g., 6 channels) by ensuring frame-aligned span lengths.
-- Fixed channel misalignment when sources end before their promised span length by padding with silence to complete frames.
 - Fixed `Empty` source to properly report exhaustion.
 - Fixed `Zero::current_span_len` returning remaining samples instead of span length.
 
 ### Changed
+
 - Breaking: _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced
   with _Sink_. This is a simple rename, functionality is identical.
     - `OutputStream` is now `MixerDeviceSink` (in anticipation of future

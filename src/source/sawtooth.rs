@@ -36,6 +36,11 @@ impl Iterator for SawtoothWave {
     fn next(&mut self) -> Option<Sample> {
         self.test_saw.next()
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, None)
+    }
 }
 
 impl Source for SawtoothWave {

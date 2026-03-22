@@ -29,12 +29,19 @@ impl Iterator for EmptyCallback {
         (self.callback)();
         None
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(0))
+    }
 }
+
+impl ExactSizeIterator for EmptyCallback {}
 
 impl Source for EmptyCallback {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        None
+        Some(0)
     }
 
     #[inline]
@@ -49,7 +56,7 @@ impl Source for EmptyCallback {
 
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        Some(Duration::new(0, 0))
+        Some(Duration::ZERO)
     }
 
     #[inline]

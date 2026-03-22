@@ -20,8 +20,10 @@ use symphonia::{
 use super::{DecoderError, Settings};
 use crate::{
     common::{assert_error_traits, ChannelCount, Sample, SampleRate},
-    source, Source,
+    source::{self, padding_samples_needed},
+    Source,
 };
+use dasp_sample::Sample as _;
 
 #[derive(Clone)]
 pub(crate) struct Registry(Arc<RwLock<CodecRegistry>>);
@@ -55,6 +57,8 @@ pub(crate) struct SymphoniaDecoder {
     spec: SignalSpec,
     seek_mode: SeekMode,
     selected_track_id: u32,
+    samples_in_current_frame: usize,
+    silence_samples_remaining: usize,
 }
 
 impl SymphoniaDecoder {
@@ -176,6 +180,8 @@ impl SymphoniaDecoder {
             spec,
             seek_mode,
             selected_track_id: track_id,
+            samples_in_current_frame: 0,
+            silence_samples_remaining: 0,
         }))
     }
 
@@ -328,44 +334,87 @@ impl Iterator for SymphoniaDecoder {
     type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_span_offset >= self.buffer.len() {
-            let decoded = loop {
-                let packet = self.format.next_packet().ok()?;
+        loop {
+            // If padding to complete a frame, return silence
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
+                return Some(Sample::EQUILIBRIUM);
+            }
 
-                // If the packet does not belong to the selected track, skip over it
-                if packet.track_id() != self.selected_track_id {
-                    continue;
-                }
+            if self.current_span_offset >= self.buffer.len() {
+                let decoded = loop {
+                    let packet = match self.format.next_packet() {
+                        Ok(packet) => {
+                            if packet.track_id() == self.selected_track_id {
+                                packet
+                            } else {
+                                continue;
+                            }
+                        }
+                        Err(_) => {
+                            // Input exhausted - check if mid-frame
+                            let channels = self.channels();
+                            self.silence_samples_remaining =
+                                padding_samples_needed(self.samples_in_current_frame, channels);
+                            if self.silence_samples_remaining > 0 {
+                                self.samples_in_current_frame = 0;
+                                break None;
+                            }
+                            return None;
+                        }
+                    };
+                    let decoded = match self.decoder.decode(&packet) {
+                        Ok(decoded) => decoded,
+                        Err(Error::DecodeError(_)) => {
+                            // Skip over packets that cannot be decoded. This ensures the iterator
+                            // continues processing subsequent packets instead of terminating due to
+                            // non-critical decode errors.
+                            continue;
+                        }
+                        Err(_) => {
+                            // Input exhausted - check if mid-frame
+                            let channels = self.channels();
+                            self.silence_samples_remaining =
+                                padding_samples_needed(self.samples_in_current_frame, channels);
+                            if self.silence_samples_remaining > 0 {
+                                self.samples_in_current_frame = 0;
+                                break None;
+                            }
+                            return None;
+                        }
+                    };
 
-                let decoded = match self.decoder.decode(&packet) {
-                    Ok(decoded) => decoded,
-                    Err(Error::DecodeError(_)) => {
-                        // Skip over packets that cannot be decoded. This ensures the iterator
-                        // continues processing subsequent packets instead of terminating due to
-                        // non-critical decode errors.
-                        continue;
+                    // Loop until we get a packet with audio frames. This is necessary because some
+                    // formats can have packets with only metadata, particularly when rewinding, in
+                    // which case the iterator would otherwise end with `None`.
+                    // Note: checking `decoded.frames()` is more reliable than `packet.dur()`, which
+                    // can resturn non-zero durations for packets without audio frames.
+                    if decoded.frames() > 0 {
+                        break Some(decoded);
                     }
-                    Err(_) => return None,
                 };
 
-                // Loop until we get a packet with audio frames. This is necessary because some
-                // formats can have packets with only metadata, particularly when rewinding, in
-                // which case the iterator would otherwise end with `None`.
-                // Note: checking `decoded.frames()` is more reliable than `packet.dur()`, which
-                // can resturn non-zero durations for packets without audio frames.
-                if decoded.frames() > 0 {
-                    break decoded;
+                match decoded {
+                    Some(decoded) => {
+                        decoded.spec().clone_into(&mut self.spec);
+                        self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
+                        self.current_span_offset = 0;
+                    }
+                    None => {
+                        // Break out happened due to exhaustion, continue to emit padding
+                        continue;
+                    }
                 }
-            };
+            }
 
-            decoded.spec().clone_into(&mut self.spec);
-            self.buffer = SymphoniaDecoder::get_buffer(decoded, &self.spec);
-            self.current_span_offset = 0;
+            let sample = *self.buffer.samples().get(self.current_span_offset)?;
+            self.current_span_offset += 1;
+
+            let channels = self.channels();
+            self.samples_in_current_frame =
+                (self.samples_in_current_frame + 1) % channels.get() as usize;
+
+            return Some(sample);
         }
-
-        let sample = *self.buffer.samples().get(self.current_span_offset)?;
-        self.current_span_offset += 1;
-
-        Some(sample)
     }
 }

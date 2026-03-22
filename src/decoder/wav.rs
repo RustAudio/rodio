@@ -2,7 +2,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::source::SeekError;
+use crate::source::{padding_samples_needed, SeekError};
 use crate::{Sample, Source};
 
 use crate::common::{ChannelCount, SampleRate};
@@ -35,28 +35,35 @@ where
         let reader = WavReader::new(data).expect("should still be wav");
         let spec = reader.spec();
         let len = reader.len() as u64;
+        let sample_rate = spec.sample_rate;
+
+        let Some(channels) = ChannelCount::new(spec.channels) else {
+            return Err(reader.into_inner());
+        };
+        let Some(sample_rate) = SampleRate::new(sample_rate) else {
+            return Err(reader.into_inner());
+        };
+
         let reader = SamplesIterator {
             reader,
             samples_read: 0,
+            samples_in_current_frame: 0,
+            silence_samples_remaining: 0,
+            channels,
         };
 
-        let sample_rate = spec.sample_rate;
-        let channels = spec.channels;
-        assert!(channels > 0);
-
         let total_duration = {
-            let data_rate = sample_rate as u64 * channels as u64;
+            let data_rate = sample_rate.get() as u64 * channels.get() as u64;
             let secs = len / data_rate;
             let nanos = ((len % data_rate) * 1_000_000_000) / data_rate;
             Duration::new(secs, nanos as u32)
         };
 
-        Ok(WavDecoder {
+        Ok(Self {
             reader,
             total_duration,
-            sample_rate: SampleRate::new(sample_rate)
-                .expect("wav should have a sample rate higher then zero"),
-            channels: ChannelCount::new(channels).expect("wav should have a least one channel"),
+            sample_rate,
+            channels,
         })
     }
 
@@ -72,6 +79,9 @@ where
 {
     reader: WavReader<R>,
     samples_read: u32, // wav header is u32 so this suffices
+    samples_in_current_frame: usize,
+    silence_samples_remaining: usize,
+    channels: ChannelCount,
 }
 
 impl<R> Iterator for SamplesIterator<R>
@@ -82,58 +92,83 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.samples_read += 1;
-        let spec = self.reader.spec();
-        let next_sample: Option<Self::Item> =
-            match (spec.sample_format, spec.bits_per_sample as u32) {
-                (SampleFormat::Float, bits) => {
-                    if bits == 32 {
-                        let next_f32: Option<Result<f32, _>> = self.reader.samples().next();
-                        next_f32.and_then(|value| value.ok())
-                    } else {
-                        #[cfg(feature = "tracing")]
-                        tracing::error!("Unsupported WAV float bit depth: {}", bits);
-                        #[cfg(not(feature = "tracing"))]
-                        eprintln!("Unsupported WAV float bit depth: {}", bits);
-                        None
-                    }
-                }
+        loop {
+            // If padding to complete a frame, return silence
+            if self.silence_samples_remaining > 0 {
+                self.silence_samples_remaining -= 1;
+                return Some(Sample::EQUILIBRIUM);
+            }
 
-                (SampleFormat::Int, 8) => {
-                    let next_i8: Option<Result<i8, _>> = self.reader.samples().next();
-                    next_i8.and_then(|value| value.ok().map(|value| value.to_sample()))
-                }
-                (SampleFormat::Int, 16) => {
-                    let next_i16: Option<Result<i16, _>> = self.reader.samples().next();
-                    next_i16.and_then(|value| value.ok().map(|value| value.to_sample()))
-                }
-                (SampleFormat::Int, 24) => {
-                    let next_i24_in_i32: Option<Result<i32, _>> = self.reader.samples().next();
-                    next_i24_in_i32.and_then(|value| {
-                        value.ok().and_then(I24::new).map(|value| value.to_sample())
-                    })
-                }
-                (SampleFormat::Int, 32) => {
-                    let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
-                    next_i32.and_then(|value| value.ok().map(|value| value.to_sample()))
-                }
-                (SampleFormat::Int, bits) => {
-                    // Unofficial WAV integer bit depth, try to handle it anyway
-                    let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
-                    if bits <= 32 {
-                        next_i32.and_then(|value| {
-                            value.ok().map(|value| (value << (32 - bits)).to_sample())
-                        })
-                    } else {
-                        #[cfg(feature = "tracing")]
-                        tracing::error!("Unsupported WAV integer bit depth: {}", bits);
-                        #[cfg(not(feature = "tracing"))]
-                        eprintln!("Unsupported WAV integer bit depth: {}", bits);
-                        None
+            self.samples_read += 1;
+            let spec = self.reader.spec();
+            let next_sample: Option<Self::Item> =
+                match (spec.sample_format, spec.bits_per_sample as u32) {
+                    (SampleFormat::Float, bits) => {
+                        if bits == 32 {
+                            let next_f32: Option<Result<f32, _>> = self.reader.samples().next();
+                            next_f32.and_then(|value| value.ok())
+                        } else {
+                            #[cfg(feature = "tracing")]
+                            tracing::error!("Unsupported WAV float bit depth: {}", bits);
+                            #[cfg(not(feature = "tracing"))]
+                            eprintln!("Unsupported WAV float bit depth: {}", bits);
+                            None
+                        }
                     }
+
+                    (SampleFormat::Int, 8) => {
+                        let next_i8: Option<Result<i8, _>> = self.reader.samples().next();
+                        next_i8.and_then(|value| value.ok().map(|value| value.to_sample()))
+                    }
+                    (SampleFormat::Int, 16) => {
+                        let next_i16: Option<Result<i16, _>> = self.reader.samples().next();
+                        next_i16.and_then(|value| value.ok().map(|value| value.to_sample()))
+                    }
+                    (SampleFormat::Int, 24) => {
+                        let next_i24_in_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                        next_i24_in_i32.and_then(|value| {
+                            value.ok().and_then(I24::new).map(|value| value.to_sample())
+                        })
+                    }
+                    (SampleFormat::Int, 32) => {
+                        let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                        next_i32.and_then(|value| value.ok().map(|value| value.to_sample()))
+                    }
+                    (SampleFormat::Int, bits) => {
+                        // Unofficial WAV integer bit depth, try to handle it anyway
+                        let next_i32: Option<Result<i32, _>> = self.reader.samples().next();
+                        if bits <= 32 {
+                            next_i32.and_then(|value| {
+                                value.ok().map(|value| (value << (32 - bits)).to_sample())
+                            })
+                        } else {
+                            #[cfg(feature = "tracing")]
+                            tracing::error!("Unsupported WAV integer bit depth: {}", bits);
+                            #[cfg(not(feature = "tracing"))]
+                            eprintln!("Unsupported WAV integer bit depth: {}", bits);
+                            None
+                        }
+                    }
+                };
+
+            match next_sample {
+                Some(sample) => {
+                    self.samples_in_current_frame =
+                        (self.samples_in_current_frame + 1) % self.channels.get() as usize;
+                    return Some(sample);
                 }
-            };
-        next_sample
+                None => {
+                    // Input exhausted - check if mid-frame
+                    self.silence_samples_remaining =
+                        padding_samples_needed(self.samples_in_current_frame, self.channels);
+                    if self.silence_samples_remaining > 0 {
+                        self.samples_in_current_frame = 0;
+                        continue; // Loop will inject silence
+                    }
+                    return None;
+                }
+            }
+        }
     }
 
     #[inline]

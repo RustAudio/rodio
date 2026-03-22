@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use dasp_sample::Sample as _;
+
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::{Float, Sample, Source};
@@ -67,17 +69,16 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO Need a test for this
         if self.current_channel >= self.channel_volumes.len() {
             self.current_channel = 0;
             self.current_sample = None;
-            let num_channels = self.input.channels();
-            for _ in 0..num_channels.get() {
-                if let Some(s) = self.input.next() {
-                    self.current_sample = Some(self.current_sample.unwrap_or(0.0) + s);
-                }
+            for _ in 0..self.input.channels().get() {
+                let s = self.input.next()?;
+                self.current_sample = Some(self.current_sample.unwrap_or(Sample::EQUILIBRIUM) + s);
             }
-            self.current_sample.map(|s| s / num_channels.get() as Float);
+            self.current_sample = self
+                .current_sample
+                .map(|s| s / self.input.channels().get() as Float);
         }
         let result = self
             .current_sample
@@ -122,5 +123,45 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         self.input.try_seek(pos)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::math::nz;
+    use crate::source::test_utils::TestSource;
+
+    #[test]
+    fn test_mono_to_stereo() {
+        let input = TestSource::new(&[1.0, 2.0, 3.0], nz!(1), nz!(44100));
+        let mut channel_vol = ChannelVolume::new(input, vec![0.5, 0.8]);
+        assert_eq!(channel_vol.next(), Some(1.0 * 0.5));
+        assert_eq!(channel_vol.next(), Some(1.0 * 0.8));
+        assert_eq!(channel_vol.next(), Some(2.0 * 0.5));
+        assert_eq!(channel_vol.next(), Some(2.0 * 0.8));
+        assert_eq!(channel_vol.next(), Some(3.0 * 0.5));
+        assert_eq!(channel_vol.next(), Some(3.0 * 0.8));
+        assert_eq!(channel_vol.next(), None);
+    }
+
+    #[test]
+    fn test_stereo_to_mono() {
+        let input = TestSource::new(&[1.0, 2.0, 3.0, 4.0], nz!(2), nz!(44100));
+        let mut channel_vol = ChannelVolume::new(input, vec![1.0]);
+        assert_eq!(channel_vol.next(), Some(1.5));
+        assert_eq!(channel_vol.next(), Some(3.5));
+        assert_eq!(channel_vol.next(), None);
+    }
+
+    #[test]
+    fn test_stereo_to_stereo_with_mixing() {
+        let input = TestSource::new(&[1.0, 3.0, 2.0, 4.0], nz!(2), nz!(44100));
+        let mut channel_vol = ChannelVolume::new(input, vec![0.5, 2.0]);
+        assert_eq!(channel_vol.next(), Some(2.0 * 0.5)); // 1.0
+        assert_eq!(channel_vol.next(), Some(2.0 * 2.0)); // 4.0
+        assert_eq!(channel_vol.next(), Some(3.0 * 0.5)); // 1.5
+        assert_eq!(channel_vol.next(), Some(3.0 * 2.0)); // 6.0
+        assert_eq!(channel_vol.next(), None);
     }
 }

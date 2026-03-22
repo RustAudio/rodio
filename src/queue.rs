@@ -354,11 +354,10 @@ mod tests {
     fn sample_rate_correct_after_stopped_source() {
         let (tx, mut rx) = queue::queue(true);
 
-        let mut stopped_source =
-            SamplesBuffer::new(nz!(1), nz!(48000), vec![0.0f32; 100]).stoppable();
+        let mut stopped_source = SamplesBuffer::new(nz!(1), nz!(48000), vec![0.0; 100]).stoppable();
         stopped_source.stop();
 
-        let new_source = SamplesBuffer::new(nz!(1), nz!(22050), vec![0.5f32; 100]);
+        let new_source = SamplesBuffer::new(nz!(1), nz!(22050), vec![0.5; 100]);
         assert_ne!(stopped_source.sample_rate(), new_source.sample_rate());
         let new_sample_rate = new_source.sample_rate();
 
@@ -374,11 +373,10 @@ mod tests {
     fn sample_rate_correct_after_skipped_source() {
         let (tx, mut rx) = queue::queue(true);
 
-        let mut skipped_source =
-            SamplesBuffer::new(nz!(1), nz!(48000), vec![0.0f32; 100]).skippable();
+        let mut skipped_source = SamplesBuffer::new(nz!(1), nz!(48000), vec![0.0; 100]).skippable();
         crate::source::Skippable::skip(&mut skipped_source);
 
-        let new_source = SamplesBuffer::new(nz!(1), nz!(22050), vec![0.5f32; 100]);
+        let new_source = SamplesBuffer::new(nz!(1), nz!(22050), vec![0.5; 100]);
         assert_ne!(skipped_source.sample_rate(), new_source.sample_rate());
         let new_sample_rate = new_source.sample_rate();
 

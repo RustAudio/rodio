@@ -84,7 +84,11 @@ where
 {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        self.input.current_span_len()
+        if self.do_skip {
+            Some(0)
+        } else {
+            self.input.current_span_len()
+        }
     }
 
     #[inline]

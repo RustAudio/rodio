@@ -63,13 +63,13 @@ impl SpanTracker {
 
     /// Advances the tracker by one sample and reports whether a span boundary was crossed.
     #[inline]
-    pub fn advance(
+    pub fn advance<I: Source>(
         &mut self,
-        input_span_len: Option<usize>,
-        current_sample_rate: SampleRate,
-        current_channels: ChannelCount,
+        source: &I
     ) -> SpanDetection {
         self.samples_counted = self.samples_counted.saturating_add(1);
+
+        let input_span_len = source.current_span_len();
 
         // If input reports no span length, parameters are stable by contract.
         let mut parameters_changed = false;
@@ -81,8 +81,13 @@ impl SpanTracker {
             // In span-counting mode, parameters can only change at a boundary.
             // In seek mode, we check every sample for a parameter change.
             if known_boundary.is_none_or(|at_boundary| at_boundary) {
+                let current_channels = source.channels();
+                let current_sample_rate = source.sample_rate();
                 parameters_changed = current_channels != self.last_channels
                     || current_sample_rate != self.last_sample_rate;
+                self.last_channels = current_channels;
+                self.last_sample_rate = current_sample_rate;
+                
             }
 
             known_boundary.unwrap_or(parameters_changed)
@@ -91,10 +96,6 @@ impl SpanTracker {
         if at_span_boundary {
             self.samples_counted = 0;
             self.cached_span_len = input_span_len;
-            if parameters_changed {
-                self.last_sample_rate = current_sample_rate;
-                self.last_channels = current_channels;
-            }
         }
 
         SpanDetection {

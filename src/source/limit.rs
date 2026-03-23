@@ -649,15 +649,12 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         let sample = self.inner.as_mut().unwrap().next()?;
 
-        let input_span_len = self.inner.as_ref().unwrap().current_span_len();
-        let current_channels = self.inner.as_ref().unwrap().channels();
-        let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
-
         let detection = self
             .span
-            .advance(input_span_len, current_sample_rate, current_channels);
+            .advance(self.inner.as_ref().unwrap());
 
         if detection.at_span_boundary && detection.parameters_changed {
+            let current_channels = self.inner.as_ref().unwrap().channels();
             let new_channels_count = current_channels.get() as usize;
 
             let needs_reconstruction = match self.inner.as_ref().unwrap() {

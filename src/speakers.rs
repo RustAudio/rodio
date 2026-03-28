@@ -98,10 +98,25 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! # Storing & Loading Output
+//!
+//! ```no_run
+//! use cpal::DeviceId;
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // load
+//! let device_id = DeviceId::from_str("Some stored input")?;
+//! let output = AvailableOutput::try_from(device_id)?;
+//!
+//! // store
+//! let device_id = output.device_id()?;
+//! let device_id = device_id.to_string();
+//! # }
+//! ```
 
 use core::fmt;
-
 use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::DeviceId;
 
 use crate::common::assert_error_traits;
 
@@ -117,14 +132,46 @@ pub use config::{BufferSize, OutputConfig};
 pub struct ListError(#[source] cpal::DevicesError);
 assert_error_traits! {ListError}
 
+#[derive(Debug, thiserror::Error)]
+pub enum NotAvailable {
+    #[error(
+        "The OS audio API the saved output used ({expected}) while supported on this system is not available."
+    )]
+    Host { expected: String },
+    #[error("There is not device with id: {device_id} available on this system.")]
+    NoDevice { device_id: DeviceId },
+}
+
+impl TryFrom<DeviceId> for AvailableOutput {
+    type Error = NotAvailable;
+
+    fn try_from(device_id: DeviceId) -> Result<Self, NotAvailable> {
+        let host_id = device_id.0;
+        let host = cpal::platform::host_from_id(host_id).map_err(|_| NotAvailable::Host {
+            expected: host_id.to_string(),
+        })?;
+        let device = host
+            .device_by_id(&device_id)
+            .ok_or_else(|| NotAvailable::NoDevice {
+                device_id: device_id.clone(),
+            })?;
+        let default_id = host.default_output_device().map(|d| d.id());
+
+        Ok(Self {
+            inner: device,
+            default: default_id.is_some_and(|id| id.is_ok_and(|id| id == device_id)),
+        })
+    }
+}
+
 /// An output device
 #[derive(Clone)]
-pub struct Output {
+pub struct AvailableOutput {
     inner: cpal::Device,
     default: bool,
 }
 
-impl Output {
+impl AvailableOutput {
     /// Whether this output is the default sound output for the OS
     pub fn is_default(&self) -> bool {
         self.default
@@ -133,9 +180,13 @@ impl Output {
     pub(crate) fn into_inner(self) -> cpal::Device {
         self.inner
     }
+
+    pub fn device_id(&self) -> Result<DeviceId, cpal::DeviceIdError> {
+        self.inner.id()
+    }
 }
 
-impl fmt::Debug for Output {
+impl fmt::Debug for AvailableOutput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Device")
             .field(
@@ -149,7 +200,7 @@ impl fmt::Debug for Output {
     }
 }
 
-impl fmt::Display for Output {
+impl fmt::Display for AvailableOutput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -162,12 +213,15 @@ impl fmt::Display for Output {
 }
 
 /// Returns a list of available output devices on the system.
-pub fn available_outputs() -> Result<Vec<Output>, ListError> {
+pub fn available_outputs() -> Result<Vec<AvailableOutput>, ListError> {
     let host = cpal::default_host();
     let default = host.default_output_device().map(|d| d.id());
-    let devices = host.output_devices().map_err(ListError)?.map(|dev| Output {
-        default: Some(dev.id()) == default,
-        inner: dev,
-    });
+    let devices = host
+        .output_devices()
+        .map_err(ListError)?
+        .map(|dev| AvailableOutput {
+            default: Some(dev.id()) == default,
+            inner: dev,
+        });
     Ok(devices.collect())
 }

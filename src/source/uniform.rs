@@ -17,6 +17,7 @@ where
     I: Source,
 {
     inner: Option<ChannelCountConverter<SampleRateConverter<Take<I>>>>,
+    pending: Option<I>,
     target_channels: ChannelCount,
     target_sample_rate: SampleRate,
     total_duration: Option<Duration>,
@@ -35,10 +36,10 @@ where
         target_sample_rate: SampleRate,
     ) -> UniformSourceIterator<I> {
         let total_duration = input.total_duration();
-        let input = UniformSourceIterator::bootstrap(input, target_channels, target_sample_rate);
 
         UniformSourceIterator {
-            inner: Some(input),
+            inner: None,
+            pending: Some(input),
             target_channels,
             target_sample_rate,
             total_duration,
@@ -75,11 +76,17 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(value) = self.inner.as_mut().unwrap().next() {
+        if let Some(value) = self.inner.as_mut().and_then(|i| i.next()) {
             return Some(value);
         }
 
-        let input = self.inner.take().unwrap().into_inner().into_inner().iter;
+        let input = match self.inner.take() {
+            Some(inner) => inner.into_inner().into_inner().iter,
+            None => self
+                .pending
+                .take()
+                .expect("pending is Some when inner is None"),
+        };
 
         let mut input =
             UniformSourceIterator::bootstrap(input, self.target_channels, self.target_sample_rate);
@@ -91,7 +98,13 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.inner.as_ref().unwrap().size_hint().0, None)
+        let lower = self
+            .inner
+            .as_ref()
+            .map(|i| i.size_hint().0)
+            .or_else(|| self.pending.as_ref().map(|p| p.size_hint().0))
+            .unwrap_or(0);
+        (lower, None)
     }
 }
 
@@ -123,6 +136,8 @@ where
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         if let Some(input) = self.inner.as_mut() {
             input.inner_mut().inner_mut().inner_mut().try_seek(pos)
+        } else if let Some(pending) = self.pending.as_mut() {
+            pending.try_seek(pos)
         } else {
             Ok(())
         }

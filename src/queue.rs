@@ -394,8 +394,8 @@ mod tests {
             let (tx, rx) = queue::queue(keep_alive);
             assert_eq!(
                 rx.channels(),
-                nz!(1),
-                "Initial channels should be 1 (keep_alive={keep_alive})"
+                nz!(2),
+                "Initial channels should be 2 (keep_alive={keep_alive})"
             );
             assert_eq!(
                 rx.sample_rate(),

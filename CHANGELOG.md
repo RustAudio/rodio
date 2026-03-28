@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved queue, buffer, mixer and sample rate conversion performance.
 
 ### Fixed
-
+- Fixed a 1-sample channel shift (L/R swap) in Player when rapidly appending stereo sources to an empty queue.
 - Fixed `Player::skip_one` not decreasing the player's length immediately.
 - Fixed `Source::current_span_len()` to consistently return total span length.
 - Fixed `Source::size_hint()` to consistently report actual bounds based on current sources.

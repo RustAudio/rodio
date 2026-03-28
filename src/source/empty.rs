@@ -42,7 +42,7 @@ impl Source for Empty {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        nz!(1)
+        nz!(2) // Default to 2 (stereo) to prevent a 1-sample channel shifting bug in the Queue when swapping to stereo sources.
     }
 
     #[inline]

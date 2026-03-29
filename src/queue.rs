@@ -141,7 +141,7 @@ impl Source for SourcesQueueOutput {
             _ => {
                 // - Current source is not exhausted, and is reporting no span length, or
                 // - Current source is exhausted, and will output silence after it.
-                self.current.channels().get() as usize
+                self.channels().get() as usize
             }
         };
 
@@ -386,6 +386,26 @@ mod tests {
 
         tx.append(new_source);
         assert_eq!(rx.sample_rate(), new_sample_rate);
+    }
+
+    #[test]
+    fn channel_correct_on_first_append() {
+        let (mixer_tx, mut mixer_rx) = crate::mixer::mixer(nz!(2), nz!(48000));
+        let (tx, rx) = queue::queue(true);
+
+        assert_eq!(rx.channels(), nz!(1), "initial channels should be 1");
+        mixer_tx.add(rx);
+
+        tx.append(SamplesBuffer::new(
+            nz!(2),
+            nz!(48000),
+            vec![1.0, -1.0, 1.0, -1.0],
+        ));
+
+        assert_eq!(mixer_rx.next(), Some(1.0), "expected L");
+        assert_eq!(mixer_rx.next(), Some(-1.0), "expected R");
+        assert_eq!(mixer_rx.next(), Some(1.0), "expected L");
+        assert_eq!(mixer_rx.next(), Some(-1.0), "expected R");
     }
 
     #[test]

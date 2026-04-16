@@ -522,9 +522,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let detection = self
-            .span
-            .advance(&self.input);
+        let detection = self.span.advance(&self.input);
 
         if detection.at_span_boundary && detection.parameters_changed {
             let current_sample_rate = self.input.sample_rate();

@@ -126,9 +126,7 @@ where
             // Try to get the next sample from the input.
             let sample = self.input.next()?;
 
-            let detection =
-                self.span
-                    .advance(&self.input);
+            let detection = self.span.advance(&self.input);
 
             if detection.at_span_boundary && detection.parameters_changed {
                 self.duration_per_sample = Self::get_duration_per_sample(&self.input);

@@ -63,10 +63,7 @@ impl SpanTracker {
 
     /// Advances the tracker by one sample and reports whether a span boundary was crossed.
     #[inline]
-    pub fn advance<I: Source>(
-        &mut self,
-        source: &I
-    ) -> SpanDetection {
+    pub fn advance<I: Source>(&mut self, source: &I) -> SpanDetection {
         self.samples_counted = self.samples_counted.saturating_add(1);
 
         let input_span_len = source.current_span_len();
@@ -87,7 +84,6 @@ impl SpanTracker {
                     || current_sample_rate != self.last_sample_rate;
                 self.last_channels = current_channels;
                 self.last_sample_rate = current_sample_rate;
-                
             }
 
             known_boundary.unwrap_or(parameters_changed)

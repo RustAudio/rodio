@@ -87,9 +87,7 @@ where
         let old_rate = self.span.last_sample_rate;
         let old_channels = self.span.last_channels;
 
-        let detection = self
-            .span
-            .advance(&self.input);
+        let detection = self.span.advance(&self.input);
 
         if detection.at_span_boundary {
             // Accumulate duration using the OLD parameters. advance() increments

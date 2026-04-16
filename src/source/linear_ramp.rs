@@ -77,11 +77,8 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-
         // Elapsed time was accumulated in real time and remains valid across parameter changes.
-        let _ = self
-            .span
-            .advance(&self.input);
+        let _ = self.span.advance(&self.input);
 
         let factor = if self.elapsed >= self.total {
             if self.clamp_end {

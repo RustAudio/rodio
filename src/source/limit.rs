@@ -649,9 +649,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         let sample = self.inner.as_mut().unwrap().next()?;
 
-        let detection = self
-            .span
-            .advance(self.inner.as_ref().unwrap());
+        let detection = self.span.advance(self.inner.as_ref().unwrap());
 
         if detection.at_span_boundary && detection.parameters_changed {
             let current_channels = self.inner.as_ref().unwrap().channels();

@@ -187,8 +187,8 @@
 
 #[cfg(feature = "playback")]
 pub use cpal::{
-    self, traits::DeviceTrait, Device, Devices, DevicesError, InputDevices, OutputDevices,
-    SupportedStreamConfig,
+    self, traits::DeviceTrait, Device, Devices, Error as CpalError, ErrorKind as CpalErrorKind,
+    InputDevices, OutputDevices, SupportedStreamConfig,
 };
 
 mod common;

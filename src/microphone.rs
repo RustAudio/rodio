@@ -121,7 +121,7 @@ use rtrb::RingBuffer;
 /// Error that can occur when we can not list the input devices
 #[derive(Debug, thiserror::Error, Clone)]
 #[error("Could not list input devices")]
-pub struct ListError(#[source] cpal::DevicesError);
+pub struct ListError(#[source] cpal::Error);
 assert_error_traits! {ListError}
 
 /// An input device
@@ -248,13 +248,13 @@ impl Iterator for Microphone {
 pub enum OpenError {
     /// Failed to build the input stream.
     #[error("Could not open microphone")]
-    BuildStream(#[source] cpal::BuildStreamError),
+    BuildStream(#[source] cpal::Error),
     /// This is a bug please report it
     #[error("This is a bug, please report it")]
     UnsupportedSampleFormat,
     /// Failed to start the input stream.
     #[error("Could not start the input stream")]
-    Play(#[source] cpal::PlayStreamError),
+    Play(#[source] cpal::Error),
 }
 assert_error_traits! {OpenError}
 
@@ -262,7 +262,7 @@ impl Microphone {
     fn open(
         device: Device,
         config: InputConfig,
-        mut error_callback: impl FnMut(cpal::StreamError) + Send + 'static,
+        mut error_callback: impl FnMut(cpal::Error) + Send + 'static,
     ) -> Result<Self, OpenError> {
         let timeout = Some(Duration::from_millis(100));
         let hundred_ms_of_samples =

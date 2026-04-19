@@ -25,14 +25,14 @@ pub enum Error {
     #[error("Could not get default output configuration for output device: '{device_name}'")]
     DefaultOutputConfig {
         #[source]
-        source: cpal::DefaultStreamConfigError,
+        source: cpal::Error,
         device_name: String,
     },
     /// Failed to get the supported output configurations for the device.
     #[error("Could not get supported output configurations for output device: '{device_name}'")]
     OutputConfigs {
         #[source]
-        source: cpal::SupportedStreamConfigsError,
+        source: cpal::Error,
         device_name: String,
     },
     /// The requested output configuration is not supported by the device.
@@ -59,9 +59,9 @@ pub struct DeviceNotSet;
 
 /// Builder for configuring and opening an OS-Sink, usually a speaker or headphone.
 #[must_use]
-pub struct SpeakersBuilder<Device, Config, E = fn(cpal::StreamError)>
+pub struct SpeakersBuilder<Device, Config, E = fn(cpal::Error)>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     device: Option<(cpal::Device, Vec<SupportedStreamConfigRange>)>,
     config: Option<super::config::OutputConfig>,
@@ -73,7 +73,7 @@ where
 
 impl<Device, Config, E> Debug for SpeakersBuilder<Device, Config, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpeakersBuilder")
@@ -102,28 +102,28 @@ impl Default for SpeakersBuilder<DeviceNotSet, ConfigNotSet> {
     }
 }
 
-fn default_error_callback(err: cpal::StreamError) {
+fn default_error_callback(err: cpal::Error) {
     #[cfg(feature = "tracing")]
     tracing::error!("audio stream error: {err}");
     #[cfg(not(feature = "tracing"))]
     eprintln!("audio stream error: {err}");
 }
 
-impl SpeakersBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::StreamError)> {
+impl SpeakersBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::Error)> {
     /// Creates a new speakers builder.
     ///
     /// # Example
     /// ```no_run
     /// let builder = rodio::speakers::SpeakersBuilder::new();
     /// ```
-    pub fn new() -> SpeakersBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::StreamError)> {
+    pub fn new() -> SpeakersBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::Error)> {
         Self::default()
     }
 }
 
 impl<Device, Config, E> SpeakersBuilder<Device, Config, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Sets the output device to use.
     ///
@@ -190,7 +190,7 @@ where
 
 impl<Config, E> SpeakersBuilder<DeviceIsSet, Config, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Uses the device's default output configuration.
     ///
@@ -285,7 +285,7 @@ where
 
 impl<E> SpeakersBuilder<DeviceIsSet, ConfigIsSet, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Sets the sample rate for output.
     ///
@@ -511,7 +511,7 @@ where
 
 impl<Device, E> SpeakersBuilder<Device, ConfigIsSet, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Returns the current output configuration.
     ///
@@ -533,7 +533,7 @@ where
 
 impl<E> SpeakersBuilder<DeviceIsSet, ConfigIsSet, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Opens the OS-Sink and provide a mixer for playing sources on it.
     ///

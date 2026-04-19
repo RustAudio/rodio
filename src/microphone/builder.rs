@@ -22,14 +22,14 @@ pub enum Error {
     #[error("Could not get default input configuration for input device: '{device_name}'")]
     DefaultInputConfig {
         #[source]
-        source: cpal::DefaultStreamConfigError,
+        source: cpal::Error,
         device_name: String,
     },
     /// Failed to get the supported input configurations for the device.
     #[error("Could not get supported input configurations for input device: '{device_name}'")]
     InputConfigs {
         #[source]
-        source: cpal::SupportedStreamConfigsError,
+        source: cpal::Error,
         device_name: String,
     },
     /// The requested input configuration is not supported by the device.
@@ -56,9 +56,9 @@ pub struct DeviceNotSet;
 
 /// Builder for configuring and opening microphone input streams.
 #[must_use]
-pub struct MicrophoneBuilder<Device, Config, E = fn(cpal::StreamError)>
+pub struct MicrophoneBuilder<Device, Config, E = fn(cpal::Error)>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     device: Option<(cpal::Device, Vec<SupportedStreamConfigRange>)>,
     config: Option<super::config::InputConfig>,
@@ -70,7 +70,7 @@ where
 
 impl<Device, Config, E> Debug for MicrophoneBuilder<Device, Config, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MicrophoneBuilder")
@@ -100,28 +100,28 @@ impl Default for MicrophoneBuilder<DeviceNotSet, ConfigNotSet> {
     }
 }
 
-fn default_error_callback(err: cpal::StreamError) {
+fn default_error_callback(err: cpal::Error) {
     #[cfg(feature = "tracing")]
     tracing::error!("audio stream error: {err}");
     #[cfg(not(feature = "tracing"))]
     eprintln!("audio stream error: {err}");
 }
 
-impl MicrophoneBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::StreamError)> {
+impl MicrophoneBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::Error)> {
     /// Creates a new microphone builder.
     ///
     /// # Example
     /// ```no_run
     /// let builder = rodio::microphone::MicrophoneBuilder::new();
     /// ```
-    pub fn new() -> MicrophoneBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::StreamError)> {
+    pub fn new() -> MicrophoneBuilder<DeviceNotSet, ConfigNotSet, fn(cpal::Error)> {
         Self::default()
     }
 }
 
 impl<Device, Config, E> MicrophoneBuilder<Device, Config, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Sets the input device to use.
     ///
@@ -190,7 +190,7 @@ where
 
 impl<Config, E> MicrophoneBuilder<DeviceIsSet, Config, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Uses the device's default input configuration.
     ///
@@ -287,7 +287,7 @@ where
 
 impl<E> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Sets the sample rate for input.
     ///
@@ -509,7 +509,7 @@ where
 
 impl<Device, E> MicrophoneBuilder<Device, ConfigIsSet, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Returns the current input configuration.
     ///
@@ -531,7 +531,7 @@ where
 
 impl<E> MicrophoneBuilder<DeviceIsSet, ConfigIsSet, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Opens the microphone input stream.
     ///

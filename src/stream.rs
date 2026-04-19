@@ -177,7 +177,7 @@ impl core::fmt::Debug for DeviceSinkBuilder {
     }
 }
 
-fn default_error_callback(err: cpal::StreamError) {
+fn default_error_callback(err: cpal::Error) {
     #[cfg(feature = "tracing")]
     tracing::error!("audio stream error: {err}");
     #[cfg(not(feature = "tracing"))]
@@ -190,9 +190,9 @@ fn default_error_callback(err: cpal::StreamError) {
 ///
 /// <div class="warning">When the DeviceSink is dropped playback will end, and the associated
 /// OS-Sink will be disposed</div>
-pub struct DeviceSinkBuilder<E = fn(cpal::StreamError)>
+pub struct DeviceSinkBuilder<E = fn(cpal::Error)>
 where
-    E: FnMut(cpal::StreamError) + Send + 'static,
+    E: FnMut(cpal::Error) + Send + 'static,
 {
     device: Option<cpal::Device>,
     config: DeviceSinkConfig,
@@ -278,7 +278,7 @@ impl DeviceSinkBuilder {
 
 impl<E> DeviceSinkBuilder<E>
 where
-    E: FnMut(cpal::StreamError) + Send + 'static,
+    E: FnMut(cpal::Error) + Send + 'static,
 {
     /// Sets output audio device keeping all existing stream parameters intact.
     /// This method is useful if you want to set other parameters yourself.
@@ -383,7 +383,7 @@ where
     /// Set a callback that will be called when an error occurs with the stream
     pub fn with_error_callback<F>(self, callback: F) -> DeviceSinkBuilder<F>
     where
-        F: FnMut(cpal::StreamError) + Send + 'static,
+        F: FnMut(cpal::Error) + Send + 'static,
     {
         DeviceSinkBuilder {
             device: self.device,
@@ -470,21 +470,18 @@ assert_error_traits!(PlayError);
 /// Errors that might occur when interfacing with audio output.
 #[derive(Debug, thiserror::Error)]
 pub enum DeviceSinkError {
-    /// Could not start playing the sink, see [cpal::PlayStreamError] for
-    /// details.
+    /// Could not start playing the sink.
     #[error("Could not start playing the stream")]
-    PlayError(#[source] cpal::PlayStreamError),
-    /// Failed to get the stream config for the given device. See
-    /// [cpal::DefaultStreamConfigError] for details.
+    PlayError(#[source] cpal::Error),
+    /// Failed to get the stream config for the given device.
     #[error("Failed to get the config for the given device")]
-    DefaultSinkConfigError(#[source] cpal::DefaultStreamConfigError),
-    /// Error opening sink with OS. See [cpal::BuildStreamError] for details.
+    DefaultSinkConfigError(#[source] cpal::Error),
+    /// Error opening sink with OS.
     #[error("Error opening the stream with the OS")]
-    BuildError(#[source] cpal::BuildStreamError),
-    /// Could not list supported configs for the device. Maybe it
-    /// disconnected. For details see: [cpal::SupportedStreamConfigsError].
+    BuildError(#[source] cpal::Error),
+    /// Could not list supported configs for the device. Maybe it disconnected.
     #[error("Could not list supported configs for the device. Maybe its disconnected?")]
-    SupportedConfigsError(#[source] cpal::SupportedStreamConfigsError),
+    SupportedConfigsError(#[source] cpal::Error),
     /// Could not find any output device
     #[error("Could not find any output device")]
     NoDevice,
@@ -507,7 +504,7 @@ impl MixerDeviceSink {
         error_callback: E,
     ) -> Result<MixerDeviceSink, DeviceSinkError>
     where
-        E: FnMut(cpal::StreamError) + Send + 'static,
+        E: FnMut(cpal::Error) + Send + 'static,
     {
         Self::validate_config(config);
         let (controller, source) = mixer(config.channel_count, config.sample_rate);
@@ -530,7 +527,7 @@ impl MixerDeviceSink {
     ) -> Result<cpal::Stream, DeviceSinkError>
     where
         S: Source + Send + 'static,
-        E: FnMut(cpal::StreamError) + Send + 'static,
+        E: FnMut(cpal::Error) + Send + 'static,
     {
         let cpal_config = config.into();
 

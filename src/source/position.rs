@@ -82,18 +82,12 @@ where
     fn next(&mut self) -> Option<I::Item> {
         let item = self.input.next()?;
 
-        let input_span_len = self.input.current_span_len();
-        let current_sample_rate = self.input.sample_rate();
-        let current_channels = self.input.channels();
-
         // Capture state before advance() resets samples_counted at a boundary.
         let samples_before_boundary = self.span.samples_counted;
         let old_rate = self.span.last_sample_rate;
         let old_channels = self.span.last_channels;
 
-        let detection = self
-            .span
-            .advance(input_span_len, current_sample_rate, current_channels);
+        let detection = self.span.advance(&self.input);
 
         if detection.at_span_boundary {
             // Accumulate duration using the OLD parameters. advance() increments

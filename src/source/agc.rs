@@ -522,15 +522,10 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let current_sample_rate = self.input.sample_rate();
-        let current_channels = self.input.channels();
-        let input_span_len = self.input.current_span_len();
-
-        let detection = self
-            .span
-            .advance(input_span_len, current_sample_rate, current_channels);
+        let detection = self.span.advance(&self.input);
 
         if detection.at_span_boundary && detection.parameters_changed {
+            let current_sample_rate = self.input.sample_rate();
             // Recalculate coefficients for new sample rate
             #[cfg(feature = "experimental")]
             {

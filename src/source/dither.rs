@@ -217,15 +217,11 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         let input_sample = self.input.next()?;
 
-        let input_span_len = self.input.current_span_len();
-        let current_sample_rate = self.input.sample_rate();
-        let current_channels = self.input.channels();
-
-        let detection = self
-            .span
-            .advance(input_span_len, current_sample_rate, current_channels);
+        let detection = self.span.advance(&self.input);
 
         if detection.at_span_boundary {
+            let current_sample_rate = self.input.sample_rate();
+            let current_channels = self.input.channels();
             if detection.parameters_changed {
                 self.noise
                     .update_parameters(current_sample_rate, current_channels);

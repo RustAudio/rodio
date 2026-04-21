@@ -126,13 +126,7 @@ where
             // Try to get the next sample from the input.
             let sample = self.input.next()?;
 
-            let input_span_len = self.input.current_span_len();
-            let current_sample_rate = self.input.sample_rate();
-            let current_channels = self.input.channels();
-
-            let detection =
-                self.span
-                    .advance(input_span_len, current_sample_rate, current_channels);
+            let detection = self.span.advance(&self.input);
 
             if detection.at_span_boundary && detection.parameters_changed {
                 self.duration_per_sample = Self::get_duration_per_sample(&self.input);
@@ -140,7 +134,7 @@ where
             }
 
             self.samples_in_current_frame =
-                (self.samples_in_current_frame + 1) % current_channels.get() as usize;
+                (self.samples_in_current_frame + 1) % self.input.channels().get() as usize;
 
             let sample = match &self.filter {
                 Some(filter) => filter.apply(sample, self),

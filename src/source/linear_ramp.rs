@@ -77,14 +77,8 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        let current_sample_rate = self.input.sample_rate();
-        let current_channels = self.input.channels();
-        let input_span_len = self.input.current_span_len();
-
         // Elapsed time was accumulated in real time and remains valid across parameter changes.
-        let _ = self
-            .span
-            .advance(input_span_len, current_sample_rate, current_channels);
+        let _ = self.span.advance(&self.input);
 
         let factor = if self.elapsed >= self.total {
             if self.clamp_end {
@@ -100,10 +94,10 @@ where
 
         if self
             .sample_idx
-            .is_multiple_of(current_channels.get() as u64)
+            .is_multiple_of(self.input.channels().get() as u64)
         {
             let sample_duration =
-                Duration::from_nanos(NANOS_PER_SEC / current_sample_rate.get() as u64);
+                Duration::from_nanos(NANOS_PER_SEC / self.input.sample_rate().get() as u64);
             self.elapsed += sample_duration;
         }
 

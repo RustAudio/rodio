@@ -119,15 +119,12 @@ where
     fn next(&mut self) -> Option<Sample> {
         let sample = self.inner.as_mut().unwrap().next()?;
 
-        let input_span_len = self.inner.as_ref().unwrap().current_span_len();
-        let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
-        let current_channels = self.inner.as_ref().unwrap().channels();
-
-        let detection = self
-            .span
-            .advance(input_span_len, current_sample_rate, current_channels);
+        let detection = self.span.advance(self.inner.as_ref().unwrap());
 
         if detection.at_span_boundary && detection.parameters_changed {
+            let current_sample_rate = self.inner.as_ref().unwrap().sample_rate();
+            let current_channels = self.inner.as_ref().unwrap().channels();
+
             if current_channels != self.inner.as_ref().unwrap().channels() {
                 let old_inner = self.inner.take().unwrap();
                 let (input, formula) = old_inner.into_parts();

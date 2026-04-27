@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, time::Duration};
 
 use cpal::{
     traits::{DeviceTrait, HostTrait},
@@ -62,6 +62,7 @@ where
 {
     device: Option<(cpal::Device, Vec<SupportedStreamConfigRange>)>,
     config: Option<super::config::InputConfig>,
+    poll_interval: Duration,
     error_callback: E,
 
     device_set: PhantomData<Device>,
@@ -93,6 +94,7 @@ impl Default for MicrophoneBuilder<DeviceNotSet, ConfigNotSet> {
             device: None,
             config: None,
             error_callback: default_error_callback,
+            poll_interval: Duration::from_millis(5),
 
             device_set: PhantomData,
             config_set: PhantomData,
@@ -151,6 +153,7 @@ where
             device: Some((device, supported_configs)),
             config: self.config,
             error_callback: self.error_callback.clone(),
+            poll_interval: self.poll_interval,
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -182,6 +185,7 @@ where
             device: Some((default_device, supported_configs)),
             config: self.config,
             error_callback: self.error_callback.clone(),
+            poll_interval: self.poll_interval,
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -230,6 +234,7 @@ where
             device: self.device.clone(),
             config: Some(config),
             error_callback: self.error_callback.clone(),
+            poll_interval: self.poll_interval,
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -262,6 +267,7 @@ where
             device: self.device.clone(),
             config: Some(config),
             error_callback: self.error_callback.clone(),
+            poll_interval: self.poll_interval,
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -316,6 +322,7 @@ where
             device: self.device.clone(),
             config: Some(new_config),
             error_callback: self.error_callback.clone(),
+            poll_interval: self.poll_interval,
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -367,6 +374,7 @@ where
             device: self.device.clone(),
             config: Some(final_config),
             error_callback: self.error_callback.clone(),
+            poll_interval: self.poll_interval,
             device_set: PhantomData,
             config_set: PhantomData,
         }
@@ -395,6 +403,7 @@ where
             device: self.device.clone(),
             config: Some(new_config),
             error_callback: self.error_callback.clone(),
+            poll_interval: self.poll_interval,
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -457,6 +466,7 @@ where
             device: self.device.clone(),
             config: Some(new_config),
             error_callback: self.error_callback.clone(),
+            poll_interval: self.poll_interval,
             device_set: PhantomData,
             config_set: PhantomData,
         })
@@ -505,6 +515,26 @@ where
             config.buffer_size = cpal::BufferSize::Fixed(size)
         })
     }
+
+    /// Set polling interval for the microphone iterator
+    ///
+    /// Lower values = lower latency but higher CPU usage
+    /// Higher values = higher latency but lower CPU usage
+    ///
+    /// Recommended values:
+    /// - Real-time effects: 1-2ms
+    /// - Interactive applications: 5ms (default)
+    /// - Recording/batch processing: 10-20ms
+    pub fn poll_interval(&self, interval: Duration) -> Self {
+        MicrophoneBuilder {
+            device: self.device.clone(),
+            config: self.config,
+            error_callback: self.error_callback.clone(),
+            poll_interval: interval,
+            device_set: PhantomData,
+            config_set: PhantomData,
+        }
+    }
 }
 
 impl<Device, E> MicrophoneBuilder<Device, ConfigIsSet, E>
@@ -551,6 +581,7 @@ where
         Microphone::open(
             self.device.as_ref().expect("DeviceIsSet").0.clone(),
             *self.config.as_ref().expect("ConfigIsSet"),
+            self.poll_interval,
             self.error_callback.clone(),
         )
     }

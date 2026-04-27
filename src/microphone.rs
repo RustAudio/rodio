@@ -262,6 +262,7 @@ impl Microphone {
     fn open(
         device: Device,
         config: InputConfig,
+        poll_interval: Duration,
         mut error_callback: impl FnMut(cpal::Error) + Send + 'static,
     ) -> Result<Self, OpenError> {
         let timeout = Some(Duration::from_millis(100));
@@ -318,7 +319,7 @@ impl Microphone {
             _stream_handle: stream,
             buffer: rx,
             config,
-            poll_interval: Duration::from_millis(5),
+            poll_interval,
             error_occurred,
         })
     }

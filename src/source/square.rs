@@ -18,13 +18,11 @@ pub struct SquareWave {
 }
 
 impl SquareWave {
-    const SAMPLE_RATE: SampleRate = nz!(48000);
-
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> SquareWave {
         SquareWave {
-            test_square: SignalGenerator::new(Self::SAMPLE_RATE, freq, Function::Square),
+            test_square: SignalGenerator::new(crate::DEFAULT_SAMPLE_RATE, freq, Function::Square),
         }
     }
 }
@@ -56,7 +54,7 @@ impl Source for SquareWave {
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        Self::SAMPLE_RATE
+        crate::DEFAULT_SAMPLE_RATE
     }
 
     #[inline]

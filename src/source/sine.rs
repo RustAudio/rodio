@@ -18,13 +18,11 @@ pub struct SineWave {
 }
 
 impl SineWave {
-    const SAMPLE_RATE: SampleRate = nz!(48000);
-
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> SineWave {
         SineWave {
-            test_sine: SignalGenerator::new(Self::SAMPLE_RATE, freq, Function::Sine),
+            test_sine: SignalGenerator::new(crate::DEFAULT_SAMPLE_RATE, freq, Function::Sine),
         }
     }
 }
@@ -56,7 +54,7 @@ impl Source for SineWave {
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        Self::SAMPLE_RATE
+        crate::DEFAULT_SAMPLE_RATE
     }
 
     #[inline]

@@ -18,13 +18,11 @@ pub struct TriangleWave {
 }
 
 impl TriangleWave {
-    const SAMPLE_RATE: SampleRate = nz!(48000);
-
     /// The frequency of the sine.
     #[inline]
     pub fn new(freq: f32) -> TriangleWave {
         TriangleWave {
-            test_tri: SignalGenerator::new(Self::SAMPLE_RATE, freq, Function::Triangle),
+            test_tri: SignalGenerator::new(crate::DEFAULT_SAMPLE_RATE, freq, Function::Triangle),
         }
     }
 }
@@ -56,7 +54,7 @@ impl Source for TriangleWave {
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        Self::SAMPLE_RATE
+        crate::DEFAULT_SAMPLE_RATE
     }
 
     #[inline]

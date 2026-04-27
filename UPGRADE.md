@@ -6,6 +6,9 @@ The list below only contains required code changes. For a complete list of
 changes and new features, see [CHANGELOG.md](CHANGELOG.md).
 
 # rodio 0.22 to current github version
+- `stream::supported_output_configs` is removed. To pick a non-default device config,
+  call `device.supported_output_configs()` directly and pass your chosen
+  `SupportedStreamConfig` to `DeviceSinkBuilder::with_supported_config`.
 - `Done` now calls a callback instead of decrementing an `Arc<AtomicUsize>`.
   - To retain old behavior replace the `Arc<AtomicUsize>` argument in `Done::new` with
     `move |_| { number.fetch_sub(1, std::sync::atomic::Ordering::Relaxed) }`.

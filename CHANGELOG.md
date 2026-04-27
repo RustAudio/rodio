@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All sources now implement `ExactSizeIterator` when their inner source does.
 - All sources now implement `Iterator::size_hint()`.
 - `Chirp` now implements `try_seek`.
+- Added `DEFAULT_SAMPLE_RATE` set to match `cpal::SAMPLE_RATE_48K`.
 
 ### Changed
 
@@ -25,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ensured decoders to always return complete frames, as well as `TakeDuration` when expired.
 - Breaking: `Zero::new_samples()` now returns `Result<Self, ZeroError>` requiring a frame-aligned number of samples.
 - Improved queue, buffer, mixer and sample rate conversion performance.
+- Default sample rate changed from 44.1 kHz to 48 kHz consistently.
+- `open_sink_or_fallback` now tries 48 kHz and 44.1 kHz before the device's maximum sample rate.
+
+### Removed
+
+- Breaking: Removed `stream::supported_output_configs`. Use `cpal::Device::supported_output_configs`.
 
 ### Fixed
 

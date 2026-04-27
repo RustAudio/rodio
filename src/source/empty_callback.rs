@@ -51,7 +51,7 @@ impl Source for EmptyCallback {
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        nz!(48000)
+        crate::DEFAULT_SAMPLE_RATE
     }
 
     #[inline]

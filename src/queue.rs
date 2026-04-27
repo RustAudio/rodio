@@ -419,8 +419,8 @@ mod tests {
             );
             assert_eq!(
                 rx.sample_rate(),
-                nz!(48000),
-                "Initial sample rate should be 48000 (keep_alive={keep_alive})"
+                crate::DEFAULT_SAMPLE_RATE,
+                "Initial sample rate should be DEFAULT_SAMPLE_RATE (keep_alive={keep_alive})"
             );
 
             tx.append(SamplesBuffer::new(

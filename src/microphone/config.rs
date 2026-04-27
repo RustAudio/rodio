@@ -74,7 +74,7 @@ impl Default for InputConfig {
     fn default() -> Self {
         Self {
             channel_count: nz!(1),
-            sample_rate: nz!(44_100),
+            sample_rate: crate::DEFAULT_SAMPLE_RATE,
             buffer_size: cpal::BufferSize::Default,
             sample_format: cpal::SampleFormat::F32,
         }

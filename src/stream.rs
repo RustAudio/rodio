@@ -30,7 +30,6 @@ use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::num::NonZero;
 
-const HZ_44100: SampleRate = nz!(44_100);
 
 /// `cpal::Stream` container. Use `mixer()` method to control output.
 ///
@@ -128,7 +127,7 @@ impl Default for DeviceSinkConfig {
     fn default() -> Self {
         Self {
             channel_count: nz!(2),
-            sample_rate: HZ_44100,
+            sample_rate: crate::DEFAULT_SAMPLE_RATE,
             buffer_size: BufferSize::Default,
             sample_format: SampleFormat::F32,
         }
@@ -587,7 +586,7 @@ pub fn supported_output_configs(
         let max_rate = sf.max_sample_rate();
         let min_rate = sf.min_sample_rate();
         let mut formats = vec![sf.with_max_sample_rate()];
-        let preferred_rate = HZ_44100.get();
+        let preferred_rate = crate::DEFAULT_SAMPLE_RATE.get();
         if preferred_rate < max_rate && preferred_rate > min_rate {
             formats.push(sf.with_sample_rate(preferred_rate))
         }

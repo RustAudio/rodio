@@ -1,8 +1,13 @@
 use std::fmt::{Debug, Display};
 use std::num::NonZero;
 
+use crate::math::nz;
+
 /// Sample rate (a frame rate or samples per second per channel).
 pub type SampleRate = NonZero<u32>;
+
+/// The default sample rate used by rodio for generators and device sinks.
+pub const DEFAULT_SAMPLE_RATE: SampleRate = nz!(48_000);
 
 /// Number of channels in a stream. Can never be Zero
 pub type ChannelCount = NonZero<u16>;

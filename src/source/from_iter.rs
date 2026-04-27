@@ -103,7 +103,7 @@ where
             src.sample_rate()
         } else {
             // Dummy value that only happens if the iterator was empty.
-            nz!(44100)
+            crate::DEFAULT_SAMPLE_RATE
         }
     }
 

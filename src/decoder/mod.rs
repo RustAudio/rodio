@@ -734,7 +734,7 @@ where
     fn sample_rate(&self) -> SampleRate {
         self.inner
             .as_ref()
-            .map_or(nz!(44100), |inner| inner.sample_rate())
+            .map_or(crate::DEFAULT_SAMPLE_RATE, |inner| inner.sample_rate())
     }
 
     /// Returns the total duration of this audio source.

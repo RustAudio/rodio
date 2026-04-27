@@ -30,7 +30,6 @@ use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::num::NonZero;
 
-
 /// `cpal::Stream` container. Use `mixer()` method to control output.
 ///
 /// <div class="warning">When dropped playback will end, and the associated
@@ -349,8 +348,8 @@ where
         self
     }
 
-    /// Set available parameters from a CPAL supported config. You can get a list of
-    /// such configurations for an output device using [crate::stream::supported_output_configs()]
+    /// Set available parameters from a CPAL supported config. To enumerate what a device supports,
+    /// use [`cpal::Device::supported_output_configs`].
     pub fn with_supported_config(
         mut self,
         config: &cpal::SupportedStreamConfig,
@@ -572,8 +571,11 @@ impl MixerDeviceSink {
     }
 }
 
-/// Return all formats supported by the device.
-pub fn supported_output_configs(
+/// Returns candidate output configurations for the device in preference order.
+///
+/// For each supported format, yields 48 kHz and 44.1 kHz (where the device supports them),
+/// followed by the device's maximum sample rate.
+fn supported_output_configs(
     device: &cpal::Device,
 ) -> Result<impl Iterator<Item = cpal::SupportedStreamConfig>, DeviceSinkError> {
     let mut supported: Vec<_> = device
@@ -585,12 +587,15 @@ pub fn supported_output_configs(
     Ok(supported.into_iter().flat_map(|sf| {
         let max_rate = sf.max_sample_rate();
         let min_rate = sf.min_sample_rate();
-        let mut formats = vec![sf.with_max_sample_rate()];
-        let preferred_rate = crate::DEFAULT_SAMPLE_RATE.get();
-        if preferred_rate < max_rate && preferred_rate > min_rate {
-            formats.push(sf.with_sample_rate(preferred_rate))
+        let mut formats = Vec::new();
+        for rate in [cpal::SAMPLE_RATE_48K, cpal::SAMPLE_RATE_CD] {
+            if rate >= min_rate && rate <= max_rate {
+                formats.push(sf.with_sample_rate(rate));
+            }
         }
-        formats.push(sf.with_sample_rate(min_rate));
+        if !formats.iter().any(|f| f.sample_rate() == max_rate) {
+            formats.push(sf.with_max_sample_rate());
+        }
         formats
     }))
 }

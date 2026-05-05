@@ -6,7 +6,7 @@
 //! In order to speed up a sink, the speed struct:
 //! - Increases the current sample rate by the given factor.
 //! - Updates the total duration function to cover for the new factor by dividing by the factor.
-//! - Updates the try_seek function by multiplying the audio position by the factor.
+//! - Passes the seek position directly to the inner source (independent of speed factor).
 //!
 //! To speed up a source from sink all you need to do is call the   `set_speed(factor: f32)` function
 //! For example, here is how you speed up your sound by using sink or playing raw:
@@ -139,7 +139,6 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        let pos_accounting_for_speedup = pos.mul_f32(self.factor);
-        self.input.try_seek(pos_accounting_for_speedup)
+        self.input.try_seek(pos)
     }
 }

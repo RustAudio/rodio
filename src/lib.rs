@@ -184,6 +184,7 @@
     allow(unreachable_code)
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(feature = "rtsan", feature(sanitize))]
 
 #[cfg(feature = "playback")]
 pub use cpal::{

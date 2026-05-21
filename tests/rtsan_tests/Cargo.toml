@@ -1,0 +1,7 @@
+[package]
+edition.workspace = true
+name = "rtsan_tests"
+publish = false
+
+[dependencies]
+rodio = { workspace = true, features = ["rtsan"]}

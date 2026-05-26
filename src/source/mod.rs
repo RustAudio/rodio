@@ -199,6 +199,12 @@ pub trait Source: Iterator<Item = Sample> {
     /// to determine how many samples remain in the iterator.
     fn current_span_len(&self) -> Option<usize>;
 
+    #[cfg(feature = "rtsan")]
+    #[cfg_attr(feature = "rtsan", sanitize(realtime = "nonblocking"))]
+    fn next(&mut self) -> Option<Sample> {
+        <Self as Iterator>::next(self)
+    }
+
     /// Returns true if the source is exhausted (has no more samples available).
     #[inline]
     fn is_exhausted(&self) -> bool {

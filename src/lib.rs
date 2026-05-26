@@ -184,6 +184,9 @@
     allow(unreachable_code)
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(feature = "rtsan", feature(sanitize))]
+// used to overwrite the `Iterator::next` function to be sanitized by rtsan
+#![cfg_attr(feature = "rtsan", feature(supertrait_item_shadowing))]
 
 #[cfg(feature = "playback")]
 pub use cpal::{

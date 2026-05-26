@@ -597,6 +597,7 @@ where
                 $(
                     cpal::SampleFormat::$sample_format => device.build_output_stream::<$generic, _, _>(
                         cpal_config2,
+                        #[cfg_attr(feature = "rtsan", sanitize(realtime = "nonblocking"))]
                         move |data, _| {
                             data.iter_mut().for_each(|d| {
                                 *d = source

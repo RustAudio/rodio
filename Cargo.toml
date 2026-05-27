@@ -35,8 +35,6 @@ wav_output = ["dep:hound"]
 tracing = ["dep:tracing"]
 # Experimental features using atomic floating-point operations
 experimental = ["dep:atomic_float"]
-# Perform all calculations with 64-bit floats (instead of 32)
-64bit = []
 
 # Audio generation features
 #
@@ -45,9 +43,30 @@ dither = ["noise"]
 # Enable noise generation (white noise, pink noise, etc.)
 noise = ["rand", "rand_distr"]
 
+# Performance features
+#
+# Perform all calculations with 64-bit floats (instead of 32)
+64bit = []
+# Real-time audio thread scheduling
+realtime = ["cpal/realtime"]
+# D-Bus/rtkit support on top of `realtime` for RT scheduling on Linux/BSD desktop systems
+realtime-dbus = ["cpal/realtime-dbus"]
+# SIMD-accelerated audio processing
+simd = ["symphonia/opt-simd"]
+
 # Platform-specific features
 #
-# Enable WebAssembly support for web browsers
+# ASIO backend for Windows
+asio = ["cpal/asio"]
+# Audio Worklet backend for WebAssembly
+audio-worklet = ["cpal/audioworklet"]
+# JACK Audio Connection Kit backend
+jack = ["cpal/jack"]
+# PipeWire backend
+pipewire = ["cpal/pipewire"]
+# PulseAudio backend
+pulseaudio = ["cpal/pulseaudio"]
+# WebAssembly backend using wasm-bindgen
 wasm-bindgen = ["cpal/wasm-bindgen"]
 
 # Base symphonia feature (doesn't enable any codecs)
@@ -97,9 +116,6 @@ symphonia-alac = ["symphonia/alac"]
 symphonia-pcm = ["symphonia/pcm"]
 symphonia-vorbis = ["symphonia/vorbis"]
 symphonia-wav = ["symphonia/wav"]
-
-# Enable SIMD optimisations for Symphonia
-symphonia-simd = ["symphonia/opt-simd"]
 
 # libopus adapter for Symphonia
 symphonia-libopus = ["symphonia", "dep:symphonia-adapter-libopus"]

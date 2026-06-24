@@ -29,6 +29,8 @@ pub use self::from_factory::{from_factory, FromFactoryIter};
 pub use self::from_iter::{from_iter, FromIter};
 pub use self::limit::{Limit, LimitSettings};
 pub use self::linear_ramp::LinearGainRamp;
+#[cfg(feature = "loudness")]
+pub use self::loudness::Loudness;
 pub use self::mix::Mix;
 pub use self::pausable::Pausable;
 pub use self::periodic::PeriodicAccess;
@@ -66,6 +68,8 @@ mod from_factory;
 mod from_iter;
 mod limit;
 mod linear_ramp;
+#[cfg(feature = "loudness")]
+mod loudness;
 mod mix;
 mod pausable;
 mod periodic;
@@ -439,6 +443,35 @@ pub trait Source: Iterator<Item = Sample> {
             release_time_limited,
             agc_settings.absolute_max_gain,
         )
+    }
+
+    /// Wraps the source in a [`Loudness`] adapter that measures perceptual loudness
+    /// (EBU R128 / ITU-R BS.1770) in LUFS, passing the audio through unchanged.
+    ///
+    /// Read the current loudness at any point via [`Loudness::momentary_lufs`],
+    /// [`Loudness::short_term_lufs`], or [`Loudness::integrated_lufs`].
+    ///
+    /// Requires the `loudness` feature.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use rodio::{decoder::Decoder, source::Source};
+    /// use std::fs::File;
+    /// use std::io::BufReader;
+    ///
+    /// let source = Decoder::new(BufReader::new(File::open("audio.wav")?))?;
+    /// let mut metered = source.loudness();
+    /// // consume samples (e.g. play them), then:
+    /// println!("Momentary loudness: {} LUFS", metered.momentary_lufs());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[cfg(feature = "loudness")]
+    #[inline]
+    fn loudness(self) -> Loudness<Self>
+    where
+        Self: Sized,
+    {
+        loudness::loudness(self)
     }
 
     /// Mixes this sound fading out with another sound fading in for the given duration.

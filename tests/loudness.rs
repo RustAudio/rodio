@@ -37,7 +37,8 @@ fn loud_sine_reads_plausible_lufs() {
 fn silence_is_negative_infinity() {
     let channels = NonZero::new(1).unwrap();
     let rate = NonZero::new(48_000).unwrap();
-    let silence = SamplesBuffer::new(channels, rate, vec![0.0f32; 48_000]);
+    let silence: Vec<Sample> = vec![0.0; 48_000];
+    let silence = SamplesBuffer::new(channels, rate, silence);
 
     let mut metered = silence.loudness();
     let _: Vec<Sample> = metered.by_ref().collect();
@@ -68,9 +69,9 @@ fn louder_signal_reads_higher() {
 fn stereo_source_is_measured_and_passed_through() {
     // Interleaved stereo: identical tone in both channels.
     let frames = 48_000;
-    let mut samples = Vec::with_capacity(frames * 2);
+    let mut samples: Vec<Sample> = Vec::with_capacity(frames * 2);
     for i in 0..frames {
-        let s = (i as f32 * 0.05).sin() * 0.5;
+        let s = (i as Sample * 0.05).sin() * 0.5;
         samples.push(s); // left
         samples.push(s); // right
     }

@@ -200,6 +200,10 @@ name = "automatic_gain_control"
 required-features = ["playback", "flac"]
 
 [[example]]
+name = "loudness"
+required-features = ["playback", "loudness"]
+
+[[example]]
 name = "basic"
 required-features = ["playback", "vorbis"]
 

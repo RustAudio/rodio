@@ -228,6 +228,7 @@ pub mod conversions;
 pub mod decoder;
 #[cfg(feature = "experimental")]
 pub mod fixed_source;
+pub mod generators;
 pub mod math;
 #[cfg(feature = "recording")]
 /// Microphone input support for audio recording.

@@ -2,7 +2,7 @@
 //! channel count.
 use std::time::Duration;
 
-use crate::{ChannelCount, Sample, SampleRate};
+use crate::{ChannelCount, ConstSource, Sample, SampleRate};
 
 /// Similar to `Source`, something that can produce interleaved samples for a
 /// fixed amount of channels at a fixed sample rate. Those parameters never
@@ -16,4 +16,109 @@ pub trait FixedSource: Iterator<Item = Sample> {
     ///
     /// `None` indicates at the same time "infinite" or "unknown".
     fn total_duration(&self) -> Option<Duration>;
+
+    /// Tries to convert from a fixed source to a const one assuming
+    /// the parameters already match. If they do not this returns an error.
+    ///
+    /// If the parameters do not match you can resample using:
+    /// [`with_sample_rate`](Self::with_sample_rate) and
+    /// [`with_channel_count`](Self::with_channel_count).
+    fn try_into_const_source<const SR: u32, const CH: u16>(
+        self,
+    ) -> Result<IntoConstSource<SR, CH, Self>, ParameterMismatch<SR, CH>>
+    where
+        Self: Sized,
+    {
+        if self.channels().get() != CH || self.sample_rate().get() != SR {
+            Err(ParameterMismatch {
+                sample_rate: self.sample_rate(),
+                channel_count: self.channels(),
+            })
+        } else {
+            Ok(IntoConstSource(self))
+        }
+    }
+
+    /// Use this fixed source as if it's a dynamic source. You generally do not
+    /// want to do this since there are less effects for dynamic sources and
+    /// those that are available can not be implemented as efficient. This is
+    /// therefore purely provided for backwards compatibility.
+    fn into_dynamic_source(self) -> IntoDynamicSource<Self>
+    where
+        Self: Sized,
+    {
+        IntoDynamicSource(self)
+    }
+}
+
+/// A [`ConstSource`] adapted from a [`FixedSource`].
+pub struct IntoConstSource<const SR: u32, const CH: u16, S: FixedSource>(S);
+
+impl<const SR: u32, const CH: u16, S: FixedSource> ConstSource<SR, CH>
+    for IntoConstSource<SR, CH, S>
+{
+    fn total_duration(&self) -> Option<Duration> {
+        self.0.total_duration()
+    }
+}
+
+impl<const SR: u32, const CH: u16, S: FixedSource> Iterator for IntoConstSource<SR, CH, S> {
+    type Item = Sample;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+/// Error that occurs when a [`FixedSource`] can not be converted into a
+/// [`ConstSource`] with a certain sample rate and channel count.
+#[derive(Debug)]
+pub struct ParameterMismatch<const SR: u32, const CH: u16> {
+    sample_rate: SampleRate,
+    channel_count: ChannelCount,
+}
+
+impl<const SR: u32, const CH: u16> std::error::Error for ParameterMismatch<SR, CH> {}
+
+impl<const SR: u32, const CH: u16> std::fmt::Display for ParameterMismatch<SR, CH> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.sample_rate.get() == SR && self.channel_count.get() == CH {
+            unreachable!("ParameterMismatch error can only occur when params mismatch");
+        } else if self.sample_rate.get() == SR && self.channel_count.get() != CH {
+            f.write_fmt(format_args!("Fixed source's channel count: {}, does not match target const source's channel count: {}", self.channel_count.get(), CH))
+        } else if self.sample_rate.get() != SR && self.channel_count.get() != CH {
+            f.write_fmt(format_args!("Fixed source's sample rate and channel count ({}, {}) do not match target const source's sample rate and channel count ({} {})", self.sample_rate.get(), self.channel_count.get(), SR, CH))
+        } else {
+            f.write_fmt(format_args!("Fixed source's sample rate : {}, does not match target const source's sample rate: {}", self.sample_rate.get(), SR))
+        }
+    }
+}
+
+/// A [`DynamicSource`] adapted from a [`FixedSource`].
+pub struct IntoDynamicSource<S: FixedSource>(S);
+
+impl<S: FixedSource> crate::DynamicSource for IntoDynamicSource<S> {
+    fn current_span_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn channels(&self) -> ChannelCount {
+        self.0.channels()
+    }
+
+    fn sample_rate(&self) -> SampleRate {
+        self.0.sample_rate()
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
+        self.0.total_duration()
+    }
+}
+
+impl<S: FixedSource> Iterator for IntoDynamicSource<S> {
+    type Item = crate::Sample;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
 }

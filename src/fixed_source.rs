@@ -4,6 +4,12 @@ use std::time::Duration;
 
 use crate::{ChannelCount, ConstSource, Sample, SampleRate};
 
+mod buffer;
+mod chain;
+
+pub use buffer::SamplesBuffer;
+pub use chain::SourceChain;
+
 /// Similar to `Source`, something that can produce interleaved samples for a
 /// fixed amount of channels at a fixed sample rate. Those parameters never
 /// change.
@@ -21,8 +27,8 @@ pub trait FixedSource: Iterator<Item = Sample> {
     /// the parameters already match. If they do not this returns an error.
     ///
     /// If the parameters do not match you can resample using:
-    /// [`with_sample_rate`](Self::with_sample_rate) and
-    /// [`with_channel_count`](Self::with_channel_count).
+    /// [`with_sample_rate`](Self::placeholder) and
+    /// [`with_channel_count`](Self::placeholder).
     fn try_into_const_source<const SR: u32, const CH: u16>(
         self,
     ) -> Result<IntoConstSource<SR, CH, Self>, ParameterMismatch<SR, CH>>
@@ -49,6 +55,55 @@ pub trait FixedSource: Iterator<Item = Sample> {
     {
         IntoDynamicSource(self)
     }
+
+    /// Add another source to play directly after this one.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use rodio::nz;
+    /// # use rodio::FixedSource;
+    /// # use rodio::fixed_source::SamplesBuffer;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let preamble = SamplesBuffer::new(nz!(1), nz!(1), [1.0, 1.0]);
+    /// let signal = SamplesBuffer::new(nz!(1), nz!(1), [2.0, 2.0]);
+    ///
+    /// let mixed = preamble.try_chain_source(signal)?;
+    /// assert_eq!(mixed.collect::<Vec<_>>(), vec![1.0,1.0,2.0,2.0]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn try_chain_source<S: FixedSource>(
+        self,
+        next: S,
+    ) -> Result<SourceChain<Self, S>, chain::ParamsMismatch>
+    where
+        Self: Sized,
+    {
+        SourceChain::new(self, next)
+    }
+
+    // placeholder until effects land (need this for some examples)
+    #[allow(missing_docs)]
+    fn take_duration(self, _duration: Duration) -> Placeholder<Self>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    /// here to make docs links work without the linked item being in
+    /// remove before next release
+    fn placeholder(&self) {}
+}
+
+// placeholder until effects land (need this for some examples)
+#[allow(missing_docs)]
+pub struct Placeholder<S>
+where
+    S: FixedSource,
+{
+    inner: std::marker::PhantomData<S>,
 }
 
 /// A [`ConstSource`] adapted from a [`FixedSource`].
@@ -94,7 +149,7 @@ impl<const SR: u32, const CH: u16> std::fmt::Display for ParameterMismatch<SR, C
     }
 }
 
-/// A [`DynamicSource`] adapted from a [`FixedSource`].
+/// A [`DynamicSource`](crate::DynamicSource) adapted from a [`FixedSource`].
 pub struct IntoDynamicSource<S: FixedSource>(S);
 
 impl<S: FixedSource> crate::DynamicSource for IntoDynamicSource<S> {

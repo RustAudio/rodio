@@ -8,7 +8,6 @@
 //! A const pipeline _may_ also be optimized more by the compiler as many
 //! branches are known at compile time, like when converting from one channel
 //! count to another.
-use std::marker::PhantomData;
 use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::time::Duration;
@@ -131,7 +130,7 @@ pub struct Placeholder<const SR: u32, const CH: u16, S>
 where
     S: ConstSource<SR, CH>,
 {
-    inner: PhantomData<S>,
+    inner: std::marker::PhantomData<S>,
 }
 
 /// A `DynamicSource` converted from a `ConstSource`. Useful for passing to old

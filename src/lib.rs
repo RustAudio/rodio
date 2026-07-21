@@ -230,6 +230,7 @@ pub mod decoder;
 pub mod fixed_source;
 pub mod const_source;
 
+pub mod generators;
 pub mod math;
 #[cfg(feature = "recording")]
 /// Microphone input support for audio recording.

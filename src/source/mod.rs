@@ -217,9 +217,7 @@ pub trait Source: Iterator<Item = Sample> {
     /// Returns the rate at which the source should be played. In number of samples per second.
     fn sample_rate(&self) -> SampleRate;
 
-    /// Returns the total duration of this source, if known.
-    ///
-    /// `None` indicates at the same time "infinite" or "unknown".
+    #[doc = include_str!("../docs/total_duration.md")]
     fn total_duration(&self) -> Option<Duration>;
 
     /// Stores the source in a buffer in addition to returning it. This iterator can be cloned.

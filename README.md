@@ -6,8 +6,11 @@
 
 > [!WARNING]
 > We are currently rewriting Rodio's core audio engine. The current state should
-> be working but under documented. This is expected to take at least a month. 
-> For the latest unreleased work pre engine rewrite see [this checkout](https://github.com/RustAudio/rodio/tree/c5f1e94290922fe4ee963ce6f85754ea6ba36243)
+> be working but under documented. This is expected to take at least a month.
+> For the latest unreleased work pre engine rewrite see [this
+> checkout](https://github.com/RustAudio/rodio/tree/c5f1e94290922fe4ee963ce6f85754ea6ba36243).
+> To follow our progress see the [tracking
+> issue](https://github.com/RustAudio/rodio/issues/901)
 
 Rust playback library.
 

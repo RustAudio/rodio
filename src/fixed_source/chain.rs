@@ -7,8 +7,8 @@ use crate::{ChannelCount, SampleRate};
 /// Two chained sources, the one played after the other.
 #[derive(Clone)]
 pub struct SourceChain<S1, S2> {
-    inner: S1,
-    next: S2,
+    first: S1,
+    second: S2,
     playing_inner: bool,
 }
 
@@ -43,44 +43,19 @@ impl<S1: FixedSource, S2: FixedSource> SourceChain<S1, S2> {
             })
         } else {
             Ok(SourceChain {
-                inner: s1,
-                next: s2,
+                first: s1,
+                second: s2,
                 playing_inner: true,
             })
         }
     }
 }
 
+pub use crate::common::source::chain::ChainSeekError;
 impl<S1: FixedSource, S2: FixedSource> FixedSource for SourceChain<S1, S2> {
-    fn channels(&self) -> ChannelCount {
-        self.inner.channels()
-    }
-
-    fn sample_rate(&self) -> SampleRate {
-        self.inner.sample_rate()
-    }
-
-    fn total_duration(&self) -> Option<std::time::Duration> {
-        self.inner
-            .total_duration()
-            .and_then(|d| self.next.total_duration().map(|d2| d2 + d))
-    }
+    crate::common::source::chain::source_impl! {}
 }
 
 impl<S1: FixedSource, S2: FixedSource> Iterator for SourceChain<S1, S2> {
-    type Item = Sample;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.playing_inner {
-            match self.inner.next() {
-                Some(sample) => Some(sample),
-                None => {
-                    self.playing_inner = false;
-                    self.next.next()
-                }
-            }
-        } else {
-            self.next.next()
-        }
-    }
+    crate::common::source::chain::iter_impl! {}
 }

@@ -224,10 +224,10 @@ pub mod stream;
 mod wav_output;
 
 pub mod buffer;
-pub mod const_source;
 pub mod conversions;
 pub mod decoder;
 
+pub mod const_source;
 pub mod fixed_source;
 
 pub mod generators;

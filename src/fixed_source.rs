@@ -2,6 +2,7 @@
 //! channel count.
 use std::time::Duration;
 
+use crate::source::SeekError;
 use crate::{ChannelCount, ConstSource, Sample, SampleRate};
 
 mod buffer;
@@ -22,6 +23,14 @@ pub trait FixedSource: Iterator<Item = Sample> {
     ///
     /// `None` indicates at the same time "infinite" or "unknown".
     fn total_duration(&self) -> Option<Duration>;
+
+    #[allow(unused_variables)]
+    #[doc = include_str!("docs/try_seek.md")]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
+    }
 
     /// Tries to convert from a fixed source to a const one assuming
     /// the parameters already match. If they do not this returns an error.
@@ -54,6 +63,18 @@ pub trait FixedSource: Iterator<Item = Sample> {
         Self: Sized,
     {
         IntoDynamicSource(self)
+    }
+
+    #[doc = include_str!("docs/collect_into_buffer.md")]
+    fn collect_into_buffer(self) -> SamplesBuffer
+    where
+        Self: Sized,
+    {
+        SamplesBuffer::new(
+            self.channels(),
+            self.sample_rate(),
+            self.collect::<Vec<_>>(),
+        )
     }
 
     /// Add another source to play directly after this one.
@@ -104,6 +125,35 @@ where
     S: FixedSource,
 {
     inner: std::marker::PhantomData<S>,
+}
+
+impl<S> Placeholder<S>
+where
+    S: FixedSource,
+{
+    /// placeholder
+    pub fn record(self) -> Placeholder<S> {
+        self
+    }
+}
+
+impl<S: FixedSource> FixedSource for Placeholder<S> {
+    fn channels(&self) -> ChannelCount {
+        unimplemented!("placeholder")
+    }
+    fn sample_rate(&self) -> SampleRate {
+        unimplemented!("placeholder")
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        unimplemented!("placeholder")
+    }
+}
+
+impl<S: FixedSource> Iterator for Placeholder<S> {
+    type Item = Sample;
+    fn next(&mut self) -> Option<Self::Item> {
+        unimplemented!("placeholder")
+    }
 }
 
 /// A [`ConstSource`] adapted from a [`FixedSource`].

@@ -1,6 +1,6 @@
 use inquire::Select;
 use rodio::microphone::{self, MicrophoneBuilder};
-use rodio::Source;
+use rodio::FixedSource;
 use std::error::Error;
 use std::thread;
 use std::time::Duration;
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Playing the recording");
     let mut output = rodio::DeviceSinkBuilder::open_default_sink()?;
-    output.mixer().add(recording);
+    output.mixer().add(recording.into_dynamic_source());
 
     thread::sleep(Duration::from_secs(5));
 

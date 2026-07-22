@@ -12,9 +12,8 @@
 //!
 
 use crate::common::{ChannelCount, SampleRate};
-use crate::math::{duration_to_float, NANOS_PER_SEC};
 use crate::source::{SeekError, UniformSourceIterator};
-use crate::{Float, Sample, Source};
+use crate::{Sample, Source};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -25,37 +24,19 @@ pub struct SamplesBuffer {
     pos: usize,
     channels: ChannelCount,
     sample_rate: SampleRate,
-    duration: Duration,
 }
 
 impl SamplesBuffer {
     /// Builds a new `SamplesBuffer`.
-    ///
-    /// # Panics
-    ///
-    /// - Panics if the samples rate is zero.
-    /// - Panics if the length of the buffer is larger than approximately 16 billion elements.
-    ///   This is because the calculation of the duration would overflow.
-    ///
     pub fn new<D>(channels: ChannelCount, sample_rate: SampleRate, data: D) -> Self
     where
         D: Into<Vec<Sample>>,
     {
-        let data: Arc<[Sample]> = data.into().into();
-        let duration_ns = NANOS_PER_SEC.checked_mul(data.len() as u64).unwrap()
-            / sample_rate.get() as u64
-            / channels.get() as u64;
-        let duration = Duration::new(
-            duration_ns / NANOS_PER_SEC,
-            (duration_ns % NANOS_PER_SEC) as u32,
-        );
-
         Self {
-            data,
+            data: data.into().into(),
             pos: 0,
             channels,
             sample_rate,
-            duration,
         }
     }
 
@@ -91,50 +72,11 @@ impl Source for SamplesBuffer {
         self.sample_rate
     }
 
-    #[inline]
-    fn total_duration(&self) -> Option<Duration> {
-        Some(self.duration)
-    }
-
-    /// This jumps in memory till the sample for `pos`.
-    #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        // This is fast because all the samples are in memory already
-        // and due to the constant sample_rate we can jump to the right
-        // sample directly.
-
-        let curr_channel = self.pos % self.channels().get() as usize;
-        let new_pos = duration_to_float(pos)
-            * self.sample_rate().get() as Float
-            * self.channels().get() as Float;
-        // saturate pos at the end of the source
-        let new_pos = new_pos as usize;
-        let new_pos = new_pos.min(self.data.len());
-
-        // make sure the next sample is for the right channel
-        let new_pos = new_pos.next_multiple_of(self.channels().get() as usize);
-        let new_pos = new_pos - curr_channel;
-
-        self.pos = new_pos;
-        Ok(())
-    }
+    crate::common::source::buffer::source_impl! {}
 }
 
 impl Iterator for SamplesBuffer {
-    type Item = Sample;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        let sample = self.data.get(self.pos)?;
-        self.pos += 1;
-        Some(*sample)
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.data.len() - self.pos;
-        (remaining, Some(remaining))
-    }
+    crate::common::source::buffer::iter_impl! {}
 }
 
 impl ExactSizeIterator for SamplesBuffer {}

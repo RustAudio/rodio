@@ -58,6 +58,14 @@ pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
         IntoDynamicSource { inner: self }
     }
 
+    #[doc = include_str!("docs/collect_into_buffer.md")]
+    fn collect_into_buffer(self) -> SamplesBuffer<SR, CH>
+    where
+        Self: Sized,
+    {
+        SamplesBuffer::new(self.collect::<Vec<_>>())
+    }
+
     /// Add another source to play directly after this one.
     ///
     /// # Example

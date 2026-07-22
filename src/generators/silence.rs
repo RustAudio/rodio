@@ -1,11 +1,14 @@
 pub mod const_source {
+    use std::time::Duration;
+
+    use crate::source::SeekError;
     use crate::ConstSource;
 
     /// A source producing an infinite amount of Silence. Like all generators you
     /// probably want to limit the duration of this source.
     ///
     /// # Example
-    /// Padding a [`TakeDuration`](crate::effects::const_source::TakeDuration) to
+    /// Padding a [`TakeDuration`](crate::const_source::Placeholder) to
     /// guarantee an exact playtime:
     ///
     /// ```rust,no_run
@@ -27,7 +30,7 @@ pub mod const_source {
             Self
         }
     }
-    
+
     impl<const SR: u32> Default for Silence<SR> {
         fn default() -> Self {
             Self
@@ -37,6 +40,11 @@ pub mod const_source {
     impl<const SR: u32> ConstSource<SR, 1> for Silence<SR> {
         fn total_duration(&self) -> Option<std::time::Duration> {
             None
+        }
+
+        /// This does nothing since all silence is equal :3
+        fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+            Ok(())
         }
     }
 

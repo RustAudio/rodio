@@ -1,4 +1,4 @@
-//! A sound source that has it's sample rate and number of channels fixed at compile time. 
+//! A sound source that has it's sample rate and number of channels fixed at compile time.
 //! Some practical examples:
 //! - An effect performed by a neural network trained on a specific channel
 //!   count and sample rate
@@ -13,16 +13,17 @@ use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::time::Duration;
 
+use crate::source::SeekError;
 use crate::ChannelCount;
 use crate::Sample;
 use crate::SampleRate;
-use crate::Source as DynamicSource; // will be renamed to this upstream
+use crate::Source as DynamicSource; // Source will (probably) be renamed to this later
 
-mod chain;
 mod buffer;
+mod chain;
 
-pub use chain::SourceChain;
 pub use buffer::SamplesBuffer;
+pub use chain::SourceChain;
 
 /// A source which sample rate and channel count are fixed at compile time.
 pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
@@ -37,6 +38,14 @@ pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
 
     #[doc = include_str!("docs/total_duration.md")]
     fn total_duration(&self) -> Option<Duration>;
+
+    #[allow(unused_variables)]
+    #[doc = include_str!("docs/try_seek.md")]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        Err(SeekError::NotSupported {
+            underlying_source: std::any::type_name::<Self>(),
+        })
+    }
 
     /// Use this const source as if it's a dynamic source. You generally do not
     /// want to do this since there are less effects for dynamic sources and

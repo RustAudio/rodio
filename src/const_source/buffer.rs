@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::Sample;
+use crate::source::SeekError;
 use crate::ConstSource;
+use crate::Sample;
 
 /// A buffer of samples treated as a source.
 #[derive(Debug, Clone)]
@@ -46,23 +47,24 @@ impl<const SR: u32, const CH: u16> ConstSource<SR, CH> for SamplesBuffer<SR, CH>
             (duration_ns % 1_000_000_000) as u32,
         ))
     }
-    // /// This jumps in memory till the sample for `pos`.
-    // #[inline]
-    // fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-    //     // This is fast because all the samples are in memory already
-    //     // and due to the constant sample_rate we can jump to the right
-    //     // sample directly.
-    //     let curr_channel = self.pos % self.channels() as usize;
-    //     let new_pos = pos.as_secs_f32() * self.sample_rate() as f32 * self.channels() as f32;
-    //     // saturate pos at the end of the source
-    //     let new_pos = new_pos as usize;
-    //     let new_pos = new_pos.min(self.data.len());
-    //     // make sure the next sample is for the right channel
-    //     let new_pos = new_pos.next_multiple_of(self.channels() as usize);
-    //     let new_pos = new_pos - curr_channel;
-    //     self.pos = new_pos;
-    //     Ok(())
-    // }
+    /// This jumps in memory till the sample for `pos`.
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        // This is fast because all the samples are in memory already
+        // and due to the constant sample_rate we can jump to the right
+        // sample directly.
+        let curr_channel = self.pos % self.channels().get() as usize;
+        let new_pos =
+            pos.as_secs_f32() * self.sample_rate().get() as f32 * self.channels().get() as f32;
+        // saturate pos at the end of the source
+        let new_pos = new_pos as usize;
+        let new_pos = new_pos.min(self.data.len());
+        // make sure the next sample is for the right channel
+        let new_pos = new_pos.next_multiple_of(self.channels().get() as usize);
+        let new_pos = new_pos - curr_channel;
+        self.pos = new_pos;
+        Ok(())
+    }
 }
 
 impl<const SR: u32, const CH: u16> Iterator for SamplesBuffer<SR, CH> {

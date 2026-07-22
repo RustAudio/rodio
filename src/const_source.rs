@@ -15,6 +15,7 @@ use std::time::Duration;
 
 use crate::source::SeekError;
 use crate::ChannelCount;
+use crate::FixedSource;
 use crate::Sample;
 use crate::SampleRate;
 use crate::Source as DynamicSource; // Source will (probably) be renamed to this later
@@ -58,6 +59,33 @@ pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
         IntoDynamicSource { inner: self }
     }
 
+     /// Use this const source as if it's a fixed source which is generally
+     /// easier to work with since it drops the generics. The same effects are
+     /// available for both.
+     ///
+     /// # Example
+     ///
+     /// ```rust
+     /// # struct CustomEffect<S: FixedSource>(S);
+     /// # use rodio::{FixedSource, ConstSource};
+     /// # use rodio::generators::const_source;
+     ///
+     /// // Note custom effect can only wrap a FixedSource
+     /// fn apply_custom_effect<S: FixedSource>(source: S) -> CustomEffect<S> {
+     ///     CustomEffect(source)
+     /// }
+     ///
+     /// let source = const_source::Silence::<44100>::new();
+     /// let source = source.into_fixed_source();
+     /// apply_custom_effect(source);
+     /// ```
+     fn into_fixed_source(self) -> IntoFixedSource<SR, CH, Self>
+     where
+         Self: Sized,
+     {
+         IntoFixedSource { inner: self }
+     }
+ 
     #[doc = include_str!("docs/collect_into_buffer.md")]
     fn collect_into_buffer(self) -> SamplesBuffer<SR, CH>
     where
@@ -144,6 +172,44 @@ where
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {
+        self.inner.total_duration()
+    }
+}
+
+/// A `FixedSource` converted from a `ConstSource`. Useful for passing to APIs
+/// that do not accept a `ConstSource`.
+#[derive(Clone)]
+pub struct IntoFixedSource<const SR: u32, const CH: u16, S>
+where
+    S: ConstSource<SR, CH>,
+{
+    inner: S,
+}
+
+impl<const SR: u32, const CH: u16, S> Iterator for IntoFixedSource<SR, CH, S>
+where
+    S: ConstSource<SR, CH>,
+{
+    type Item = Sample;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<const SR: u32, const CH: u16, S> FixedSource for IntoFixedSource<SR, CH, S>
+where
+    S: ConstSource<SR, CH>,
+{
+    fn channels(&self) -> ChannelCount {
+        const { NonZeroU16::new(CH).expect("channel count must be larger then zero") }
+    }
+
+    fn sample_rate(&self) -> SampleRate {
+        const { NonZeroU32::new(SR).expect("sample rate must be larger then zero") }
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
         self.inner.total_duration()
     }
 }

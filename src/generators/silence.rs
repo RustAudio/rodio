@@ -1,6 +1,9 @@
 pub mod fixed_source {
+    use std::time::Duration;
+
+    use crate::source::SeekError;
+    use crate::{nz, FixedSource};
     use crate::{ChannelCount, SampleRate};
-    use crate::{FixedSource, nz};
 
     /// A source producing an infinite amount of Silence. Like all generators you
     /// probably want to limit the duration of this source.
@@ -45,6 +48,11 @@ pub mod fixed_source {
 
         fn total_duration(&self) -> Option<std::time::Duration> {
             None
+        }
+
+        /// This does nothing since all silence is equal :3
+        fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+            Ok(())
         }
     }
 
@@ -105,7 +113,7 @@ pub mod const_source {
     }
 
     impl<const SR: u32> ConstSource<SR, 1> for Silence<SR> {
-        fn total_duration(&self) -> Option<std::time::Duration> {
+        fn total_duration(&self) -> Option<Duration> {
             None
         }
 

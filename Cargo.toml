@@ -250,7 +250,7 @@ required-features = ["playback", "wav"]
 
 [[example]]
 name = "microphone"
-required-features = ["playback", "recording", "wav_output"]
+required-features = ["playback", "recording"]
 
 [[example]]
 name = "mix_multiple_sources"

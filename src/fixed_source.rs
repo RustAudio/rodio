@@ -7,9 +7,11 @@ use crate::{ChannelCount, ConstSource, Sample, SampleRate};
 
 mod buffer;
 mod chain;
+mod conversions;
 
 pub use buffer::SamplesBuffer;
 pub use chain::SourceChain;
+pub use conversions::channel_count::ChannelConverter;
 
 /// Similar to `Source`, something that can produce interleaved samples for a
 /// fixed amount of channels at a fixed sample rate. Those parameters never
@@ -32,12 +34,20 @@ pub trait FixedSource: Iterator<Item = Sample> {
         })
     }
 
+    /// Convert from the current channel count to `channel_count`.
+    fn with_channel_count(self, channel_count: ChannelCount) -> ChannelConverter<Self>
+    where
+        Self: Sized,
+    {
+        ChannelConverter::new(self, channel_count)
+    }
+
     /// Tries to convert from a fixed source to a const one assuming
     /// the parameters already match. If they do not this returns an error.
     ///
     /// If the parameters do not match you can resample using:
     /// [`with_sample_rate`](Self::placeholder) and
-    /// [`with_channel_count`](Self::placeholder).
+    /// [`with_channel_count`](Self::with_channel_count).
     fn try_into_const_source<const SR: u32, const CH: u16>(
         self,
     ) -> Result<IntoConstSource<SR, CH, Self>, ParameterMismatch<SR, CH>>

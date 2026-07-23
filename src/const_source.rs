@@ -21,9 +21,11 @@ use crate::Source as DynamicSource; // Source will (probably) be renamed to this
 
 mod buffer;
 mod chain;
+mod conversions;
 
 pub use buffer::SamplesBuffer;
 pub use chain::SourceChain;
+pub use conversions::channel_count::ChannelConvertor;
 
 /// A source which sample rate and channel count are fixed at compile time.
 pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
@@ -45,6 +47,14 @@ pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
         Err(SeekError::NotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
+    }
+
+    /// Convert from the current channel count to `CH_OUT`.
+    fn with_channel_count<const CH_OUT: u16>(self) -> ChannelConvertor<SR, CH, CH_OUT, Self>
+    where
+        Self: Sized,
+    {
+        ChannelConvertor::new(self)
     }
 
     /// Use this const source as if it's a dynamic source. You generally do not

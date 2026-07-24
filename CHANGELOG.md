@@ -51,7 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed sources to correctly handle sample rate and channel count changes at span boundaries.
 - Fixed sources to detect parameter updates after mid-span seeks.
 - Fixed `Stoppable` and `Skippable` not signaling exhaustion.
-- Fixed `SpatialAudio` left and write channel swapping
+- Fixed `SpatialAudio` left and write channel swapping.
+- Fixed the Symphonia decoder reporting a wrong `total_duration` for containers whose default track is not the decoded audio track.
 
 ## Version [0.22.2] (2026-03-05)
 

@@ -3,7 +3,7 @@
 use std::fmt::{Debug, Write};
 
 use super::{InSamples, OutFrameCount, OutSamples};
-use crate::{ChannelCount, Sample, SampleRate};
+use crate::{ChannelCount, Sample};
 
 pub(crate) struct Input {
     pub samples: Box<[Sample]>,
@@ -61,7 +61,6 @@ pub(crate) struct Output {
 
     pub samples: Box<[Sample]>,
     pub channels: ChannelCount,
-    pub source_rate: SampleRate,
 }
 
 impl Debug for Output {
@@ -75,7 +74,6 @@ impl Debug for Output {
                 &LimitLength(&self.samples[self.pos.raw()..self.end.raw()]),
             )
             .field("channels", &self.channels)
-            .field("source_rate", &self.source_rate)
             .finish()
     }
 }
@@ -114,7 +112,6 @@ impl Debug for LimitLength<'_> {
 
 impl Output {
     pub(super) fn new(
-        source_rate: SampleRate,
         channels: ChannelCount,
         capacity: OutFrameCount,
     ) -> Self {
@@ -127,7 +124,6 @@ impl Output {
             end: OutSamples::ZERO,
             samples: samples.into_boxed_slice(),
             channels,
-            source_rate,
         }
     }
 
@@ -135,7 +131,7 @@ impl Output {
         OutSamples(self.samples.len()).frames(self.channels)
     }
 
-    pub(super) fn len(&self) -> OutSamples {
+    pub(crate) fn len(&self) -> OutSamples {
         self.end - self.pos
     }
 

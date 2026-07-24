@@ -19,21 +19,22 @@
 pub(crate) mod buffer;
 pub(crate) mod chain;
 
+/// TODO(yara) this should become a trait really.
 macro_rules! add_inner_accessors {
     ($inner:ident) => {
-        /// Get immutable access to the input to this source
+        /// placeholder
         #[inline]
         pub fn inner(&self) -> &S {
             &self.$inner
         }
 
-        /// Returns a mutable reference to the inner source.
+        /// placeholder
         #[inline]
         pub fn inner_mut(&mut self) -> &mut S {
             &mut self.$inner
         }
 
-        /// Returns the inner source.
+        /// placeholder
         #[inline]
         pub fn into_inner(self) -> S {
             self.$inner

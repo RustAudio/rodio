@@ -12,6 +12,7 @@ mod conversions;
 pub use buffer::SamplesBuffer;
 pub use chain::SourceChain;
 pub use conversions::channel_count::ChannelConverter;
+pub use conversions::sample_rate::SampleRateConvertor;
 
 /// Similar to `Source`, something that can produce interleaved samples for a
 /// fixed amount of channels at a fixed sample rate. Those parameters never
@@ -34,6 +35,17 @@ pub trait FixedSource: Iterator<Item = Sample> {
         })
     }
 
+    /// Convert from the current channel count to `channel count`.
+    ///
+    /// Though the defaults cover most use-cases you can configure 
+    /// the resampler using [`with_config`](SampleRateConvertor::with_config).
+    fn with_sample_rate(self, sample_rate: SampleRate) -> SampleRateConvertor<Self>
+    where
+        Self: Sized,
+    {
+        SampleRateConvertor::new(self, sample_rate)
+    }
+
     /// Convert from the current channel count to `channel_count`.
     fn with_channel_count(self, channel_count: ChannelCount) -> ChannelConverter<Self>
     where
@@ -46,7 +58,7 @@ pub trait FixedSource: Iterator<Item = Sample> {
     /// the parameters already match. If they do not this returns an error.
     ///
     /// If the parameters do not match you can resample using:
-    /// [`with_sample_rate`](Self::placeholder) and
+    /// [`with_sample_rate`](Self::with_sample_rate) and
     /// [`with_channel_count`](Self::with_channel_count).
     fn try_into_const_source<const SR: u32, const CH: u16>(
         self,

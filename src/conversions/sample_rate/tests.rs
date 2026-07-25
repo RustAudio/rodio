@@ -355,8 +355,8 @@ fn small_spans_do_not_degrade_resampled_signal() {
     // 0.5 s of a 440 Hz stereo sine at 48 kHz.
     let signal: Vec<Sample> = (0..24_000)
         .flat_map(|i| {
-            let t = i as f32 / source_rate.get() as f32;
-            let s = (std::f32::consts::TAU * 440.0 * t).sin() * 0.5;
+            let t = i as Sample / source_rate.get() as Sample;
+            let s = (std::f64::consts::TAU as Sample * 440.0 * t).sin() * 0.5;
             [s, s]
         })
         .collect();

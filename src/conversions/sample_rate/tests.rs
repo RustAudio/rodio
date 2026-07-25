@@ -364,6 +364,9 @@ fn small_spans_do_not_degrade_resampled_signal() {
     // Fraction of output energy sitting at the 440 Hz fundamental, via
     // Goertzel on the left channel. A clean resample keeps this ~1.0.
     let tone_energy_fraction = |samples: &[Sample]| -> f64 {
+        // Accumulate in f64 regardless of `Sample`: the cast is a no-op
+        // under the `64bit` feature but needed without it.
+        #[allow(clippy::unnecessary_cast)]
         let left: Vec<f64> = samples.iter().step_by(2).map(|&s| s as f64).collect();
         let n = left.len();
         let bin = 440.0 * n as f64 / target_rate.get() as f64;

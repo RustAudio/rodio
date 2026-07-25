@@ -193,19 +193,41 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
     }
 
     fn fill_input_buffer(&mut self, needed_by_resampler: InFrameCount) -> InFrameCount {
-        let current_span_length = self.input.current_span_len().map(InSamples);
-        let frames_to_take = needed_by_resampler
-            .samples(self.output.channels)
-            .min(current_span_length.unwrap_or(InSamples::MAX));
-
+        let wanted = needed_by_resampler.samples(self.output.channels);
         self.input_buffer.clear();
-        for _ in 0..frames_to_take.raw() {
-            if let Some(sample) = self.input.next() {
-                self.input_buffer.push(sample);
-            } else {
+
+        // Keep pulling across span boundaries while the format is unchanged.
+        // A span boundary only matters to the resampler when the sample rate
+        // or channel count actually changes; ending a chunk at every boundary
+        // would flag it `partial_len`, which rubato zero-pads.
+        while self.input_buffer.len() < wanted {
+            let span = self.input.current_span_len().map(InSamples);
+            let take = (wanted - self.input_buffer.len()).min(span.unwrap_or(InSamples::MAX));
+            if take == InSamples::ZERO {
+                break;
+            }
+
+            let rate_before = self.input.sample_rate();
+            let channels_before = self.input.channels();
+
+            let mut taken = 0usize;
+            for _ in 0..take.raw() {
+                if let Some(sample) = self.input.next() {
+                    self.input_buffer.push(sample);
+                    taken += 1;
+                } else {
+                    break;
+                }
+            }
+
+            if taken == 0
+                || self.input.sample_rate() != rate_before
+                || self.input.channels() != channels_before
+            {
                 break;
             }
         }
+
         self.input_buffer.len().frames(self.output.channels)
     }
 

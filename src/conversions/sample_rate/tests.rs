@@ -338,3 +338,64 @@ fn test_span_boundary_same_format() {
         output.len()
     );
 }
+
+/// Resampling must not depend on how the input is chunked into spans.
+///
+/// Decoders report one span per decoded packet (Vorbis packets are commonly
+/// 128–2048 frames, switching to short blocks around transients), so a single
+/// continuous stream arrives as many small spans. If a span boundary ends a
+/// resampler chunk, the chunk is flagged `partial_len` and zero-padded,
+/// injecting a discontinuity at every boundary.
+#[test]
+fn small_spans_do_not_degrade_resampled_signal() {
+    let source_rate = SampleRate::new(48000).unwrap();
+    let target_rate = SampleRate::new(44100).unwrap();
+    let channels = ChannelCount::new(2).unwrap();
+
+    // 0.5 s of a 440 Hz stereo sine at 48 kHz.
+    let signal: Vec<Sample> = (0..24_000)
+        .flat_map(|i| {
+            let t = i as f32 / source_rate.get() as f32;
+            let s = (std::f32::consts::TAU * 440.0 * t).sin() * 0.5;
+            [s, s]
+        })
+        .collect();
+
+    // Fraction of output energy sitting at the 440 Hz fundamental, via
+    // Goertzel on the left channel. A clean resample keeps this ~1.0.
+    let tone_energy_fraction = |samples: &[Sample]| -> f64 {
+        let left: Vec<f64> = samples.iter().step_by(2).map(|&s| s as f64).collect();
+        let n = left.len();
+        let bin = 440.0 * n as f64 / target_rate.get() as f64;
+        let w = std::f64::consts::TAU * bin / n as f64;
+        let (mut prev, mut prev2) = (0.0, 0.0);
+        for &s in &left {
+            let current = s + 2.0 * w.cos() * prev - prev2;
+            prev2 = prev;
+            prev = current;
+        }
+        let tone = prev * prev + prev2 * prev2 - 2.0 * w.cos() * prev * prev2;
+        let total: f64 = left.iter().map(|s| s * s).sum();
+        (tone / (n as f64 / 2.0)) / total.max(f64::EPSILON)
+    };
+
+    for frames_per_span in [4096usize, 2048, 1024, 512, 256, 128] {
+        let span = frames_per_span * channels.get() as usize;
+        let mut chunks = signal.chunks(span);
+        let mut source = TestSource::new(chunks.next().unwrap().to_vec(), source_rate, channels);
+        for chunk in chunks {
+            source = source.chain(chunk.to_vec(), source_rate, channels);
+        }
+
+        let output: Vec<Sample> =
+            SampleRateConverter::new(source, target_rate, ResampleConfig::poly().build()).collect();
+        let fraction = tone_energy_fraction(&output);
+
+        assert!(
+            fraction > 0.99,
+            "{frames_per_span}-frame spans: only {:.1}% of output energy at the \
+             fundamental (expected >99%) — span boundaries are corrupting the signal",
+            fraction * 100.0
+        );
+    }
+}

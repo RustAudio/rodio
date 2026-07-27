@@ -37,7 +37,7 @@ pub trait FixedSource: Iterator<Item = Sample> {
 
     /// Convert from the current channel count to `channel count`.
     ///
-    /// Though the defaults cover most use-cases you can configure 
+    /// Though the defaults cover most use-cases you can configure
     /// the resampler using [`with_config`](SampleRateConvertor::with_config).
     fn with_sample_rate(self, sample_rate: SampleRate) -> SampleRateConvertor<Self>
     where

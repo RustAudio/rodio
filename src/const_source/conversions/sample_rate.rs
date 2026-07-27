@@ -1,39 +1,47 @@
+use crate::conversions::sample_rate::rubato::{ResampleInner, RubatoAsyncResample};
 use crate::conversions::Interpolation;
 use crate::math::gcd;
 use crate::source::ResampleConfig;
-use crate::{FixedSource, Sample, SampleRate, Source};
+use crate::{ConstSource, Sample, SampleRate, Source};
 
+use crate::const_source::IntoDynamicSource;
 #[cfg(feature = "rubato-fft")]
 use crate::conversions::sample_rate::rubato::RubatoFftResample;
-use crate::conversions::sample_rate::rubato::{ResampleInner, RubatoAsyncResample};
-
 use crate::conversions::sample_rate::{InSamples, OutSamples};
-use crate::fixed_source::IntoDynamicSource;
 
 /// Resamples an audio source to a target sample rate using Rubato.
-pub struct SampleRateConvertor<S: FixedSource> {
+pub struct SampleRateConvertor<
+    const SR_IN: u32,
+    const SR_OUT: u32,
+    const CH: u16,
+    S: ConstSource<SR_IN, CH>,
+> {
     // Option so we can take out the source and rebuild the resampler without unsafe
-    inner: Option<ResampleInner<IntoDynamicSource<S>>>,
-    target_rate: SampleRate,
+    inner: Option<ResampleInner<IntoDynamicSource<SR_IN, CH, S>>>,
 }
 
 #[derive(thiserror::Error)]
 #[error("The resampler was already running")]
-pub struct ResamplerRunning<S: FixedSource>(SampleRateConvertor<S>);
+pub struct ResamplerRunning<
+    const SR_IN: u32,
+    const SR_OUT: u32,
+    const CH: u16,
+    S: ConstSource<SR_IN, CH>,
+>(SampleRateConvertor<SR_IN, SR_OUT, CH, S>);
 
-impl<S: FixedSource> SampleRateConvertor<S> {
-    pub(crate) fn new(source: S, target_rate: SampleRate) -> Self {
+impl<const SR_IN: u32, const SR_OUT: u32, const CH: u16, S: ConstSource<SR_IN, CH>>
+    SampleRateConvertor<SR_IN, SR_OUT, CH, S>
+{
+    pub(crate) fn new(source: S) -> Self {
         Self {
             inner: Some(Self::create_resampler(
                 source.into_dynamic_source(),
-                target_rate,
                 ResampleConfig::default(),
             )),
-            target_rate,
         }
     }
 
-    /// Further configure the resampler created with [`with_sample_rate`](FixedSource::with_sample_rate).
+    /// Further configure the resampler created with [`with_sample_rate`](ConstSource::with_sample_rate).
     /// You usually do not need to do this unless you have a specific use-case that requires very
     /// fast or extremely high quality resampling. The [`ResampleConfig`] has a number of factories
     /// with good defaults for such use-cases.
@@ -44,22 +52,25 @@ impl<S: FixedSource> SampleRateConvertor<S> {
     ///
     /// # Example
     /// ```
-    /// # use rodio::generators::fixed_source::Silence;
+    /// # use rodio::generators::const_source::Silence;
     /// # use rodio::SampleRate;
     /// # fn hi() -> Option<()> { // to enable ? in the example
-    /// use rodio::FixedSource;
+    /// use rodio::ConstSource;
     /// use rodio::conversions::ResampleConfig;
     ///
-    /// let source = Silence::new(SampleRate::new(44_100)?);
+    /// let source: Silence<44100> = Silence::new();
     /// let resampled = source
-    ///     .with_sample_rate(SampleRate::new(48_000)?)
+    ///     .with_sample_rate::<48000>()
     ///     .with_config(ResampleConfig::fast());
     /// # Some(())
     /// # }
     /// # hi().unwrap();
     /// ```
     #[allow(clippy::result_large_err, reason = "the Ok variant is the same size")]
-    pub fn with_config(mut self, config: ResampleConfig) -> Result<Self, ResamplerRunning<S>> {
+    pub fn with_config(
+        mut self,
+        config: ResampleConfig,
+    ) -> Result<Self, ResamplerRunning<SR_IN, SR_OUT, CH, S>> {
         if !self.resampler().can_reconfigure() {
             return Err(ResamplerRunning(self));
         }
@@ -74,37 +85,37 @@ impl<S: FixedSource> SampleRateConvertor<S> {
             .into_inner();
 
         Ok(Self {
-            inner: Some(Self::create_resampler(source, self.target_rate, config)),
-            target_rate: self.target_rate,
+            inner: Some(Self::create_resampler(source, config)),
         })
     }
 
-    fn resampler(&self) -> &ResampleInner<IntoDynamicSource<S>> {
+    fn resampler(&self) -> &ResampleInner<IntoDynamicSource<SR_IN, CH, S>> {
         self.inner
             .as_ref()
             .expect("never none outside `with_config`")
     }
 
-    fn resampler_mut(&mut self) -> &mut ResampleInner<IntoDynamicSource<S>> {
+    fn resampler_mut(&mut self) -> &mut ResampleInner<IntoDynamicSource<SR_IN, CH, S>> {
         self.inner
             .as_mut()
             .expect("never none outside `with_config`")
     }
 
     fn create_resampler(
-        source: IntoDynamicSource<S>,
-        target_rate: SampleRate,
+        source: IntoDynamicSource<SR_IN, CH, S>,
         config: ResampleConfig,
-    ) -> ResampleInner<IntoDynamicSource<S>> {
-        if source.sample_rate() == target_rate {
+    ) -> ResampleInner<IntoDynamicSource<SR_IN, CH, S>> {
+        let source_rate = const { SampleRate::new(SR_IN).expect("checked in 'new'") };
+        if SR_IN == SR_OUT {
             let channels = source.channels();
             ResampleInner::Passthrough {
-                source_rate: source.sample_rate(),
+                source_rate,
                 source,
                 input_span_pos: InSamples::ZERO,
                 channels,
             }
         } else {
+            let target_rate = const { SampleRate::new(SR_OUT).expect("checked in 'new'") };
             match config {
                 ResampleConfig::Poly { degree, chunk_size } => {
                     let resampler =
@@ -114,7 +125,7 @@ impl<S: FixedSource> SampleRateConvertor<S> {
                 }
                 ResampleConfig::Sinc(mut sinc) => {
                     #[cfg(feature = "rubato-fft")]
-                    if sinc.is_supported_fixed_ratio(target_rate, source.sample_rate()) {
+                    if sinc.is_supported_fixed_ratio(target_rate, source_rate) {
                         let resampler = RubatoFftResample::new(
                             source,
                             target_rate,
@@ -140,23 +151,18 @@ impl<S: FixedSource> SampleRateConvertor<S> {
     }
 }
 
-impl<S: FixedSource> FixedSource for SampleRateConvertor<S> {
-    fn channels(&self) -> crate::ChannelCount {
-        self.resampler().inner().channels()
-    }
-
-    fn sample_rate(&self) -> SampleRate {
-        self.target_rate
-    }
-
+impl<const SR_IN: u32, const SR_OUT: u32, const CH: u16, S: ConstSource<SR_IN, CH>>
+    ConstSource<SR_OUT, CH> for SampleRateConvertor<SR_IN, SR_OUT, CH, S>
+{
     fn total_duration(&self) -> Option<std::time::Duration> {
         self.resampler().inner().total_duration()
     }
 }
 
-impl<S> Iterator for SampleRateConvertor<S>
+impl<const SR_IN: u32, const SR_OUT: u32, const CH: u16, S> Iterator
+    for SampleRateConvertor<SR_IN, SR_OUT, CH, S>
 where
-    S: FixedSource,
+    S: ConstSource<SR_IN, CH>,
 {
     type Item = Sample;
 

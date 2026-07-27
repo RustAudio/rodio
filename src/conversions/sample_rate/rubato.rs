@@ -367,7 +367,7 @@ impl<I: Source> RubatoFftResample<I> {
             input,
             resampler,
             input_buffer: Input::new(input_buf_size.samples(channels)),
-            output: Output::new(source_rate, channels, output_buf_size),
+            output: Output::new(channels, output_buf_size),
             pos_in_current_span: InSamples::ZERO,
             output_delay_remaining,
             resample_ratio,

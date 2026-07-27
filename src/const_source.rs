@@ -26,6 +26,7 @@ mod conversions;
 pub use buffer::SamplesBuffer;
 pub use chain::SourceChain;
 pub use conversions::channel_count::ChannelConvertor;
+pub use conversions::sample_rate::SampleRateConvertor;
 
 /// A source which sample rate and channel count are fixed at compile time.
 pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
@@ -47,6 +48,17 @@ pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
         Err(SeekError::NotSupported {
             underlying_source: std::any::type_name::<Self>(),
         })
+    }
+
+    /// Convert from `SR` (the current sample rate) to `SR_OUT`.
+    ///
+    /// Though the defaults cover most use-cases you can configure
+    /// the resampler using [`with_config`](SampleRateConvertor::with_config).
+    fn with_sample_rate<const SR_OUT: u32>(self) -> SampleRateConvertor<SR, SR_OUT, CH, Self>
+    where
+        Self: Sized,
+    {
+        SampleRateConvertor::new(self)
     }
 
     /// Convert from the current channel count to `CH_OUT`.

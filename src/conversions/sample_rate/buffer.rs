@@ -111,10 +111,7 @@ impl Debug for LimitLength<'_> {
 }
 
 impl Output {
-    pub(super) fn new(
-        channels: ChannelCount,
-        capacity: OutFrameCount,
-    ) -> Self {
+    pub(super) fn new(channels: ChannelCount, capacity: OutFrameCount) -> Self {
         let mut samples = Vec::new();
         samples.reserve_exact(capacity.samples(channels).raw());
         samples.resize(samples.capacity(), 0.0);

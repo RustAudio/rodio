@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Breaking: `amplify` now takes a `Factor` which can be linear, decibels or
+  normalized.
+- Breaking: removed `amplify_decibel` and `amplify_normalized`
 - Breaking: `Microphone` now implements `FixedSource`
 - Breaking: `Done` now calls a callback instead of decrementing an `Arc<AtomicUsize>`.
 - Updated `cpal` to v0.18.

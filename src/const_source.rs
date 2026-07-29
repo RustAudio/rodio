@@ -12,6 +12,8 @@ use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::time::Duration;
 
+use crate::effects::amplify::Factor;
+use crate::effects::const_source::Amplify;
 use crate::source::SeekError;
 use crate::ChannelCount;
 use crate::FixedSource;
@@ -22,6 +24,8 @@ use crate::Source as DynamicSource; // Source will (probably) be renamed to this
 mod buffer;
 mod chain;
 mod conversions;
+
+pub(crate) mod macros;
 
 pub use buffer::SamplesBuffer;
 pub use chain::SourceChain;
@@ -143,6 +147,14 @@ pub trait ConstSource<const SR: u32, const CH: u16>: Iterator<Item = Sample> {
         Self: Sized,
     {
         todo!()
+    }
+
+    #[doc = include_str!("docs/amplify.md")]
+    fn amplify(self, factor: Factor) -> Amplify<SR, CH, Self>
+    where
+        Self: Sized,
+    {
+        Amplify::new(self, factor)
     }
 }
 

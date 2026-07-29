@@ -2,8 +2,12 @@
 //! channel count.
 use std::time::Duration;
 
+use crate::effects::amplify::Factor;
+use crate::effects::fixed_source::Amplify;
 use crate::source::SeekError;
 use crate::{ChannelCount, ConstSource, Sample, SampleRate};
+
+pub(crate) mod macros;
 
 mod buffer;
 mod chain;
@@ -138,6 +142,14 @@ pub trait FixedSource: Iterator<Item = Sample> {
     /// here to make docs links work without the linked item being in
     /// remove before next release
     fn placeholder(&self) {}
+
+    #[doc = include_str!("docs/amplify.md")]
+    fn amplify(self, factor: Factor) -> Amplify<Self>
+    where
+        Self: Sized,
+    {
+        Amplify::new(self, factor)
+    }
 }
 
 // placeholder until effects land (need this for some examples)

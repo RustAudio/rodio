@@ -3,6 +3,7 @@
 //! This example shows how to use the LimitSettings struct with the builder
 //! to configure audio limiting parameters.
 
+use rodio::effects::amplify::Factor;
 use rodio::source::{LimitSettings, SineWave, Source};
 use rodio::Sample;
 use std::time::Duration;
@@ -33,7 +34,7 @@ fn main() {
 
     // Create a sine wave at 440 Hz
     let sine_wave = SineWave::new(440.0)
-        .amplify(2.0) // Amplify to cause limiting
+        .amplify(Factor::Linear(2.0)) // Amplify to cause limiting
         .take_duration(Duration::from_millis(100));
 
     // Apply limiting with default settings (simplest usage)
@@ -52,7 +53,7 @@ fn main() {
 
     // Create another sine wave for custom limiting
     let sine_wave2 = SineWave::new(880.0)
-        .amplify(1.8)
+        .amplify(Factor::Linear(1.8))
         .take_duration(Duration::from_millis(50));
 
     // Apply the custom settings from Example 2
@@ -102,7 +103,7 @@ fn main() {
     println!("Example 6: Limiting with -6dB threshold");
 
     // Create a sine wave that will definitely trigger limiting
-    const AMPLITUDE: Sample = 2.5; // High amplitude to ensure limiting occurs
+    const AMPLITUDE: Factor = Factor::Linear(2.5); // High amplitude to ensure limiting occurs
     let test_sine = SineWave::new(440.0)
         .amplify(AMPLITUDE)
         .take_duration(Duration::from_millis(100)); // 100ms = ~4410 samples
@@ -138,7 +139,7 @@ fn main() {
         "  {}dB threshold limiting results:",
         strict_limiting.threshold
     );
-    println!("    Original max amplitude: {AMPLITUDE}");
+    println!("    Original max amplitude: {AMPLITUDE:?}");
     println!("    Target threshold: {target_linear:.3}");
     println!("    Early peak (0-500 samples): {early_peak:.3}");
     println!("    Mid peak (1000-1500 samples): {mid_peak:.3}");

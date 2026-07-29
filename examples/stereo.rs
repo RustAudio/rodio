@@ -1,5 +1,6 @@
 //! Plays a tone alternating between right and left ears, with right being first.
 
+use rodio::effects::amplify::Factor;
 use rodio::Source;
 use std::error::Error;
 
@@ -8,7 +9,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let player = rodio::Player::connect_new(stream_handle.mixer());
 
     let file = std::fs::File::open("assets/RL.ogg")?;
-    player.append(rodio::Decoder::try_from(file)?.amplify(0.2));
+    player.append(rodio::Decoder::try_from(file)?.amplify(Factor::Linear(0.2)));
 
     player.sleep_until_end();
 

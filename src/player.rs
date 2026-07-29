@@ -8,6 +8,7 @@ use dasp_sample::FromSample;
 #[cfg(not(feature = "crossbeam-channel"))]
 use std::sync::mpsc::{Receiver, Sender};
 
+use crate::effects::amplify;
 use crate::mixer::Mixer;
 use crate::source::SeekError;
 use crate::Float;
@@ -125,7 +126,7 @@ impl Player {
                 // Must be placed before pausable but after speed & delay
                 .track_position()
                 .pausable(false)
-                .amplify(1.0)
+                .amplify(amplify::Factor::Linear(1.0))
                 .skippable()
                 .stoppable(),
             move |src| {
@@ -152,7 +153,7 @@ impl Player {
                 }
             }
             let amp = src.inner_mut().inner_mut().inner_mut();
-            amp.set_factor(*controls.volume.lock().unwrap());
+            amp.set_factor(amplify::Factor::Linear(*controls.volume.lock().unwrap()));
             amp.inner_mut()
                 .set_paused(controls.pause.load(Ordering::SeqCst));
             amp.inner_mut()
@@ -367,7 +368,8 @@ mod tests {
     use std::sync::atomic::Ordering;
 
     use crate::buffer::SamplesBuffer;
-    use crate::math::nz;
+    use crate::effects::amplify;
+use crate::math::nz;
     use crate::{Player, Source};
 
     #[test]
@@ -461,7 +463,7 @@ mod tests {
         player.append(SamplesBuffer::new(nz!(2), nz!(44100), v.clone()));
         let src = SamplesBuffer::new(nz!(2), nz!(44100), v.clone());
 
-        let mut src = src.amplify(0.5);
+        let mut src = src.amplify(amplify::Factor::Linear(0.5));
         player.set_volume(0.5);
 
         for _ in 0..v.len() {

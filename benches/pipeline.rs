@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use divan::Bencher;
 use rodio::ChannelCount;
+use rodio::effects::amplify::Factor;
 use rodio::{source::UniformSourceIterator, Source};
 
 mod shared;
@@ -17,7 +18,7 @@ fn long(bencher: Bencher) {
     bencher.with_inputs(music_wav).bench_values(|source| {
         let mut take_dur = source
             .high_pass(300)
-            .amplify(1.2)
+            .amplify(Factor::Linear(1.2))
             .speed(0.9)
             .automatic_gain_control(Default::default())
             .delay(Duration::from_secs_f32(0.5))
@@ -41,7 +42,7 @@ fn long(bencher: Bencher) {
 fn short(bencher: Bencher) {
     bencher.with_inputs(music_wav).bench_values(|source| {
         source
-            .amplify(1.2)
+            .amplify(Factor::Linear(1.2))
             .low_pass(200)
             .for_each(divan::black_box_drop)
     })

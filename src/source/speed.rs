@@ -32,9 +32,11 @@
 #![cfg_attr(not(feature = "playback"), doc = "```ignore")]
 #![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use rodio::source::{Source, SineWave};
+//! use rodio::effects::amplify::Factor;
+//!
 //! let source = SineWave::new(440.0)
 //!    .take_duration(std::time::Duration::from_secs_f32(20.25))
-//!    .amplify(0.20);
+//!    .amplify(Factor::Linear(0.20));
 //! let handle = rodio::DeviceSinkBuilder::open_default_sink()
 //!         .expect("open default audio sink");
 //! let player = rodio::Player::connect_new(&handle.mixer());

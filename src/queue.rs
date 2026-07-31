@@ -33,6 +33,7 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
 
     let output = SourcesQueueOutput {
         current: Box::new(Empty::new()) as Box<_>,
+        current_exhausted: false,
         signal_after_end: None,
         input: input.clone(),
         samples_consumed_in_span: 0,
@@ -114,6 +115,9 @@ pub struct SourcesQueueOutput {
     // The current iterator that produces samples.
     current: Box<dyn Source + Send>,
 
+    // Whether `current` has already reported exhaustion.
+    current_exhausted: bool,
+
     // Signal this sender before picking from `next`.
     signal_after_end: Option<Sender<()>>,
 
@@ -123,8 +127,7 @@ pub struct SourcesQueueOutput {
     // Track samples consumed in the current span to detect mid-span endings.
     samples_consumed_in_span: usize,
 
-    // When a source ends mid-frame, this counts how many silence samples to inject
-    // to complete the frame before transitioning to the next source.
+    // Number of silence samples left to emit before consulting `current`/the queue again.
     silence_samples_remaining: usize,
 }
 
@@ -216,33 +219,41 @@ impl Iterator for SourcesQueueOutput {
             }
 
             // Basic situation that will happen most of the time.
-            if let Some(sample) = self.current.next() {
-                return Some(sample);
+            if !self.current_exhausted {
+                if let Some(sample) = self.current.next() {
+                    let channels = self.current.channels().get() as usize;
+                    self.samples_consumed_in_span = (self.samples_consumed_in_span + 1) % channels;
+                    return Some(sample);
+                }
+                self.current_exhausted = true;
+
+                // Source ended - check if we ended mid-frame and need padding.
+                if self.samples_consumed_in_span > 0 {
+                    let channels = self.current.channels().get() as usize;
+                    // We're mid-frame - need to pad with silence to complete it.
+                    self.silence_samples_remaining = channels - self.samples_consumed_in_span;
+                    // Reset counter now since we're transitioning to a new span.
+                    self.samples_consumed_in_span = 0;
+                    // Continue loop - next iteration will inject silence.
+                    continue;
+                }
             }
 
-            // Source ended - check if we ended mid-frame and need padding.
-            let channels = self.current.channels().get() as usize;
-            let incomplete_frame_samples = self.samples_consumed_in_span % channels;
-            if incomplete_frame_samples > 0 {
-                // We're mid-frame - need to pad with silence to complete it.
-                self.silence_samples_remaining = channels - incomplete_frame_samples;
-                // Reset counter now since we're transitioning to a new span.
-                self.samples_consumed_in_span = 0;
-                // Continue loop - next iteration will inject silence.
+            // `current` is exhausted: move to the next sound without calling `.next()` on it
+            // again. In order to avoid inlining this expensive operation, the code is in
+            // another function.
+            if self.go_next().is_ok() {
+                self.current_exhausted = false;
                 continue;
             }
 
-            // Reset counter and move to next sound.
-            // In order to avoid inlining this expensive operation, the code is in another function.
-            self.samples_consumed_in_span = 0;
-            if self.go_next().is_err() {
-                if self.input.keep_alive_if_empty() {
-                    self.silence_samples_remaining = self.current.channels().get() as usize;
-                    continue;
-                } else {
-                    return None;
-                }
+            if self.input.keep_alive_if_empty() {
+                // Emit one frame of silence, then re-check the queue on the very next call.
+                self.silence_samples_remaining = self.current.channels().get() as usize;
+                continue;
             }
+
+            return None;
         }
     }
 
@@ -253,8 +264,8 @@ impl Iterator for SourcesQueueOutput {
 }
 
 impl SourcesQueueOutput {
-    // Called when `current` is empty, and we must jump to the next element.
-    // Returns `Ok` if there is another sound should continue playing, or `Err` when there is not.
+    // Called when `current` is exhausted, and we must jump to the next element.
+    // Returns `Ok` if there is another sound queued, or `Err` when there is not.
     //
     // This method is separate so that it is not inlined.
     fn go_next(&mut self) -> Result<(), ()> {
@@ -375,10 +386,36 @@ mod tests {
     }
 
     #[test]
+    fn exhausted_source_called_once_during_keep_alive() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        use crate::source::EmptyCallback;
+
+        let (tx, mut rx) = queue::queue(true);
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![10.0, -10.0]));
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let calls_clone = calls.clone();
+        tx.append(EmptyCallback::new(Box::new(move || {
+            calls_clone.fetch_add(1, Ordering::Relaxed);
+        })));
+
+        assert_eq!(rx.next(), Some(10.0));
+        assert_eq!(rx.next(), Some(-10.0));
+
+        for _ in 0..10000 {
+            assert_eq!(rx.next(), Some(0.0));
+        }
+
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
     fn no_delay_when_added() {
         let (tx, mut rx) = queue::queue(true);
 
-        for _ in 0..500 {
+        for _ in 0..10000 {
             assert_eq!(rx.next(), Some(0.0));
         }
 

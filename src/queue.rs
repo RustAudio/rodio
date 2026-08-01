@@ -1,5 +1,6 @@
 //! Queue that plays sounds one after the other.
 
+use std::cell::Cell;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -19,25 +20,37 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 /// The input can be used to add sounds to the end of the queue, while the output implements
 /// `Source` and plays the sounds.
 ///
-/// The parameter indicates how the queue should behave if the queue becomes empty:
+/// `keep_alive_with` controls what happens when the queue becomes empty:
 ///
-/// - If you pass `true`, then the queue is infinite and will play a silence instead until you add
-///   a new sound.
-/// - If you pass `false`, then the queue will report that it has finished playing.
-///
-pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
+/// - `None`: the queue reports that it has finished playing.
+/// - `Some(source)`: `source` plays first (if it produces any samples), then the queue stays
+///   alive and plays silence in `source`'s format until a new sound is appended. Pass e.g. an
+///   `Empty` in the target format to avoid setting up source conversion for a target that turns
+///   out to match once a real source is appended - `Mixer::silence` builds one for a mixer's
+///   format.
+pub fn queue(
+    keep_alive_with: Option<Box<dyn Source + Send>>,
+) -> (Arc<SourcesQueueInput>, SourcesQueueOutput) {
     let input = Arc::new(SourcesQueueInput {
         next_sounds: Mutex::new(VecDeque::new()),
-        keep_alive_if_empty: AtomicBool::new(keep_alive_if_empty),
+        keep_alive_if_empty: AtomicBool::new(keep_alive_with.is_some()),
+        metadata_dirty: AtomicBool::new(false),
+    });
+
+    let current = keep_alive_with.unwrap_or_else(|| Box::new(Empty::new()));
+    let peeked_metadata = Cell::new(PeekedMetadata {
+        channels: current.channels(),
+        sample_rate: current.sample_rate(),
     });
 
     let output = SourcesQueueOutput {
-        current: Box::new(Empty::new()) as Box<_>,
+        current,
         current_exhausted: false,
         signal_after_end: None,
         input: input.clone(),
         samples_consumed_in_span: 0,
         silence_samples_remaining: 0,
+        peeked_metadata,
     };
 
     (input, output)
@@ -54,6 +67,9 @@ pub struct SourcesQueueInput {
 
     // See constructor.
     keep_alive_if_empty: AtomicBool,
+
+    // Set on append/clear/pop. See `PeekedMetadata`.
+    metadata_dirty: AtomicBool,
 }
 
 impl SourcesQueueInput {
@@ -67,6 +83,7 @@ impl SourcesQueueInput {
             .lock()
             .unwrap()
             .push_back((Box::new(source) as Box<_>, None));
+        self.metadata_dirty.store(true, Ordering::Release);
     }
 
     /// Adds a new source to the end of the queue.
@@ -85,6 +102,7 @@ impl SourcesQueueInput {
             .lock()
             .unwrap()
             .push_back((Box::new(source) as Box<_>, Some(tx)));
+        self.metadata_dirty.store(true, Ordering::Release);
         rx
     }
 
@@ -106,8 +124,19 @@ impl SourcesQueueInput {
         let mut sounds = self.next_sounds.lock().unwrap();
         let len = sounds.len();
         sounds.clear();
+        drop(sounds);
+        if len > 0 {
+            self.metadata_dirty.store(true, Ordering::Release);
+        }
         len
     }
+}
+
+// Cached last peek at `next_sounds`. See `SourcesQueueInput::metadata_dirty`.
+#[derive(Clone, Copy)]
+struct PeekedMetadata {
+    channels: ChannelCount,
+    sample_rate: SampleRate,
 }
 
 /// The output of the queue. Implements `Source`.
@@ -129,6 +158,36 @@ pub struct SourcesQueueOutput {
 
     // Number of silence samples left to emit before consulting `current`/the queue again.
     silence_samples_remaining: usize,
+
+    peeked_metadata: Cell<PeekedMetadata>,
+}
+
+impl SourcesQueueOutput {
+    // Metadata to report while `current` is exhausted: the next queued non-exhausted
+    // source's format, or `current`'s own if there isn't one.
+    fn exhausted_metadata(&self) -> PeekedMetadata {
+        if !self.input.metadata_dirty.swap(false, Ordering::Acquire) {
+            return self.peeked_metadata.get();
+        }
+
+        let peeked = self
+            .input
+            .next_sounds
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|(s, _)| !s.is_exhausted())
+            .map(|(s, _)| (s.channels(), s.sample_rate()));
+        let (channels, sample_rate) =
+            peeked.unwrap_or((self.current.channels(), self.current.sample_rate()));
+
+        let fresh = PeekedMetadata {
+            channels,
+            sample_rate,
+        };
+        self.peeked_metadata.set(fresh);
+        fresh
+    }
 }
 
 impl Source for SourcesQueueOutput {
@@ -145,44 +204,16 @@ impl Source for SourcesQueueOutput {
     #[inline]
     fn channels(&self) -> ChannelCount {
         if self.current.is_exhausted() && self.silence_samples_remaining == 0 {
-            // Skip exhausted sources at the head of the queue (e.g. an empty chain) and
-            // return the first non-exhausted source's metadata. This is critical:
-            // UniformSourceIterator queries metadata before pulling any samples, so we
-            // must report the upcoming source's format, not a preceding exhausted stub.
-            //
-            // If the queue is genuinely empty there is nothing to peek at. The stale value
-            // is returned below. This is corrected at the first span boundary after the
-            // new source begins playing.
-            if let Some((next, _)) = self
-                .input
-                .next_sounds
-                .lock()
-                .unwrap()
-                .iter()
-                .find(|(s, _)| !s.is_exhausted())
-            {
-                return next.channels();
-            }
+            return self.exhausted_metadata().channels;
         }
-
         self.current.channels()
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
         if self.current.is_exhausted() && self.silence_samples_remaining == 0 {
-            if let Some((next, _)) = self
-                .input
-                .next_sounds
-                .lock()
-                .unwrap()
-                .iter()
-                .find(|(s, _)| !s.is_exhausted())
-            {
-                return next.sample_rate();
-            }
+            return self.exhausted_metadata().sample_rate;
         }
-
         self.current.sample_rate()
     }
 
@@ -277,6 +308,7 @@ impl SourcesQueueOutput {
             let mut next = self.input.next_sounds.lock().unwrap();
             next.pop_front().ok_or(())?
         };
+        self.input.metadata_dirty.store(true, Ordering::Release);
 
         self.current = next;
         self.signal_after_end = signal_after_end;
@@ -288,15 +320,19 @@ impl SourcesQueueOutput {
 mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
-    use crate::source::{chain, SeekError, Source};
+    use crate::source::{chain, Empty, SeekError, Source};
     use crate::{queue, ChannelCount, Sample, SampleRate};
     use std::time::Duration;
+
+    fn default_keep_alive() -> Option<Box<dyn Source + Send>> {
+        Some(Box::new(Empty::new()))
+    }
 
     #[test]
     #[ignore = "known limitation: metadata gap when queue is briefly empty after exhaustion"]
     fn metadata_gap_when_queue_briefly_empty() {
         let new_rate = nz!(48000);
-        let (tx, mut rx) = queue::queue(false);
+        let (tx, mut rx) = queue::queue(None);
         tx.append(SamplesBuffer::new(nz!(1), nz!(44100), vec![1.0]));
         assert_eq!(rx.next(), Some(1.0));
 
@@ -319,7 +355,7 @@ mod tests {
         let empty_chain_dummy_rate = chain(std::iter::empty::<SamplesBuffer>()).sample_rate();
         assert_ne!(empty_chain_dummy_rate, source_rate);
 
-        let (tx, mut rx) = queue::queue(false);
+        let (tx, mut rx) = queue::queue(None);
         tx.append(chain(std::iter::empty::<SamplesBuffer>()));
         tx.append(SamplesBuffer::new(nz!(1), source_rate, vec![1.0, 2.0]));
 
@@ -332,7 +368,7 @@ mod tests {
 
     #[test]
     fn basic() {
-        let (tx, mut rx) = queue::queue(false);
+        let (tx, mut rx) = queue::queue(None);
 
         tx.append(SamplesBuffer::new(
             nz!(1),
@@ -362,13 +398,13 @@ mod tests {
 
     #[test]
     fn immediate_end() {
-        let (_, mut rx) = queue::queue(false);
+        let (_, mut rx) = queue::queue(None);
         assert_eq!(rx.next(), None);
     }
 
     #[test]
     fn keep_alive() {
-        let (tx, mut rx) = queue::queue(true);
+        let (tx, mut rx) = queue::queue(default_keep_alive());
         tx.append(SamplesBuffer::new(
             nz!(1),
             nz!(48000),
@@ -392,7 +428,7 @@ mod tests {
 
         use crate::source::EmptyCallback;
 
-        let (tx, mut rx) = queue::queue(true);
+        let (tx, mut rx) = queue::queue(default_keep_alive());
         tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![10.0, -10.0]));
 
         let calls = Arc::new(AtomicUsize::new(0));
@@ -413,7 +449,7 @@ mod tests {
 
     #[test]
     fn no_delay_when_added() {
-        let (tx, mut rx) = queue::queue(true);
+        let (tx, mut rx) = queue::queue(default_keep_alive());
 
         for _ in 0..10000 {
             assert_eq!(rx.next(), Some(0.0));
@@ -432,7 +468,7 @@ mod tests {
 
     #[test]
     fn sample_rate_correct_after_stopped_source() {
-        let (tx, mut rx) = queue::queue(true);
+        let (tx, mut rx) = queue::queue(default_keep_alive());
 
         let mut stopped_source = SamplesBuffer::new(nz!(1), nz!(48000), vec![0.0; 100]).stoppable();
         stopped_source.stop();
@@ -451,7 +487,7 @@ mod tests {
 
     #[test]
     fn sample_rate_correct_after_skipped_source() {
-        let (tx, mut rx) = queue::queue(true);
+        let (tx, mut rx) = queue::queue(default_keep_alive());
 
         let mut skipped_source = SamplesBuffer::new(nz!(1), nz!(48000), vec![0.0; 100]).skippable();
         crate::source::Skippable::skip(&mut skipped_source);
@@ -471,7 +507,7 @@ mod tests {
     #[test]
     fn channel_correct_on_first_append() {
         let (mixer_tx, mut mixer_rx) = crate::mixer::mixer(nz!(2), nz!(48000));
-        let (tx, rx) = queue::queue(true);
+        let (tx, rx) = queue::queue(default_keep_alive());
 
         assert_eq!(rx.channels(), nz!(1), "initial channels should be 1");
         mixer_tx.add(rx);
@@ -491,7 +527,8 @@ mod tests {
     #[test]
     fn append_updates_metadata() {
         for keep_alive in [false, true] {
-            let (tx, rx) = queue::queue(keep_alive);
+            let keep_alive_with = keep_alive.then(default_keep_alive).flatten();
+            let (tx, rx) = queue::queue(keep_alive_with);
             assert_eq!(
                 rx.channels(),
                 nz!(1),

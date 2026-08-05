@@ -167,6 +167,28 @@ where
         }
     }
 
+    /// Rebuild for the format the input has moved on to.
+    fn recreate(&mut self) {
+        let source = self.inner.take().expect("always set").into_inner();
+        self.inner = Some(Self::create_resampler(
+            source,
+            self.target_rate,
+            &self.config,
+        ));
+        self.pending_recreate = false;
+        self.cached_input_span_len = self.resampler().input().current_span_len();
+    }
+
+    fn next_resampled(&mut self) -> Option<Sample> {
+        match self.resampler_mut() {
+            ResampleInner::Passthrough { source, .. } => source.next(),
+            ResampleInner::Poly(resampler) => resampler.next_sample(),
+            ResampleInner::Sinc(resampler) => resampler.next_sample(),
+            #[cfg(feature = "rubato-fft")]
+            ResampleInner::Fft(resampler) => resampler.next_sample(),
+        }
+    }
+
     /// Helper method to create a resampler from a source using the stored config and target rate.
     fn create_resampler(
         source: I,
@@ -330,35 +352,17 @@ where
         self.pending_recreate = false;
         let input_span_len = self.resampler().input().current_span_len();
 
-        match self.inner.as_mut().unwrap() {
-            ResampleInner::Passthrough {
-                input_span_pos: input_samples_consumed,
-                ..
-            } => {
-                reset_seek_span_tracking(
-                    input_samples_consumed.raw_mut(),
-                    &mut self.cached_input_span_len,
-                    position,
-                    input_span_len,
-                );
-            }
-            ResampleInner::Poly(r) | ResampleInner::Sinc(r) => {
-                reset_seek_span_tracking(
-                    r.pos_in_current_span.raw_mut(),
-                    &mut self.cached_input_span_len,
-                    position,
-                    input_span_len,
-                );
-            }
-            #[cfg(feature = "rubato-fft")]
-            ResampleInner::Fft(r) => {
-                reset_seek_span_tracking(
-                    r.pos_in_current_span.raw_mut(),
-                    &mut self.cached_input_span_len,
-                    position,
-                    input_span_len,
-                );
-            }
+        // Only the passthrough counts samples against the span length;
+        // `reset` already cleared the resamplers' own tracking.
+        if let ResampleInner::Passthrough { input_span_pos, .. } =
+            self.inner.as_mut().expect("always set")
+        {
+            reset_seek_span_tracking(
+                input_span_pos.raw_mut(),
+                &mut self.cached_input_span_len,
+                position,
+                input_span_len,
+            );
         }
 
         Ok(())
@@ -376,60 +380,46 @@ where
         // If a format change was detected at the previous span boundary, wait until the
         // output buffer is fully drained before recreating the resampler. This guarantees
         // that fill_input_buffer only ever reads from the current span.
-        if self.pending_recreate {
-            let output_empty = match self.resampler() {
-                ResampleInner::Passthrough { .. } => true,
-                ResampleInner::Poly(r) | ResampleInner::Sinc(r) => !r.output_has_samples(),
-                #[cfg(feature = "rubato-fft")]
-                ResampleInner::Fft(r) => !r.output_has_samples(),
-            };
-            if output_empty {
-                let source = self.inner.take().unwrap().into_inner();
-                self.inner = Some(Self::create_resampler(
-                    source,
-                    self.target_rate,
-                    &self.config,
-                ));
-                self.pending_recreate = false;
+        let sample = loop {
+            if self.pending_recreate {
+                let output_empty = match self.resampler() {
+                    ResampleInner::Passthrough { .. } => true,
+                    ResampleInner::Poly(r) | ResampleInner::Sinc(r) => !r.output_has_samples(),
+                    #[cfg(feature = "rubato-fft")]
+                    ResampleInner::Fft(r) => !r.output_has_samples(),
+                };
+                if output_empty {
+                    self.recreate();
+                }
             }
-        }
 
-        let sample = match self.resampler_mut() {
-            ResampleInner::Passthrough { source, .. } => source.next()?,
-            ResampleInner::Poly(resampler) => resampler.next_sample()?,
-            ResampleInner::Sinc(resampler) => resampler.next_sample()?,
-            #[cfg(feature = "rubato-fft")]
-            ResampleInner::Fft(resampler) => resampler.next_sample()?,
+            match self.next_resampled() {
+                Some(sample) => break sample,
+                // Built for one format, a resampler stops where its input
+                // changes rate or channels. Rebuilding matches the format
+                // it stopped at, so this retries at most once.
+                None if self.resampler().built_for_input() => return None,
+                None => self.recreate(),
+            }
         };
 
-        // If input reports no span length, parameters are stable by contract
-        let input_span_len = self.resampler().input().current_span_len();
-        if input_span_len.is_none() {
+        // Only the passthrough tracks spans here; a resampler stops at a
+        // format change itself while filling, and the loop above rebuilds it.
+        let ResampleInner::Passthrough {
+            input_span_pos,
+            channels,
+            source_rate,
+            source,
+        } = self.resampler_mut()
+        else {
             return Some(sample);
-        }
-
-        let (expected_channels, expected_rate, samples_consumed) = match self.resampler_mut() {
-            ResampleInner::Passthrough {
-                input_span_pos: input_samples_consumed,
-                channels,
-                source_rate,
-                ..
-            } => {
-                *input_samples_consumed += 1usize;
-                (*channels, *source_rate, *input_samples_consumed)
-            }
-            ResampleInner::Poly(r) | ResampleInner::Sinc(r) => (
-                r.output.channels,
-                r.input.sample_rate(),
-                r.pos_in_current_span,
-            ),
-            #[cfg(feature = "rubato-fft")]
-            ResampleInner::Fft(r) => (
-                r.output.channels,
-                r.input.sample_rate(),
-                r.pos_in_current_span,
-            ),
         };
+        let input_span_len = source.current_span_len();
+        // No span length means the format is stable by contract.
+        input_span_len?;
+        *input_span_pos += 1usize;
+        let (expected_channels, expected_rate, samples_consumed) =
+            (*channels, *source_rate, *input_span_pos);
 
         let input = self.resampler().input();
         let (at_boundary, parameters_changed) = Self::detect_boundary(
@@ -442,30 +432,11 @@ where
         );
 
         if at_boundary {
-            // Update cached span length (exits detection mode if we were in it)
             self.cached_input_span_len = input_span_len;
-
             if parameters_changed {
-                // Defer recreation until the output buffer is drained (handled above at the
-                // top of the next next() call) so no cross-span reads occur.
                 self.pending_recreate = true;
-            } else {
-                // Just crossed boundary without parameter change, reset counter
-                match self.resampler_mut() {
-                    ResampleInner::Passthrough {
-                        input_span_pos: input_samples_consumed,
-                        ..
-                    } => {
-                        *input_samples_consumed = InSamples::ZERO;
-                    }
-                    ResampleInner::Poly(r) | ResampleInner::Sinc(r) => {
-                        r.pos_in_current_span = InSamples::ZERO;
-                    }
-                    #[cfg(feature = "rubato-fft")]
-                    ResampleInner::Fft(r) => {
-                        r.pos_in_current_span = InSamples::ZERO;
-                    }
-                }
+            } else if let ResampleInner::Passthrough { input_span_pos, .. } = self.resampler_mut() {
+                *input_span_pos = InSamples::ZERO;
             }
         }
 

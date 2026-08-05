@@ -338,3 +338,109 @@ fn test_span_boundary_same_format() {
         output.len()
     );
 }
+
+/// Split `input` into spans of `span_samples`, all with the same format.
+fn chunked_into_spans(
+    input: &[Sample],
+    span_samples: usize,
+    rate: SampleRate,
+    channels: ChannelCount,
+) -> TestSource {
+    let mut spans = input.chunks(span_samples);
+    let first = spans.next().expect("input is not empty").to_vec();
+    spans.fold(TestSource::new(first, rate, channels), |source, span| {
+        source.chain(span.to_vec(), rate, channels)
+    })
+}
+
+/// Same samples, same format, different span lengths must resample to
+/// the same output: a span boundary without a format change is not a
+/// discontinuity. Reproduces #907, where Vorbis-sized spans made every
+/// chunk look like end-of-stream and get zero-padded.
+#[test]
+fn output_is_independent_of_span_chunking() {
+    let channels = ChannelCount::new(2).unwrap();
+    let rate = SampleRate::new(44100).unwrap();
+    let target = SampleRate::new(48000).unwrap();
+    let input = create_test_input(InFrameCount(4410), channels);
+    let config = || ResampleConfig::poly().build();
+
+    let whole: Vec<Sample> = SampleRateConverter::new(
+        TestSource::new(input.clone(), rate, channels),
+        target,
+        config(),
+    )
+    .collect();
+
+    // 128 frames is a typical Vorbis short block.
+    let source = chunked_into_spans(&input, 128 * channels.get() as usize, rate, channels);
+    let chunked: Vec<Sample> = SampleRateConverter::new(source, target, config()).collect();
+
+    assert_eq!(whole.len(), chunked.len(), "output length changed");
+    let worst = whole
+        .iter()
+        .zip(&chunked)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0, Sample::max);
+    assert!(worst < 1e-4, "output differs by up to {worst}");
+}
+
+/// A span that changes the sample rate must be resampled at its own
+/// rate. It used to be resampled at the previous span's rate, so a
+/// span that halved the rate came out half as long as it should.
+#[test]
+fn span_boundary_may_change_sample_rate() {
+    let channels = ChannelCount::new(1).unwrap();
+    let target = SampleRate::new(48000).unwrap();
+    let (fast, slow) = (
+        SampleRate::new(44100).unwrap(),
+        SampleRate::new(22050).unwrap(),
+    );
+    let frames = InFrameCount(441);
+
+    let source = TestSource::new(create_test_input(frames, channels), fast, channels).chain(
+        create_test_input(frames, channels),
+        slow,
+        channels,
+    );
+    let output: Vec<Sample> =
+        SampleRateConverter::new(source, target, ResampleConfig::poly().build()).collect();
+
+    let expected = resampled_len(frames, fast, target) + resampled_len(frames, slow, target);
+    assert_close(output.len(), expected, "sample rate change");
+}
+
+/// The same for a span that changes the channel count.
+#[test]
+fn span_boundary_may_change_channel_count() {
+    let (stereo, mono) = (ChannelCount::new(2).unwrap(), ChannelCount::new(1).unwrap());
+    let rate = SampleRate::new(44100).unwrap();
+    let target = SampleRate::new(48000).unwrap();
+    let frames = InFrameCount(441);
+
+    let source = TestSource::new(create_test_input(frames, stereo), rate, stereo).chain(
+        create_test_input(frames, mono),
+        rate,
+        mono,
+    );
+    let output: Vec<Sample> =
+        SampleRateConverter::new(source, target, ResampleConfig::poly().build()).collect();
+
+    let expected = resampled_len(frames, rate, target) * 2 + resampled_len(frames, rate, target);
+    assert_close(output.len(), expected, "channel count change");
+}
+
+/// Samples one span of `frames` becomes at `target`, one channel.
+fn resampled_len(frames: InFrameCount, from: SampleRate, target: SampleRate) -> usize {
+    (frames.raw() as f64 * target.get() as f64 / from.get() as f64).round() as usize
+}
+
+/// Resampler delay and rounding move the total by a few samples, so
+/// compare with room for that rather than exactly.
+fn assert_close(got: usize, expected: usize, what: &str) {
+    let slack = 16;
+    assert!(
+        got.abs_diff(expected) <= slack,
+        "{what}: got {got} samples, expected {expected} ± {slack}",
+    );
+}

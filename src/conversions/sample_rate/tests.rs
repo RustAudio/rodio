@@ -444,3 +444,16 @@ fn assert_close(got: usize, expected: usize, what: &str) {
         "{what}: got {got} samples, expected {expected} ± {slack}",
     );
 }
+
+/// Passthrough must keep yielding when the input reports no span length.
+#[test]
+fn passthrough_none_span_len_yields_samples() {
+    let rate = crate::DEFAULT_SAMPLE_RATE;
+    let mut out =
+        SampleRateConverter::new(SineWave::new(440.0), rate, ResampleConfig::poly().build());
+    let n = (&mut out).take(32).count();
+    assert_eq!(
+        n, 32,
+        "Passthrough with current_span_len() == None stopped early (got {n})"
+    );
+}

@@ -416,7 +416,9 @@ where
         };
         let input_span_len = source.current_span_len();
         // No span length means the format is stable by contract.
-        input_span_len?;
+        if input_span_len.is_none() {
+            return Some(sample);
+        }
         *input_span_pos += 1usize;
         let (expected_channels, expected_rate, samples_consumed) =
             (*channels, *source_rate, *input_span_pos);

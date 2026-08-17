@@ -46,7 +46,7 @@ use crate::decoder::symphonia::Registry;
 use self::read_seek_source::ReadSeekSource;
 #[cfg(feature = "symphonia")]
 use ::symphonia::core::{
-    codecs::CodecRegistry,
+    codecs::registry::{CodecRegistry, RegisterableAudioDecoder},
     io::{MediaSource, MediaSourceStream},
 };
 #[cfg(feature = "symphonia")]
@@ -104,7 +104,7 @@ impl Default for Settings {
                 let mut codec_registry = CodecRegistry::new();
                 register_enabled_codecs(&mut codec_registry);
                 #[cfg(feature = "symphonia-libopus")]
-                codec_registry.register_all::<symphonia_adapter_libopus::OpusDecoder>();
+                codec_registry.register_audio_decoder::<symphonia_adapter_libopus::OpusDecoder>();
                 Registry::new(codec_registry)
             },
         }
@@ -257,9 +257,12 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     #[cfg(feature = "symphonia")]
     pub fn with_symphonia_decoder<D>(self) -> Self
     where
-        D: ::symphonia::core::codecs::Decoder,
+        D: RegisterableAudioDecoder,
     {
-        self.settings.codec_registry.write().register_all::<D>();
+        self.settings
+            .codec_registry
+            .write()
+            .register_audio_decoder::<D>();
         self
     }
 
@@ -296,7 +299,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     }
 
     /// Creates the decoder implementation with configured settings.
-    fn build_impl(self) -> Result<(DecoderImpl<R>, Settings), DecoderError> {
+    fn build_impl(self) -> Result<(DecoderImpl<'static, R>, Settings), DecoderError> {
         let data = self.data.ok_or(DecoderError::UnrecognizedFormat)?;
 
         #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
@@ -346,7 +349,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     ///
     /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
     /// or is not supported.
-    pub fn build(self) -> Result<Decoder<R>, DecoderError> {
+    pub fn build(self) -> Result<Decoder<'static, R>, DecoderError> {
         let (decoder, _) = self.build_impl()?;
         Ok(Decoder(decoder))
     }
@@ -357,7 +360,7 @@ impl<R: Read + Seek + Send + Sync + 'static> DecoderBuilder<R> {
     ///
     /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
     /// or is not supported.
-    pub fn build_looped(self) -> Result<LoopedDecoder<R>, DecoderError> {
+    pub fn build_looped(self) -> Result<LoopedDecoder<'static, R>, DecoderError> {
         let (decoder, settings) = self.build_impl()?;
         Ok(LoopedDecoder {
             inner: Some(decoder),

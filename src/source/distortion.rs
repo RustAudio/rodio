@@ -24,7 +24,7 @@ pub struct Distortion<I> {
     threshold: Float,
 }
 
-impl<I> Distortion<I> {
+impl<S> Distortion<S> {
     /// Modifies the distortion gain.
     #[inline]
     pub fn set_gain(&mut self, gain: Float) {
@@ -37,23 +37,7 @@ impl<I> Distortion<I> {
         self.threshold = threshold;
     }
 
-    /// Returns a reference to the inner source.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Returns a mutable reference to the inner source.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
-
-    /// Returns the inner source.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
+    crate::common::source::add_inner_accessors! {input}
 }
 
 impl<I> Iterator for Distortion<I>

@@ -19,30 +19,14 @@ pub struct Stoppable<I> {
     stopped: bool,
 }
 
-impl<I> Stoppable<I> {
+impl<S> Stoppable<S> {
     /// Stops the sound.
     #[inline]
     pub fn stop(&mut self) {
         self.stopped = true;
     }
 
-    /// Returns a reference to the inner source.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Returns a mutable reference to the inner source.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
-
-    /// Returns the inner source.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
+    crate::common::source::add_inner_accessors! {input}
 }
 
 impl<I> Iterator for Stoppable<I>

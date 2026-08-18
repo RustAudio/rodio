@@ -538,7 +538,7 @@ where
     /// # Example
     /// ```no_run
     /// # use rodio::microphone::MicrophoneBuilder;
-    /// # use rodio::Source;
+    /// # use rodio::FixedSource;
     /// # use std::time::Duration;
     /// let mic = MicrophoneBuilder::new()
     ///     .default_device()?

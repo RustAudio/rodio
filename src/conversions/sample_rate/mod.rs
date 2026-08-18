@@ -84,10 +84,10 @@ use crate::{
     Source,
 };
 
-mod buffer;
+pub(crate) mod buffer;
 mod builder;
-mod rubato;
-mod types;
+pub(crate) mod rubato;
+pub(crate) mod types;
 pub(crate) use types::{InFrameCount, InSamples, OutFrameCount, OutSamples};
 #[cfg(test)]
 mod tests;
@@ -127,7 +127,7 @@ where
     fn clone(&self) -> Self {
         // Shallow clone: this resets filter state
         let source = self.inner().clone();
-        SampleRateConverter::new(source, self.target_rate, self.config.clone())
+        SampleRateConverter::new(source, self.target_rate, self.config)
     }
 }
 
@@ -191,8 +191,7 @@ where
                             .expect("Failed to create polynomial resampler");
                     ResampleInner::Poly(resampler)
                 }
-                ResampleConfig::Sinc(sinc) => {
-                    let mut sinc = sinc.clone();
+                ResampleConfig::Sinc(mut sinc) => {
                     #[cfg(feature = "rubato-fft")]
                     if sinc.is_supported_fixed_ratio(target_rate, source_rate) {
                         let resampler = RubatoFftResample::new(

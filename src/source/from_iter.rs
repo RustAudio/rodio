@@ -40,10 +40,10 @@ pub struct FromIter<I> {
     sample_rate: SampleRate,
 }
 
-impl<I> FromIter<I> {
+impl<S> FromIter<S> {
     /// Creates a new `FromIter` from an iterator and audio parameters.
     #[inline]
-    pub fn new(iter: I, channels: ChannelCount, sample_rate: SampleRate) -> Self {
+    pub fn new(iter: S, channels: ChannelCount, sample_rate: SampleRate) -> Self {
         Self {
             iter,
             channels,
@@ -51,23 +51,7 @@ impl<I> FromIter<I> {
         }
     }
 
-    /// Destroys this source and returns the underlying iterator.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.iter
-    }
-
-    /// Get immutable access to the underlying iterator.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.iter
-    }
-
-    /// Get mutable access to the underlying iterator.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.iter
-    }
+    crate::common::source::add_inner_accessors! {iter}
 }
 
 impl<I> Iterator for FromIter<I>

@@ -4,6 +4,14 @@
 [![Crates.io Downloads](https://img.shields.io/crates/d/rodio.svg)](https://crates.io/crates/rodio)
 [![Build Status](https://github.com/RustAudio/rodio/workflows/CI/badge.svg)](https://github.com/RustAudio/rodio/actions)
 
+> [!WARNING]
+> We are currently rewriting Rodio's core audio engine. The current state should
+> be working but under documented. This is expected to take at least a month.
+> For the latest unreleased work pre engine rewrite see [this
+> checkout](https://github.com/RustAudio/rodio/tree/c5f1e94290922fe4ee963ce6f85754ea6ba36243).
+> To follow our progress see the [tracking
+> issue](https://github.com/RustAudio/rodio/issues/901)
+
 Rust playback library.
 
 Playback is handled by [cpal](https://github.com/RustAudio/cpal). Format decoding is handled by [Symphonia](https://github.com/pdeljanov/Symphonia) by default, or by optional format-specific decoders:

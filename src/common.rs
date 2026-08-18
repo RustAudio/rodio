@@ -3,6 +3,8 @@ use std::num::NonZero;
 
 use crate::math::nz;
 
+pub(crate) mod source;
+
 /// Sample rate (a frame rate or samples per second per channel).
 pub type SampleRate = NonZero<u32>;
 

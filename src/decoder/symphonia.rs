@@ -107,10 +107,9 @@ impl SymphoniaDecoder {
         };
         let mut probed = get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
 
-        let stream = match probed.format.default_track() {
-            Some(stream) => stream,
-            None => return Ok(None),
-        };
+        if probed.format.default_track().is_none() {
+            return Ok(None);
+        }
 
         // Select the first supported track
         let track = probed
@@ -131,7 +130,7 @@ impl SymphoniaDecoder {
         let total_duration = track
             .codec_params
             .time_base
-            .zip(stream.codec_params.n_frames)
+            .zip(track.codec_params.n_frames)
             .map(|(base, spans)| base.calc_time(spans).into())
             .filter(|d: &Duration| !d.is_zero());
 

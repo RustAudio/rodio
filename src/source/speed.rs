@@ -32,9 +32,11 @@
 #![cfg_attr(not(feature = "playback"), doc = "```ignore")]
 #![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use rodio::source::{Source, SineWave};
+//! use rodio::effects::amplify::Factor;
+//!
 //! let source = SineWave::new(440.0)
 //!    .take_duration(std::time::Duration::from_secs_f32(20.25))
-//!    .amplify(0.20);
+//!    .amplify(Factor::Linear(0.20));
 //! let handle = rodio::DeviceSinkBuilder::open_default_sink()
 //!         .expect("open default audio sink");
 //! let player = rodio::Player::connect_new(&handle.mixer());
@@ -64,9 +66,9 @@ pub struct Speed<I> {
     factor: f32,
 }
 
-impl<I> Speed<I>
+impl<S> Speed<S>
 where
-    I: Source,
+    S: Source,
 {
     /// Modifies the speed factor.
     #[inline]
@@ -74,23 +76,7 @@ where
         self.factor = factor;
     }
 
-    /// Returns a reference to the inner source.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Returns a mutable reference to the inner source.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
-
-    /// Returns the inner source.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
+    crate::common::source::add_inner_accessors! {input}
 }
 
 impl<I> Iterator for Speed<I>

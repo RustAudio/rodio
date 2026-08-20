@@ -1,3 +1,4 @@
+use rodio::effects::amplify::Factor;
 use rodio::mixer;
 use rodio::source::{SineWave, Source};
 use rodio::Float;
@@ -19,16 +20,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     // E4, G4, and A4 respectively.
     let source_c = SineWave::new(261.63)
         .take_duration(NOTE_DURATION)
-        .amplify(NOTE_AMPLITUDE);
+        .amplify(Factor::Linear(NOTE_AMPLITUDE));
     let source_e = SineWave::new(329.63)
         .take_duration(NOTE_DURATION)
-        .amplify(NOTE_AMPLITUDE);
+        .amplify(Factor::Linear(NOTE_AMPLITUDE));
     let source_g = SineWave::new(392.0)
         .take_duration(NOTE_DURATION)
-        .amplify(NOTE_AMPLITUDE);
+        .amplify(Factor::Linear(NOTE_AMPLITUDE));
     let source_a = SineWave::new(440.0)
         .take_duration(NOTE_DURATION)
-        .amplify(NOTE_AMPLITUDE);
+        .amplify(Factor::Linear(NOTE_AMPLITUDE));
 
     // Add sources C, E, G, and A to the mixer controller.
     controller.add(source_c);

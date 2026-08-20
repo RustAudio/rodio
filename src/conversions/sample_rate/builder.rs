@@ -208,7 +208,7 @@ impl Default for SincConfigBuilder {
 /// let config = ResampleConfig::sinc().chunk_size(nz!(512));
 /// let config = ResampleConfig::poly().degree(Poly::Cubic);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ResampleConfig {
     /// Polynomial resampling (fast, no anti-aliasing)
     Poly {
@@ -221,7 +221,7 @@ pub enum ResampleConfig {
     Sinc(Sinc),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Sinc {
     /// Length of the windowed sinc interpolation filter
     pub sinc_len: usize,

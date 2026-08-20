@@ -11,33 +11,17 @@ pub struct SampleTypeConverter<I, O> {
     marker: PhantomData<O>,
 }
 
-impl<I, O> SampleTypeConverter<I, O> {
+impl<S, O> SampleTypeConverter<S, O> {
     /// Builds a new converter.
     #[inline]
-    pub fn new(input: I) -> SampleTypeConverter<I, O> {
+    pub fn new(input: S) -> SampleTypeConverter<S, O> {
         SampleTypeConverter {
             input,
             marker: PhantomData,
         }
     }
 
-    /// Destroys this iterator and returns the underlying iterator.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
-
-    /// Get immutable access to the underlying iterator.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Get mutable access to the underlying iterator.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
+    crate::common::source::add_inner_accessors! {input}
 }
 
 impl<I, O> Iterator for SampleTypeConverter<I, O>

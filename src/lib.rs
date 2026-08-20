@@ -70,6 +70,7 @@
 #![cfg_attr(feature = "playback", doc = "```no_run")]
 //! use std::time::Duration;
 //! use rodio::{MixerDeviceSink, Player};
+//! use rodio::effects::amplify::Factor;
 //! use rodio::source::{SineWave, Source};
 //!
 //! // _stream must live as long as the sink
@@ -78,7 +79,9 @@
 //! let player = rodio::Player::connect_new(&handle.mixer());
 //!
 //! // Add a dummy source of the sake of the example.
-//! let source = SineWave::new(440.0).take_duration(Duration::from_secs_f32(0.25)).amplify(0.20);
+//! let source = SineWave::new(440.0)
+//!     .take_duration(Duration::from_secs_f32(0.25))
+//!     .amplify(Factor::Linear(0.20));
 //! player.append(source);
 //!
 //! // The sound plays in a separate thread. This call will block the current thread until the
@@ -226,8 +229,13 @@ mod wav_output;
 pub mod buffer;
 pub mod conversions;
 pub mod decoder;
-#[cfg(feature = "experimental")]
+
+pub mod const_source;
 pub mod fixed_source;
+
+pub mod effects;
+pub mod generators;
+
 pub mod math;
 #[cfg(feature = "recording")]
 /// Microphone input support for audio recording.
@@ -238,8 +246,8 @@ pub mod source;
 pub mod static_buffer;
 
 pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate, DEFAULT_SAMPLE_RATE};
+pub use crate::const_source::ConstSource;
 pub use crate::decoder::Decoder;
-#[cfg(feature = "experimental")]
 pub use crate::fixed_source::FixedSource;
 pub use crate::player::Player;
 pub use crate::source::Source;
@@ -250,3 +258,5 @@ pub use crate::stream::{play, DeviceSinkBuilder, DeviceSinkError, MixerDeviceSin
 pub use crate::wav_output::wav_to_file;
 #[cfg(feature = "wav_output")]
 pub use crate::wav_output::wav_to_writer;
+
+pub use Source as DynamicSource;

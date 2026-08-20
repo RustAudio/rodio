@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `FixedSource` which mirrors `Source` but does not allow the sample rate or
+  channel count to change.
+- Added `ConstSource` which is like `FixedSource` except the sample rate and
+  channel count are fixed at compile time.
 - Added `Skippable::skipped` function to check if the inner source was skipped.
 - All sources now implement `ExactSizeIterator` when their inner source does.
 - All sources now implement `Iterator::size_hint()`.
@@ -21,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Breaking: `amplify` now takes a `Factor` which can be linear, decibels or
+  normalized.
+- Breaking: removed `amplify_decibel` and `amplify_normalized`
+- Breaking: `Microphone` now implements `FixedSource`
 - Breaking: `Done` now calls a callback instead of decrementing an `Arc<AtomicUsize>`.
 - Updated `cpal` to v0.18.
 - Clarified `Source::current_span_len()` documentation to specify it returns total span length.

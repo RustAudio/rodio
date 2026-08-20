@@ -45,13 +45,36 @@ pub enum ResampleInner<I: Source> {
 }
 
 impl<I: Source> ResampleInner<I> {
+    pub fn can_reconfigure(&self) -> bool {
+        match self {
+            ResampleInner::Passthrough { .. } => false,
+            ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => {
+                resampler.output_delay_remaining == output_delay(&resampler.resampler)
+            }
+            #[cfg(feature = "rubato-fft")]
+            ResampleInner::Fft(resampler) => {
+                resampler.output_delay_remaining == output_delay(&resampler.resampler)
+            }
+        }
+    }
+
     /// Get a reference to the inner input source
     #[inline]
     pub fn input(&self) -> &I {
         match self {
             ResampleInner::Passthrough { source, .. } => source,
-            ResampleInner::Poly(resampler) => &resampler.input,
-            ResampleInner::Sinc(resampler) => &resampler.input,
+            ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => &resampler.input,
+            #[cfg(feature = "rubato-fft")]
+            ResampleInner::Fft(resampler) => &resampler.input,
+        }
+    }
+
+    /// Extract the inner input source, consuming the resampler
+    #[inline]
+    pub fn inner(&self) -> &I {
+        match self {
+            ResampleInner::Passthrough { source, .. } => source,
+            ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => &resampler.input,
             #[cfg(feature = "rubato-fft")]
             ResampleInner::Fft(resampler) => &resampler.input,
         }
@@ -76,7 +99,7 @@ pub struct RubatoResample<I: Source, R: rubato::Resampler<Sample>> {
     pub input: I,
     pub resampler: R,
 
-    pub input_buffer: super::buffer::Input,
+    pub(crate) input_buffer: super::buffer::Input,
     pub(crate) output: super::buffer::Output,
 
     /// The following are cached at construction for parameter-change detection.
@@ -88,15 +111,14 @@ pub struct RubatoResample<I: Source, R: rubato::Resampler<Sample>> {
     pub frames_being_resampled: OutFrameCount,
 }
 
-impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
-    /// Calculate the number of output samples to skip for delay compensation.
-    pub fn output_delay(resampler: &R) -> OutFrameCount {
-        // Skip delay-1 frames to align the first output frame with input position 0.
-        let delay_frames = resampler.output_delay();
-        let delay_frames = delay_frames.saturating_sub(1);
-        OutFrameCount(delay_frames)
-    }
+pub fn output_delay(resampler: &impl rubato::Resampler<Sample>) -> OutFrameCount {
+    // Skip delay-1 frames to align the first output frame with input position 0.
+    let delay_frames = resampler.output_delay();
+    let delay_frames = delay_frames.saturating_sub(1);
+    OutFrameCount(delay_frames)
+}
 
+impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
     pub fn span_length(&self) -> Option<usize> {
         if !self.output.is_empty() {
             // rest of the output buffer is rest of span
@@ -119,7 +141,7 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
         self.resampler.reset();
         self.output.reset();
         self.pos_in_current_span = InSamples::ZERO;
-        self.output_delay_remaining = Self::output_delay(&self.resampler);
+        self.output_delay_remaining = output_delay(&self.resampler);
     }
 
     pub fn next_sample(&mut self) -> Option<Sample> {
@@ -239,14 +261,13 @@ impl<I: Source> RubatoAsyncResample<I> {
         let input_buf_size = InFrameCount(resampler.input_frames_max());
         let output_buf_size = OutFrameCount(resampler.output_frames_max());
 
-        let initial_output_delay =
-            RubatoResample::<I, rubato::Async<Sample>>::output_delay(&resampler);
+        let initial_output_delay = output_delay(&resampler);
 
         Ok(Self {
             input,
             resampler,
             input_buffer: Input::new(input_buf_size.samples(channels)),
-            output: Output::new(source_rate, channels, output_buf_size),
+            output: Output::new(channels, output_buf_size),
             pos_in_current_span: InSamples::ZERO,
             output_delay_remaining: initial_output_delay,
             resample_ratio,
@@ -290,14 +311,13 @@ impl<I: Source> RubatoAsyncResample<I> {
         let input_buf_size = InFrameCount(resampler.input_frames_max());
         let output_buf_size = OutFrameCount(resampler.output_frames_max());
 
-        let initial_output_delay =
-            RubatoResample::<I, rubato::Async<Sample>>::output_delay(&resampler);
+        let initial_output_delay = output_delay(&resampler);
 
         Ok(Self {
             input,
             resampler,
             input_buffer: Input::new(input_buf_size.samples(channels)),
-            output: Output::new(source_rate, channels, output_buf_size),
+            output: Output::new(channels, output_buf_size),
             pos_in_current_span: InSamples::ZERO,
             output_delay_remaining: initial_output_delay,
             resample_ratio,
@@ -341,13 +361,13 @@ impl<I: Source> RubatoFftResample<I> {
         let output_buf_size = OutFrameCount(resampler.output_frames_max());
         let resample_ratio = target_rate.get() as Float / source_rate.get() as Float;
 
-        let output_delay_remaining = RubatoFftResample::<I>::output_delay(&resampler);
+        let output_delay_remaining = output_delay(&resampler);
 
         Ok(Self {
             input,
             resampler,
             input_buffer: Input::new(input_buf_size.samples(channels)),
-            output: Output::new(source_rate, channels, output_buf_size),
+            output: Output::new(channels, output_buf_size),
             pos_in_current_span: InSamples::ZERO,
             output_delay_remaining,
             resample_ratio,

@@ -1,3 +1,4 @@
+use rodio::effects::amplify::Factor;
 use rodio::source::{SineWave, Source};
 use std::error::Error;
 use std::thread;
@@ -10,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Create a sine wave source and apply distortion
     let distorted = SineWave::new(440.0)
-        .amplify(0.2)
+        .amplify(Factor::Linear(0.2))
         .distortion(4.0, 0.3)
         .take_duration(Duration::from_secs(3));
 

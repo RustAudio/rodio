@@ -19,14 +19,14 @@ where
     current_sample: Option<Sample>,
 }
 
-impl<I> ChannelVolume<I>
+impl<S> ChannelVolume<S>
 where
-    I: Source,
+    S: Source,
 {
     /// Wrap the input source and make it mono. Play that mono sound to each
     /// channel at the volume set by the user. The volume can be changed using
     /// [`ChannelVolume::set_volume`].
-    pub fn new(input: I, channel_volumes: Vec<Float>) -> ChannelVolume<I> {
+    pub fn new(input: S, channel_volumes: Vec<Float>) -> ChannelVolume<S> {
         let channel_count = channel_volumes.len(); // See next() implementation.
         ChannelVolume {
             input,
@@ -42,28 +42,12 @@ where
         self.channel_volumes[channel] = volume;
     }
 
-    /// Returns a reference to the inner source.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Returns a mutable reference to the inner source.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
-
-    /// Returns the inner source.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
-
     /// Gets the volume for a given channel number. Returns `None` if channel number is invalid.
     pub fn volume(&self, channel: usize) -> Option<Float> {
         self.channel_volumes.get(channel).copied()
     }
+
+    crate::common::source::add_inner_accessors! {input}
 }
 
 impl<I> Iterator for ChannelVolume<I>

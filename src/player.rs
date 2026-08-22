@@ -9,7 +9,7 @@ use dasp_sample::FromSample;
 use std::sync::mpsc::{Receiver, Sender};
 
 use crate::mixer::Mixer;
-use crate::source::SeekError;
+use crate::source::{Empty, SeekError};
 use crate::Float;
 use crate::{queue, source::Done, Source};
 
@@ -71,7 +71,7 @@ impl Player {
     /// Builds a new `Player`, beginning playback on a stream.
     #[inline]
     pub fn connect_new(mixer: &Mixer) -> Player {
-        let (sink, source) = Player::new();
+        let (sink, source) = Player::new_with_keep_alive(mixer.silence());
         mixer.add(source);
         sink
     }
@@ -79,7 +79,16 @@ impl Player {
     /// Builds a new `Player`.
     #[inline]
     pub fn new() -> (Player, queue::SourcesQueueOutput) {
-        let (queue_tx, queue_rx) = queue::queue(true);
+        Player::new_with_keep_alive(Empty::new())
+    }
+
+    /// Builds a new `Player` that plays `keep_alive_with` (looping to silence in its format
+    /// once exhausted) instead of ending when it becomes empty. See [`queue::queue`].
+    pub fn new_with_keep_alive<S>(keep_alive_with: S) -> (Player, queue::SourcesQueueOutput)
+    where
+        S: Source + Send + 'static,
+    {
+        let (queue_tx, queue_rx) = queue::queue(Some(Box::new(keep_alive_with)));
 
         let sink = Player {
             queue_tx,

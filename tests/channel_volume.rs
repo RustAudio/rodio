@@ -24,7 +24,7 @@ fn channel_volume_without_queue() {
 #[test]
 fn channel_volume_with_queue() {
     let channel_volume = create_6_channel_source();
-    let (controls, queue) = queue::queue(false);
+    let (controls, queue) = queue::queue(None);
     controls.append(channel_volume);
     assert_output_only_on_first_two_channels(queue, 6);
 }

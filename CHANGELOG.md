@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `Source::loudness` adapter that measures perceptual loudness (LUFS,
+  EBU R128 / ITU-R BS.1770) via the `ebur128` crate, behind the new `loudness`
+  feature. Passes audio through unchanged.
 - Added `Skippable::skipped` function to check if the inner source was skipped.
 - All sources now implement `ExactSizeIterator` when their inner source does.
 - All sources now implement `Iterator::size_hint()`.

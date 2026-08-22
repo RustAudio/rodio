@@ -47,6 +47,11 @@ dither = ["noise"]
 # Enable noise generation (white noise, pink noise, etc.)
 noise = ["rand", "rand_distr"]
 
+# Audio analysis features
+#
+# Enable perceptual loudness measurement (EBU R128 / ITU-R BS.1770) via the `ebur128` crate
+loudness = ["dep:ebur128"]
+
 # Performance features
 #
 # Perform all calculations with 64-bit floats (instead of 32)
@@ -170,6 +175,8 @@ rubato = { version = "3.0", default-features = false }
 
 symphonia-adapter-libopus = { version = "0.2", optional = true }
 
+ebur128 = { version = "0.1.10", optional = true }
+
 [dev-dependencies]
 quickcheck = "1"
 rstest = "0.26"
@@ -203,6 +210,10 @@ required-features = ["wav"]
 [[example]]
 name = "automatic_gain_control"
 required-features = ["playback", "flac"]
+
+[[example]]
+name = "loudness"
+required-features = ["playback", "loudness"]
 
 [[example]]
 name = "basic"

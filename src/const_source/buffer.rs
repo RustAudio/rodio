@@ -14,9 +14,6 @@ pub struct SamplesBuffer<const SR: u32, const CH: u16> {
 
 impl<const SR: u32, const CH: u16> SamplesBuffer<SR, CH> {
     /// Builds a new `SamplesBuffer`.
-    ///
-    /// Note any call to total_duration will panic if the buffer is larger then
-    /// 16 billion elements.
     pub fn new<D>(data: D) -> SamplesBuffer<SR, CH>
     where
         D: Into<Vec<Sample>>,

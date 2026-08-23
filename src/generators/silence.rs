@@ -3,6 +3,9 @@ pub mod const_source {
 
     use crate::source::SeekError;
     use crate::ConstSource;
+    use crate::Sample;
+
+    use dasp_sample::Sample as _;
 
     /// A source producing an infinite amount of Silence. Like all generators you
     /// probably want to limit the duration of this source.
@@ -52,7 +55,7 @@ pub mod const_source {
         type Item = crate::Sample;
 
         fn next(&mut self) -> Option<Self::Item> {
-            Some(0.0)
+            Some(Sample::EQUILIBRIUM)
         }
 
         fn size_hint(&self) -> (usize, Option<usize>) {

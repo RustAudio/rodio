@@ -37,7 +37,7 @@ macro_rules! source_impl {
 
             // make sure the next sample is for the right channel
             let new_pos = new_pos.next_multiple_of(self.channels().get() as usize);
-            let new_pos = new_pos - curr_channel;
+            let new_pos = new_pos + curr_channel;
 
             self.pos = new_pos;
             Ok(())
@@ -56,7 +56,7 @@ macro_rules! iter_impl {
         }
         #[inline]
         fn size_hint(&self) -> (usize, Option<usize>) {
-            let remaining = self.data.len() - self.pos;
+            let remaining = self.data.len().saturating_sub(self.pos);
             (remaining, Some(remaining))
         }
     };

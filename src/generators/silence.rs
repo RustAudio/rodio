@@ -1,7 +1,10 @@
-pub mod fixed_source {
-    use std::time::Duration;
+use crate::source::SeekError;
+use crate::Sample;
+use dasp_sample::Sample as _;
+use std::time::Duration;
 
-    use crate::source::SeekError;
+pub mod fixed_source {
+    use super::*;
     use crate::{nz, FixedSource};
     use crate::{ChannelCount, SampleRate};
 
@@ -60,7 +63,7 @@ pub mod fixed_source {
         type Item = crate::Sample;
 
         fn next(&mut self) -> Option<Self::Item> {
-            Some(0.0)
+            Some(Sample::EQUILIBRIUM)
         }
 
         fn size_hint(&self) -> (usize, Option<usize>) {
@@ -70,13 +73,8 @@ pub mod fixed_source {
 }
 
 pub mod const_source {
-    use std::time::Duration;
-
-    use crate::source::SeekError;
+    use super::*;
     use crate::ConstSource;
-    use crate::Sample;
-
-    use dasp_sample::Sample as _;
 
     /// A source producing an infinite amount of Silence. Like all generators you
     /// probably want to limit the duration of this source.

@@ -9,7 +9,7 @@ mod buffer;
 mod chain;
 
 pub use buffer::SamplesBuffer;
-pub use chain::SourceChain;
+pub use chain::{ParamsMismatch, SourceChain};
 
 /// Similar to `Source`, something that can produce interleaved samples for a
 /// fixed amount of channels at a fixed sample rate. Those parameters never
@@ -165,6 +165,10 @@ impl<const SR: u32, const CH: u16, S: FixedSource> ConstSource<SR, CH>
     fn total_duration(&self) -> Option<Duration> {
         self.0.total_duration()
     }
+
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.0.try_seek(pos)
+    }
 }
 
 impl<const SR: u32, const CH: u16, S: FixedSource> Iterator for IntoConstSource<SR, CH, S> {
@@ -217,6 +221,10 @@ impl<S: FixedSource> crate::DynamicSource for IntoDynamicSource<S> {
 
     fn total_duration(&self) -> Option<Duration> {
         self.0.total_duration()
+    }
+
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.0.try_seek(pos)
     }
 }
 

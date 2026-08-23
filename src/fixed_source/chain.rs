@@ -9,9 +9,11 @@ use crate::{ChannelCount, SampleRate};
 pub struct SourceChain<S1, S2> {
     first: S1,
     second: S2,
-    playing_inner: bool,
+    playing_first: bool,
 }
 
+/// Error returned by [`FixedSource::try_chain_source`] when chaining two sources with
+/// mismatching parameters.
 #[derive(Debug, Clone, Copy, thiserror::Error, PartialEq, Eq)]
 pub struct ParamsMismatch {
     sample_rate_self: SampleRate,
@@ -45,7 +47,7 @@ impl<S1: FixedSource, S2: FixedSource> SourceChain<S1, S2> {
             Ok(SourceChain {
                 first: s1,
                 second: s2,
-                playing_inner: true,
+                playing_first: true,
             })
         }
     }

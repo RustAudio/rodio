@@ -78,7 +78,7 @@ where
         // The transition between sources must be a span boundary. We propagate the current
         // source's span length directly. When the source is exhausted it already returns Some(0),
         // which correctly signals end-of-span. The None case (empty iterator) is likewise
-        // signalled as Some(0).
+        // signaled as Some(0).
         match &self.current_source {
             None => Some(0),
             Some(src) => src.current_span_len(),

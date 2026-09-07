@@ -224,10 +224,13 @@ pub mod stream;
 mod wav_output;
 
 pub mod buffer;
+pub mod const_source;
 pub mod conversions;
 pub mod decoder;
 #[cfg(feature = "experimental")]
 pub mod fixed_source;
+
+pub mod generators;
 pub mod math;
 #[cfg(feature = "recording")]
 /// Microphone input support for audio recording.
@@ -238,6 +241,7 @@ pub mod source;
 pub mod static_buffer;
 
 pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate, DEFAULT_SAMPLE_RATE};
+pub use crate::const_source::ConstSource;
 pub use crate::decoder::Decoder;
 #[cfg(feature = "experimental")]
 pub use crate::fixed_source::FixedSource;
@@ -250,3 +254,5 @@ pub use crate::stream::{play, DeviceSinkBuilder, DeviceSinkError, MixerDeviceSin
 pub use crate::wav_output::wav_to_file;
 #[cfg(feature = "wav_output")]
 pub use crate::wav_output::wav_to_writer;
+
+pub use Source as DynamicSource;

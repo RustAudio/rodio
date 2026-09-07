@@ -8,3 +8,8 @@ mod silence;
 pub mod const_source {
     pub use super::silence::const_source::Silence;
 }
+
+/// Generators where the sample rate and channel may be passed in at runtime
+pub mod fixed_source {
+    pub use super::silence::fixed_source::Silence;
+}

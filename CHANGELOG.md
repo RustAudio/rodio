@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed sources to detect parameter updates after mid-span seeks.
 - Fixed `Stoppable` and `Skippable` not signaling exhaustion.
 - Fixed `SpatialAudio` left and write channel swapping
+- Fixed playback on devices that cap the buffer size below the default we aim for, such as bluetooth outputs.
 
 ## Version [0.22.2] (2026-03-05)
 

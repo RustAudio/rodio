@@ -220,7 +220,12 @@ impl DeviceSinkBuilder {
 
         // aim for 50ms of audio
         let sample_rate = device.config.sample_rate().get();
-        let safe_buffer_size = nearest_multiple_of_two(sample_rate / (1000 / 50));
+        let mut safe_buffer_size = nearest_multiple_of_two(sample_rate / (1000 / 50));
+        // Opening fails on a fixed size outside the device's range, and
+        // bluetooth outputs cap it well below 50ms.
+        if let cpal::SupportedBufferSize::Range { min, max } = default_config.buffer_size() {
+            safe_buffer_size = safe_buffer_size.clamp(*min, *max);
+        }
 
         // This is suboptimal, the builder might still change the sample rate or
         // channel count which would throw the buffer size off. We have fixed

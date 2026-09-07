@@ -57,6 +57,26 @@ impl<I: Source> ResampleInner<I> {
         }
     }
 
+    /// Whether the input still has the format this was built for.
+    #[inline]
+    pub fn built_for_input(&self) -> bool {
+        let (channels, source_rate) = match self {
+            ResampleInner::Passthrough {
+                channels,
+                source_rate,
+                ..
+            } => (*channels, *source_rate),
+            ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => {
+                (resampler.output.channels, resampler.output.source_rate)
+            }
+            #[cfg(feature = "rubato-fft")]
+            ResampleInner::Fft(resampler) => {
+                (resampler.output.channels, resampler.output.source_rate)
+            }
+        };
+        self.input().channels() == channels && self.input().sample_rate() == source_rate
+    }
+
     /// Extract the inner input source, consuming the resampler
     #[inline]
     pub fn into_inner(self) -> I {
@@ -83,7 +103,11 @@ pub struct RubatoResample<I: Source, R: rubato::Resampler<Sample>> {
     pub resample_ratio: Float,
 
     pub output_delay_remaining: OutFrameCount,
-    pub pos_in_current_span: InSamples,
+
+    /// How much of the span being read is left. Tracked because
+    /// `Source::current_span_len` reports the span's total length,
+    /// not its remainder.
+    span_remaining: InSamples,
 
     pub frames_being_resampled: OutFrameCount,
 }
@@ -118,7 +142,7 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
     pub fn reset(&mut self) {
         self.resampler.reset();
         self.output.reset();
-        self.pos_in_current_span = InSamples::ZERO;
+        self.span_remaining = InSamples::ZERO;
         self.output_delay_remaining = Self::output_delay(&self.resampler);
     }
 
@@ -147,7 +171,6 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
         }
 
         self.frames_being_resampled += frames_in.resampled_by(self.resample_ratio);
-        self.pos_in_current_span += frames_in.samples(self.output.channels);
 
         let indexing = Some(&rubato::Indexing {
             input_offset: 0,
@@ -192,21 +215,44 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
         Some(())
     }
 
+    /// Reads across spans, since the resampler is built for one format
+    /// and only a span that changes it has to end the chunk. A short
+    /// read then means end of stream or a format change, which is when
+    /// rubato should treat the chunk as partial.
     fn fill_input_buffer(&mut self, needed_by_resampler: InFrameCount) -> InFrameCount {
-        let current_span_length = self.input.current_span_len().map(InSamples);
-        let frames_to_take = needed_by_resampler
-            .samples(self.output.channels)
-            .min(current_span_length.unwrap_or(InSamples::MAX));
-
+        let wanted = needed_by_resampler.samples(self.output.channels);
         self.input_buffer.clear();
-        for _ in 0..frames_to_take.raw() {
-            if let Some(sample) = self.input.next() {
-                self.input_buffer.push(sample);
-            } else {
+
+        while self.input_buffer.len() < wanted {
+            if self.span_remaining == InSamples::ZERO && !self.start_of_span() {
                 break;
             }
+            let Some(sample) = self.input.next() else {
+                break;
+            };
+            self.input_buffer.push(sample);
+            self.span_remaining -= InSamples(1);
         }
+
         self.input_buffer.len().frames(self.output.channels)
+    }
+
+    /// Whether reading may continue into the next span, recording its
+    /// length. `false` once the stream ends or the format changes.
+    fn start_of_span(&mut self) -> bool {
+        let Some(span_len) = self.input.current_span_len() else {
+            // Without spans the format never changes.
+            self.span_remaining = InSamples::MAX;
+            return true;
+        };
+        if span_len == 0
+            || self.input.channels() != self.output.channels
+            || self.input.sample_rate() != self.output.source_rate
+        {
+            return false;
+        }
+        self.span_remaining = InSamples(span_len);
+        true
     }
 
     fn resampler_empty(&self) -> bool {
@@ -247,7 +293,7 @@ impl<I: Source> RubatoAsyncResample<I> {
             resampler,
             input_buffer: Input::new(input_buf_size.samples(channels)),
             output: Output::new(source_rate, channels, output_buf_size),
-            pos_in_current_span: InSamples::ZERO,
+            span_remaining: InSamples::ZERO,
             output_delay_remaining: initial_output_delay,
             resample_ratio,
             frames_being_resampled: OutFrameCount::ZERO,
@@ -298,7 +344,7 @@ impl<I: Source> RubatoAsyncResample<I> {
             resampler,
             input_buffer: Input::new(input_buf_size.samples(channels)),
             output: Output::new(source_rate, channels, output_buf_size),
-            pos_in_current_span: InSamples::ZERO,
+            span_remaining: InSamples::ZERO,
             output_delay_remaining: initial_output_delay,
             resample_ratio,
             frames_being_resampled: OutFrameCount::ZERO,
@@ -348,7 +394,7 @@ impl<I: Source> RubatoFftResample<I> {
             resampler,
             input_buffer: Input::new(input_buf_size.samples(channels)),
             output: Output::new(source_rate, channels, output_buf_size),
-            pos_in_current_span: InSamples::ZERO,
+            span_remaining: InSamples::ZERO,
             output_delay_remaining,
             resample_ratio,
             frames_being_resampled: OutFrameCount::ZERO,

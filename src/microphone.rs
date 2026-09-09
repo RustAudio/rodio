@@ -4,7 +4,7 @@
 //!
 //! ```no_run
 //! use rodio::microphone::MicrophoneBuilder;
-//! use rodio::Source;
+//! use rodio::FixedSource;
 //! use std::time::Duration;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -106,7 +106,7 @@ use std::time::Duration;
 
 use crate::common::assert_error_traits;
 use crate::conversions::SampleTypeConverter;
-use crate::{Sample, Source};
+use crate::Sample;
 
 mod builder;
 mod config;
@@ -188,25 +188,6 @@ pub struct Microphone {
     config: InputConfig,
 }
 
-impl Source for Microphone {
-    fn current_span_len(&self) -> Option<usize> {
-        None
-    }
-
-    fn channels(&self) -> crate::ChannelCount {
-        self.config.channel_count
-    }
-
-    fn sample_rate(&self) -> crate::SampleRate {
-        self.config.sample_rate
-    }
-
-    fn total_duration(&self) -> Option<std::time::Duration> {
-        None
-    }
-}
-
-#[cfg(feature = "experimental")]
 impl crate::FixedSource for Microphone {
     fn channels(&self) -> crate::ChannelCount {
         self.config.channel_count

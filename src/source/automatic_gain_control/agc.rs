@@ -112,9 +112,9 @@ pub struct AutomaticGainControl<I> {
     slow_down_state: SlowDownState,
 }
 
-impl<I> AutomaticGainControl<I>
+impl<S> AutomaticGainControl<S>
 where
-    I: Source,
+    S: Source,
 {
     /// Constructs an `AutomaticGainControl` object with specified parameters.
     ///
@@ -129,16 +129,16 @@ where
     /// `floor` - The minimum output level (gain floor) that the AGC will not go below
     #[inline]
     pub(crate) fn new(
-        input: I,
+        input: S,
         target_level: Float,
         attack_time: Duration,
         release_time: Duration,
         absolute_max_gain: Float,
         peak_tracking_window: Duration,
         floor: Float,
-    ) -> AutomaticGainControl<I>
+    ) -> AutomaticGainControl<S>
     where
-        I: Source,
+        S: Source,
     {
         let sample_rate = input.sample_rate();
         let attack_duration = duration_to_float(attack_time);
@@ -377,7 +377,7 @@ where
     }
 
     #[inline]
-    fn process_sample(&mut self, sample: I::Item) -> I::Item {
+    fn process_sample(&mut self, sample: S::Item) -> S::Item {
         // Cache atomic loads at the start - avoids repeated atomic operations
         let target_level = self.target_level();
         let absolute_max_gain = self.absolute_max_gain();
@@ -468,15 +468,7 @@ where
         sample * self.current_gain
     }
 
-    /// Returns an immutable reference to the inner source.
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Returns a mutable reference to the inner source.
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
+    crate::common::source::add_inner_accessors! {input}
 }
 
 impl<I> Iterator for AutomaticGainControl<I>

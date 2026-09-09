@@ -4,6 +4,7 @@ use divan::Bencher;
 use rodio::Source;
 
 mod shared;
+use rodio::effects::amplify::Factor;
 use shared::music_wav;
 
 fn main() {
@@ -40,7 +41,7 @@ fn fade_out(bencher: Bencher) {
 fn amplify(bencher: Bencher) {
     bencher
         .with_inputs(music_wav)
-        .bench_values(|source| source.amplify(0.8).for_each(divan::black_box_drop))
+        .bench_values(|source| source.amplify(Factor::Linear(0.8)).for_each(divan::black_box_drop))
 }
 
 #[divan::bench]

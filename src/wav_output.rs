@@ -145,7 +145,7 @@ mod test {
     fn test_wav_to_file() {
         let make_source = || {
             crate::source::SineWave::new(745.0)
-                .amplify(0.1)
+                .amplify(Factor::Linear(0.1))
                 .take_duration(Duration::from_secs(1))
         };
         let wav_file_path = "target/tmp/save-to-wav-test.wav";

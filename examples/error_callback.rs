@@ -1,4 +1,5 @@
 use cpal::traits::HostTrait;
+use rodio::effects::amplify::Factor;
 use rodio::source::SineWave;
 use rodio::Source;
 use std::error::Error;
@@ -29,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mixer = stream_handle.mixer();
 
     let wave = SineWave::new(740.0)
-        .amplify(0.1)
+        .amplify(Factor::Linear(0.1))
         .take_duration(Duration::from_secs(30));
     mixer.add(wave);
 

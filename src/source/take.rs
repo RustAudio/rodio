@@ -56,35 +56,19 @@ pub struct TakeDuration<I> {
     silence_samples_remaining: usize,
 }
 
-impl<I> TakeDuration<I>
+impl<S> TakeDuration<S>
 where
-    I: Source,
+    S: Source,
 {
     /// Returns the duration elapsed for each sample extracted.
     #[inline]
-    fn get_duration_per_sample(input: &I) -> Duration {
+    fn get_duration_per_sample(input: &S) -> Duration {
         let ns = NANOS_PER_SEC / (input.sample_rate().get() as u64 * input.channels().get() as u64);
         // \|/ the maximum value of `ns` is one billion, so this can't fail
         Duration::new(0, ns as u32)
     }
 
-    /// Returns a reference to the inner source.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Returns a mutable reference to the inner source.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
-
-    /// Returns the inner source.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
+    crate::common::source::add_inner_accessors! {input}
 
     /// Make the truncated source end with a FadeOut. The fadeout covers the
     /// entire length of the take source.

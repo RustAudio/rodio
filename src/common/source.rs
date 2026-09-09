@@ -18,3 +18,28 @@
 
 pub(crate) mod buffer;
 pub(crate) mod chain;
+
+/// TODO(yara) this should become a trait really.
+macro_rules! add_inner_accessors {
+    ($inner:ident) => {
+        /// placeholder
+        #[inline]
+        pub fn inner(&self) -> &S {
+            &self.$inner
+        }
+
+        /// placeholder
+        #[inline]
+        pub fn inner_mut(&mut self) -> &mut S {
+            &mut self.$inner
+        }
+
+        /// placeholder
+        #[inline]
+        pub fn into_inner(self) -> S {
+            self.$inner
+        }
+    };
+}
+
+pub(crate) use add_inner_accessors;

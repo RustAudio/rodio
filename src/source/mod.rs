@@ -7,12 +7,12 @@ use crate::{
     buffer::SamplesBuffer,
     common::{assert_error_traits, ChannelCount, SampleRate},
     conversions::SampleRateConverter,
-    math, Float, Sample,
+    effects::{amplify::Factor, dynamic_source::Amplify},
+    Float, Sample,
 };
 
 use dasp_sample::FromSample;
 
-pub use self::amplify::Amplify;
 pub use self::automatic_gain_control::{AutomaticGainControl, AutomaticGainControlSettings};
 pub use self::blt::BltFilter;
 pub use self::buffered::Buffered;
@@ -51,9 +51,10 @@ pub use self::triangle::TriangleWave;
 pub use self::uniform::UniformSourceIterator;
 pub use self::zero::{Zero, ZeroError};
 pub use crate::conversions::ResampleConfig;
-
-mod amplify;
 mod automatic_gain_control;
+
+pub(crate) mod macros;
+
 mod blt;
 mod buffered;
 mod chain;
@@ -241,7 +242,7 @@ pub trait Source: Iterator<Item = Sample> {
     /// use rodio::BitDepth;
     ///
     /// let source = SineWave::new(440.0)
-    ///     .amplify(0.5)
+    ///     .amplify(Factor::Linear(0.5))
     ///     .dither(BitDepth::new(16).unwrap(), DitherAlgorithm::default());
     /// ```
     #[cfg(feature = "dither")]
@@ -307,48 +308,12 @@ pub trait Source: Iterator<Item = Sample> {
         skip::skip_duration(self, duration)
     }
 
-    /// Amplifies the sound by the given value.
-    #[inline]
-    fn amplify(self, value: Float) -> Amplify<Self>
+    #[doc = include_str!("../docs/amplify.md")]
+    fn amplify(self, factor: Factor) -> Amplify<Self>
     where
-        Self: Sized,
+        Self: Source + Sized,
     {
-        amplify::amplify(self, value)
-    }
-
-    /// Amplifies the sound logarithmically by the given value.
-    #[inline]
-    fn amplify_decibel(self, value: Float) -> Amplify<Self>
-    where
-        Self: Sized,
-    {
-        amplify::amplify(self, math::db_to_linear(value))
-    }
-
-    /// Normalized amplification in `[0.0, 1.0]` range. This method better matches the perceived
-    /// loudness of sounds in human hearing and is recommended to use when you want to change
-    /// volume in `[0.0, 1.0]` range.
-    /// based on article: <https://www.dr-lex.be/info-stuff/volumecontrols.html>
-    ///
-    /// **note: it clamps values outside this range.**
-    #[inline]
-    fn amplify_normalized(self, value: Float) -> Amplify<Self>
-    where
-        Self: Sized,
-    {
-        const NORMALIZATION_MIN: Float = 0.0;
-        const NORMALIZATION_MAX: Float = 1.0;
-        const LOG_VOLUME_GROWTH_RATE: Float = 6.907_755_4;
-        const LOG_VOLUME_SCALE_FACTOR: Float = 1000.0;
-
-        let value = value.clamp(NORMALIZATION_MIN, NORMALIZATION_MAX);
-
-        let mut amplitude = Float::exp(LOG_VOLUME_GROWTH_RATE * value) / LOG_VOLUME_SCALE_FACTOR;
-        if value < 0.1 {
-            amplitude *= value * 10.0;
-        }
-
-        amplify::amplify(self, amplitude)
+        Amplify::new(self, factor)
     }
 
     /// Applies automatic gain control to the sound.
@@ -433,10 +398,11 @@ pub trait Source: Iterator<Item = Sample> {
     ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
+    /// use rodio::effects::amplify::Factor;
     /// use std::time::Duration;
     ///
     /// // Create a loud sine wave and apply default limiting (-1dB threshold)
-    /// let source = SineWave::new(440.0).amplify(2.0);
+    /// let source = SineWave::new(440.0).amplify(Factor::Linear(2.0));
     /// let limited = source.limit(LimitSettings::default());
     /// ```
     ///
@@ -444,9 +410,10 @@ pub trait Source: Iterator<Item = Sample> {
     ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
+    /// use rodio::effects::amplify::Factor;
     /// use std::time::Duration;
     ///
-    /// let source = SineWave::new(440.0).amplify(3.0);
+    /// let source = SineWave::new(440.0).amplify(Factor::Linear(3.0));
     /// let settings = LimitSettings::default()
     ///     .with_threshold(-6.0)                    // Limit at -6dB
     ///     .with_knee_width(2.0)                    // 2dB soft knee
@@ -536,9 +503,10 @@ pub trait Source: Iterator<Item = Sample> {
     ///
     /// # use rodio::source::SineWave;
     /// # use rodio::Source;
+    /// # use rodio::effects::amplify::Factor;
     /// # use std::time::Duration;
     /// let wave = SineWave::new(740.0)
-    ///     .amplify(0.2)
+    ///     .amplify(Factor::Linear(0.2))
     ///     .take_duration(Duration::from_secs(3));
     /// let wave = wave.record();
     /// ```
@@ -566,7 +534,10 @@ pub trait Source: Iterator<Item = Sample> {
     where
         Self: Sized + Clone,
     {
-        let echo = self.clone().amplify(amplitude).delay(duration);
+        let echo = self
+            .clone()
+            .amplify(Factor::Linear(amplitude))
+            .delay(duration);
         self.mix(echo)
     }
 

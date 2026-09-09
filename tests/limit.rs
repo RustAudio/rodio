@@ -1,3 +1,4 @@
+use rodio::effects::amplify::Factor;
 use rodio::source::Source;
 use rodio::Sample;
 use std::num::NonZero;
@@ -7,7 +8,7 @@ use std::time::Duration;
 fn test_limiting_works() {
     // High amplitude sine wave limited to -6dB
     let sine_wave = rodio::source::SineWave::new(440.0)
-        .amplify(3.0) // 3.0 linear = ~9.5dB
+        .amplify(Factor::Linear(3.0)) // 3.0 linear = ~9.5dB
         .take_duration(Duration::from_millis(60)); // ~2600 samples
 
     let settings = rodio::source::LimitSettings::default()
@@ -43,7 +44,7 @@ fn test_limiting_works() {
 fn test_passthrough_below_threshold() {
     // Low amplitude signal should pass through unchanged
     let sine_wave = rodio::source::SineWave::new(1000.0)
-        .amplify(0.2) // 0.2 linear, well below -6dB threshold
+        .amplify(Factor::Linear(0.2)) // 0.2 linear, well below -6dB threshold
         .take_duration(Duration::from_millis(20));
 
     let settings = rodio::source::LimitSettings::default().with_threshold(-6.0);
@@ -73,7 +74,7 @@ fn test_limiter_with_different_settings() {
 
     for (threshold_db, expected_peak) in test_cases {
         let sine_wave = rodio::source::SineWave::new(440.0)
-            .amplify(2.0) // Ensure signal exceeds all thresholds
+            .amplify(Factor::Linear(2.0)) // Ensure signal exceeds all thresholds
             .take_duration(Duration::from_millis(50));
 
         let settings = rodio::source::LimitSettings::default()

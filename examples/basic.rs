@@ -1,3 +1,4 @@
+use rodio::effects::amplify::Factor;
 use rodio::source::SineWave;
 use rodio::Source;
 use std::error::Error;
@@ -22,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         // Generate sine wave.
         let wave = SineWave::new(740.0)
-            .amplify(0.2)
+            .amplify(Factor::Linear(0.2))
             .take_duration(Duration::from_secs(3));
         mixer.add(wave);
     }

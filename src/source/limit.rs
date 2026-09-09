@@ -25,10 +25,11 @@
 //!
 //! ```rust
 //! use rodio::source::{SineWave, Source, LimitSettings};
+//! use rodio::effects::amplify::Factor;
 //! use std::time::Duration;
 //!
 //! // Create a loud sine wave
-//! let source = SineWave::new(440.0).amplify(2.0);
+//! let source = SineWave::new(440.0).amplify(Factor::Linear(2.0));
 //!
 //! // Apply limiting with -6dB threshold
 //! let settings = LimitSettings::default().with_threshold(-6.0);
@@ -48,13 +49,14 @@
 //!
 //! ```rust
 //! use rodio::source::{SineWave, Source, LimitSettings};
+//! use rodio::effects::amplify::Factor;
 //!
 //! // Use preset optimized for music
-//! let music = SineWave::new(440.0).amplify(1.5);
+//! let music = SineWave::new(440.0).amplify(Factor::Linear(1.5));
 //! let limited_music = music.limit(LimitSettings::dynamic_content());
 //!
 //! // Use preset optimized for streaming
-//! let stream = SineWave::new(440.0).amplify(2.0);
+//! let stream = SineWave::new(440.0).amplify(Factor::Linear(2.0));
 //! let limited_stream = stream.limit(LimitSettings::broadcast());
 //! ```
 
@@ -86,8 +88,9 @@ use crate::{
 ///
 /// ```rust
 /// use rodio::source::{SineWave, Source, LimitSettings};
+/// use rodio::effects::amplify::Factor;
 ///
-/// let source = SineWave::new(440.0).amplify(2.0);
+/// let source = SineWave::new(440.0).amplify(Factor::Linear(2.0));
 /// let settings = LimitSettings::default().with_threshold(-6.0);
 /// let limited = source.limit(settings);
 /// ```
@@ -148,10 +151,11 @@ pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
 ///
 /// ```rust
 /// use rodio::source::{SineWave, Source, LimitSettings};
+/// use rodio::effects::amplify::Factor;
 /// use std::time::Duration;
 ///
 /// // Use default settings (-1 dB threshold, 4 dB knee, 5ms attack, 100ms release)
-/// let source = SineWave::new(440.0).amplify(2.0);
+/// let source = SineWave::new(440.0).amplify(Factor::Linear(2.0));
 /// let limited = source.limit(LimitSettings::default());
 /// ```
 ///
@@ -159,9 +163,10 @@ pub(crate) fn limit<I: Source>(input: I, settings: LimitSettings) -> Limit<I> {
 ///
 /// ```rust
 /// use rodio::source::{SineWave, Source, LimitSettings};
+/// use rodio::effects::amplify::Factor;
 /// use std::time::Duration;
 ///
-/// let source = SineWave::new(440.0).amplify(3.0);
+/// let source = SineWave::new(440.0).amplify(Factor::Linear(3.0));
 /// let settings = LimitSettings::new()
 ///     .with_threshold(-6.0)                    // Limit peaks above -6dB
 ///     .with_knee_width(2.0)                    // 2dB soft knee for smooth limiting
@@ -276,8 +281,9 @@ impl LimitSettings {
     ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
+    /// use rodio::effects::amplify::Factor;
     ///
-    /// let music = SineWave::new(440.0).amplify(1.5);
+    /// let music = SineWave::new(440.0).amplify(Factor::Linear(1.5));
     /// let limited = music.limit(LimitSettings::dynamic_content());
     /// ```
     #[inline]
@@ -311,8 +317,9 @@ impl LimitSettings {
     ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
+    /// use rodio::effects::amplify::Factor;
     ///
-    /// let voice_chat = SineWave::new(440.0).amplify(2.0);
+    /// let voice_chat = SineWave::new(440.0).amplify(Factor::Linear(2.0));
     /// let limited = voice_chat.limit(LimitSettings::broadcast());
     /// ```
     #[inline]
@@ -346,8 +353,9 @@ impl LimitSettings {
     ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
+    /// use rodio::effects::amplify::Factor;
     ///
-    /// let master_track = SineWave::new(440.0).amplify(3.0);
+    /// let master_track = SineWave::new(440.0).amplify(Factor::Linear(3.0));
     /// let mastered = master_track.limit(LimitSettings::mastering());
     /// ```
     #[inline]
@@ -384,8 +392,9 @@ impl LimitSettings {
     ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
+    /// use rodio::effects::amplify::Factor;
     ///
-    /// let live_input = SineWave::new(440.0).amplify(2.5);
+    /// let live_input = SineWave::new(440.0).amplify(Factor::Linear(2.5));
     /// let protected = live_input.limit(LimitSettings::live_performance());
     /// ```
     #[inline]
@@ -423,8 +432,9 @@ impl LimitSettings {
     ///
     /// ```
     /// use rodio::source::{SineWave, Source, LimitSettings};
+    /// use rodio::effects::amplify::Factor;
     ///
-    /// let game_audio = SineWave::new(440.0).amplify(2.0);
+    /// let game_audio = SineWave::new(440.0).amplify(Factor::Linear(2.0));
     /// let limited = game_audio.limit(LimitSettings::gaming());
     /// ```
     #[inline]
@@ -540,9 +550,10 @@ impl LimitSettings {
 /// ```
 /// use rodio::source::{SineWave, Source};
 /// use rodio::source::LimitSettings;
+/// use rodio::effects::amplify::Factor;
 /// use std::time::Duration;
 ///
-/// let source = SineWave::new(440.0).amplify(2.0);
+/// let source = SineWave::new(440.0).amplify(Factor::Linear(2.0));
 /// let settings = LimitSettings::default()
 ///     .with_threshold(-6.0)  // -6 dBFS threshold
 ///     .with_attack(Duration::from_millis(5))

@@ -1,3 +1,4 @@
+use rodio::effects::amplify::Factor;
 use rodio::{source::LimitSettings, Source};
 use std::error::Error;
 
@@ -7,7 +8,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let file = std::fs::File::open("assets/music.wav")?;
     let source = rodio::Decoder::try_from(file)?
-        .amplify(3.0)
+        .amplify(Factor::Linear(3.0))
         .limit(LimitSettings::default());
 
     player.append(source);

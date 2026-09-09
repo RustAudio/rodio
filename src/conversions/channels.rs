@@ -1,3 +1,4 @@
+use crate::common::source::add_inner_accessors;
 use crate::common::ChannelCount;
 use crate::{Sample, Source};
 use dasp_sample::Sample as _;
@@ -18,13 +19,13 @@ where
     next_output_sample_pos: u16,
 }
 
-impl<I> ChannelCountConverter<I>
+impl<S> ChannelCountConverter<S>
 where
-    I: Iterator<Item = Sample>,
+    S: Iterator<Item = Sample>,
 {
     /// Initializes the iterator.
     #[inline]
-    pub fn new(input: I, from: ChannelCount, to: ChannelCount) -> ChannelCountConverter<I> {
+    pub fn new(input: S, from: ChannelCount, to: ChannelCount) -> ChannelCountConverter<S> {
         ChannelCountConverter {
             input,
             from,
@@ -34,23 +35,7 @@ where
         }
     }
 
-    /// Destroys this iterator and returns the underlying iterator.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
-
-    /// Get immutable access to the underlying iterator.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Get mutable access to the underlying iterator.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
+    add_inner_accessors! {input}
 }
 
 impl<I> Iterator for ChannelCountConverter<I>

@@ -43,6 +43,27 @@ pub fn db_to_linear(decibels: Float) -> Float {
     Float::powf(2.0, decibels * 0.05 * LOG2_10)
 }
 
+/// Normalized amplification in `[0.0, 1.0]` range. This method better matches the perceived
+/// loudness of sounds in human hearing and is recommended to use when you want to change
+/// volume in `[0.0, 1.0]` range.
+/// based on article: <https://www.dr-lex.be/info-stuff/volumecontrols.html>
+///
+/// **note: it clamps values outside this range.**
+pub(crate) fn normalized_to_linear(normalized: f32) -> f32 {
+    const NORMALIZATION_MIN: f32 = 0.0;
+    const NORMALIZATION_MAX: f32 = 1.0;
+    const LOG_VOLUME_GROWTH_RATE: f32 = 6.907_755_4;
+    const LOG_VOLUME_SCALE_FACTOR: f32 = 1000.0;
+
+    let normalized = normalized.clamp(NORMALIZATION_MIN, NORMALIZATION_MAX);
+
+    let mut amplitude = f32::exp(LOG_VOLUME_GROWTH_RATE * normalized) / LOG_VOLUME_SCALE_FACTOR;
+    if normalized < 0.1 {
+        amplitude *= normalized * 10.0;
+    }
+    amplitude
+}
+
 /// Converts linear amplitude scale to decibels.
 ///
 /// This function converts a linear amplitude value to its corresponding decibel value

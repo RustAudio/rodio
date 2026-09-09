@@ -23,7 +23,7 @@ pub struct Skippable<I> {
     do_skip: bool,
 }
 
-impl<I> Skippable<I> {
+impl<S> Skippable<S> {
     /// Skips the current source
     #[inline]
     pub fn skip(&mut self) {
@@ -36,23 +36,7 @@ impl<I> Skippable<I> {
         self.do_skip
     }
 
-    /// Returns a reference to the inner source.
-    #[inline]
-    pub fn inner(&self) -> &I {
-        &self.input
-    }
-
-    /// Returns a mutable reference to the inner source.
-    #[inline]
-    pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
-    }
-
-    /// Returns the inner source.
-    #[inline]
-    pub fn into_inner(self) -> I {
-        self.input
-    }
+    crate::common::source::add_inner_accessors! {input}
 }
 
 impl<I> Iterator for Skippable<I>

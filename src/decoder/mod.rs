@@ -81,7 +81,7 @@ mod wav;
 
 /// Source of audio samples decoded from an input stream.
 /// See the [module-level documentation](self) for examples and usage.
-pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
+pub struct Decoder<'a, R: Read + Seek>(DecoderImpl<'a, R>);
 
 /// Source of audio samples from decoding a file that never ends.
 /// When the end of the file is reached, the decoder starts again from the beginning.
@@ -98,9 +98,9 @@ pub struct Decoder<R: Read + Seek>(DecoderImpl<R>);
 /// let file = File::open("audio.mp3").unwrap();
 /// let looped_decoder = Decoder::new_looped(file).unwrap();
 /// ```
-pub struct LoopedDecoder<R: Read + Seek> {
+pub struct LoopedDecoder<'a, R: Read + Seek> {
     /// The underlying decoder implementation.
-    inner: Option<DecoderImpl<R>>,
+    inner: Option<DecoderImpl<'a, R>>,
 
     /// Configuration settings for the decoder.
     settings: Settings,
@@ -109,7 +109,7 @@ pub struct LoopedDecoder<R: Read + Seek> {
 // Cannot really reduce the size of the VorbisDecoder. There are not any
 // arrays just a lot of struct fields.
 #[allow(clippy::large_enum_variant)]
-enum DecoderImpl<R: Read + Seek> {
+enum DecoderImpl<'a, R: Read + Seek> {
     #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
     Wav(wav::WavDecoder<R>),
     #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
@@ -119,7 +119,7 @@ enum DecoderImpl<R: Read + Seek> {
     #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
     Mp3(mp3::Mp3Decoder<R>),
     #[cfg(feature = "symphonia")]
-    Symphonia(symphonia::SymphoniaDecoder, PhantomData<R>),
+    Symphonia(symphonia::SymphoniaDecoder<'a>, PhantomData<R>),
     // This variant is here just to satisfy the compiler when there are no decoders enabled.
     // It is unreachable and should never be constructed.
     #[allow(dead_code)]
@@ -128,7 +128,7 @@ enum DecoderImpl<R: Read + Seek> {
 
 enum Unreachable {}
 
-impl<R: Read + Seek> DecoderImpl<R> {
+impl<'a, R: Read + Seek> DecoderImpl<'a, R> {
     #[inline]
     fn next(&mut self) -> Option<Sample> {
         match self {
@@ -281,7 +281,7 @@ impl<R: Read + Seek> DecoderImpl<R> {
 /// let file = File::open("audio.mp3").unwrap();
 /// let decoder = Decoder::try_from(file).unwrap();
 /// ```
-impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
+impl TryFrom<std::fs::File> for Decoder<'_, BufReader<std::fs::File>> {
     type Error = DecoderError;
 
     fn try_from(file: std::fs::File) -> Result<Self, Self::Error> {
@@ -317,7 +317,7 @@ impl TryFrom<std::fs::File> for Decoder<BufReader<std::fs::File>> {
 /// let reader = BufReader::new(file);
 /// let decoder = Decoder::try_from(reader).unwrap();
 /// ```
-impl<R> TryFrom<BufReader<R>> for Decoder<BufReader<R>>
+impl<'a, R> TryFrom<BufReader<R>> for Decoder<'a, BufReader<R>>
 where
     R: Read + Seek + Send + Sync + 'static,
 {
@@ -348,7 +348,7 @@ where
 /// let cursor = Cursor::new(data);
 /// let decoder = Decoder::try_from(cursor).unwrap();
 /// ```
-impl<T> TryFrom<std::io::Cursor<T>> for Decoder<std::io::Cursor<T>>
+impl<T> TryFrom<std::io::Cursor<T>> for Decoder<'_, std::io::Cursor<T>>
 where
     T: AsRef<[u8]> + Send + Sync + 'static,
 {
@@ -359,7 +359,7 @@ where
     }
 }
 
-impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
+impl<'a, R: Read + Seek + Send + Sync + 'static> Decoder<'a, R> {
     /// Returns a builder for creating a new decoder with customizable settings.
     ///
     /// # Examples
@@ -400,7 +400,7 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     ///
     /// Returns `DecoderError::UnrecognizedFormat` if the audio format could not be determined
     /// or is not supported.
-    pub fn new_looped(data: R) -> Result<LoopedDecoder<R>, DecoderError> {
+    pub fn new_looped(data: R) -> Result<LoopedDecoder<'a, R>, DecoderError> {
         DecoderBuilder::new().with_data(data).build_looped()
     }
 
@@ -561,7 +561,7 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
     }
 }
 
-impl<R> Iterator for Decoder<R>
+impl<'a, R> Iterator for Decoder<'a, R>
 where
     R: Read + Seek,
 {
@@ -578,7 +578,7 @@ where
     }
 }
 
-impl<R> Source for Decoder<R>
+impl<'a, R> Source for Decoder<'a, R>
 where
     R: Read + Seek,
 {
@@ -607,7 +607,7 @@ where
     }
 }
 
-impl<R> Iterator for LoopedDecoder<R>
+impl<'a, R> Iterator for LoopedDecoder<'a, R>
 where
     R: Read + Seek,
 {
@@ -707,7 +707,7 @@ where
     }
 }
 
-impl<R> Source for LoopedDecoder<R>
+impl<'a, R> Source for LoopedDecoder<'a, R>
 where
     R: Read + Seek,
 {

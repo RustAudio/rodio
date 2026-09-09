@@ -6,7 +6,7 @@ use std::io::BufReader;
 use rodio::source::ChannelVolume;
 use rodio::{queue, Decoder, Sample, Source};
 
-fn create_6_channel_source() -> ChannelVolume<Decoder<BufReader<fs::File>>> {
+fn create_6_channel_source() -> ChannelVolume<Decoder<'static, BufReader<fs::File>>> {
     let file = fs::File::open("assets/music.mp3").unwrap();
     let decoder = Decoder::try_from(file).unwrap();
     assert_eq!(decoder.channels().get(), 2);

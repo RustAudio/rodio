@@ -130,6 +130,11 @@ symphonia-libopus = ["symphonia", "dep:symphonia-adapter-libopus"]
 
 # Resampling features
 #
+# Enable the specialized f32 fixed-ratio polyphase FIR backend. When enabled, fixed-ratio Sinc
+# configurations use the backend when possible; Rubato remains the fallback for other ratios and
+# for the 64-bit sample mode.
+fixed-fir = []
+
 # Enable FFT-based synchronous resampling as an optimization for fixed-ratio conversions. When
 # enabled, conversions between standard sample rates (e.g., 48 kHz and 96 kHz, as well as 44.1 kHz
 # and 48 kHz) that simplify to small integer ratios automatically use FFT processing for faster
@@ -194,6 +199,10 @@ required-features = ["wav"]
 name = "resampler"
 harness = false
 required-features = ["wav"]
+
+[[bench]]
+name = "sinc_backends"
+harness = false
 
 [[bench]]
 name = "pipeline"

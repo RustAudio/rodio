@@ -155,6 +155,7 @@
 //! | Feature | Description |
 //! |---------|-------------|
 //! | `simd` **(default)** | SIMD-accelerated decoding |
+//! | `fixed-fir` | Optional f32 fixed-ratio polyphase FIR resampling |
 //! | `64bit` | Use `f64` instead of `f32` for all samples and internal math [^1] |
 //! | `realtime` | Real-time thread scheduling priority (you must grant `rtprio` yourself) |
 //! | `realtime-dbus` | Like `realtime`, but uses D-Bus/rtkit to arrange limits automatically on desktop Linux |

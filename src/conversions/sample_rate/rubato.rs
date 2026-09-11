@@ -8,6 +8,8 @@ use crate::conversions::sample_rate::buffer::{Input, Output};
 use crate::{Float, Sample, Source};
 
 use super::builder::{Interpolation, Poly, WindowFunction};
+#[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+use super::fixed::FixedResample;
 
 #[derive(thiserror::Error, Debug)]
 #[error("Failed to create resampler")]
@@ -38,6 +40,10 @@ pub enum ResampleInner<I: Source> {
     /// Sinc resampling (with anti-aliasing)
     Sinc(RubatoAsyncResample<I>),
 
+    /// Specialized fixed-ratio f32 FIR resampling.
+    #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+    Fixed(FixedResample<I>),
+
     /// FFT resampling for fixed ratios (synchronous resampling)
     #[cfg(feature = "rubato-fft")]
     #[cfg_attr(docsrs, doc(cfg(feature = "rubato-fft")))]
@@ -52,6 +58,8 @@ impl<I: Source> ResampleInner<I> {
             ResampleInner::Passthrough { source, .. } => source,
             ResampleInner::Poly(resampler) => &resampler.input,
             ResampleInner::Sinc(resampler) => &resampler.input,
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(resampler) => &resampler.input,
             #[cfg(feature = "rubato-fft")]
             ResampleInner::Fft(resampler) => &resampler.input,
         }
@@ -64,6 +72,8 @@ impl<I: Source> ResampleInner<I> {
             ResampleInner::Passthrough { source, .. } => source,
             ResampleInner::Poly(resampler) => resampler.input,
             ResampleInner::Sinc(resampler) => resampler.input,
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(resampler) => resampler.input,
             #[cfg(feature = "rubato-fft")]
             ResampleInner::Fft(resampler) => resampler.input,
         }

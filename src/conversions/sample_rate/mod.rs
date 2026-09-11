@@ -57,6 +57,11 @@
 //!
 //! This reduces CPU usage while providing highest quality.
 //!
+//! The optional `fixed-fir` feature enables a specialized f32 polyphase FIR backend for these
+//! fixed ratios. It leaves the public `Source::resample` API unchanged and falls back to Rubato
+//! for arbitrary ratios and for the `64bit` sample mode. If `rubato-fft` is also enabled, its FFT
+//! backend retains priority for supported ratios.
+//!
 //! **Arbitrary ratios** (non-reducible or large fractions) use the async sinc resampler, which
 //! can handle any conversion. This is CPU intensive and should be compiled with release profile to
 //! prevent choppy audio.
@@ -86,6 +91,8 @@ use crate::{
 
 mod buffer;
 mod builder;
+#[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+mod fixed;
 mod rubato;
 mod types;
 pub(crate) use types::{InFrameCount, InSamples, OutFrameCount, OutSamples};
@@ -154,6 +161,8 @@ where
             ResampleInner::Passthrough { .. } => inner.input().current_span_len(),
             ResampleInner::Poly(resampler) => resampler.input.current_span_len(),
             ResampleInner::Sinc(resampler) => resampler.input.current_span_len(),
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(resampler) => resampler.input.current_span_len(),
             #[cfg(feature = "rubato-fft")]
             ResampleInner::Fft(resampler) => resampler.input.current_span_len(),
         };
@@ -204,6 +213,15 @@ where
                         .expect("Failed to create FFT resampler");
                         return ResampleInner::Fft(resampler);
                     }
+                    #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+                    if sinc.is_supported_fixed_ratio(target_rate, source_rate) && sinc.sinc_len >= 2
+                    {
+                        return ResampleInner::Fixed(fixed::FixedResample::new(
+                            source,
+                            target_rate,
+                            &sinc,
+                        ));
+                    }
 
                     if sinc.is_supported_fixed_ratio(target_rate, source_rate) {
                         sinc.interpolation = Interpolation::Nearest;
@@ -242,6 +260,8 @@ where
             ResampleInner::Passthrough { source, .. } => source,
             ResampleInner::Poly(resampler) => &mut resampler.input,
             ResampleInner::Sinc(resampler) => &mut resampler.input,
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(resampler) => &mut resampler.input,
             #[cfg(feature = "rubato-fft")]
             ResampleInner::Fft(resampler) => &mut resampler.input,
         }
@@ -292,6 +312,8 @@ where
             ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => {
                 resampler.span_length()
             }
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(resampler) => resampler.span_length(),
             #[cfg(feature = "rubato-fft")]
             ResampleInner::Fft(resampler) => resampler.span_length(),
         }
@@ -317,6 +339,11 @@ where
         match self.resampler_mut() {
             ResampleInner::Passthrough { source, .. } => source.try_seek(position)?,
             ResampleInner::Poly(r) | ResampleInner::Sinc(r) => {
+                r.input.try_seek(position)?;
+                r.reset();
+            }
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(r) => {
                 r.input.try_seek(position)?;
                 r.reset();
             }
@@ -350,6 +377,15 @@ where
                     input_span_len,
                 );
             }
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(r) => {
+                reset_seek_span_tracking(
+                    r.pos_in_current_span.raw_mut(),
+                    &mut self.cached_input_span_len,
+                    position,
+                    input_span_len,
+                );
+            }
             #[cfg(feature = "rubato-fft")]
             ResampleInner::Fft(r) => {
                 reset_seek_span_tracking(
@@ -373,6 +409,13 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
+        #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+        if !self.pending_recreate
+            && matches!(self.resampler(), ResampleInner::Fixed(r) if r.format_changed())
+        {
+            self.pending_recreate = true;
+        }
+
         // If a format change was detected at the previous span boundary, wait until the
         // output buffer is fully drained before recreating the resampler. This guarantees
         // that fill_input_buffer only ever reads from the current span.
@@ -380,6 +423,8 @@ where
             let output_empty = match self.resampler() {
                 ResampleInner::Passthrough { .. } => true,
                 ResampleInner::Poly(r) | ResampleInner::Sinc(r) => !r.output_has_samples(),
+                #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+                ResampleInner::Fixed(r) => !r.output_has_samples(),
                 #[cfg(feature = "rubato-fft")]
                 ResampleInner::Fft(r) => !r.output_has_samples(),
             };
@@ -398,6 +443,8 @@ where
             ResampleInner::Passthrough { source, .. } => source.next()?,
             ResampleInner::Poly(resampler) => resampler.next_sample()?,
             ResampleInner::Sinc(resampler) => resampler.next_sample()?,
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(resampler) => resampler.next_sample()?,
             #[cfg(feature = "rubato-fft")]
             ResampleInner::Fft(resampler) => resampler.next_sample()?,
         };
@@ -419,6 +466,12 @@ where
                 (*channels, *source_rate, *input_samples_consumed)
             }
             ResampleInner::Poly(r) | ResampleInner::Sinc(r) => (
+                r.output.channels,
+                r.input.sample_rate(),
+                r.pos_in_current_span,
+            ),
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(r) => (
                 r.output.channels,
                 r.input.sample_rate(),
                 r.pos_in_current_span,
@@ -461,6 +514,10 @@ where
                     ResampleInner::Poly(r) | ResampleInner::Sinc(r) => {
                         r.pos_in_current_span = InSamples::ZERO;
                     }
+                    #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+                    ResampleInner::Fixed(r) => {
+                        r.pos_in_current_span = InSamples::ZERO;
+                    }
                     #[cfg(feature = "rubato-fft")]
                     ResampleInner::Fft(r) => {
                         r.pos_in_current_span = InSamples::ZERO;
@@ -477,6 +534,20 @@ where
         match self.resampler() {
             ResampleInner::Passthrough { source, .. } => source.size_hint(),
             ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => {
+                let adjusted_for_resampling = |samples| {
+                    InSamples(samples).resampled_by(resampler.resample_ratio)
+                        + resampler.output.len()
+                        + resampler
+                            .frames_being_resampled
+                            .samples(resampler.output.channels)
+                };
+                let (lower, upper) = resampler.input.size_hint();
+                let lower = adjusted_for_resampling(lower);
+                let upper = upper.map(adjusted_for_resampling);
+                (lower.raw(), upper.as_ref().map(OutSamples::raw))
+            }
+            #[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+            ResampleInner::Fixed(resampler) => {
                 let adjusted_for_resampling = |samples| {
                     InSamples(samples).resampled_by(resampler.resample_ratio)
                         + resampler.output.len()

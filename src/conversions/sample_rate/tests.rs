@@ -338,3 +338,55 @@ fn test_span_boundary_same_format() {
         output.len()
     );
 }
+
+#[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+#[test]
+fn fixed_fir_is_chunk_invariant() {
+    let channels = ChannelCount::new(2).unwrap();
+    let from = SampleRate::new(44100).unwrap();
+    let to = SampleRate::new(48000).unwrap();
+    let input = create_test_input(InFrameCount(4096), channels);
+
+    let collect = |chunk_size| {
+        let source = from_iter(input.clone().into_iter(), channels, from);
+        let config = ResampleConfig::sinc()
+            .sinc_len(NonZero::new(64).unwrap())
+            .chunk_size(NonZero::new(chunk_size).unwrap())
+            .build();
+        SampleRateConverter::new(source, to, config).collect::<Vec<_>>()
+    };
+
+    let small = collect(31);
+    let large = collect(1024);
+    assert_eq!(small.len(), large.len());
+    let max_error = small
+        .iter()
+        .zip(&large)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0, f32::max);
+    assert!(
+        max_error < 2.0e-6,
+        "chunking changed fixed FIR output: {max_error}"
+    );
+}
+
+#[cfg(all(feature = "fixed-fir", not(feature = "64bit")))]
+#[test]
+fn fixed_fir_joins_stable_spans_and_recreates_on_format_change() {
+    let mono = ChannelCount::new(1).unwrap();
+    let stereo = ChannelCount::new(2).unwrap();
+    let from = SampleRate::new(44100).unwrap();
+    let to = SampleRate::new(48000).unwrap();
+    let config = ResampleConfig::sinc()
+        .sinc_len(NonZero::new(32).unwrap())
+        .chunk_size(NonZero::new(64).unwrap())
+        .build();
+
+    let stable = TestSource::new(vec![0.1; 80], from, mono).chain(vec![0.2; 80], from, mono);
+    let stable_output: Vec<Sample> = SampleRateConverter::new(stable, to, config.clone()).collect();
+    assert_eq!(stable_output.len(), 175);
+
+    let changed = TestSource::new(vec![0.1; 80], from, mono).chain(vec![0.2; 160], from, stereo);
+    let changed_output: Vec<Sample> = SampleRateConverter::new(changed, to, config).collect();
+    assert_eq!(changed_output.len(), 88 + 88 * 2);
+}

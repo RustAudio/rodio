@@ -1,7 +1,7 @@
 //! Mixer that plays multiple sounds at the same time.
 
 use crate::common::{ChannelCount, SampleRate};
-use crate::source::{SeekError, Source, UniformSourceIterator};
+use crate::source::{Empty, SeekError, Source, UniformSourceIterator};
 use crate::Sample;
 use std::sync::Arc;
 use std::time::Duration;
@@ -66,6 +66,23 @@ impl Mixer {
             UniformSourceIterator::new(source, self.0.channels, self.0.sample_rate);
         // Ignore send errors (channel dropped means MixerSource was dropped)
         let _ = self.0.pending_tx.send(Box::new(uniform_source));
+    }
+
+    /// The channel count sources are converted to when added to this mixer.
+    pub fn channels(&self) -> ChannelCount {
+        self.0.channels
+    }
+
+    /// The sample rate sources are converted to when added to this mixer.
+    pub fn sample_rate(&self) -> SampleRate {
+        self.0.sample_rate
+    }
+
+    /// A source in this mixer's format that never produces a sample. Useful as a
+    /// [`queue`](crate::queue::queue) keep-alive source, so idling sounds like this one won't
+    /// need source conversion set up until real content is appended.
+    pub fn silence(&self) -> Empty {
+        Empty::new_with_format(self.0.channels, self.0.sample_rate)
     }
 }
 

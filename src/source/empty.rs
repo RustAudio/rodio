@@ -6,15 +6,38 @@ use crate::math::nz;
 use crate::{Sample, Source};
 
 /// An empty source.
-#[derive(Debug, Default, Copy, Clone)]
-pub struct Empty;
+#[derive(Debug, Copy, Clone)]
+pub struct Empty {
+    channels: ChannelCount,
+    sample_rate: SampleRate,
+}
+
+impl Default for Empty {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            channels: nz!(1),
+            sample_rate: crate::DEFAULT_SAMPLE_RATE,
+        }
+    }
+}
 
 impl Empty {
     /// An empty source that immediately ends without ever returning a sample to
     /// play
     #[inline]
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    /// Like [`Empty::new`], but reports `channels`/`sample_rate` instead of a default format.
+    /// Useful as a placeholder that won't need format conversion once given real content.
+    #[inline]
+    pub fn new_with_format(channels: ChannelCount, sample_rate: SampleRate) -> Self {
+        Self {
+            channels,
+            sample_rate,
+        }
     }
 }
 
@@ -42,12 +65,12 @@ impl Source for Empty {
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        nz!(1)
+        self.channels
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        crate::DEFAULT_SAMPLE_RATE
+        self.sample_rate
     }
 
     #[inline]

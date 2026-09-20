@@ -100,6 +100,11 @@ impl SourcesQueueInput {
         self.keep_alive_if_empty.load(Ordering::Acquire)
     }
 
+    /// Returns the additional length of the queue.
+    pub fn queue_len(&self) -> usize {
+        self.next_sounds.lock().unwrap().len()
+    }
+
     /// Removes all the sounds from the queue. Returns the number of sounds cleared.
     pub fn clear(&self) -> usize {
         let mut sounds = self.next_sounds.lock().unwrap();

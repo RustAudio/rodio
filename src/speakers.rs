@@ -114,7 +114,7 @@ pub use config::{BufferSize, OutputConfig};
 /// Error that can occur when we can not list the output devices
 #[derive(Debug, thiserror::Error, Clone)]
 #[error("Could not list output devices")]
-pub struct ListError(#[source] cpal::DevicesError);
+pub struct ListError(#[source] cpal::Error);
 assert_error_traits! {ListError}
 
 /// An output device

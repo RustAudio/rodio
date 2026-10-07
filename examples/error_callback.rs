@@ -16,11 +16,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_error_callback(move |err| {
             // Filter for where err is an actionable error.
             if matches!(
-                err,
-                cpal::StreamError::DeviceNotAvailable | cpal::StreamError::StreamInvalidated
+                err.kind(),
+                cpal::ErrorKind::DeviceNotAvailable | cpal::ErrorKind::StreamInvalidated
             ) {
                 if let Err(e) = tx.send(err) {
-                    eprintln!("Error emitting StreamError: {e}");
+                    eprintln!("Error emitting stream error: {e}");
                 }
             }
         })

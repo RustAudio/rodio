@@ -12,7 +12,7 @@ use super::{ConfigIsSet, DeviceIsSet};
 
 impl<E> SpeakersBuilder<DeviceIsSet, ConfigIsSet, E>
 where
-    E: FnMut(cpal::StreamError) + Send + Clone + 'static,
+    E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
     /// Sets the buffer duration for the output. The buffer size is calculated
     /// from this and the sample rate and channel count when we build the

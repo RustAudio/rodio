@@ -6,7 +6,18 @@ The list below only contains required code changes. For a complete list of
 changes and new features, see [CHANGELOG.md](CHANGELOG.md).
 
 # rodio 0.22 to current github version
-Nothing yet!
+- cpal is updated to 0.18, which replaces its separate error types with a single
+  `cpal::Error` (`rodio::CpalError` in rodio). `rodio::DevicesError` is removed.
+    - The callback passed to `DeviceSinkBuilder::with_error_callback` now takes
+      `cpal::Error`. The error callback type of `SpeakersBuilder` and
+      `MicrophoneBuilder` is now `FnMut(cpal::Error)`.
+    - Instead of matching the old enum variants, check `err.kind()`
+      (`cpal::ErrorKind`, `rodio::CpalErrorKind` in rodio), for example
+      `ErrorKind::DeviceNotAvailable`.
+    - `BufferUnderrun` is now `ErrorKind::Xrun`.
+
+  If you use cpal directly, see the
+  [cpal upgrade guide](https://github.com/RustAudio/cpal/blob/v0.18.2/UPGRADING.md).
 
 # rodio 0.21.1 to 0.22
 - _Sink_ terms are replaced with _Player_ and _Stream_ terms replaced

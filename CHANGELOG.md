@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- Breaking: Updated `cpal` to v0.18.2. Wherever rodio exposed a cpal error type
+  (`StreamError`, `BuildStreamError`, `PlayStreamError`, `DevicesError`,
+  `DefaultStreamConfigError`, `SupportedStreamConfigsError`) it now uses the
+  unified `cpal::Error`, re-exported as `CpalError` together with
+  `CpalErrorKind`. `rodio::DevicesError` is removed.
+
 ## Version [0.22.2] (2026-02-22)
 
 ### Fixed

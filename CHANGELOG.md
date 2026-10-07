@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## Version [0.23.0] (2026-10-11)
+A minimal release for users blocked on old cpal version while we are working on a bigger release.
+
 ### Changed
 
 - Breaking: Updated `cpal` to v0.18.2. Wherever rodio exposed a cpal error type

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `DEFAULT_SAMPLE_RATE` set to match `cpal::SAMPLE_RATE_48K`.
 - Added `Source::resample` and `ResampleConfig` for high-quality sample rate conversion.
 - Presets for `AGC`.
+- Added `MicrophoneBuilder::with_error_callback` to replace the default error callback, which prints every stream error to stderr.
 
 ### Changed
 

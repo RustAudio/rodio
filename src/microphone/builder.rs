@@ -123,6 +123,29 @@ impl<Device, Config, E> MicrophoneBuilder<Device, Config, E>
 where
     E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
+    /// Sets a callback that is called when an error occurs with the stream,
+    /// in place of the default one, which prints every error to stderr.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// let builder = MicrophoneBuilder::new()
+    ///     .with_error_callback(|err| eprintln!("microphone: {err}"));
+    /// ```
+    pub fn with_error_callback<F>(self, error_callback: F) -> MicrophoneBuilder<Device, Config, F>
+    where
+        F: FnMut(cpal::Error) + Send + Clone + 'static,
+    {
+        MicrophoneBuilder {
+            device: self.device,
+            config: self.config,
+            error_callback,
+
+            device_set: PhantomData,
+            config_set: PhantomData,
+        }
+    }
+
     /// Sets the input device to use.
     ///
     /// # Example
@@ -553,5 +576,25 @@ where
             *self.config.as_ref().expect("ConfigIsSet"),
             self.error_callback.clone(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    use super::MicrophoneBuilder;
+
+    #[test]
+    fn with_error_callback_replaces_the_default() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let counted = Arc::clone(&calls);
+        let builder = MicrophoneBuilder::new().with_error_callback(move |_| {
+            counted.fetch_add(1, Ordering::Relaxed);
+        });
+        let mut callback = builder.error_callback.clone();
+        callback(cpal::Error::new(cpal::ErrorKind::Xrun));
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
     }
 }

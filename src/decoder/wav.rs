@@ -99,7 +99,6 @@ where
                 return Some(Sample::EQUILIBRIUM);
             }
 
-            self.samples_read += 1;
             let spec = self.reader.spec();
             let next_sample: Option<Self::Item> =
                 match (spec.sample_format, spec.bits_per_sample as u32) {
@@ -153,6 +152,7 @@ where
 
             match next_sample {
                 Some(sample) => {
+                    self.samples_read += 1;
                     self.samples_in_current_frame =
                         (self.samples_in_current_frame + 1) % self.channels.get() as usize;
                     return Some(sample);
@@ -173,7 +173,7 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = (self.reader.len() - self.samples_read) as usize;
+        let len = self.reader.len().saturating_sub(self.samples_read) as usize;
         (len, Some(len))
     }
 }

@@ -508,10 +508,18 @@ pub trait Source: Iterator<Item = Sample> {
     ///   lowering its pitch.
     /// - If you set the speed to 2 the frequency will double raising the
     ///   pitch of the sound.
-    /// 2. **Change in the speed affect the total duration inversely**
-    /// - If you set the speed to 0.5, the total duration will be twice as long.
-    /// - If you set the speed to 2 the total duration will be halve of what it
-    ///   was.
+    /// 2. **A change in the speed affects the playback duration inversely**
+    /// - If you set the speed to 0.5, playing the source takes twice as long.
+    /// - If you set the speed to 2, playing the source takes half as long.
+    /// - [`total_duration`](Source::total_duration) of the returned source reports
+    ///   this playback duration.
+    /// 3. **Seek targets are scaled by the speed**
+    /// - [`try_seek`](Source::try_seek) multiplies its target by the speed: at a
+    ///   speed of 2, seeking to 10 seconds seeks to 20 seconds in the original source.
+    /// - Whether [`track_position`](Source::track_position) reports the position in
+    ///   the original source or the elapsed playback time depends on whether it is
+    ///   applied before or after `speed`, see
+    ///   [`TrackPosition::get_pos`](super::TrackPosition::get_pos).
     ///
     /// See [`Speed`] for details
     #[inline]

@@ -48,11 +48,25 @@ impl SeekOrder {
         (Self { pos, feedback: tx }, rx)
     }
 
-    fn attempt<S>(self, maybe_seekable: &mut S)
+    /// Performs the seek. `speed` is the current playback speed.
+    ///
+    /// [`Speed`](crate::source::Speed) multiplies the target position of its
+    /// [`try_seek`](Source::try_seek) by the speed factor, so the target is divided by
+    /// the speed first. That makes `self.pos` a position in the source's own timeline,
+    /// independent of the playback speed.
+    fn attempt<S>(self, maybe_seekable: &mut S, speed: f32)
     where
         S: Source,
     {
-        let res = maybe_seekable.try_seek(self.pos);
+        let pos = if speed.is_finite() && speed > 0.0 {
+            // f64 keeps full precision for long sources; an out of range result
+            // falls back to the unscaled position instead of panicking.
+            Duration::try_from_secs_f64(self.pos.as_secs_f64() / f64::from(speed))
+                .unwrap_or(self.pos)
+        } else {
+            self.pos
+        };
+        let res = maybe_seekable.try_seek(pos);
         let _ignore_receiver_dropped = self.feedback.send(res);
     }
 }
@@ -119,11 +133,20 @@ impl Player {
         let start_played = AtomicBool::new(false);
         let sound_count_clone = self.sound_count.clone();
 
+        // Adapter order, outermost first (`periodic_access` wraps all of it):
+        //   Done -> Stoppable -> Skippable -> Amplify -> Pausable -> Speed -> TrackPosition -> source
+        //
+        // `track_position()` must come before `speed()`. `Speed` does not change the samples,
+        // it only reports a scaled sample rate, and `TrackPosition` divides its sample count by
+        // the rate it sees. After `Speed` it would measure elapsed playback time instead of the
+        // position in the media. It stays inside `pausable()` so that the silence played while
+        // paused is not counted.
+        //
+        // The `.inner()` / `.inner_mut()` chains in the closure below follow this order.
         let source = Done::new(
             source
-                .speed(1.0)
-                // Must be placed before pausable but after speed & delay
                 .track_position()
+                .speed(1.0)
                 .pausable(false)
                 .amplify(1.0)
                 .skippable()
@@ -147,20 +170,33 @@ impl Player {
                     *to_clear -= 1;
                     *controls.position.lock().unwrap() = Duration::ZERO;
                 } else {
-                    *controls.position.lock().unwrap() =
-                        src.inner().inner().inner().inner().inner().get_pos();
+                    // The position comes from `TrackPosition`, the innermost adapter.
+                    *controls.position.lock().unwrap() = src
+                        .inner() // Stoppable
+                        .inner() // Skippable
+                        .inner() // Amplify
+                        .inner() // Pausable
+                        .inner() // Speed
+                        .inner() // TrackPosition
+                        .get_pos();
                 }
             }
-            let amp = src.inner_mut().inner_mut().inner_mut();
+            let amp = src
+                .inner_mut() // Stoppable
+                .inner_mut() // Skippable
+                .inner_mut(); // Amplify
             amp.set_factor(*controls.volume.lock().unwrap());
-            amp.inner_mut()
+            amp.inner_mut() // Pausable
                 .set_paused(controls.pause.load(Ordering::SeqCst));
-            amp.inner_mut()
-                .inner_mut()
-                .inner_mut()
-                .set_factor(*controls.speed.lock().unwrap());
+
+            let speed = *controls.speed.lock().unwrap();
+            amp.inner_mut() // Pausable
+                .inner_mut() // Speed
+                .set_factor(speed);
+
             if let Some(seek) = controls.seek.lock().unwrap().take() {
-                seek.attempt(amp)
+                // The seek needs the current speed to undo the scaling in `Speed::try_seek`.
+                seek.attempt(amp, speed)
             }
             start_played.store(true, Ordering::SeqCst);
         });
@@ -203,11 +239,12 @@ impl Player {
     ///   lowering its pitch.
     /// - If you set the speed to 2 the frequency will double raising the
     ///   pitch of the sound.
-    /// 2. **Change in the speed affect the total duration inversely**
-    /// - If you set the speed to 0.5, the total duration will be twice as long.
-    /// - If you set the speed to 2 the total duration will be halve of what it
-    ///   was.
-    ///
+    /// 2. **A change in the speed affects the playback duration inversely**
+    /// - If you set the speed to 0.5, playing the sound takes twice as long.
+    /// - If you set the speed to 2, playing the sound takes half as long.
+    /// 3. **Positions do not depend on the speed**
+    /// - [`Player::get_pos`] and [`Player::try_seek`] use positions in the sound
+    ///   itself, so they are not scaled by the speed.
     #[inline]
     pub fn set_speed(&self, value: f32) {
         *self.controls.speed.lock().unwrap() = value;
@@ -226,6 +263,14 @@ impl Player {
     // switch to a new source.
 
     /// Attempts to seek to a given position in the current source.
+    ///
+    /// `pos` is a position in the source's own timeline and does not depend on the
+    /// current playback speed: seeking to 30 seconds lands 30 seconds into the media
+    /// whether the speed is 0.5, 1.0 or 2.0. This is the same timeline as
+    /// [`Player::get_pos`].
+    ///
+    /// The target is divided by the current speed before it reaches
+    /// [`Speed`](crate::source::Speed), which would otherwise scale it.
     ///
     /// This blocks between 0 and ~5 milliseconds.
     ///
@@ -338,13 +383,19 @@ impl Player {
         self.sound_count.load(Ordering::Relaxed)
     }
 
-    /// Returns the position of the sound that's being played.
+    /// Returns the playback position within the current source.
     ///
-    /// This takes into account any speedup or delay applied.
+    /// The position is measured in the source's own timeline, so it does not depend
+    /// on the playback speed. For example, at a speed of `0.5` it advances by half a
+    /// second for every second of real time, and changing the speed during playback
+    /// does not make it jump.
     ///
-    /// Example: if you apply a speedup of *2* to an mp3 decoder source and
-    /// [`get_pos()`](Player::get_pos) returns *5s* then the position in the mp3
-    /// recording is *10s* from its start.
+    /// After [`Player::try_seek`] this is the position that was sought to.
+    ///
+    /// The position is read from a [`TrackPosition`](crate::source::TrackPosition) that
+    /// sits before [`Speed`](crate::source::Speed) in the adapter chain. See
+    /// [`TrackPosition::get_pos`](crate::source::TrackPosition::get_pos) for why the
+    /// order matters.
     #[inline]
     pub fn get_pos(&self) -> Duration {
         *self.controls.position.lock().unwrap()

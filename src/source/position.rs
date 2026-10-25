@@ -54,14 +54,37 @@ where
 {
     /// Returns the position of the underlying source relative to its start.
     ///
-    /// If a speedup and or delay is applied after applying a
-    /// [`Source::track_position`] it will not be reflected in the position
-    /// returned by [`get_pos`](TrackPosition::get_pos).
+    /// The position is the number of samples read from the inner source, divided
+    /// by the sample rate and channel count that the inner source reports.
     ///
-    /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
-    /// together with [`Source::try_seek()`] as the the latter does take all
-    /// speedup's and delay's into account. Its recommended therefore to apply
-    /// track_position after speedup's and delay's.
+    /// [`Source::speed`] (see [`Speed`](super::Speed)) works by changing the reported
+    /// sample rate, so the result depends on where `track_position()` is placed
+    /// relative to it:
+    ///
+    /// - **Before `speed()`**, as in `source.track_position().speed(x)`: the sample
+    ///   rate is the real one, so this is the position in the original source. It
+    ///   does not depend on the speed, also not when the speed changes during
+    ///   playback.
+    /// - **After `speed()`**, as in `source.speed(x).track_position()`: the sample
+    ///   rate is the scaled one, so this is the elapsed playback time. At a speed
+    ///   of `2.0` it advances by `0.5` seconds per sample read from the source.
+    ///   This is only the position in the original source if the speed never
+    ///   changes, and then only after multiplying it by the speed.
+    ///
+    /// # Seeking
+    ///
+    /// [`Source::try_seek`] forwards the target to the inner source and then reports
+    /// the target as the new position. [`Speed`](super::Speed) multiplies the targets
+    /// its [`try_seek`](Source::try_seek) receives by its speed factor, so with
+    /// `track_position()` before `speed()` a seek through the outer source reports
+    /// the multiplied target:
+    /// `source.track_position().speed(2.0).try_seek(10s)` seeks to `20s` in the
+    /// original source and `get_pos()` then returns `20s`. To seek to a position
+    /// `p` in the original source through a speed adapter, seek to `p / speed`.
+    ///
+    /// [`Player`](crate::Player) uses the first ordering and does that division, see
+    /// [`Player::get_pos`](crate::Player::get_pos) and
+    /// [`Player::try_seek`](crate::Player::try_seek).
     #[inline]
     pub fn get_pos(&self) -> Duration {
         let seconds = self.span.samples_counted as Float
@@ -179,5 +202,18 @@ mod tests {
 
         assert!(source.try_seek(Duration::new(1, 0)).is_ok());
         assert_eq!(source.get_pos().as_secs_f32(), 1.0);
+    }
+
+    #[test]
+    fn test_position_before_speedup_is_independent_of_speed() {
+        let inner = SamplesBuffer::new(nz!(1), nz!(1), vec![10.0, -10.0, 10.0, -10.0, 20.0, -20.0]);
+        let mut source = inner.track_position().speed(2.0);
+
+        assert_eq!(source.inner().get_pos().as_secs_f32(), 0.0);
+        source.next();
+        assert_eq!(source.inner().get_pos().as_secs_f32(), 1.0);
+
+        source.next();
+        assert_eq!(source.inner().get_pos().as_secs_f32(), 2.0);
     }
 }

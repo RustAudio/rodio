@@ -95,20 +95,10 @@ impl SpatialPlayer {
         self.player.set_volume(value);
     }
 
-    /// Changes the play speed of the sound. Does not adjust the samples, only the playback speed.
+    /// Gets the speed of the sound.
     ///
-    /// # Note:
-    /// 1. **Increasing the speed will increase the pitch by the same factor**
-    /// - If you set the speed to 0.5 this will halve the frequency of the sound
-    ///   lowering its pitch.
-    /// - If you set the speed to 2 the frequency will double raising the
-    ///   pitch of the sound.
-    /// 2. **Change in the speed affect the total duration inversely**
-    /// - If you set the speed to 0.5, the total duration will be twice as long.
-    /// - If you set the speed to 2 the total duration will be halve of what it
-    ///   was.
-    ///
-    /// See [`Speed`](crate::source::Speed) for details
+    /// See [`SpatialPlayer::set_speed`] for what the speed means, and
+    /// [`Speed`](crate::source::Speed) for details.
     #[inline]
     pub fn speed(&self) -> f32 {
         self.player.speed()
@@ -197,10 +187,10 @@ impl SpatialPlayer {
     ///
     /// # Errors
     /// This function will return [`SeekError::NotSupported`] if one of the underlying
-    /// sources does not support seeking.  
+    /// sources does not support seeking.
     ///
     /// It will return an error if an implementation ran
-    /// into one during the seek.  
+    /// into one during the seek.
     ///
     /// When seeking beyond the end of a source this
     /// function might return an error if the duration of the source is not known.
@@ -208,13 +198,9 @@ impl SpatialPlayer {
         self.player.try_seek(pos)
     }
 
-    /// Returns the position of the sound that's being played.
+    /// Returns the playback position within the current source.
     ///
-    /// This takes into account any speedup or delay applied.
-    ///
-    /// Example: if you apply a speedup of *2* to an mp3 decoder source and
-    /// [`get_pos()`](Player::get_pos) returns *5s* then the position in the mp3
-    /// recording is *10s* from its start.
+    /// See [`Player::get_pos`] for details.
     #[inline]
     pub fn get_pos(&self) -> Duration {
         self.player.get_pos()

@@ -95,13 +95,15 @@ where
 
         let consumed = std::cmp::min(self.from.get(), self.next_output_sample_pos) as usize;
 
-        let min = ((min + consumed) / self.from.get() as usize * self.to.get() as usize)
+        // A lower bound can saturate, but an overflowing upper bound is unknown.
+        let min = (min.saturating_add(consumed) / self.from.get() as usize)
+            .saturating_mul(self.to.get() as usize)
             .saturating_sub(self.next_output_sample_pos as usize);
 
-        let max = max.map(|max| {
-            ((max + consumed) / self.from.get() as usize * self.to.get() as usize)
-                .saturating_sub(self.next_output_sample_pos as usize)
-        });
+        let max = max
+            .and_then(|max| max.checked_add(consumed))
+            .and_then(|max| (max / self.from.get() as usize).checked_mul(self.to.get() as usize))
+            .map(|max| max.saturating_sub(self.next_output_sample_pos as usize));
 
         (min, max)
     }

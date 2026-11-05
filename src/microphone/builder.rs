@@ -123,6 +123,52 @@ impl<Device, Config, E> MicrophoneBuilder<Device, Config, E>
 where
     E: FnMut(cpal::Error) + Send + Clone + 'static,
 {
+    /// Sets a callback that is called when an error occurs with the stream,
+    /// in place of the default one, which logs every error.
+    ///
+    /// # Example
+    /// Tell the application when the stream needs reopening. A failing stream can
+    /// report the same error many times a second, so this keeps only the errors
+    /// that need action, in a bounded channel that never blocks the audio thread.
+    /// ```no_run
+    /// # use rodio::microphone::MicrophoneBuilder;
+    /// use std::sync::mpsc;
+    ///
+    /// let (failure_tx, failure_rx) = mpsc::sync_channel(1);
+    /// let microphone = MicrophoneBuilder::new()
+    ///     .with_error_callback(move |err| {
+    ///         if matches!(
+    ///             err.kind(),
+    ///             cpal::ErrorKind::DeviceNotAvailable | cpal::ErrorKind::StreamInvalidated
+    ///         ) {
+    ///             let _channel_full_or_closed = failure_tx.try_send(err);
+    ///         }
+    ///     })
+    ///     .default_device()?
+    ///     .default_config()?
+    ///     .open_stream()?;
+    ///
+    /// // Somewhere the application checks regularly, such as its main loop.
+    /// if let Ok(err) = failure_rx.try_recv() {
+    ///     eprintln!("microphone stream failed: {err}");
+    ///     // Drop `microphone` and open it again, on another device if this one is gone.
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn with_error_callback<F>(self, error_callback: F) -> MicrophoneBuilder<Device, Config, F>
+    where
+        F: FnMut(cpal::Error) + Send + Clone + 'static,
+    {
+        MicrophoneBuilder {
+            device: self.device,
+            config: self.config,
+            error_callback,
+
+            device_set: PhantomData,
+            config_set: PhantomData,
+        }
+    }
+
     /// Sets the input device to use.
     ///
     /// # Example

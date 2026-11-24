@@ -5,14 +5,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::signal::{self, *};
 use crate::source::{Empty, SeekError, Source, Zero};
 use crate::Sample;
 
 use crate::common::{ChannelCount, SampleRate};
-#[cfg(feature = "crossbeam-channel")]
-use crossbeam_channel::{unbounded as channel, Receiver, Sender};
-#[cfg(not(feature = "crossbeam-channel"))]
-use std::sync::mpsc::{channel, Receiver, Sender};
 
 /// Builds a new queue. It consists of an input and an output.
 ///
@@ -45,7 +42,7 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
 // TODO: consider reimplementing this with `from_factory`
 
 type Sound = Box<dyn Source + Send>;
-type SignalDone = Option<Sender<()>>;
+type SignalDone = Option<SignalSender>;
 
 /// The input of the queue.
 pub struct SourcesQueueInput {
@@ -74,16 +71,16 @@ impl SourcesQueueInput {
     ///
     /// Enable the feature flag `crossbeam-channel` in rodio to use a `crossbeam_channel::Receiver` instead.
     #[inline]
-    pub fn append_with_signal<T>(&self, source: T) -> Receiver<()>
+    pub fn append_with_signal<T>(&self, source: T) -> signal::Receiver<()>
     where
         T: Source + Send + 'static,
     {
-        let (tx, rx) = channel();
+        let (tx, rx) = new_signal();
         self.next_sounds
             .lock()
             .unwrap()
             .push_back((Box::new(source) as Box<_>, Some(tx)));
-        rx
+        rx.0
     }
 
     /// Sets whether the queue stays alive if there's no more sound to play.
@@ -108,7 +105,7 @@ pub struct SourcesQueueOutput {
     current: Box<dyn Source + Send>,
 
     // Signal this sender before picking from `next`.
-    signal_after_end: Option<Sender<()>>,
+    signal_after_end: Option<SignalSender>,
 
     // The next sounds.
     input: Arc<SourcesQueueInput>,
@@ -277,7 +274,7 @@ impl SourcesQueueOutput {
     // This method is separate so that it is not inlined.
     fn go_next(&mut self) -> Result<(), ()> {
         if let Some(signal_after_end) = self.signal_after_end.take() {
-            let _ = signal_after_end.send(());
+            signal_after_end.send();
         }
 
         let (next, signal_after_end) = {

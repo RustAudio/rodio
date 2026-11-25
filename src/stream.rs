@@ -7,11 +7,12 @@
 //! play a single sound.
 //!
 //! # Buffer size
-//! Rodio configures a default buffer size of 100ms latency regardless of the
-//! system default. This is to get a good _"out of the box experience"_ on all
-//! systems as we found out that the system default is sometimes set completely
-//! wrong. That would lead to audio playback breaking apparently randomly on
-//! some systems.
+//! Rodio aims for a default buffer of about 50 ms regardless of the system
+//! default, rounded to a power of two in frames: 2048 frames at 48 kHz. This is
+//! to get a good _"out of the box experience"_ on all systems as we found out
+//! that the system default is sometimes set completely wrong. That would lead
+//! to audio playback breaking apparently randomly on some systems. Should the
+//! device refuse that size, the nearest size it reports supporting is used.
 //!
 //! You can manually specify the buffer size if you want lower latency. For more
 //! info see [buffer_size](DeviceSinkBuilder::with_buffer_size).
@@ -29,6 +30,7 @@ use std::fmt;
 use std::io::{Read, Seek};
 use std::marker::Sync;
 use std::num::NonZero;
+use std::sync::{Arc, Mutex, PoisonError};
 
 /// `cpal::Stream` container. Use `mixer()` method to control output.
 ///
@@ -195,6 +197,9 @@ where
     device: Option<cpal::Device>,
     config: DeviceSinkConfig,
     error_callback: E,
+    /// What to try if the device refuses the buffer size `from_device`
+    /// picked, when it reports a range that leaves that size out.
+    fallback_buffer_size: Option<BufferSize>,
 }
 
 impl Default for DeviceSinkBuilder {
@@ -203,6 +208,7 @@ impl Default for DeviceSinkBuilder {
             device: None,
             config: DeviceSinkConfig::default(),
             error_callback: default_error_callback,
+            fallback_buffer_size: None,
         }
     }
 }
@@ -220,11 +226,17 @@ impl DeviceSinkBuilder {
 
         // aim for 50ms of audio
         let sample_rate = device.config.sample_rate().get();
-        let mut safe_buffer_size = nearest_multiple_of_two(sample_rate / (1000 / 50));
-        // Opening fails on a fixed size outside the device's range, and
-        // bluetooth outputs cap it well below 50ms.
+        let safe_buffer_size = nearest_multiple_of_two(sample_rate / (1000 / 50));
+        // Bluetooth outputs can cap the size well below 50ms, and opening
+        // fails on a fixed size outside the range. But the range isn't
+        // always a limit: WASAPI reports its period as a one-value range
+        // and takes any size in shared mode. So the range is only a
+        // fallback, for when the device refuses the size we'd rather have.
         if let cpal::SupportedBufferSize::Range { min, max } = default_config.buffer_size() {
-            safe_buffer_size = safe_buffer_size.clamp(*min, *max);
+            let clamped = safe_buffer_size.clamp(*min, *max);
+            if clamped != safe_buffer_size {
+                device.fallback_buffer_size = Some(BufferSize::Fixed(clamped));
+            }
         }
 
         // This is suboptimal, the builder might still change the sample rate or
@@ -319,7 +331,7 @@ where
     /// smaller the impact of variable sample generation time. On the other
     /// hand Rodio controls audio by changing the value of samples. We can not
     /// change a sample already in the OS buffer. That means there is a
-    /// minimum delay (latency) of `<buffer size>/<sample_rate*channel_count>`
+    /// minimum delay (latency) of `<buffer size in frames>/<sample_rate>`
     /// seconds before a change made through rodio takes effect.
     ///
     /// # Large vs Small buffer
@@ -344,6 +356,7 @@ where
     /// - Stability-focused (background music, non-interactive): 2048-4096
     pub fn with_buffer_size(mut self, buffer_size: cpal::BufferSize) -> DeviceSinkBuilder<E> {
         self.config.buffer_size = buffer_size;
+        self.fallback_buffer_size = None;
         self
     }
 
@@ -380,6 +393,7 @@ where
             buffer_size: config.buffer_size,
             ..self.config
         };
+        self.fallback_buffer_size = None;
         self
     }
 
@@ -392,14 +406,52 @@ where
             device: self.device,
             config: self.config,
             error_callback: callback,
+            fallback_buffer_size: self.fallback_buffer_size,
         }
     }
 
     /// Open OS-Sink using parameters configured so far.
     pub fn open_stream(self) -> Result<MixerDeviceSink, DeviceSinkError> {
         let device = self.device.as_ref().expect("No output device specified");
+        let Some(fallback) = self.fallback_buffer_size else {
+            return MixerDeviceSink::open(device, &self.config, self.error_callback);
+        };
 
-        MixerDeviceSink::open(device, &self.config, self.error_callback)
+        // Each attempt takes the callback, so they share it.
+        let error_callback = Arc::new(Mutex::new(self.error_callback));
+        let shared = || {
+            let error_callback = error_callback.clone();
+            move |err| {
+                let mut error_callback = error_callback
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner);
+                error_callback(err)
+            }
+        };
+        MixerDeviceSink::open(device, &self.config, shared())
+            .or_else(|err| Self::open_with_buffer_size(device, &self.config, fallback, shared, err))
+    }
+
+    /// Retry with `buffer_size` if opening failed to build the stream,
+    /// keeping the first error if that fails too.
+    fn open_with_buffer_size<C>(
+        device: &cpal::Device,
+        config: &DeviceSinkConfig,
+        buffer_size: BufferSize,
+        error_callback: impl FnOnce() -> C,
+        err: DeviceSinkError,
+    ) -> Result<MixerDeviceSink, DeviceSinkError>
+    where
+        C: FnMut(cpal::Error) + Send + 'static,
+    {
+        if !matches!(err, DeviceSinkError::BuildError(_)) {
+            return Err(err);
+        }
+        let config = DeviceSinkConfig {
+            buffer_size,
+            ..*config
+        };
+        MixerDeviceSink::open(device, &config, error_callback()).map_err(|_| err)
     }
 
     /// Try opening a new OS-Sink with the builder's current stream configuration.
@@ -413,19 +465,30 @@ where
         let device = self.device.as_ref().expect("No output device specified");
         let error_callback = &self.error_callback;
 
-        MixerDeviceSink::open(device, &self.config, error_callback.clone()).or_else(|err| {
-            for supported_config in supported_output_configs(device)? {
-                if let Ok(handle) = DeviceSinkBuilder::default()
-                    .with_device(device.clone())
-                    .with_supported_config(&supported_config)
-                    .with_error_callback(error_callback.clone())
-                    .open_stream()
-                {
-                    return Ok(handle);
+        MixerDeviceSink::open(device, &self.config, error_callback.clone())
+            .or_else(|err| match self.fallback_buffer_size {
+                Some(fallback) => Self::open_with_buffer_size(
+                    device,
+                    &self.config,
+                    fallback,
+                    || error_callback.clone(),
+                    err,
+                ),
+                None => Err(err),
+            })
+            .or_else(|err| {
+                for supported_config in supported_output_configs(device)? {
+                    if let Ok(handle) = DeviceSinkBuilder::default()
+                        .with_device(device.clone())
+                        .with_supported_config(&supported_config)
+                        .with_error_callback(error_callback.clone())
+                        .open_stream()
+                    {
+                        return Ok(handle);
+                    }
                 }
-            }
-            Err(err)
-        })
+                Err(err)
+            })
     }
 }
 
@@ -603,4 +666,200 @@ fn supported_output_configs(
         }
         formats
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use cpal::traits::{DeviceTrait, StreamTrait};
+    use cpal::{
+        BufferSize, Data, DeviceDescription, DeviceDescriptionBuilder, DeviceId, Error, ErrorKind,
+        FrameCount, InputCallbackInfo, OutputCallbackInfo, SampleFormat, StreamConfig,
+        StreamInstant, SupportedBufferSize, SupportedStreamConfig, SupportedStreamConfigRange,
+    };
+
+    use super::DeviceSinkBuilder;
+
+    /// A 48 kHz output that reports `reported` as its buffer size range
+    /// but only opens streams whose buffer size is in `accepted`.
+    #[derive(Clone, Debug)]
+    struct Output {
+        reported: SupportedBufferSize,
+        accepted: std::ops::RangeInclusive<FrameCount>,
+        requested: Arc<Mutex<Vec<BufferSize>>>,
+    }
+
+    impl Output {
+        fn new(reported: SupportedBufferSize, accepted: std::ops::RangeInclusive<u32>) -> Self {
+            Self {
+                reported,
+                accepted,
+                requested: Arc::default(),
+            }
+        }
+
+        /// The buffer size of every stream opened or attempted, in order.
+        fn requested(&self) -> Vec<BufferSize> {
+            self.requested.lock().unwrap().clone()
+        }
+
+        fn device(&self) -> cpal::Device {
+            cpal::platform::CustomDevice::from_device(self.clone()).into()
+        }
+    }
+
+    // Copies are the same output: they share what was requested.
+    impl PartialEq for Output {
+        fn eq(&self, other: &Self) -> bool {
+            Arc::ptr_eq(&self.requested, &other.requested)
+        }
+    }
+
+    impl Eq for Output {}
+
+    impl std::hash::Hash for Output {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            Arc::as_ptr(&self.requested).hash(state);
+        }
+    }
+
+    impl std::fmt::Display for Output {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("Test output")
+        }
+    }
+
+    struct Stream;
+
+    impl StreamTrait for Stream {
+        fn play(&self) -> Result<(), Error> {
+            Ok(())
+        }
+
+        fn pause(&self) -> Result<(), Error> {
+            Ok(())
+        }
+
+        fn now(&self) -> StreamInstant {
+            StreamInstant::new(0, 0)
+        }
+
+        fn buffer_size(&self) -> Result<FrameCount, Error> {
+            Err(Error::new(ErrorKind::UnsupportedOperation))
+        }
+    }
+
+    impl DeviceTrait for Output {
+        type SupportedInputConfigs = std::iter::Empty<SupportedStreamConfigRange>;
+        type SupportedOutputConfigs = std::iter::Empty<SupportedStreamConfigRange>;
+        type Stream = Stream;
+
+        fn description(&self) -> Result<DeviceDescription, Error> {
+            Ok(DeviceDescriptionBuilder::new("Test output").build())
+        }
+
+        fn id(&self) -> Result<DeviceId, Error> {
+            Err(Error::new(ErrorKind::UnsupportedOperation))
+        }
+
+        fn supported_input_configs(&self) -> Result<Self::SupportedInputConfigs, Error> {
+            Ok(std::iter::empty())
+        }
+
+        fn supported_output_configs(&self) -> Result<Self::SupportedOutputConfigs, Error> {
+            Ok(std::iter::empty())
+        }
+
+        fn default_input_config(&self) -> Result<SupportedStreamConfig, Error> {
+            Err(Error::new(ErrorKind::UnsupportedConfig))
+        }
+
+        fn default_output_config(&self) -> Result<SupportedStreamConfig, Error> {
+            Ok(SupportedStreamConfig::new(
+                2,
+                48000,
+                self.reported,
+                SampleFormat::F32,
+            ))
+        }
+
+        fn build_input_stream_raw<D, E>(
+            &self,
+            _: StreamConfig,
+            _: SampleFormat,
+            _: D,
+            _: E,
+            _: Option<Duration>,
+        ) -> Result<Self::Stream, Error>
+        where
+            D: FnMut(&Data, &InputCallbackInfo) + Send + 'static,
+            E: FnMut(Error) + Send + 'static,
+        {
+            Err(Error::new(ErrorKind::UnsupportedConfig))
+        }
+
+        fn build_output_stream_raw<D, E>(
+            &self,
+            config: StreamConfig,
+            _: SampleFormat,
+            _: D,
+            _: E,
+            _: Option<Duration>,
+        ) -> Result<Self::Stream, Error>
+        where
+            D: FnMut(&mut Data, &OutputCallbackInfo) + Send + 'static,
+            E: FnMut(Error) + Send + 'static,
+        {
+            self.requested.lock().unwrap().push(config.buffer_size);
+            match config.buffer_size {
+                BufferSize::Fixed(size) if !self.accepted.contains(&size) => {
+                    Err(Error::new(ErrorKind::UnsupportedConfig))
+                }
+                _ => Ok(Stream),
+            }
+        }
+    }
+
+    fn open(output: &Output) -> BufferSize {
+        let mut sink = DeviceSinkBuilder::from_device(output.device())
+            .expect("the output has a default config")
+            .open_stream()
+            .expect("the output opens");
+        sink.log_on_drop(false);
+        *sink.config().buffer_size()
+    }
+
+    /// Like bluetooth outputs, which can't take 50 ms.
+    #[test]
+    fn capped_device_opens_with_the_largest_size_it_takes() {
+        let output = Output::new(SupportedBufferSize::Range { min: 15, max: 960 }, 15..=960);
+        assert_eq!(open(&output), BufferSize::Fixed(960));
+        assert_eq!(
+            output.requested(),
+            [BufferSize::Fixed(2048), BufferSize::Fixed(960)]
+        );
+    }
+
+    /// Like WASAPI in shared mode, which reports its period as the range
+    /// but takes any size.
+    #[test]
+    fn device_keeps_the_preferred_size_when_it_takes_it() {
+        let period = SupportedBufferSize::Range { min: 480, max: 480 };
+        let output = Output::new(period, 1..=u32::MAX);
+        assert_eq!(open(&output), BufferSize::Fixed(2048));
+        assert_eq!(output.requested(), [BufferSize::Fixed(2048)]);
+    }
+
+    #[test]
+    fn chosen_buffer_size_is_never_replaced() {
+        let output = Output::new(SupportedBufferSize::Range { min: 15, max: 960 }, 15..=960);
+        let opened = DeviceSinkBuilder::from_device(output.device())
+            .unwrap()
+            .with_buffer_size(BufferSize::Fixed(4096))
+            .open_stream();
+        assert!(opened.is_err());
+        assert_eq!(output.requested(), [BufferSize::Fixed(4096)]);
+    }
 }

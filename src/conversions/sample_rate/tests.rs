@@ -576,3 +576,41 @@ fn chain_is_resampled_to_its_end() {
     let output = SampleRateConverter::new(source, target, ResampleConfig::poly().build()).count();
     assert_close(output, 1328, "chain of two buffers");
 }
+
+/// The last frames before a format change are interpolated like any
+/// others: not towards silence, nor with silence counted in after them.
+#[test]
+fn frames_before_a_format_change_follow_the_input() {
+    let mono = ChannelCount::new(1).unwrap();
+    let (rate, next_rate) = (
+        SampleRate::new(44100).unwrap(),
+        SampleRate::new(110250).unwrap(),
+    );
+    let frames = 20_000;
+    // Many chunks, so rounding each one's output would add up.
+    let ramp: Vec<Sample> = (0..frames)
+        .map(|i| i as Sample / frames as Sample)
+        .collect();
+    let source = TestSource::new(ramp, rate, mono).chain(vec![1.0; 4410], next_rate, mono);
+    let target = SampleRate::new(48000).unwrap();
+    let config = ResampleConfig::poly().degree(Poly::Linear).build();
+    let output: Vec<Sample> = SampleRateConverter::new(source, target, config).collect();
+
+    let before_change = resampled_len(InFrameCount(frames), rate, target);
+    let tail = &output[..before_change];
+    for (i, pair) in tail.windows(2).enumerate() {
+        assert!(
+            pair[1] >= pair[0],
+            "frame {} falls from {} to {}",
+            i + 1,
+            pair[0],
+            pair[1]
+        );
+    }
+    let step = 1.0 / frames as Sample;
+    let last = tail.last().copied().unwrap_or_default();
+    assert!(
+        last >= 1.0 - 3.0 * step,
+        "the last frame before the change is {last}, not the input's end"
+    );
+}

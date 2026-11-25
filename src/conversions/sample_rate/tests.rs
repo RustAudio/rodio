@@ -721,6 +721,59 @@ fn lead_in_longer_than_a_chunk() {
     }
 }
 
+/// The copies of the first frame can fill a chunk exactly, which leaves
+/// the frame itself for the next one: it still comes out first, and the
+/// rest in place. A ramp through a linear resampler comes out the same at
+/// every chunk size around the ones the lead-in fills exactly, from the
+/// start and after a seek, as with one chunk for the whole input.
+#[test]
+fn first_frame_after_a_lead_in_that_fills_a_chunk() {
+    let mono = ChannelCount::new(1).unwrap();
+    let ramp = |frame: usize| 0.2 + frame as Sample * 1e-4;
+    let input: Vec<Sample> = (0..2000).map(ramp).collect();
+    // 1/64 s, a whole number of frames at 48 kHz, rounded down at 44.1.
+    let seek = Duration::from_secs_f64(1.0 / 64.0);
+    let resample = |rate, target, chunk, seeked| {
+        let source = TestSource::new(input.clone(), rate, mono);
+        let config = ResampleConfig::poly()
+            .degree(Poly::Linear)
+            .chunk_size(NonZero::new(chunk).unwrap())
+            .build();
+        let mut resampler = SampleRateConverter::new(source, target, config);
+        if seeked {
+            resampler.try_seek(seek).unwrap();
+        }
+        resampler.collect::<Vec<Sample>>()
+    };
+    let cases = [
+        // The lead-in fills the chunk of 158 exactly.
+        (44100, 48000, 140..=170),
+        // And those of 144 and 145.
+        (48000, 88200, 130..=160),
+        // And the default chunk.
+        (48000, 131456, 1024..=1024),
+    ];
+    for (from, to, chunks) in cases {
+        let (rate, target) = (SampleRate::new(from).unwrap(), SampleRate::new(to).unwrap());
+        for seeked in [false, true] {
+            let first = ramp(if seeked { from as usize / 64 } else { 0 });
+            let whole = resample(rate, target, 8192, seeked);
+            assert!((whole[0] - first).abs() <= 1e-5, "{from} → {to} Hz");
+            for chunk in chunks.clone() {
+                let output = resample(rate, target, chunk, seeked);
+                let what = format!("{from} → {to} Hz, chunks of {chunk}, seeked: {seeked}");
+                assert_eq!(output.len(), whole.len(), "{what}");
+                for (i, (&got, &expected)) in output.iter().zip(&whole).enumerate() {
+                    assert!(
+                        (got - expected).abs() <= 1e-5,
+                        "{what}: frame {i} is {got}, not {expected}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// A single frame is still resampled, alone or before a format change.
 #[test]
 fn a_single_frame_is_resampled() {

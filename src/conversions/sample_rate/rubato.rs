@@ -133,14 +133,14 @@ pub struct RubatoResample<I: Source, R: rubato::Resampler<Sample>> {
     /// change: rubato would pad it with silence, and the last frames
     /// would fall towards it.
     last_frame: Box<[Sample]>,
-    /// Copies of the first frame still to feed rubato ahead of it. Its
-    /// history starts as silence, and the first frames out, which land
-    /// just before the input's start, would be interpolated partly from
-    /// it: a soft start, and a dip where a resampler is built mid-stream
-    /// or after a seek.
-    lead_in: usize,
+    /// Copies of the first frame still to feed rubato: the lead-in ahead
+    /// of it, then the frame itself. Its history starts as silence, and
+    /// the first frames out, which land just before the input's start,
+    /// would be interpolated partly from it: a soft start, and a dip
+    /// where a resampler is built mid-stream or after a seek.
+    lead_in_copies: usize,
     /// Whether the first frame has been read into `last_frame` for the
-    /// lead-in, and is still to be fed after it.
+    /// lead-in.
     lead_in_read: bool,
 }
 
@@ -180,7 +180,8 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
         OutFrameCount(delay_frames + lead_in as usize)
     }
 
-    /// The lead-in and output delay of a new or reset resampler.
+    /// The copies of the first frame to feed rubato, lead-in and frame
+    /// itself, and the output delay of a new or reset resampler.
     fn start_state(
         resampler: &R,
         source_rate: SampleRate,
@@ -188,7 +189,7 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
     ) -> (usize, OutFrameCount) {
         let lead_in = Self::lead_in_frames(resampler, source_rate, target_rate);
         let delay = Self::output_delay(resampler, lead_in, source_rate, target_rate);
-        (lead_in, delay)
+        (lead_in + 1, delay)
     }
 
     pub fn span_length(&self) -> Option<usize> {
@@ -262,7 +263,7 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
         self.resampler.reset();
         self.output.reset();
         self.span_remaining = InSamples::ZERO;
-        (self.lead_in, self.output_delay_remaining) =
+        (self.lead_in_copies, self.output_delay_remaining) =
             Self::start_state(&self.resampler, self.output.source_rate, self.target_rate);
         self.lead_in_read = false;
         self.frames_being_resampled = OutFrameCount::ZERO;
@@ -389,10 +390,10 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
         self.input_buffer.clear();
 
         let mut read = InSamples::ZERO;
-        if self.lead_in > 0 {
+        if self.lead_in_copies > 0 {
             read = self.lead_in_with_first_frame(wanted);
         }
-        if self.lead_in > 0 {
+        if self.lead_in_copies > 0 {
             // The lead-in fills this chunk, and goes on into the next.
             return (
                 self.input_buffer.len().frames(channels),
@@ -422,7 +423,7 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
             if read.raw() < self.last_frame.len() {
                 // No whole frame to lead in with: leave what was read
                 // as it is.
-                self.lead_in = 0;
+                self.lead_in_copies = 0;
                 return read;
             }
             self.last_frame
@@ -431,19 +432,19 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
             self.lead_in_read = true;
         }
 
-        // Then the first frame itself, once the lead-in is all in.
-        let copies = self.lead_in + 1;
+        // The first frame itself is the last copy, so it stays pending
+        // until every copy ahead of it is in, even when they fill a
+        // chunk exactly.
         let room = (wanted - self.input_buffer.len()).raw() / self.last_frame.len();
-        for _ in 0..copies.min(room) {
+        let copies = self.lead_in_copies.min(room);
+        for _ in 0..copies {
             for &sample in &self.last_frame {
                 self.input_buffer.push(sample);
             }
         }
-        if room >= copies {
-            self.lead_in = 0;
+        self.lead_in_copies -= copies;
+        if self.lead_in_copies == 0 {
             self.lead_in_read = false;
-        } else {
-            self.lead_in -= room;
         }
         read
     }
@@ -518,7 +519,7 @@ impl<I: Source> RubatoAsyncResample<I> {
         let input_buf_size = InFrameCount(resampler.input_frames_max());
         let output_buf_size = OutFrameCount(resampler.output_frames_max());
 
-        let (lead_in, initial_output_delay) =
+        let (lead_in_copies, initial_output_delay) =
             RubatoResample::<I, rubato::Async<Sample>>::start_state(
                 &resampler,
                 source_rate,
@@ -538,7 +539,7 @@ impl<I: Source> RubatoAsyncResample<I> {
             frames_in_total: 0,
             frames_out_total: 0,
             last_frame: vec![0.0; channels.get().into()].into_boxed_slice(),
-            lead_in,
+            lead_in_copies,
             lead_in_read: false,
         })
     }
@@ -579,7 +580,7 @@ impl<I: Source> RubatoAsyncResample<I> {
         let input_buf_size = InFrameCount(resampler.input_frames_max());
         let output_buf_size = OutFrameCount(resampler.output_frames_max());
 
-        let (lead_in, initial_output_delay) =
+        let (lead_in_copies, initial_output_delay) =
             RubatoResample::<I, rubato::Async<Sample>>::start_state(
                 &resampler,
                 source_rate,
@@ -599,7 +600,7 @@ impl<I: Source> RubatoAsyncResample<I> {
             frames_in_total: 0,
             frames_out_total: 0,
             last_frame: vec![0.0; channels.get().into()].into_boxed_slice(),
-            lead_in,
+            lead_in_copies,
             lead_in_read: false,
         })
     }
@@ -638,7 +639,7 @@ impl<I: Source> RubatoFftResample<I> {
 
         let input_buf_size = InFrameCount(resampler.input_frames_max());
         let output_buf_size = OutFrameCount(resampler.output_frames_max());
-        let (lead_in, output_delay_remaining) =
+        let (lead_in_copies, output_delay_remaining) =
             RubatoFftResample::<I>::start_state(&resampler, source_rate, target_rate);
 
         let span_remaining = Self::first_span(&input);
@@ -654,7 +655,7 @@ impl<I: Source> RubatoFftResample<I> {
             frames_in_total: 0,
             frames_out_total: 0,
             last_frame: vec![0.0; channels.get().into()].into_boxed_slice(),
-            lead_in,
+            lead_in_copies,
             lead_in_read: false,
         })
     }

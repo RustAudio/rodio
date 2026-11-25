@@ -366,7 +366,43 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.inner.as_ref().unwrap().size_hint().0, None)
+        let lower = self.inner.as_ref().unwrap().size_hint().0;
+        (lower.min(self.max_left_in_format()), None)
+    }
+}
+
+impl<I> UniformSourceIterator<I>
+where
+    I: Source,
+{
+    /// At most how many samples come before the input's format may
+    /// change. Past that, another conversion may yield fewer samples for
+    /// the same input, so a lower bound can't count them. A resampler's
+    /// own bound already stops at its format; the other conversions'
+    /// count the whole input in the current one.
+    fn max_left_in_format(&self) -> usize {
+        let inner = self.inner.as_ref().unwrap();
+        if !matches!(
+            inner,
+            UniformInner::Passthrough(_) | UniformInner::ChannelCount(_)
+        ) {
+            return usize::MAX;
+        }
+        let Some(span_len) = self.cached_span_len else {
+            // The input's format never changes.
+            return usize::MAX;
+        };
+        if self.current_span_pos < span_len {
+            return span_len - self.current_span_pos;
+        }
+        // The next sample checks the format first, and starts a span
+        // in it if it holds.
+        let format = (self.current_channels, self.current_sample_rate);
+        if inner.at_frame_start() && inner.next_input_format() == format {
+            inner.current_span_len().unwrap_or(usize::MAX)
+        } else {
+            0
+        }
     }
 }
 
@@ -490,6 +526,61 @@ mod tests {
                 "sample {} is {sample}",
                 602 + i
             );
+        }
+    }
+
+    /// The lower bound holds once a later span converts to fewer
+    /// samples, with or without resampling.
+    #[test]
+    fn size_hint_holds_across_format_changes() {
+        // (channels, rate, frames) per span, into mono or stereo 48 kHz.
+        for (spans, to_channels) in [
+            // Passed through, then downmixed.
+            (&[(1, 48000, 2), (2, 48000, 400)][..], 1),
+            // Downmixed, then more so.
+            (&[(2, 48000, 64), (4, 48000, 200)], 1),
+            // Upmixed, then passed through.
+            (&[(1, 48000, 64), (2, 48000, 200)], 2),
+            // Resampled, passed through, then downmixed.
+            (&[(1, 24000, 64), (1, 48000, 2), (2, 48000, 400)], 1),
+        ] {
+            let source = chain(spans.iter().map(
+                |&(channels, rate, frames): &(u16, u32, usize)| {
+                    let samples = vec![0.5; frames * channels as usize];
+                    SamplesBuffer::new(
+                        channels.try_into().unwrap(),
+                        rate.try_into().unwrap(),
+                        samples,
+                    )
+                },
+            ));
+            let mut uniform =
+                UniformSourceIterator::new(source, to_channels.try_into().unwrap(), nz!(48000));
+            let mut lower_bounds = vec![uniform.size_hint().0];
+            while uniform.next().is_some() {
+                lower_bounds.push(uniform.size_hint().0);
+            }
+
+            let total = lower_bounds.len() - 1;
+            for (emitted, lower) in lower_bounds.into_iter().enumerate() {
+                let left = total - emitted;
+                assert!(
+                    lower <= left,
+                    "{spans:?}: lower bound {lower} with {left} left"
+                );
+            }
+        }
+    }
+
+    /// Until the format can change, the lower bound is still exact.
+    #[test]
+    fn size_hint_is_exact_in_one_format() {
+        for to_channels in [nz!(1), nz!(2)] {
+            let source = SamplesBuffer::new(nz!(1), nz!(48000), vec![0.5; 300]);
+            let uniform = UniformSourceIterator::new(source, to_channels, nz!(48000));
+            let len = 300 * to_channels.get() as usize;
+            assert_eq!(uniform.size_hint().0, len, "into {to_channels} channels");
+            assert_eq!(uniform.count(), len, "into {to_channels} channels");
         }
     }
 

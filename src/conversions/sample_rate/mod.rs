@@ -276,6 +276,35 @@ where
         self.resampler().next_format()
     }
 
+    /// Whether samples of the format it was built for are still to come,
+    /// buffered or inside the resampler.
+    #[inline]
+    pub(crate) fn holds_samples(&self) -> bool {
+        match self.resampler() {
+            ResampleInner::Passthrough { .. } => false,
+            ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => {
+                resampler.holds_samples()
+            }
+            #[cfg(feature = "rubato-fft")]
+            ResampleInner::Fft(resampler) => resampler.holds_samples(),
+        }
+    }
+
+    /// How many samples `next` yields before the format may change: the
+    /// resampled samples buffered, all in the format it was built for.
+    /// Zero once they run out, or when passing through.
+    #[inline]
+    pub(crate) fn samples_in_format(&self) -> usize {
+        match self.resampler() {
+            ResampleInner::Passthrough { .. } => 0,
+            ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => {
+                resampler.buffered_len()
+            }
+            #[cfg(feature = "rubato-fft")]
+            ResampleInner::Fft(resampler) => resampler.buffered_len(),
+        }
+    }
+
     /// Returns the inner source.
     #[inline]
     pub fn into_inner(self) -> I {

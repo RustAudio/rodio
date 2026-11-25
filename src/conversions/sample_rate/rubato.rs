@@ -162,6 +162,12 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
         !self.output.is_empty()
     }
 
+    /// Resampled samples buffered, not yet yielded.
+    #[inline]
+    pub fn buffered_len(&self) -> usize {
+        self.output.len().raw()
+    }
+
     /// Whether samples of the format this was built for are still to
     /// come, buffered or inside rubato.
     pub fn holds_samples(&self) -> bool {

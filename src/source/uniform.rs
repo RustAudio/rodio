@@ -11,8 +11,9 @@ enum UniformInner<I: Source> {
     Passthrough(I),
     SampleRate(SampleRateConverter<I>),
     ChannelCount(ChannelCountConverter<I>),
-    BothUpmix(ChannelCountConverter<SampleRateConverter<I>>),
-    BothDownmix(SampleRateConverter<ChannelCountConverter<I>>),
+    // Resampled first even when downmixing: a resampler reads ahead,
+    // and only on its raw input can it see where a span changes format.
+    Both(ChannelCountConverter<SampleRateConverter<I>>),
 }
 
 impl<I: Source> Iterator for UniformInner<I> {
@@ -24,8 +25,7 @@ impl<I: Source> Iterator for UniformInner<I> {
             UniformInner::Passthrough(take) => take.next(),
             UniformInner::SampleRate(converter) => converter.next(),
             UniformInner::ChannelCount(converter) => converter.next(),
-            UniformInner::BothUpmix(converter) => converter.next(),
-            UniformInner::BothDownmix(converter) => converter.next(),
+            UniformInner::Both(converter) => converter.next(),
         }
     }
 
@@ -35,8 +35,7 @@ impl<I: Source> Iterator for UniformInner<I> {
             UniformInner::Passthrough(take) => take.size_hint(),
             UniformInner::SampleRate(converter) => converter.size_hint(),
             UniformInner::ChannelCount(converter) => converter.size_hint(),
-            UniformInner::BothUpmix(converter) => converter.size_hint(),
-            UniformInner::BothDownmix(converter) => converter.size_hint(),
+            UniformInner::Both(converter) => converter.size_hint(),
         }
     }
 }
@@ -48,8 +47,7 @@ impl<I: Source> UniformInner<I> {
             UniformInner::Passthrough(source) => source,
             UniformInner::SampleRate(converter) => converter.into_inner(),
             UniformInner::ChannelCount(converter) => converter.into_inner(),
-            UniformInner::BothUpmix(converter) => converter.into_inner().into_inner(),
-            UniformInner::BothDownmix(converter) => converter.into_inner().into_inner(),
+            UniformInner::Both(converter) => converter.into_inner().into_inner(),
         }
     }
 
@@ -59,8 +57,22 @@ impl<I: Source> UniformInner<I> {
             UniformInner::Passthrough(source) => source,
             UniformInner::SampleRate(converter) => converter.inner(),
             UniformInner::ChannelCount(converter) => converter.inner(),
-            UniformInner::BothUpmix(converter) => converter.inner().inner(),
-            UniformInner::BothDownmix(converter) => converter.inner().inner(),
+            UniformInner::Both(converter) => converter.inner().inner(),
+        }
+    }
+
+    /// The format of the input the next sample comes from. A resampler
+    /// has read ahead of it, so its input may already be further along.
+    #[inline]
+    fn next_input_format(&self) -> (ChannelCount, SampleRate) {
+        match self {
+            UniformInner::Passthrough(source) => (source.channels(), source.sample_rate()),
+            UniformInner::ChannelCount(converter) => (
+                converter.inner().channels(),
+                converter.inner().sample_rate(),
+            ),
+            UniformInner::SampleRate(converter) => converter.next_input_format(),
+            UniformInner::Both(converter) => converter.inner().next_input_format(),
         }
     }
 
@@ -70,16 +82,21 @@ impl<I: Source> UniformInner<I> {
             UniformInner::Passthrough(source) => source,
             UniformInner::SampleRate(converter) => converter.inner_mut(),
             UniformInner::ChannelCount(converter) => converter.inner_mut(),
-            UniformInner::BothUpmix(converter) => converter.inner_mut().inner_mut(),
-            UniformInner::BothDownmix(converter) => converter.inner_mut().inner_mut(),
+            UniformInner::Both(converter) => converter.inner_mut().inner_mut(),
         }
     }
 }
 
 impl<I: Source> Source for UniformInner<I> {
+    /// The span of the converted output, which is what gets counted.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        self.inner().current_span_len()
+        match self {
+            UniformInner::Passthrough(source) => source.current_span_len(),
+            UniformInner::SampleRate(converter) => converter.current_span_len(),
+            UniformInner::ChannelCount(converter) => converter.current_span_len(),
+            UniformInner::Both(converter) => converter.current_span_len(),
+        }
     }
 
     #[inline]
@@ -136,7 +153,6 @@ where
         let current_channels = input.channels();
         let current_sample_rate = input.sample_rate();
         let inner = UniformSourceIterator::bootstrap(input, target_channels, target_sample_rate);
-        let cached_span_len = inner.current_span_len();
 
         Self {
             inner: Some(inner),
@@ -145,7 +161,9 @@ where
             current_channels,
             current_sample_rate,
             current_span_pos: 0,
-            cached_span_len,
+            // Check on the first pull too: the format may have changed
+            // since, like a queue that was empty when added to a mixer.
+            cached_span_len: Some(0),
         }
     }
 
@@ -172,18 +190,11 @@ where
                     ChannelCountConverter::new(input, from_channels, target_channels);
                 UniformInner::ChannelCount(channel_converted)
             }
-            (true, true) if target_channels > from_channels => {
+            (true, true) => {
                 let rate_converted = SampleRateConverter::new(input, target_sample_rate, config);
                 let channel_converted =
                     ChannelCountConverter::new(rate_converted, from_channels, target_channels);
-                UniformInner::BothUpmix(channel_converted)
-            }
-            (true, true) => {
-                let channel_converted =
-                    ChannelCountConverter::new(input, from_channels, target_channels);
-                let rate_converted =
-                    SampleRateConverter::new(channel_converted, target_sample_rate, config);
-                UniformInner::BothDownmix(rate_converted)
+                UniformInner::Both(channel_converted)
             }
         }
     }
@@ -197,36 +208,38 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(span_len) = self.cached_span_len {
-            if self.current_span_pos >= span_len {
-                // At span boundary - check if parameters changed
-                let source = self.inner.as_mut().unwrap().inner_mut();
-                let new_channels = source.channels();
-                let new_sample_rate = source.sample_rate();
+        let mut at_boundary = self
+            .cached_span_len
+            .is_some_and(|span_len| self.current_span_pos >= span_len);
+        // A resampler reads ahead of its input, so neither the input's
+        // format nor counting spans tells where the format of what it
+        // yields changes. It knows, cheaply, so ask before every sample.
+        let resamples = matches!(
+            self.inner,
+            Some(UniformInner::SampleRate(_) | UniformInner::Both(_))
+        );
 
-                let parameters_changed = new_channels != self.current_channels
-                    || new_sample_rate != self.current_sample_rate;
+        if at_boundary || resamples {
+            let (new_channels, new_sample_rate) = self.inner.as_ref().unwrap().next_input_format();
 
-                if parameters_changed {
-                    let source = self.inner.take().unwrap().into_inner();
-                    self.current_channels = new_channels;
-                    self.current_sample_rate = new_sample_rate;
-                    let new_inner = UniformSourceIterator::bootstrap(
-                        source,
-                        self.target_channels,
-                        self.target_sample_rate,
-                    );
-                    self.inner = Some(new_inner);
-                }
+            let parameters_changed = new_channels != self.current_channels
+                || new_sample_rate != self.current_sample_rate;
 
-                // Calculate new output span length based on the conversion type
-                let new_span_len = match self.inner.as_ref().unwrap() {
-                    UniformInner::Passthrough(source) => source.current_span_len(),
-                    UniformInner::SampleRate(resample) => resample.current_span_len(),
-                    UniformInner::ChannelCount(converter) => converter.current_span_len(),
-                    UniformInner::BothUpmix(converter) => converter.current_span_len(),
-                    UniformInner::BothDownmix(converter) => converter.current_span_len(),
-                };
+            if parameters_changed {
+                let source = self.inner.take().unwrap().into_inner();
+                self.current_channels = new_channels;
+                self.current_sample_rate = new_sample_rate;
+                let new_inner = UniformSourceIterator::bootstrap(
+                    source,
+                    self.target_channels,
+                    self.target_sample_rate,
+                );
+                self.inner = Some(new_inner);
+                at_boundary = true;
+            }
+
+            if at_boundary {
+                let new_span_len = self.inner.as_ref().unwrap().current_span_len();
 
                 self.current_span_pos = 0;
                 self.cached_span_len = new_span_len;

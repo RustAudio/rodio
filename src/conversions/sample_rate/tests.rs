@@ -102,6 +102,12 @@ impl Iterator for TestSource {
         }
         Some(s)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let left = self.spans.iter().skip(self.span).map(|s| s.samples.len());
+        let left = left.sum::<usize>() - self.offset;
+        (left, Some(left))
+    }
 }
 
 impl Source for TestSource {
@@ -456,4 +462,117 @@ fn passthrough_none_span_len_yields_samples() {
         n, 32,
         "Passthrough with current_span_len() == None stopped early (got {n})"
     );
+}
+
+/// Spans of `(frames, rate, channels)`, one after the other.
+fn spans_of(spans: &[(usize, u32, u16)]) -> TestSource {
+    let span = |&(frames, rate, channels): &(usize, u32, u16)| {
+        let channels = ChannelCount::new(channels).unwrap();
+        let input = create_test_input(InFrameCount(frames), channels);
+        (input, SampleRate::new(rate).unwrap(), channels)
+    };
+    let mut spans = spans.iter().map(span);
+    let (input, rate, channels) = spans.next().expect("at least one span");
+    spans.fold(TestSource::new(input, rate, channels), |source, span| {
+        source.chain(span.0, span.1, span.2)
+    })
+}
+
+/// A resampler reads ahead of the samples it yields, so what it reports
+/// must describe the next sample, not where its input has got to.
+#[test]
+fn channels_follow_the_samples_still_buffered() {
+    let target = SampleRate::new(48000).unwrap();
+    let mut resampler = SampleRateConverter::new(
+        spans_of(&[(100, 24000, 1), (100, 24000, 2)]),
+        target,
+        ResampleConfig::poly().build(),
+    );
+
+    let mut mono = 0;
+    while resampler.channels().get() == 1 {
+        resampler.next().expect("the stereo span is still to come");
+        mono += 1;
+    }
+    assert_close(mono, 200, "mono samples before channels() turned stereo");
+    let stereo = resampler.count();
+    assert_close(stereo, 400, "stereo samples after");
+}
+
+#[test]
+fn is_exhausted_only_once_nothing_is_left() {
+    let target = SampleRate::new(44100).unwrap();
+    // A sinc filter still holds samples after its input runs out.
+    let config = ResampleConfig::sinc()
+        .sinc_len(NonZero::new(16).unwrap())
+        .build();
+    let mut resampler = SampleRateConverter::new(
+        spans_of(&[(429, 22050, 2), (262, 12000, 2)]),
+        target,
+        config,
+    );
+
+    let mut emitted = 0;
+    loop {
+        let exhausted = resampler.is_exhausted();
+        let Some(_) = resampler.next() else {
+            break;
+        };
+        assert!(!exhausted, "is_exhausted() before sample {emitted}");
+        emitted += 1;
+    }
+    assert!(resampler.is_exhausted());
+}
+
+/// Later spans may be at another rate, so the current ratio can't bound
+/// them: past the span being read, only the lower bound may count on it.
+#[test]
+fn size_hint_holds_across_rate_changes() {
+    let target = SampleRate::new(48000).unwrap();
+    for spans in [
+        &[(64, 48000, 1), (128, 24000, 1)][..],
+        &[(64, 24000, 1), (256, 96000, 1)],
+        &[(128, 24000, 1), (128, 12000, 1)],
+        &[(128, 24000, 1), (256, 48000, 1)],
+        &[(441, 44100, 2), (441, 44100, 2)],
+    ] {
+        let mut resampler =
+            SampleRateConverter::new(spans_of(spans), target, ResampleConfig::poly().build());
+        let mut hints = vec![resampler.size_hint()];
+        while resampler.next().is_some() {
+            hints.push(resampler.size_hint());
+        }
+
+        let total = hints.len() - 1;
+        for (emitted, (lower, upper)) in hints.into_iter().enumerate() {
+            let left = total - emitted;
+            assert!(
+                lower <= left,
+                "{spans:?}: lower bound {lower} with {left} left"
+            );
+            assert!(
+                upper.is_none_or(|upper| upper >= left),
+                "{spans:?}: upper bound {upper:?} with {left} left"
+            );
+        }
+    }
+}
+
+/// A finished buffer in a `chain` isn't the end of the stream.
+#[test]
+fn chain_is_resampled_to_its_end() {
+    use crate::buffer::SamplesBuffer;
+    use crate::source::chain;
+
+    let (mono, rate) = (
+        ChannelCount::new(1).unwrap(),
+        SampleRate::new(24000).unwrap(),
+    );
+    let source = chain([
+        SamplesBuffer::new(mono, rate, vec![0.5; 600]),
+        SamplesBuffer::new(mono, rate, vec![0.5; 64]),
+    ]);
+    let target = SampleRate::new(48000).unwrap();
+    let output = SampleRateConverter::new(source, target, ResampleConfig::poly().build()).count();
+    assert_close(output, 1328, "chain of two buffers");
 }

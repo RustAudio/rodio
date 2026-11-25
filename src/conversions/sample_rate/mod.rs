@@ -269,6 +269,13 @@ where
         }
     }
 
+    /// The channel count and sample rate of the input the next sample
+    /// comes from. The input itself may already be further along.
+    #[inline]
+    pub(crate) fn next_input_format(&self) -> (ChannelCount, SampleRate) {
+        self.resampler().next_format()
+    }
+
     /// Returns the inner source.
     #[inline]
     pub fn into_inner(self) -> I {
@@ -324,9 +331,11 @@ where
         self.target_rate
     }
 
+    /// The channel count of the samples `next` yields, which lags the
+    /// input's while samples read from before a change are still buffered.
     #[inline]
     fn channels(&self) -> ChannelCount {
-        self.resampler().input().channels()
+        self.resampler().next_format().0
     }
 
     #[inline]
@@ -448,34 +457,34 @@ where
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self.resampler() {
-            ResampleInner::Passthrough { source, .. } => source.size_hint(),
-            ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => {
-                let adjusted_for_resampling = |samples| {
-                    InSamples(samples).resampled_by(resampler.resample_ratio)
-                        + resampler.output.len()
-                        + resampler
-                            .frames_being_resampled
-                            .samples(resampler.output.channels)
+            ResampleInner::Passthrough {
+                source,
+                input_span_pos,
+                channels,
+                source_rate,
+            } => {
+                let (lower, upper) = source.size_hint();
+                if source.current_span_len().is_none() {
+                    return (lower, upper);
+                }
+                // Past this span the rate may change and need resampling,
+                // so only the rest of it passes through one to one.
+                let in_span = if self.pending_recreate
+                    || source.channels() != *channels
+                    || source.sample_rate() != *source_rate
+                {
+                    0
+                } else {
+                    self.cached_input_span_len
+                        .map_or(0, |len| len.saturating_sub(input_span_pos.raw()))
                 };
-                let (lower, upper) = resampler.input.size_hint();
-                let lower = adjusted_for_resampling(lower);
-                let upper = upper.map(adjusted_for_resampling);
-                (lower.raw(), upper.as_ref().map(OutSamples::raw))
+                (lower.min(in_span), upper.filter(|&upper| upper <= in_span))
+            }
+            ResampleInner::Poly(resampler) | ResampleInner::Sinc(resampler) => {
+                resampler.size_hint()
             }
             #[cfg(feature = "rubato-fft")]
-            ResampleInner::Fft(resampler) => {
-                let adjusted_for_resampling = |samples| {
-                    InSamples(samples).resampled_by(resampler.resample_ratio)
-                        + resampler.output.len()
-                        + resampler
-                            .frames_being_resampled
-                            .samples(resampler.output.channels)
-                };
-                let (lower, upper) = resampler.input.size_hint();
-                let lower = adjusted_for_resampling(lower);
-                let upper = upper.map(adjusted_for_resampling);
-                (lower.raw(), upper.as_ref().map(OutSamples::raw))
-            }
+            ResampleInner::Fft(resampler) => resampler.size_hint(),
         }
     }
 }

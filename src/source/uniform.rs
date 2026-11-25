@@ -360,6 +360,29 @@ mod tests {
         assert_frames_aligned(&out, 600);
     }
 
+    /// A resampler rebuilt at a rate change, as `Player::set_speed` makes
+    /// one, starts on the new span's first frame rather than dipping
+    /// towards silence.
+    #[test]
+    fn rate_change_starts_on_the_input() {
+        let source = chain([
+            SamplesBuffer::new(nz!(2), nz!(110250), [0.5, -0.5].repeat(2205)),
+            SamplesBuffer::new(nz!(2), nz!(44100), [0.8, -0.6].repeat(4410)),
+        ]);
+        let out: Vec<Sample> = UniformSourceIterator::new(source, nz!(2), nz!(48000)).collect();
+        // The end of the stream falls to silence: leave it out.
+        let frames = out.chunks(2).take(out.len() / 2 - 4);
+        let first_after = 960;
+        for (i, frame) in frames.enumerate() {
+            let expected = if i < first_after {
+                [0.5, -0.5]
+            } else {
+                [0.8, -0.6]
+            };
+            assert_eq!(frame, expected, "frame {i}");
+        }
+    }
+
     #[test]
     fn upmixed_frame_ends_before_a_rate_change() {
         let out: Vec<_> =

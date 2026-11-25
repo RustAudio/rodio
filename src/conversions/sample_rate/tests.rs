@@ -614,3 +614,125 @@ fn frames_before_a_format_change_follow_the_input() {
         "the last frame before the change is {last}, not the input's end"
     );
 }
+
+/// The resamplers to check a start with, each with how close to the
+/// input its output has to stay: a sinc filter's gain isn't exactly one.
+/// With `rubato-fft`, the sinc one is the FFT resampler at fixed ratios.
+fn start_configs() -> [(&'static str, ResampleConfig, Sample); 3] {
+    [
+        (
+            "linear",
+            ResampleConfig::poly().degree(Poly::Linear).build(),
+            1e-6,
+        ),
+        (
+            "cubic",
+            ResampleConfig::poly().degree(Poly::Cubic).build(),
+            1e-6,
+        ),
+        ("balanced sinc", ResampleConfig::balanced(), 1e-3),
+    ]
+}
+
+/// The first frames a resampler yields are at the input's start, so they
+/// follow its first frame, not the silence rubato's history starts with.
+#[test]
+fn first_frames_follow_the_input() {
+    let stereo = ChannelCount::new(2).unwrap();
+    let target = SampleRate::new(48000).unwrap();
+    for (name, config, tolerance) in start_configs() {
+        for rate in [44100, 32000, 22050, 110250, 96000] {
+            let rate = SampleRate::new(rate).unwrap();
+            let input = [0.8, -0.6].repeat(2000);
+            let source = TestSource::new(input, rate, stereo);
+            let output: Vec<Sample> =
+                SampleRateConverter::new(source, target, config.clone()).collect();
+            for (i, frame) in output.chunks(2).take(64).enumerate() {
+                assert!(
+                    (frame[0] - 0.8).abs() <= tolerance && (frame[1] + 0.6).abs() <= tolerance,
+                    "{name}, {rate} Hz: frame {i} is {frame:?}, not [0.8, -0.6]"
+                );
+            }
+        }
+    }
+}
+
+/// A seek starts the resampler over in the middle of the input, which
+/// mustn't dip towards silence either.
+#[test]
+fn first_frames_after_a_seek_follow_the_input() {
+    let mono = ChannelCount::new(1).unwrap();
+    let rate = SampleRate::new(44100).unwrap();
+    let target = SampleRate::new(48000).unwrap();
+    for (name, config, tolerance) in start_configs() {
+        let source = TestSource::new(vec![0.8; 44100], rate, mono);
+        let mut resampler = SampleRateConverter::new(source, target, config);
+        resampler.try_seek(Duration::from_millis(500)).unwrap();
+        for (i, sample) in resampler.take(64).enumerate() {
+            assert!(
+                (sample - 0.8).abs() <= tolerance,
+                "{name}: sample {i} after the seek is {sample}, not 0.8"
+            );
+        }
+    }
+}
+
+/// With small chunks, the lead-in takes several of them, while the
+/// first frame waits: it still counts as left, and comes out in place.
+#[test]
+fn lead_in_longer_than_a_chunk() {
+    let mono = ChannelCount::new(1).unwrap();
+    let (rate, target) = (
+        SampleRate::new(8000).unwrap(),
+        SampleRate::new(48000).unwrap(),
+    );
+    let config = ResampleConfig::sinc()
+        .chunk_size(NonZero::new(32).unwrap())
+        .build();
+    let source = TestSource::new(vec![0.8; 800], rate, mono);
+    let mut resampler = SampleRateConverter::new(source, target, config);
+
+    let mut hints = vec![resampler.size_hint()];
+    let mut output = Vec::new();
+    loop {
+        let exhausted = resampler.is_exhausted();
+        let Some(sample) = resampler.next() else {
+            break;
+        };
+        assert!(!exhausted, "is_exhausted() before sample {}", output.len());
+        output.push(sample);
+        hints.push(resampler.size_hint());
+    }
+
+    assert_eq!(output.len(), resampled_len(InFrameCount(800), rate, target));
+    for (i, sample) in output.iter().take(256).enumerate() {
+        assert!(
+            (sample - 0.8).abs() <= 1e-3,
+            "sample {i} is {sample}, not 0.8"
+        );
+    }
+    for (emitted, (lower, upper)) in hints.into_iter().enumerate() {
+        let left = output.len() - emitted;
+        assert!(lower <= left, "lower bound {lower} with {left} left");
+        assert!(
+            upper.is_none_or(|upper| upper >= left),
+            "upper bound {upper:?} with {left} left"
+        );
+    }
+}
+
+/// A single frame is still resampled, alone or before a format change.
+#[test]
+fn a_single_frame_is_resampled() {
+    let target = SampleRate::new(48000).unwrap();
+    for (name, config, _) in start_configs() {
+        let alone = spans_of(&[(1, 24000, 2)]);
+        let alone = SampleRateConverter::new(alone, target, config.clone()).count();
+        assert_eq!(alone, 4, "{name}: one stereo frame at half the rate");
+
+        let before_a_change = spans_of(&[(1, 24000, 2), (100, 12000, 2)]);
+        let output: Vec<Sample> =
+            SampleRateConverter::new(before_a_change, target, config.clone()).collect();
+        assert_close(output.len(), 4 + 800, &format!("{name}: then a span"));
+    }
+}

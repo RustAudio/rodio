@@ -4,16 +4,92 @@ use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::conversions::ChannelCountConverter;
 use crate::conversions::{Poly, ResampleConfig, SampleRateConverter};
-use crate::Source;
+use crate::{Sample, Source};
 
 #[derive(Clone)]
 enum UniformInner<I: Source> {
     Passthrough(I),
     SampleRate(SampleRateConverter<I>),
     ChannelCount(ChannelCountConverter<I>),
-    // Resampled first even when downmixing: a resampler reads ahead,
-    // and only on its raw input can it see where a span changes format.
-    Both(ChannelCountConverter<SampleRateConverter<I>>),
+    BothUpmix(ChannelCountConverter<SampleRateConverter<I>>),
+    // Downmixed first, so only the channels kept are resampled.
+    BothDownmix(SampleRateConverter<Downmix<I>>),
+}
+
+/// Drops channels ahead of a resampler. A resampler reads ahead across
+/// spans, and stops where its input's format changes. So once the
+/// input's channel count is no longer the one converted from, this
+/// reports another count than the one it converts to, which stops the
+/// resampler there as the raw input would have.
+#[derive(Clone)]
+struct Downmix<I: Source>(ChannelCountConverter<I>);
+
+impl<I: Source> Downmix<I> {
+    #[inline]
+    fn new(input: I, from: ChannelCount, to: ChannelCount) -> Self {
+        Self(ChannelCountConverter::new(input, from, to))
+    }
+
+    /// Whether the input is still in the channel count converted from.
+    #[inline]
+    fn input_unchanged(&self) -> bool {
+        self.0.inner().channels() == self.0.channels_from()
+    }
+}
+
+impl<I: Source> Iterator for Downmix<I> {
+    type Item = Sample;
+
+    #[inline]
+    fn next(&mut self) -> Option<Sample> {
+        self.0.next()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<I: Source> Source for Downmix<I> {
+    #[inline]
+    fn current_span_len(&self) -> Option<usize> {
+        if self.input_unchanged() {
+            self.0.current_span_len()
+        } else {
+            // Converted, a span shorter than a frame of the old format
+            // would count as `Some(0)`: the end of the stream.
+            self.0.inner().current_span_len()
+        }
+    }
+
+    #[inline]
+    fn channels(&self) -> ChannelCount {
+        let input = self.0.inner().channels();
+        if self.input_unchanged() {
+            self.0.channels()
+        } else if input != self.0.channels() {
+            input
+        } else {
+            // Any count but the converted one stops the resampler.
+            self.0.channels_from()
+        }
+    }
+
+    #[inline]
+    fn sample_rate(&self) -> SampleRate {
+        self.0.sample_rate()
+    }
+
+    #[inline]
+    fn total_duration(&self) -> Option<Duration> {
+        self.0.total_duration()
+    }
+
+    #[inline]
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.0.try_seek(pos)
+    }
 }
 
 impl<I: Source> Iterator for UniformInner<I> {
@@ -25,7 +101,8 @@ impl<I: Source> Iterator for UniformInner<I> {
             UniformInner::Passthrough(take) => take.next(),
             UniformInner::SampleRate(converter) => converter.next(),
             UniformInner::ChannelCount(converter) => converter.next(),
-            UniformInner::Both(converter) => converter.next(),
+            UniformInner::BothUpmix(converter) => converter.next(),
+            UniformInner::BothDownmix(converter) => converter.next(),
         }
     }
 
@@ -35,7 +112,8 @@ impl<I: Source> Iterator for UniformInner<I> {
             UniformInner::Passthrough(take) => take.size_hint(),
             UniformInner::SampleRate(converter) => converter.size_hint(),
             UniformInner::ChannelCount(converter) => converter.size_hint(),
-            UniformInner::Both(converter) => converter.size_hint(),
+            UniformInner::BothUpmix(converter) => converter.size_hint(),
+            UniformInner::BothDownmix(converter) => converter.size_hint(),
         }
     }
 }
@@ -47,7 +125,8 @@ impl<I: Source> UniformInner<I> {
             UniformInner::Passthrough(source) => source,
             UniformInner::SampleRate(converter) => converter.into_inner(),
             UniformInner::ChannelCount(converter) => converter.into_inner(),
-            UniformInner::Both(converter) => converter.into_inner().into_inner(),
+            UniformInner::BothUpmix(converter) => converter.into_inner().into_inner(),
+            UniformInner::BothDownmix(converter) => converter.into_inner().0.into_inner(),
         }
     }
 
@@ -57,7 +136,8 @@ impl<I: Source> UniformInner<I> {
             UniformInner::Passthrough(source) => source,
             UniformInner::SampleRate(converter) => converter.inner(),
             UniformInner::ChannelCount(converter) => converter.inner(),
-            UniformInner::Both(converter) => converter.inner().inner(),
+            UniformInner::BothUpmix(converter) => converter.inner().inner(),
+            UniformInner::BothDownmix(converter) => converter.inner().0.inner(),
         }
     }
 
@@ -72,7 +152,16 @@ impl<I: Source> UniformInner<I> {
                 converter.inner().sample_rate(),
             ),
             UniformInner::SampleRate(converter) => converter.next_input_format(),
-            UniformInner::Both(converter) => converter.inner().next_input_format(),
+            UniformInner::BothUpmix(converter) => converter.inner().next_input_format(),
+            UniformInner::BothDownmix(converter) => {
+                let downmix = &converter.inner().0;
+                if converter.holds_samples() {
+                    (downmix.channels_from(), converter.next_input_format().1)
+                } else {
+                    let input = downmix.inner();
+                    (input.channels(), input.sample_rate())
+                }
+            }
         }
     }
 
@@ -82,9 +171,12 @@ impl<I: Source> UniformInner<I> {
     #[inline]
     fn at_frame_start(&self) -> bool {
         match self {
-            UniformInner::Passthrough(_) | UniformInner::SampleRate(_) => true,
+            // A resampler yields whole frames from its buffer.
+            UniformInner::Passthrough(_)
+            | UniformInner::SampleRate(_)
+            | UniformInner::BothDownmix(_) => true,
             UniformInner::ChannelCount(converter) => converter.at_frame_start(),
-            UniformInner::Both(converter) => converter.at_frame_start(),
+            UniformInner::BothUpmix(converter) => converter.at_frame_start(),
         }
     }
 
@@ -94,20 +186,28 @@ impl<I: Source> UniformInner<I> {
             UniformInner::Passthrough(source) => source,
             UniformInner::SampleRate(converter) => converter.inner_mut(),
             UniformInner::ChannelCount(converter) => converter.inner_mut(),
-            UniformInner::Both(converter) => converter.inner_mut().inner_mut(),
+            UniformInner::BothUpmix(converter) => converter.inner_mut().inner_mut(),
+            UniformInner::BothDownmix(converter) => converter.inner_mut().0.inner_mut(),
         }
     }
 }
 
 impl<I: Source> Source for UniformInner<I> {
-    /// The span of the converted output, which is what gets counted.
+    /// How many samples to count before checking the format again. A
+    /// resampler reads ahead of its input, so neither the input's spans
+    /// nor its own tell where the format of what it yields changes. What
+    /// it has buffered is all in one format, though, so that's counted.
+    /// Only called at the start of an output frame.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         match self {
             UniformInner::Passthrough(source) => source.current_span_len(),
-            UniformInner::SampleRate(converter) => converter.current_span_len(),
+            UniformInner::SampleRate(converter) => Some(converter.samples_in_format()),
             UniformInner::ChannelCount(converter) => converter.current_span_len(),
-            UniformInner::Both(converter) => converter.current_span_len(),
+            UniformInner::BothUpmix(converter) => {
+                Some(converter.converted_len(converter.inner().samples_in_format()))
+            }
+            UniformInner::BothDownmix(converter) => Some(converter.samples_in_format()),
         }
     }
 
@@ -202,11 +302,17 @@ where
                     ChannelCountConverter::new(input, from_channels, target_channels);
                 UniformInner::ChannelCount(channel_converted)
             }
-            (true, true) => {
+            (true, true) if target_channels > from_channels => {
                 let rate_converted = SampleRateConverter::new(input, target_sample_rate, config);
                 let channel_converted =
                     ChannelCountConverter::new(rate_converted, from_channels, target_channels);
-                UniformInner::Both(channel_converted)
+                UniformInner::BothUpmix(channel_converted)
+            }
+            (true, true) => {
+                let channel_converted = Downmix::new(input, from_channels, target_channels);
+                let rate_converted =
+                    SampleRateConverter::new(channel_converted, target_sample_rate, config);
+                UniformInner::BothDownmix(rate_converted)
             }
         }
     }
@@ -220,43 +326,30 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let mut at_boundary = self
-            .cached_span_len
-            .is_some_and(|span_len| self.current_span_pos >= span_len);
-        // A resampler reads ahead of its input, so neither the input's
-        // format nor counting spans tells where the format of what it
-        // yields changes. It knows, cheaply, so ask before every sample.
-        let resamples = matches!(
-            self.inner,
-            Some(UniformInner::SampleRate(_) | UniformInner::Both(_))
-        );
+        if let Some(span_len) = self.cached_span_len {
+            // Only between output frames: a frame is finished in the
+            // format it started in.
+            if self.current_span_pos >= span_len && self.inner.as_ref().unwrap().at_frame_start() {
+                let (new_channels, new_sample_rate) =
+                    self.inner.as_ref().unwrap().next_input_format();
 
-        // Only between output frames: a frame is finished in the format
-        // it started in.
-        if (at_boundary || resamples) && self.inner.as_ref().unwrap().at_frame_start() {
-            let (new_channels, new_sample_rate) = self.inner.as_ref().unwrap().next_input_format();
+                let parameters_changed = new_channels != self.current_channels
+                    || new_sample_rate != self.current_sample_rate;
 
-            let parameters_changed = new_channels != self.current_channels
-                || new_sample_rate != self.current_sample_rate;
-
-            if parameters_changed {
-                let source = self.inner.take().unwrap().into_inner();
-                self.current_channels = new_channels;
-                self.current_sample_rate = new_sample_rate;
-                let new_inner = UniformSourceIterator::bootstrap(
-                    source,
-                    self.target_channels,
-                    self.target_sample_rate,
-                );
-                self.inner = Some(new_inner);
-                at_boundary = true;
-            }
-
-            if at_boundary {
-                let new_span_len = self.inner.as_ref().unwrap().current_span_len();
+                if parameters_changed {
+                    let source = self.inner.take().unwrap().into_inner();
+                    self.current_channels = new_channels;
+                    self.current_sample_rate = new_sample_rate;
+                    let new_inner = UniformSourceIterator::bootstrap(
+                        source,
+                        self.target_channels,
+                        self.target_sample_rate,
+                    );
+                    self.inner = Some(new_inner);
+                }
 
                 self.current_span_pos = 0;
-                self.cached_span_len = new_span_len;
+                self.cached_span_len = self.inner.as_ref().unwrap().current_span_len();
             }
         }
 
@@ -358,6 +451,46 @@ mod tests {
             UniformSourceIterator::new(mono_then_stereo(48000, 48000), nz!(2), nz!(48000))
                 .collect();
         assert_frames_aligned(&out, 600);
+    }
+
+    /// Downmixed ahead of the resampler, a span still ends on its last
+    /// frame when the next one, in another format, is shorter than a
+    /// frame of it.
+    #[test]
+    fn downmixed_span_ends_on_its_input_before_a_short_span() {
+        let source = chain([
+            SamplesBuffer::new(nz!(2), nz!(24000), [0.5, -0.25].repeat(300)),
+            SamplesBuffer::new(nz!(1), nz!(48000), vec![0.75]),
+        ]);
+        let out: Vec<_> = UniformSourceIterator::new(source, nz!(1), nz!(48000)).collect();
+        assert_eq!(out.len(), 600 + 1, "length");
+        for (i, sample) in out[..600].iter().enumerate() {
+            assert!((sample - 0.5).abs() < 1e-6, "sample {i} is {sample}");
+        }
+        assert_eq!(out[600], 0.75);
+    }
+
+    /// A resampler reading downmixed input stops where the input's
+    /// channel count changes, even to the one downmixed to.
+    #[test]
+    fn downmixed_input_changing_to_the_target_channel_count() {
+        let source = chain([
+            SamplesBuffer::new(nz!(2), nz!(24000), [0.5, -0.25].repeat(300)),
+            SamplesBuffer::new(nz!(1), nz!(24000), vec![0.75; 300]),
+        ]);
+        let out: Vec<_> = UniformSourceIterator::new(source, nz!(1), nz!(48000)).collect();
+        assert_eq!(out.len(), 600 + 600, "length");
+        for (i, sample) in out[..600].iter().enumerate() {
+            assert!((sample - 0.5).abs() < 1e-6, "sample {i} is {sample}");
+        }
+        // Past the resampler's first frame, and before the end's silence.
+        for (i, sample) in out[602..1198].iter().enumerate() {
+            assert!(
+                (sample - 0.75).abs() < 1e-6,
+                "sample {} is {sample}",
+                602 + i
+            );
+        }
     }
 
     /// A resampler rebuilt at a rate change, as `Player::set_speed` makes

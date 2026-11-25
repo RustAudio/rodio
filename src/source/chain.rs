@@ -37,6 +37,25 @@ where
     current_source: Option<I::Item>,
 }
 
+impl<I> Chain<I>
+where
+    I: Iterator,
+    I::Item: Source,
+{
+    fn skip_finished_sources(&mut self) {
+        while self
+            .current_source
+            .as_ref()
+            .is_some_and(Source::is_exhausted)
+        {
+            let Some(next) = self.iterator.next() else {
+                return;
+            };
+            self.current_source = Some(next);
+        }
+    }
+}
+
 impl<I> Iterator for Chain<I>
 where
     I: Iterator,
@@ -49,6 +68,12 @@ where
         loop {
             if let Some(src) = &mut self.current_source {
                 if let Some(value) = src.next() {
+                    // Move on as soon as a source reports its end, so
+                    // `current_span_len`, `channels` and `sample_rate`
+                    // describe the next sample rather than a finished
+                    // source. Its `Some(0)` would otherwise read as the
+                    // end of the whole chain.
+                    self.skip_finished_sources();
                     return Some(value);
                 }
             }
@@ -146,6 +171,20 @@ mod tests {
     }
 
     #[test]
+    fn reports_next_source_once_one_ends() {
+        let mut c = chain([
+            SamplesBuffer::new(nz!(1), nz!(24000), vec![1.0, 2.0]),
+            SamplesBuffer::new(nz!(1), nz!(24000), vec![]),
+            SamplesBuffer::new(nz!(1), nz!(24000), vec![3.0]),
+        ]);
+        c.next();
+        c.next();
+        assert!(!c.is_exhausted(), "a finished source isn't the chain's end");
+        assert_eq!(c.current_span_len(), Some(1));
+        assert_eq!(c.collect::<Vec<_>>(), [3.0]);
+    }
+
+    #[test]
     fn basic() {
         let mut rx = chain((0..2).map(|n| {
             if n == 0 {
@@ -163,9 +202,8 @@ mod tests {
         assert_eq!(rx.next(), Some(-10.0));
         assert_eq!(rx.next(), Some(10.0));
         assert_eq!(rx.next(), Some(-10.0));
-        /*assert_eq!(rx.channels(), 2);
-        assert_eq!(rx.sample_rate().get(), 96000);*/
-        // FIXME: not working
+        assert_eq!(rx.channels(), nz!(2));
+        assert_eq!(rx.sample_rate().get(), 96000);
         assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), Some(5.0));
         assert_eq!(rx.next(), Some(5.0));

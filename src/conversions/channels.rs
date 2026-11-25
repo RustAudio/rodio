@@ -51,6 +51,13 @@ where
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input
     }
+
+    /// Whether the next sample starts an output frame. Mid-frame, the
+    /// rest of the frame may still come from input already read.
+    #[inline]
+    pub(crate) fn at_frame_start(&self) -> bool {
+        self.next_output_sample_pos == 0
+    }
 }
 
 impl<I> Iterator for ChannelCountConverter<I>

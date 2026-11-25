@@ -76,6 +76,18 @@ impl<I: Source> UniformInner<I> {
         }
     }
 
+    /// Whether the next sample starts an output frame. Mid-frame, the
+    /// channel converter still owes samples of input it has read, so
+    /// rebuilding there would drop them and shift every later channel.
+    #[inline]
+    fn at_frame_start(&self) -> bool {
+        match self {
+            UniformInner::Passthrough(_) | UniformInner::SampleRate(_) => true,
+            UniformInner::ChannelCount(converter) => converter.at_frame_start(),
+            UniformInner::Both(converter) => converter.at_frame_start(),
+        }
+    }
+
     #[inline]
     fn inner_mut(&mut self) -> &mut I {
         match self {
@@ -219,7 +231,9 @@ where
             Some(UniformInner::SampleRate(_) | UniformInner::Both(_))
         );
 
-        if at_boundary || resamples {
+        // Only between output frames: a frame is finished in the format
+        // it started in.
+        if (at_boundary || resamples) && self.inner.as_ref().unwrap().at_frame_start() {
             let (new_channels, new_sample_rate) = self.inner.as_ref().unwrap().next_input_format();
 
             let parameters_changed = new_channels != self.current_channels
@@ -293,6 +307,73 @@ where
             input.inner_mut().try_seek(pos)
         } else {
             Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UniformSourceIterator;
+    use crate::buffer::SamplesBuffer;
+    use crate::math::nz;
+    use crate::source::chain;
+    use crate::{Sample, Source};
+
+    /// A mono span, then a stereo one whose channels differ, so a sample
+    /// lost or added at the switch swaps every channel after it.
+    fn mono_then_stereo(mono_rate: u32, stereo_rate: u32) -> impl Source {
+        chain([
+            SamplesBuffer::new(nz!(1), mono_rate.try_into().unwrap(), vec![0.25; 300]),
+            SamplesBuffer::new(
+                nz!(2),
+                stereo_rate.try_into().unwrap(),
+                [0.5, 0.75].repeat(200),
+            ),
+        ])
+    }
+
+    fn assert_frames_aligned(out: &[Sample], stereo_from: usize) {
+        assert_eq!(out.len(), stereo_from + 400, "length");
+        for (i, frame) in out[..stereo_from].chunks(2).enumerate() {
+            assert_eq!(frame[0], frame[1], "upmixed mono frame {i}");
+        }
+        for (i, frame) in out[stereo_from..].chunks(2).enumerate() {
+            assert_eq!(frame, [0.5, 0.75], "stereo frame {i}");
+        }
+    }
+
+    /// An upmixed frame is finished before the format changes, even
+    /// once the resampler has already moved on to the next span.
+    #[test]
+    fn upmixed_frame_ends_before_a_resampled_format_change() {
+        let out: Vec<_> =
+            UniformSourceIterator::new(mono_then_stereo(24000, 48000), nz!(2), nz!(48000))
+                .collect();
+        assert_frames_aligned(&out, 1200);
+    }
+
+    #[test]
+    fn upmixed_frame_ends_before_a_format_change() {
+        let out: Vec<_> =
+            UniformSourceIterator::new(mono_then_stereo(48000, 48000), nz!(2), nz!(48000))
+                .collect();
+        assert_frames_aligned(&out, 600);
+    }
+
+    #[test]
+    fn upmixed_frame_ends_before_a_rate_change() {
+        let out: Vec<_> =
+            UniformSourceIterator::new(mono_then_stereo(24000, 24000), nz!(2), nz!(48000))
+                .collect();
+        // Both spans resampled: the stereo one doubles to 400 frames.
+        // Its first frame blends in the mono span's last sample, and its
+        // last one the silence after the end.
+        assert_eq!(out.len(), 1200 + 800, "length");
+        for (i, frame) in out[..1200].chunks(2).enumerate() {
+            assert_eq!(frame[0], frame[1], "upmixed mono frame {i}");
+        }
+        for (i, frame) in out[1202..out.len() - 2].chunks(2).enumerate() {
+            assert_eq!(frame, [0.5, 0.75], "stereo frame {i}");
         }
     }
 }

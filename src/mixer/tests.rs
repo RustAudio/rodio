@@ -178,5 +178,25 @@ fn format_change_keeps_resampled_samples() {
             played.abs_diff(expected) <= 16,
             "{spans_in:?}: played {played} samples, expected {expected}"
         );
+        assert_eq!(
+            played % mixer_channels as usize,
+            0,
+            "{spans_in:?}: played {played} samples, not whole frames"
+        );
     }
+}
+
+/// Upmixed to stereo, the frame being played is finished in the format
+/// it started in, so the next span's channels stay in place.
+#[test]
+fn format_change_keeps_channels_in_place() {
+    let (tx, rx) = mixer::mixer(nz!(2), nz!(48000));
+    tx.add(crate::source::chain([
+        SamplesBuffer::new(nz!(1), nz!(24000), vec![0.25; 300]),
+        SamplesBuffer::new(nz!(2), nz!(48000), [0.5, 0.75].repeat(200)),
+    ]));
+    let played: Vec<_> = rx.collect();
+    assert_eq!(played.len(), 1600);
+    assert!(played[..1200].chunks(2).all(|frame| frame[0] == frame[1]));
+    assert!(played[1200..].chunks(2).all(|frame| frame == [0.5, 0.75]));
 }

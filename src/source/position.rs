@@ -67,24 +67,23 @@ where
     ///   playback.
     /// - **After `speed()`**, as in `source.speed(x).track_position()`: the sample
     ///   rate is the scaled one, so this is the elapsed playback time. At a speed
-    ///   of `2.0` it advances by `0.5` seconds per sample read from the source.
-    ///   This is only the position in the original source if the speed never
+    ///   of `2.0` it advances by half a second for every second of source audio
+    ///   read. This is only the position in the original source if the speed never
     ///   changes, and then only after multiplying it by the speed.
     ///
     /// # Seeking
     ///
     /// [`Source::try_seek`] forwards the target to the inner source and then reports
-    /// the target as the new position. [`Speed`](super::Speed) multiplies the targets
-    /// its [`try_seek`](Source::try_seek) receives by its speed factor, so with
-    /// `track_position()` before `speed()` a seek through the outer source reports
-    /// the multiplied target:
-    /// `source.track_position().speed(2.0).try_seek(10s)` seeks to `20s` in the
-    /// original source and `get_pos()` then returns `20s`. To seek to a position
-    /// `p` in the original source through a speed adapter, seek to `p / speed`.
+    /// the target as the new position.
     ///
-    /// [`Player`](crate::Player) uses the first ordering and does that division, see
-    /// [`Player::get_pos`](crate::Player::get_pos) and
-    /// [`Player::try_seek`](crate::Player::try_seek).
+    /// [`Speed`](super::Speed) multiplies the target of its
+    /// [`try_seek`](Source::try_seek) by its speed factor. With `track_position()`
+    /// before `speed()`, a seek through the outer source therefore reports the
+    /// multiplied target:
+    /// `source.track_position().speed(2.0).try_seek(10s)` seeks to `20s` in the
+    /// original source and `get_pos()` then returns `20s`. To seek to an exact
+    /// position in the original source, seek the `TrackPosition` itself (through the
+    /// speed adapter's `inner_mut()`); it passes the target on unchanged.
     #[inline]
     pub fn get_pos(&self) -> Duration {
         let seconds = self.span.samples_counted as Float

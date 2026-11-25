@@ -516,7 +516,7 @@ pub trait Source: Iterator<Item = Sample> {
     /// - Whether [`track_position`](Source::track_position) reports the position in
     ///   the original source or the elapsed playback time depends on whether it is
     ///   applied before or after `speed`, see
-    ///   [`TrackPosition::get_pos`](super::TrackPosition::get_pos).
+    ///   [`TrackPosition::get_pos`](TrackPosition::get_pos).
     ///
     /// See [`Speed`] for details
     #[inline]
@@ -606,15 +606,32 @@ pub trait Source: Iterator<Item = Sample> {
     }
 
     /// Start tracking the elapsed duration since the start of the underlying
-    /// source.
+    /// source. Read it with [`get_pos`](TrackPosition::get_pos).
     ///
-    /// If a speedup and or delay is applied after this that will not be reflected
-    /// in the position returned by [`get_pos`](TrackPosition::get_pos).
+    /// What `get_pos` returns depends on whether you call this before or after
+    /// [`speed`](Source::speed). With a speed of 2.0:
     ///
-    /// This can get confusing when using [`get_pos()`](TrackPosition::get_pos)
-    /// together with [`Source::try_seek()`] as the latter does take all
-    /// speedup's and delay's into account. It's recommended therefore to apply
-    /// track_position after speedup's and delay's.
+    /// - `source.track_position().speed(2.0)`: `get_pos` is the position in the
+    ///   original source. After 10 seconds of the source have been played it
+    ///   returns 10 seconds.
+    /// - `source.speed(2.0).track_position()`: `get_pos` is the time spent playing.
+    ///   Those same 10 seconds of the source take 5 seconds to play, so it
+    ///   returns 5 seconds.
+    ///
+    /// # Seeking
+    ///
+    /// [`try_seek`](Source::try_seek) always uses the timeline of the source you
+    /// call it on. A source with [`speed`](Source::speed) applied has a shorter
+    /// timeline: at 2.0 a 20 second source lasts 10 seconds, so seeking it to
+    /// 10 seconds lands at its end, 20 seconds into the original source. The
+    /// target is an absolute position, not an offset from the current one.
+    ///
+    /// That means `source.track_position().speed(2.0).try_seek(10s)` sends
+    /// 20 seconds to the `TrackPosition`, and `get_pos` then returns 20 seconds,
+    /// not 10.
+    ///
+    /// To seek to a position in the original source, call `try_seek` on the
+    /// `TrackPosition` itself. See [`TrackPosition::get_pos`] for details.
     fn track_position(self) -> TrackPosition<Self>
     where
         Self: Sized,

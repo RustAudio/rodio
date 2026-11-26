@@ -197,6 +197,7 @@ pub mod speakers;
 pub mod stream;
 #[cfg(feature = "wav_output")]
 mod wav_output;
+mod tokio_signal;
 
 pub mod buffer;
 pub mod conversions;

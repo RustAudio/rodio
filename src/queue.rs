@@ -9,7 +9,6 @@ use crate::source::{Empty, SeekError, Source};
 use crate::Sample;
 
 use crate::common::{ChannelCount, SampleRate};
-use crate::tokio_signal::TokioSender;
 #[cfg(feature = "crossbeam-channel")]
 use crossbeam_channel::{unbounded as channel, Receiver, Sender};
 #[cfg(not(feature = "crossbeam-channel"))]
@@ -46,7 +45,7 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
 // TODO: consider reimplementing this with `from_factory`
 
 type Sound = Box<dyn Source + Send>;
-type SignalDone = Option<(Sender<()>, TokioSender)>;
+type SignalDone = Option<Sender<()>>;
 
 /// The input of the queue.
 pub struct SourcesQueueInput {
@@ -84,26 +83,7 @@ impl SourcesQueueInput {
         self.next_sounds
             .lock()
             .unwrap()
-            .push_back((Box::new(source) as Box<_>, Some((tx, TokioSender::new()))));
-        rx
-    }
-    
-    #[cfg(feature = "tokio")]
-    /// Adds a new source to the end of the queue.
-    ///
-    /// The `UnboundedReceiver` will be signalled when the sound has finished playing.
-    ///
-    /// Requires the feature flag `tokio` in rodio.
-    pub fn append_with_signal_tokio<T>(&self, source: T) -> tokio::sync::mpsc::UnboundedReceiver<()>
-    where
-        T: Source + Send + 'static,
-    {
-        let (tx, _rx) = channel();
-        let (tokio_tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        self.next_sounds
-            .lock()
-            .unwrap()
-            .push_back((Box::new(source) as Box<_>, Some((tx, TokioSender(tokio_tx)))));
+            .push_back((Box::new(source) as Box<_>, Some(tx)));
         rx
     }
 
@@ -135,7 +115,7 @@ pub struct SourcesQueueOutput {
     current: Box<dyn Source + Send>,
 
     // Signal this sender before picking from `next`.
-    signal_after_end: SignalDone,
+    signal_after_end: Option<Sender<()>>,
 
     // The next sounds.
     input: Arc<SourcesQueueInput>,
@@ -278,9 +258,8 @@ impl SourcesQueueOutput {
     //
     // This method is separate so that it is not inlined.
     fn go_next(&mut self) -> Result<(), ()> {
-        if let Some((signal_after_end, tokio_signal)) = self.signal_after_end.take() {
+        if let Some(signal_after_end) = self.signal_after_end.take() {
             let _ = signal_after_end.send(());
-            tokio_signal.send();
         }
 
         let (next, signal_after_end) = {

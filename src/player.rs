@@ -48,11 +48,16 @@ impl SeekOrder {
         (Self { pos, feedback: tx }, rx)
     }
 
-    fn attempt<S>(self, maybe_seekable: &mut S)
+    /// Performs the seek on `seekable`, the
+    /// [`TrackPosition`](crate::source::TrackPosition) adapter wrapping the source.
+    ///
+    /// `self.pos` is a position in the source's own timeline, so it is passed on
+    /// unchanged.
+    fn attempt<S>(self, seekable: &mut S)
     where
         S: Source,
     {
-        let res = maybe_seekable.try_seek(self.pos);
+        let res = seekable.try_seek(self.pos);
         let _ignore_receiver_dropped = self.feedback.send(res);
     }
 }
@@ -119,11 +124,21 @@ impl Player {
         let start_played = AtomicBool::new(false);
         let sound_count_clone = self.sound_count.clone();
 
+        // Adapter order, outermost first (`periodic_access` wraps all of it):
+        //   Done -> Stoppable -> Skippable -> Amplify -> Pausable -> Speed -> TrackPosition -> source
+        //
+        // `track_position()` comes before `speed()`: `Speed` only changes the reported
+        // sample rate, and `TrackPosition` divides its sample count by the rate it sees, so
+        // placed here it reports the position in the media. It stays inside `pausable()` so
+        // that silence played while paused is not counted.
+        //
+        // Seeks are sent to `TrackPosition`, so the target reaches the source as given.
+        //
+        // The `.inner()` / `.inner_mut()` chains in the closure below follow this order.
         let source = Done::new(
             source
-                .speed(1.0)
-                // Must be placed before pausable but after speed & delay
                 .track_position()
+                .speed(1.0)
                 .pausable(false)
                 .amplify(1.0)
                 .skippable()
@@ -147,20 +162,37 @@ impl Player {
                     *to_clear -= 1;
                     *controls.position.lock().unwrap() = Duration::ZERO;
                 } else {
-                    *controls.position.lock().unwrap() =
-                        src.inner().inner().inner().inner().inner().get_pos();
+                    // The position comes from `TrackPosition`, the innermost adapter.
+                    *controls.position.lock().unwrap() = src
+                        .inner() // Stoppable
+                        .inner() // Skippable
+                        .inner() // Amplify
+                        .inner() // Pausable
+                        .inner() // Speed
+                        .inner() // TrackPosition
+                        .get_pos();
                 }
             }
-            let amp = src.inner_mut().inner_mut().inner_mut();
+            let amp = src
+                .inner_mut() // Stoppable
+                .inner_mut() // Skippable
+                .inner_mut(); // Amplify
             amp.set_factor(*controls.volume.lock().unwrap());
-            amp.inner_mut()
+            amp.inner_mut() // Pausable
                 .set_paused(controls.pause.load(Ordering::SeqCst));
-            amp.inner_mut()
-                .inner_mut()
-                .inner_mut()
-                .set_factor(*controls.speed.lock().unwrap());
+
+            let speed = *controls.speed.lock().unwrap();
+            amp.inner_mut() // Pausable
+                .inner_mut() // Speed
+                .set_factor(speed);
+
             if let Some(seek) = controls.seek.lock().unwrap().take() {
-                seek.attempt(amp)
+                // Seek the `TrackPosition`; the target reaches the source exactly as given.
+                seek.attempt(
+                    amp.inner_mut() // Pausable
+                        .inner_mut() // Speed
+                        .inner_mut(), // TrackPosition
+                )
             }
             start_played.store(true, Ordering::SeqCst);
         });
@@ -203,11 +235,12 @@ impl Player {
     ///   lowering its pitch.
     /// - If you set the speed to 2 the frequency will double raising the
     ///   pitch of the sound.
-    /// 2. **Change in the speed affect the total duration inversely**
-    /// - If you set the speed to 0.5, the total duration will be twice as long.
-    /// - If you set the speed to 2 the total duration will be halve of what it
-    ///   was.
-    ///
+    /// 2. **A change in the speed affects the playback duration inversely**
+    /// - If you set the speed to 0.5, playing the sound takes twice as long.
+    /// - If you set the speed to 2, playing the sound takes half as long.
+    /// 3. **Positions do not depend on the speed**
+    /// - [`Player::get_pos`] and [`Player::try_seek`] use positions in the sound
+    ///   itself, so they are not scaled by the speed.
     #[inline]
     pub fn set_speed(&self, value: f32) {
         *self.controls.speed.lock().unwrap() = value;
@@ -226,6 +259,13 @@ impl Player {
     // switch to a new source.
 
     /// Attempts to seek to a given position in the current source.
+    ///
+    /// `pos` is a position in the source's own timeline and does not depend on the
+    /// current playback speed: seeking to 30 seconds lands 30 seconds into the media
+    /// whether the speed is 0.5, 1.0 or 2.0. This is the same timeline as
+    /// [`Player::get_pos`].
+    ///
+    /// The position is passed to the source exactly as given, at any speed.
     ///
     /// This blocks between 0 and ~5 milliseconds.
     ///
@@ -338,13 +378,14 @@ impl Player {
         self.sound_count.load(Ordering::Relaxed)
     }
 
-    /// Returns the position of the sound that's being played.
+    /// Returns the playback position within the current source.
     ///
-    /// This takes into account any speedup or delay applied.
+    /// The position is measured in the source's own timeline, so it does not depend
+    /// on the playback speed. For example, at a speed of `0.5` it advances by half a
+    /// second for every second of real time, and changing the speed during playback
+    /// does not make it jump.
     ///
-    /// Example: if you apply a speedup of *2* to an mp3 decoder source and
-    /// [`get_pos()`](Player::get_pos) returns *5s* then the position in the mp3
-    /// recording is *10s* from its start.
+    /// After [`Player::try_seek`] this is the position that was sought to.
     #[inline]
     pub fn get_pos(&self) -> Duration {
         *self.controls.position.lock().unwrap()
@@ -365,10 +406,101 @@ impl Drop for Player {
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::Ordering;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     use crate::buffer::SamplesBuffer;
+    use crate::common::{ChannelCount, SampleRate};
     use crate::math::nz;
+    use crate::source::SeekError;
     use crate::{Player, Source};
+
+    type Sample = <SamplesBuffer as Iterator>::Item;
+
+    /// A seek target and the sample the source yields next.
+    type SeekRecord = (Duration, Option<Sample>);
+
+    /// Wraps a `SamplesBuffer` and records every seek target it receives, together
+    /// with the sample the buffer yields next.
+    struct SeekRecorder {
+        inner: SamplesBuffer,
+        seeks: Arc<Mutex<Vec<SeekRecord>>>,
+    }
+
+    impl Iterator for SeekRecorder {
+        type Item = Sample;
+
+        fn next(&mut self) -> Option<Sample> {
+            self.inner.next()
+        }
+    }
+
+    impl Source for SeekRecorder {
+        fn current_span_len(&self) -> Option<usize> {
+            self.inner.current_span_len()
+        }
+
+        fn channels(&self) -> ChannelCount {
+            self.inner.channels()
+        }
+
+        fn sample_rate(&self) -> SampleRate {
+            self.inner.sample_rate()
+        }
+
+        fn total_duration(&self) -> Option<Duration> {
+            self.inner.total_duration()
+        }
+
+        fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+            self.inner.try_seek(pos)?;
+            let next = self.inner.clone().next();
+            self.seeks.lock().unwrap().push((pos, next));
+            Ok(())
+        }
+    }
+
+    /// Plays a 48 kHz mono buffer whose samples are their own frame index, seeks to
+    /// 2 ms at the given speed and returns the seeks the source saw.
+    fn seek_to_2ms_at_speed(speed: f32) -> Vec<SeekRecord> {
+        let samples: Vec<Sample> = (0..48_000).map(|i| i as Sample).collect();
+        let seeks = Arc::new(Mutex::new(Vec::new()));
+
+        let (player, mut out) = Player::new();
+        player.set_speed(speed);
+        // Paused, so the source isn't consumed while waiting for the seek to run.
+        player.pause();
+        player.append(SeekRecorder {
+            inner: SamplesBuffer::new(nz!(1), nz!(48_000), samples),
+            seeks: seeks.clone(),
+        });
+
+        // `try_seek` blocks until the audio thread (here: this thread, pulling `out`)
+        // has performed the seek.
+        std::thread::scope(|s| {
+            let seeker = s.spawn(|| player.try_seek(Duration::from_millis(2)));
+            while !seeker.is_finished() {
+                out.next();
+            }
+            seeker.join().unwrap().unwrap();
+        });
+
+        let seeks = seeks.lock().unwrap().clone();
+        seeks
+    }
+
+    #[test]
+    fn test_seek_target_does_not_depend_on_speed() {
+        // 2 ms at 48 kHz is exactly frame 96, so the source must receive exactly 2 ms
+        // and continue from frame 96 at every speed.
+        for speed in [1.0, 1.5, 2.0, 0.75] {
+            assert_eq!(
+                seek_to_2ms_at_speed(speed),
+                [(Duration::from_millis(2), Some(96 as Sample))],
+                "speed {speed}"
+            );
+        }
+    }
 
     #[test]
     fn test_immediate_length_changes() {

@@ -199,6 +199,16 @@ impl Source for SourcesQueueOutput {
     // next few songs.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        // Before the first sample, or right after a source ended, `current` is an exhausted
+        // stub while the source that plays next is still queued. Move to it now, as `next`
+        // would, so the seek applies to the source that is about to play. With nothing
+        // queued, `current` is left alone.
+        if self.silence_samples_remaining == 0 {
+            while self.current.is_exhausted() && !self.input.next_sounds.lock().unwrap().is_empty()
+            {
+                let _ = self.go_next();
+            }
+        }
         self.current.try_seek(pos)
     }
 }
@@ -317,6 +327,59 @@ mod tests {
         assert_eq!(rx.next(), Some(1.0));
         assert_eq!(rx.next(), Some(2.0));
         assert_eq!(rx.next(), None);
+    }
+
+    #[test]
+    fn seek_before_first_sample() {
+        for keep_alive in [false, true] {
+            let (tx, mut rx) = queue::queue(keep_alive);
+            tx.append(SamplesBuffer::new(nz!(1), nz!(1), vec![1.0, 2.0, 3.0, 4.0]));
+
+            assert!(
+                rx.try_seek(Duration::from_secs(2)).is_ok(),
+                "seek failed before first sample (keep_alive={keep_alive})"
+            );
+            assert_eq!(rx.next(), Some(3.0));
+            assert_eq!(rx.next(), Some(4.0));
+        }
+    }
+
+    #[test]
+    fn seek_after_source_finished_moves_to_next_source() {
+        let (tx, mut rx) = queue::queue(false);
+        let first_done = tx.append_with_signal(SamplesBuffer::new(nz!(1), nz!(1), vec![1.0]));
+        tx.append(SamplesBuffer::new(nz!(1), nz!(1), vec![2.0, 3.0, 4.0]));
+
+        assert_eq!(rx.next(), Some(1.0));
+        assert!(rx.try_seek(Duration::from_secs(1)).is_ok());
+        assert!(
+            first_done.try_recv().is_ok(),
+            "finished source was not signalled"
+        );
+        assert_eq!(rx.next(), Some(3.0));
+        assert_eq!(rx.next(), Some(4.0));
+        assert_eq!(rx.next(), None);
+    }
+
+    #[test]
+    fn seek_skips_exhausted_sources() {
+        let (tx, mut rx) = queue::queue(false);
+        tx.append(chain(std::iter::empty::<SamplesBuffer>()));
+        tx.append(SamplesBuffer::new(nz!(1), nz!(1), vec![1.0, 2.0, 3.0]));
+        tx.append(SamplesBuffer::new(nz!(1), nz!(1), vec![4.0]));
+
+        assert!(rx.try_seek(Duration::from_secs(1)).is_ok());
+        assert_eq!(rx.next(), Some(2.0));
+        assert_eq!(rx.next(), Some(3.0));
+        assert_eq!(rx.next(), Some(4.0));
+        assert_eq!(rx.next(), None);
+    }
+
+    #[test]
+    fn seek_on_empty_queue_fails_and_keeps_playing_silence() {
+        let (_tx, mut rx) = queue::queue(true);
+        assert!(rx.try_seek(Duration::from_secs(1)).is_err());
+        assert_eq!(rx.next(), Some(0.0));
     }
 
     #[test]

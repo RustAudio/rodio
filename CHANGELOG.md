@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed `TakeDuration` charging the last sample of a span at the next span's sample rate.
 - Fixed `Player::skip_one` not decreasing the player's length immediately.
 - Fixed `Source::current_span_len()` to consistently return total span length.
 - Fixed `Source::size_hint()` to consistently report actual bounds based on current sources.

@@ -126,15 +126,8 @@ where
             // Try to get the next sample from the input.
             let sample = self.input.next()?;
 
-            let detection = self.span.advance(&self.input);
-
-            if detection.at_span_boundary && detection.parameters_changed {
-                self.duration_per_sample = Self::get_duration_per_sample(&self.input);
-                self.samples_in_current_frame = 0;
-            }
-
             self.samples_in_current_frame =
-                (self.samples_in_current_frame + 1) % self.input.channels().get() as usize;
+                (self.samples_in_current_frame + 1) % self.span.last_channels.get() as usize;
 
             let sample = match &self.filter {
                 Some(filter) => filter.apply(sample, self),
@@ -142,6 +135,13 @@ where
             };
 
             self.remaining_duration -= self.duration_per_sample;
+
+            // The input may already be reporting the format of the next sample.
+            let detection = self.span.advance(&self.input);
+            if detection.at_span_boundary && detection.parameters_changed {
+                self.duration_per_sample = Self::get_duration_per_sample(&self.input);
+                self.samples_in_current_frame = 0;
+            }
 
             return Some(sample);
         }
@@ -234,9 +234,25 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::buffer::SamplesBuffer;
     use crate::math::nz;
+    use crate::queue::queue;
     use crate::source::test_utils::TestSource;
     use crate::source::SineWave;
+
+    #[test]
+    fn take_charges_the_last_sample_at_its_own_span_rate() {
+        let (input, output) = queue(false);
+        input.append(SamplesBuffer::new(nz!(1), nz!(1000), [0.125, 0.25]));
+        input.append(SamplesBuffer::new(
+            nz!(2),
+            nz!(100),
+            [0.375, 0.5, 0.625, 0.75],
+        ));
+
+        let source = output.take_duration(Duration::from_millis(2));
+        assert_eq!(source.collect::<Vec<_>>(), [0.125, 0.25]);
+    }
 
     #[test]
     fn test_size_hint_with_zero_remaining() {

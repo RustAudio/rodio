@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::SeekError;
 use crate::common::{ChannelCount, SampleRate};
 use crate::math::nz;
-use crate::Source;
+use crate::{Sample, Source};
 
 /// Builds a source that chains sources provided by an iterator.
 ///
@@ -22,6 +22,8 @@ where
     Chain {
         iterator,
         current_source: first_source,
+        current_ended: false,
+        pending: None,
     }
 }
 
@@ -35,6 +37,11 @@ where
     iterator: I,
     // Is only ever `None` if the first element of the iterator is `None`.
     current_source: Option<I::Item>,
+    // Whether `current_source`'s `next()` has returned `None`. A source
+    // is never asked for a sample again once it has.
+    current_ended: bool,
+    // A sample from a source that reported its end but still had one.
+    pending: Option<Sample>,
 }
 
 impl<I> Chain<I>
@@ -43,15 +50,22 @@ where
     I::Item: Source,
 {
     fn skip_finished_sources(&mut self) {
-        while self
-            .current_source
-            .as_ref()
-            .is_some_and(Source::is_exhausted)
-        {
+        while let Some(src) = &mut self.current_source {
+            if !src.is_exhausted() {
+                return;
+            }
+            // Leave a source only once its `next()` has returned `None`:
+            // sources like `EmptyCallback` and `Done` act on that call.
+            if let Some(value) = src.next() {
+                self.pending = Some(value);
+                return;
+            }
+            self.current_ended = true;
             let Some(next) = self.iterator.next() else {
                 return;
             };
             self.current_source = Some(next);
+            self.current_ended = false;
         }
     }
 }
@@ -65,8 +79,12 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(value) = self.pending.take() {
+            self.skip_finished_sources();
+            return Some(value);
+        }
         loop {
-            if let Some(src) = &mut self.current_source {
+            if let Some(src) = self.current_source.as_mut().filter(|_| !self.current_ended) {
                 if let Some(value) = src.next() {
                     // Move on as soon as a source reports its end, so
                     // `current_span_len`, `channels` and `sample_rate`
@@ -76,17 +94,22 @@ where
                     self.skip_finished_sources();
                     return Some(value);
                 }
+                self.current_ended = true;
             }
 
             let source = self.iterator.next()?;
             self.current_source = Some(source);
+            self.current_ended = false;
         }
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         if let Some(cur) = &self.current_source {
-            (cur.size_hint().0, None)
+            (
+                cur.size_hint().0 + usize::from(self.pending.is_some()),
+                None,
+            )
         } else {
             (0, Some(0))
         }
@@ -138,7 +161,11 @@ where
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         if let Some(source) = self.current_source.as_mut() {
-            source.try_seek(pos)
+            source.try_seek(pos)?;
+            self.current_ended = false;
+            self.pending = None;
+            self.skip_finished_sources();
+            Ok(())
         } else {
             Ok(())
         }
@@ -147,9 +174,127 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+    use std::time::Duration;
+
     use crate::buffer::SamplesBuffer;
+    use crate::common::{ChannelCount, SampleRate};
     use crate::math::nz;
-    use crate::source::{chain, Source};
+    use crate::source::{chain, Done, EmptyCallback, SeekError, Source};
+    use crate::Sample;
+
+    fn counting_callback(count: &Arc<AtomicUsize>) -> EmptyCallback {
+        let count = count.clone();
+        EmptyCallback::new(Box::new(move || {
+            count.fetch_add(1, Ordering::SeqCst);
+        }))
+    }
+
+    #[test]
+    fn calls_an_empty_callback_between_sources_once() {
+        let count = Arc::new(AtomicUsize::new(0));
+        let sources: Vec<Box<dyn Source + Send>> = vec![
+            Box::new(SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0, 2.0])),
+            Box::new(counting_callback(&count)),
+            Box::new(SamplesBuffer::new(nz!(1), nz!(48000), vec![3.0])),
+        ];
+        let mut c = chain(sources);
+        assert_eq!(c.next(), Some(1.0));
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+        assert_eq!(c.next(), Some(2.0));
+        assert_eq!(
+            count.load(Ordering::SeqCst),
+            1,
+            "the first source has ended"
+        );
+        assert_eq!(c.next(), Some(3.0));
+        assert_eq!(c.next(), None);
+        assert_eq!(c.next(), None);
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn calls_a_trailing_empty_callback_once() {
+        let count = Arc::new(AtomicUsize::new(0));
+        let sources: Vec<Box<dyn Source + Send>> = vec![
+            Box::new(SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0])),
+            Box::new(counting_callback(&count)),
+        ];
+        let mut c = chain(sources);
+        assert_eq!(c.next(), Some(1.0));
+        assert_eq!(c.next(), None);
+        assert_eq!(c.next(), None);
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn tells_a_source_it_ended_before_moving_on() {
+        let count = Arc::new(AtomicUsize::new(0));
+        let ended = count.clone();
+        let done = Done::new(
+            SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0, 2.0]),
+            move |_: &mut SamplesBuffer| {
+                ended.fetch_add(1, Ordering::SeqCst);
+            },
+        );
+        let mut c = chain([
+            Box::new(done) as Box<dyn Source + Send>,
+            Box::new(SamplesBuffer::new(nz!(1), nz!(48000), vec![3.0])),
+        ]);
+        assert_eq!(c.by_ref().take(2).collect::<Vec<_>>(), [1.0, 2.0]);
+        assert_eq!(
+            count.load(Ordering::SeqCst),
+            1,
+            "the first source has ended"
+        );
+        assert_eq!(c.collect::<Vec<_>>(), [3.0]);
+    }
+
+    #[test]
+    fn plays_the_last_source_again_after_seeking_back() {
+        let mut c = chain([SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0, 2.0])]);
+        assert_eq!(c.by_ref().collect::<Vec<_>>(), [1.0, 2.0]);
+        c.try_seek(Duration::ZERO).unwrap();
+        assert_eq!(c.collect::<Vec<_>>(), [1.0, 2.0]);
+    }
+
+    /// Reports its end one sample early.
+    struct EndsEarly(Vec<Sample>);
+
+    impl Iterator for EndsEarly {
+        type Item = Sample;
+        fn next(&mut self) -> Option<Sample> {
+            (!self.0.is_empty()).then(|| self.0.remove(0))
+        }
+    }
+
+    impl Source for EndsEarly {
+        fn current_span_len(&self) -> Option<usize> {
+            Some(self.0.len().saturating_sub(1))
+        }
+        fn channels(&self) -> ChannelCount {
+            nz!(1)
+        }
+        fn sample_rate(&self) -> SampleRate {
+            nz!(48000)
+        }
+        fn total_duration(&self) -> Option<Duration> {
+            None
+        }
+        fn try_seek(&mut self, _: Duration) -> Result<(), SeekError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn keeps_samples_a_source_has_after_reporting_its_end() {
+        let c = chain([
+            Box::new(EndsEarly(vec![1.0, 2.0, 3.0])) as Box<dyn Source + Send>,
+            Box::new(SamplesBuffer::new(nz!(1), nz!(48000), vec![4.0])),
+        ]);
+        assert_eq!(c.collect::<Vec<_>>(), [1.0, 2.0, 3.0, 4.0]);
+    }
 
     #[test]
     fn empty_chain_reports_end_of_span() {

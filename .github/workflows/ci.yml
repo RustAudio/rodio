@@ -44,6 +44,17 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config libjack-jackd2-dev libjack-jackd2-0 libdbus-1-dev libpipewire-0.3-dev
         if: contains(matrix.os, 'ubuntu')
 
+      # `--all-features` enables `asio`. Point asio-sys at a known SDK copy
+      # instead of its download into the runner's temp directory.
+      - name: Install ASIO SDK
+        if: contains(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          curl.exe -L -o asio.zip https://www.steinberg.net/asiosdk
+          Expand-Archive -Path asio.zip -DestinationPath asio
+          $sdk = Get-ChildItem asio -Directory | Select-Object -First 1
+          "CPAL_ASIO_DIR=$($sdk.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Install ${{ needs.msrv.outputs.version }} toolchain
         run: rustup toolchain install ${{ needs.msrv.outputs.version }} && rustup default ${{ needs.msrv.outputs.version }}
 

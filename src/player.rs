@@ -468,6 +468,8 @@ mod tests {
 
         let (player, mut out) = Player::new();
         player.set_speed(speed);
+        // Paused, so the source isn't consumed while waiting for the seek to run.
+        player.pause();
         player.append(SeekRecorder {
             inner: SamplesBuffer::new(nz!(1), nz!(48_000), samples),
             seeks: seeks.clone(),

@@ -87,7 +87,7 @@ impl SourcesQueueInput {
             .push_back((Box::new(source) as Box<_>, Some((tx, TokioSender::new()))));
         rx
     }
-    
+
     #[cfg(feature = "tokio")]
     /// Adds a new source to the end of the queue.
     ///
@@ -100,10 +100,10 @@ impl SourcesQueueInput {
     {
         let (tx, _rx) = channel();
         let (tokio_tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        self.next_sounds
-            .lock()
-            .unwrap()
-            .push_back((Box::new(source) as Box<_>, Some((tx, TokioSender(tokio_tx)))));
+        self.next_sounds.lock().unwrap().push_back((
+            Box::new(source) as Box<_>,
+            Some((tx, TokioSender(tokio_tx))),
+        ));
         rx
     }
 

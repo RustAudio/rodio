@@ -1,10 +1,11 @@
-
 #[cfg(not(feature = "tokio"))]
 mod no_tokio {
     pub struct TokioSender;
-    
+
     impl TokioSender {
-        pub fn new() -> Self { Self }
+        pub fn new() -> Self {
+            Self
+        }
         pub fn send(&self) {}
     }
 }
@@ -14,13 +15,17 @@ pub use no_tokio::TokioSender;
 
 #[cfg(feature = "tokio")]
 mod tokio {
-    use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
+    use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 
     pub struct TokioSender(pub UnboundedSender<()>);
-    
+
     impl TokioSender {
-        pub fn new() -> Self { Self(unbounded_channel().0) }
-        pub fn send(&self) { let _ = self.0.send(()); }
+        pub fn new() -> Self {
+            Self(unbounded_channel().0)
+        }
+        pub fn send(&self) {
+            let _ = self.0.send(());
+        }
     }
 }
 

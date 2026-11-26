@@ -45,7 +45,7 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
 // TODO: consider reimplementing this with `from_factory`
 
 type Sound = Box<dyn Source + Send>;
-type SignalDone = Option<Sender<()>>;
+type SignalDone = Option<(Sender<()>, Option<Box<dyn FnOnce() + Send>>)>;
 
 /// The input of the queue.
 pub struct SourcesQueueInput {
@@ -83,7 +83,27 @@ impl SourcesQueueInput {
         self.next_sounds
             .lock()
             .unwrap()
-            .push_back((Box::new(source) as Box<_>, Some(tx)));
+            .push_back((Box::new(source) as Box<_>, Some((tx, None))));
+        rx
+    }
+
+    /// Adds a new source to the end of the queue.
+    ///
+    /// The `FnOnce` will be called when the sound has finished playing.
+    #[inline]
+    pub fn append_with_signal_custom<T>(
+        &self,
+        source: T,
+        signal: Box<dyn FnOnce() + Send>,
+    ) -> Receiver<()>
+    where
+        T: Source + Send + 'static,
+    {
+        let (tx, rx) = channel();
+        self.next_sounds
+            .lock()
+            .unwrap()
+            .push_back((Box::new(source) as Box<_>, Some((tx, Some(signal)))));
         rx
     }
 
@@ -115,7 +135,7 @@ pub struct SourcesQueueOutput {
     current: Box<dyn Source + Send>,
 
     // Signal this sender before picking from `next`.
-    signal_after_end: Option<Sender<()>>,
+    signal_after_end: SignalDone,
 
     // The next sounds.
     input: Arc<SourcesQueueInput>,
@@ -258,8 +278,12 @@ impl SourcesQueueOutput {
     //
     // This method is separate so that it is not inlined.
     fn go_next(&mut self) -> Result<(), ()> {
-        if let Some(signal_after_end) = self.signal_after_end.take() {
+        if let Some((signal_after_end, custom_signal)) = self.signal_after_end.take() {
             let _ = signal_after_end.send(());
+
+            if let Some(custom_signal) = custom_signal {
+                custom_signal()
+            }
         }
 
         let (next, signal_after_end) = {

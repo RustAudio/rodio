@@ -220,9 +220,9 @@ mod spatial_player;
 pub mod speakers;
 #[cfg(feature = "playback")]
 pub mod stream;
-mod tokio_signal;
 #[cfg(feature = "wav_output")]
 mod wav_output;
+mod tokio_signal;
 
 pub mod buffer;
 pub mod const_source;

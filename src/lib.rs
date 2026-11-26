@@ -212,8 +212,6 @@ pub mod queue;
 pub mod source;
 pub mod static_buffer;
 
-pub(crate) mod signal;
-
 pub use crate::common::{BitDepth, ChannelCount, Float, Sample, SampleRate};
 pub use crate::decoder::Decoder;
 #[cfg(feature = "experimental")]

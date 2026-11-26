@@ -9,7 +9,6 @@ use dasp_sample::FromSample;
 use std::sync::mpsc::{Receiver, Sender};
 
 use crate::mixer::Mixer;
-use crate::signal::*;
 use crate::source::SeekError;
 use crate::Float;
 use crate::{queue, source::Done, Source};
@@ -20,7 +19,7 @@ use crate::{queue, source::Done, Source};
 /// playing.
 pub struct Player {
     queue_tx: Arc<queue::SourcesQueueInput>,
-    sleep_until_end: Mutex<Option<SignalReceiver>>,
+    sleep_until_end: Mutex<Option<Receiver<()>>>,
 
     controls: Arc<Controls>,
     sound_count: Arc<AtomicUsize>,
@@ -159,7 +158,7 @@ impl Player {
             });
         self.sound_count.fetch_add(1, Ordering::Relaxed);
         let source = Done::new(source, self.sound_count.clone());
-        *self.sleep_until_end.lock().unwrap() = Some(SignalReceiver(self.queue_tx.append_with_signal(source)));
+        *self.sleep_until_end.lock().unwrap() = Some(self.queue_tx.append_with_signal(source));
     }
 
     /// Gets the volume of the sound.
@@ -312,7 +311,7 @@ impl Player {
     /// Sleeps the current thread until the sound ends.
     #[inline]
     pub fn sleep_until_end(&self) {
-        if let Some(mut sleep_until_end) = self.sleep_until_end.lock().unwrap().take() {
+        if let Some(sleep_until_end) = self.sleep_until_end.lock().unwrap().take() {
             let _ = sleep_until_end.recv();
         }
     }

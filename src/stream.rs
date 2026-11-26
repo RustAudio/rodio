@@ -432,8 +432,8 @@ where
             .or_else(|err| Self::open_with_buffer_size(device, &self.config, fallback, shared, err))
     }
 
-    /// Retry with `buffer_size` if opening failed to build the stream,
-    /// keeping the first error if that fails too.
+    /// Retry with `buffer_size` if the device refused the stream's
+    /// config, keeping the first error if that fails too.
     fn open_with_buffer_size<C>(
         device: &cpal::Device,
         config: &DeviceSinkConfig,
@@ -444,7 +444,14 @@ where
     where
         C: FnMut(cpal::Error) + Send + 'static,
     {
-        if !matches!(err, DeviceSinkError::BuildError(_)) {
+        // Hosts report a buffer size out of the device's range as
+        // `UnsupportedConfig`. Another size won't help with anything else,
+        // such as a busy device.
+        let refused_config = matches!(
+            &err,
+            DeviceSinkError::BuildError(e) if e.kind() == cpal::ErrorKind::UnsupportedConfig
+        );
+        if !refused_config {
             return Err(err);
         }
         let config = DeviceSinkConfig {
@@ -683,11 +690,13 @@ mod tests {
     use super::DeviceSinkBuilder;
 
     /// A 48 kHz output that reports `reported` as its buffer size range
-    /// but only opens streams whose buffer size is in `accepted`.
+    /// but only opens streams whose buffer size is in `accepted`,
+    /// refusing others with `refusal`.
     #[derive(Clone, Debug)]
     struct Output {
         reported: SupportedBufferSize,
         accepted: std::ops::RangeInclusive<FrameCount>,
+        refusal: ErrorKind,
         requested: Arc<Mutex<Vec<BufferSize>>>,
     }
 
@@ -696,6 +705,7 @@ mod tests {
             Self {
                 reported,
                 accepted,
+                refusal: ErrorKind::UnsupportedConfig,
                 requested: Arc::default(),
             }
         }
@@ -815,7 +825,7 @@ mod tests {
             self.requested.lock().unwrap().push(config.buffer_size);
             match config.buffer_size {
                 BufferSize::Fixed(size) if !self.accepted.contains(&size) => {
-                    Err(Error::new(ErrorKind::UnsupportedConfig))
+                    Err(Error::new(self.refusal))
                 }
                 _ => Ok(Stream),
             }
@@ -849,6 +859,20 @@ mod tests {
         let period = SupportedBufferSize::Range { min: 480, max: 480 };
         let output = Output::new(period, 1..=u32::MAX);
         assert_eq!(open(&output), BufferSize::Fixed(2048));
+        assert_eq!(output.requested(), [BufferSize::Fixed(2048)]);
+    }
+
+    #[test]
+    fn busy_device_is_not_tried_again_with_another_size() {
+        let mut output = Output::new(SupportedBufferSize::Range { min: 15, max: 960 }, 15..=960);
+        output.refusal = ErrorKind::DeviceBusy;
+        let opened = DeviceSinkBuilder::from_device(output.device())
+            .unwrap()
+            .open_stream();
+        assert!(matches!(
+            opened,
+            Err(super::DeviceSinkError::BuildError(e)) if e.kind() == ErrorKind::DeviceBusy
+        ));
         assert_eq!(output.requested(), [BufferSize::Fixed(2048)]);
     }
 

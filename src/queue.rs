@@ -35,8 +35,11 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
         current: Box::new(Empty::new()) as Box<_>,
         signal_after_end: None,
         input: input.clone(),
-        samples_consumed_in_span: 0,
+        samples_in_current_frame: 0,
         silence_samples_remaining: 0,
+        current_ended: false,
+        prefetched_frame: VecDeque::new(),
+        prefetched_format: None,
     };
 
     (input, output)
@@ -120,67 +123,48 @@ pub struct SourcesQueueOutput {
     // The next sounds.
     input: Arc<SourcesQueueInput>,
 
-    // Track samples consumed in the current span to detect mid-span endings.
-    samples_consumed_in_span: usize,
+    samples_in_current_frame: usize,
 
     // When a source ends mid-frame, this counts how many silence samples to inject
     // to complete the frame before transitioning to the next source.
     silence_samples_remaining: usize,
+
+    current_ended: bool,
+    prefetched_frame: VecDeque<Sample>,
+    prefetched_format: Option<(ChannelCount, SampleRate)>,
 }
 
 impl Source for SourcesQueueOutput {
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
-        if !self.current.is_exhausted() {
-            return self.current.current_span_len();
+        if let Some((channels, _)) = self.prefetched_format {
+            return Some(usize::from(channels.get()));
         }
-        // A queue must never return None: that would cause downstream sources to miss format
-        // changes between queue items. Return a small value so boundaries are checked often.
-        Some(self.channels().get() as usize)
+        // A queue can change formats even when the current source has an unknown span length.
+        Some(self.with_source(|source| {
+            source
+                .current_span_len()
+                .filter(|&len| len != 0)
+                .unwrap_or_else(|| usize::from(source.channels().get()))
+        }))
     }
 
     #[inline]
     fn channels(&self) -> ChannelCount {
-        if self.current.is_exhausted() && self.silence_samples_remaining == 0 {
-            // Skip exhausted sources at the head of the queue (e.g. an empty chain) and
-            // return the first non-exhausted source's metadata. This is critical:
-            // UniformSourceIterator queries metadata before pulling any samples, so we
-            // must report the upcoming source's format, not a preceding exhausted stub.
-            //
-            // If the queue is genuinely empty there is nothing to peek at. The stale value
-            // is returned below. This is corrected at the first span boundary after the
-            // new source begins playing.
-            if let Some((next, _)) = self
-                .input
-                .next_sounds
-                .lock()
-                .unwrap()
-                .iter()
-                .find(|(s, _)| !s.is_exhausted())
-            {
-                return next.channels();
-            }
+        if let Some((channels, _)) = self.prefetched_format {
+            channels
+        } else {
+            self.with_source(|source| source.channels())
         }
-
-        self.current.channels()
     }
 
     #[inline]
     fn sample_rate(&self) -> SampleRate {
-        if self.current.is_exhausted() && self.silence_samples_remaining == 0 {
-            if let Some((next, _)) = self
-                .input
-                .next_sounds
-                .lock()
-                .unwrap()
-                .iter()
-                .find(|(s, _)| !s.is_exhausted())
-            {
-                return next.sample_rate();
-            }
+        if let Some((_, sample_rate)) = self.prefetched_format {
+            sample_rate
+        } else {
+            self.with_source(|source| source.sample_rate())
         }
-
-        self.current.sample_rate()
     }
 
     #[inline]
@@ -199,7 +183,21 @@ impl Source for SourcesQueueOutput {
     // next few songs.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.current.try_seek(pos)
+        self.current.try_seek(pos)?;
+        self.current_ended = false;
+        self.samples_in_current_frame %= usize::from(self.current.channels().get());
+        if self.prefetched_format.take().is_some() {
+            self.prefetched_frame.clear();
+            // The prefetched frame left the input at a frame boundary. Restore the
+            // channel position already delivered to the output in the current frame.
+            for _ in 0..self.samples_in_current_frame {
+                if self.current.next().is_none() {
+                    self.current_ended = true;
+                    break;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -215,26 +213,44 @@ impl Iterator for SourcesQueueOutput {
                 return Some(0.0);
             }
 
-            // Basic situation that will happen most of the time.
-            if let Some(sample) = self.current.next() {
+            let channels = self
+                .prefetched_format
+                .map_or_else(|| self.current.channels(), |(channels, _)| channels);
+            let channels = usize::from(channels.get());
+            let sample = if let Some(sample) = self.prefetched_frame.pop_front() {
+                if self.prefetched_frame.is_empty() {
+                    self.prefetched_format = None;
+                }
+                Some(sample)
+            } else if self.current_ended {
+                None
+            } else {
+                self.current.next()
+            };
+            if let Some(sample) = sample {
+                self.samples_in_current_frame = (self.samples_in_current_frame + 1) % channels;
+                if self.samples_in_current_frame == 0
+                    && !self.current_ended
+                    && self.current.current_span_len().is_none()
+                {
+                    // Let the next metadata query see EOF before the next source is read.
+                    self.prefetch_frame();
+                }
                 return Some(sample);
             }
 
             // Source ended - check if we ended mid-frame and need padding.
-            let channels = self.current.channels().get() as usize;
-            let incomplete_frame_samples = self.samples_consumed_in_span % channels;
+            self.current_ended = true;
+            let incomplete_frame_samples = self.samples_in_current_frame % channels;
             if incomplete_frame_samples > 0 {
                 // We're mid-frame - need to pad with silence to complete it.
                 self.silence_samples_remaining = channels - incomplete_frame_samples;
-                // Reset counter now since we're transitioning to a new span.
-                self.samples_consumed_in_span = 0;
+                self.samples_in_current_frame = 0;
                 // Continue loop - next iteration will inject silence.
                 continue;
             }
 
-            // Reset counter and move to next sound.
             // In order to avoid inlining this expensive operation, the code is in another function.
-            self.samples_consumed_in_span = 0;
             if self.go_next().is_err() {
                 if self.input.keep_alive_if_empty() {
                     self.silence_samples_remaining = self.current.channels().get() as usize;
@@ -248,11 +264,42 @@ impl Iterator for SourcesQueueOutput {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.current.size_hint().0, None)
+        let lower = if self.current_ended {
+            0
+        } else {
+            self.current.size_hint().0
+        };
+        (lower.saturating_add(self.prefetched_frame.len()), None)
     }
 }
 
 impl SourcesQueueOutput {
+    fn prefetch_frame(&mut self) {
+        let channels = self.current.channels();
+        let sample_rate = self.current.sample_rate();
+        let frame_len = usize::from(channels.get());
+        self.prefetched_frame
+            .extend(self.current.by_ref().take(frame_len));
+        self.current_ended = self.prefetched_frame.len() < frame_len;
+        if !self.prefetched_frame.is_empty() {
+            self.prefetched_format = Some((channels, sample_rate));
+        }
+    }
+
+    // Peek at the next sound's format after EOF without removing it from the queue.
+    fn with_source<T>(&self, f: impl FnOnce(&dyn Source) -> T) -> T {
+        if (self.current_ended || self.current.is_exhausted())
+            && self.samples_in_current_frame == 0
+            && self.silence_samples_remaining == 0
+        {
+            let sounds = self.input.next_sounds.lock().unwrap();
+            if let Some((next, _)) = sounds.iter().find(|(source, _)| !source.is_exhausted()) {
+                return f(next.as_ref());
+            }
+        }
+        f(self.current.as_ref())
+    }
+
     // Called when `current` is empty, and we must jump to the next element.
     // Returns `Ok` if there is another sound should continue playing, or `Err` when there is not.
     //
@@ -269,6 +316,7 @@ impl SourcesQueueOutput {
 
         self.current = next;
         self.signal_after_end = signal_after_end;
+        self.current_ended = false;
         Ok(())
     }
 }
@@ -277,9 +325,43 @@ impl SourcesQueueOutput {
 mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
-    use crate::source::{chain, SeekError, Source};
+    use crate::source::{chain, from_iter, SeekError, Source, UniformSourceIterator};
     use crate::{queue, ChannelCount, Sample, SampleRate};
     use std::time::Duration;
+
+    #[test]
+    fn queue_keeps_format_boundaries_when_current_source_has_no_span_length() {
+        let (tx, mut rx) = queue::queue(false);
+        let mut samples = [0.125, 0.25, 0.375].into_iter();
+        tx.append(from_iter(
+            std::iter::from_fn(move || samples.next()),
+            nz!(1),
+            nz!(1),
+        ));
+        tx.append(SamplesBuffer::new(nz!(2), nz!(1), [0.5, -0.5, 0.75, -0.75]));
+        tx.append(SamplesBuffer::new(nz!(1), nz!(1), [0.875, 1.0]));
+        assert_eq!(rx.next(), Some(0.125));
+
+        let source = UniformSourceIterator::new(rx, nz!(1), nz!(1));
+        assert_eq!(
+            source.collect::<Vec<_>>(),
+            [0.25, 0.375, 0.5, 0.75, 0.875, 1.0]
+        );
+    }
+
+    #[test]
+    fn queue_seek_preserves_channel_order_with_a_prefetched_frame() {
+        for channel in 0..2 {
+            let (tx, mut rx) = queue::queue(false);
+            let samples =
+                SamplesBuffer::new(nz!(2), nz!(1), [0.125, -0.125, 0.25, -0.25, 0.5, -0.5]);
+            tx.append(UniformSourceIterator::new(samples, nz!(2), nz!(1)));
+            assert_eq!(rx.by_ref().take(2 + channel).count(), 2 + channel);
+
+            rx.try_seek(Duration::from_secs(2)).unwrap();
+            assert_eq!(rx.collect::<Vec<_>>(), [0.5, -0.5][channel..]);
+        }
+    }
 
     #[test]
     #[ignore = "known limitation: metadata gap when queue is briefly empty after exhaustion"]

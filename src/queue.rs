@@ -94,9 +94,11 @@ impl SourcesQueueInput {
 
     /// Adds a new source to the end of the queue.
     ///
-    /// The `FnOnce` callback will be called when the sound has finished playing.
+    /// The [FnOnce] callback will be called when the sound has finished playing.
     ///
     /// Polling past the source's end calls the callback inline, possibly on the audio thread while samples are still buffered. Therefore the callback should return promptly without blocking or panicking.
+    ///
+    /// Note: the callback will not be called if the queue is dropped or [SourcesQueueInput::clear] is called
     #[inline]
     pub fn append_with_callback<T, F>(&self, source: T, callback: F)
     where
@@ -527,8 +529,19 @@ mod tests {
             SamplesBuffer::new(nz!(2), nz!(44100), vec![0.4, 0.5, 0.6]),
             || (),
         );
-        let _ = rx.go_next();
-        let _ = rx.go_next();
+
+        loop {
+            let _ = rx.next();
+            if rx.current.is_exhausted() {
+                break;
+            }
+        }
+
+        let _ = rx.next();
+
+        assert_eq!(*flag.lock().unwrap(), 1);
+
+        for _ in rx {}
 
         assert_eq!(*flag.lock().unwrap(), 1);
     }

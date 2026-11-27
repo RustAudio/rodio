@@ -654,16 +654,17 @@ fn seek_into_a_span_stops_at_its_format_change() {
 }
 
 quickcheck! {
-    /// Wherever a seek lands, the samples that follow are what
-    /// resampling the rest of the input from there gives.
+    /// Wherever the last of some seeks lands, with reads before each,
+    /// the samples that follow are what resampling the rest of the
+    /// input from there gives.
     fn seek_resamples_the_rest_of_the_input(
         spans: Vec<(u8, u8, u8)>,
-        seek: u16,
+        rounds: Vec<(u8, u16)>,
         chunk: u8,
         sinc: bool
     ) -> TestResult {
         const RATES: [u32; 4] = [12000, 24000, 44100, 48000];
-        if spans.is_empty() {
+        if spans.is_empty() || rounds.is_empty() {
             return TestResult::discard();
         }
         let layout: Vec<_> = spans
@@ -687,7 +688,21 @@ quickcheck! {
 
         let source = spans_of(&layout);
         let total = source.total_duration().unwrap();
-        let position = total.mul_f64(f64::from(seek) / f64::from(u16::MAX));
+        // The start and the end are where seeks most often go wrong.
+        let position_of = |seek: u16| match seek % 4 {
+            0 => Duration::ZERO,
+            1 => total,
+            _ => total.mul_f64(f64::from(seek) / f64::from(u16::MAX)),
+        };
+
+        let mut seeked = SampleRateConverter::new(source, target, config.clone());
+        let mut position = Duration::ZERO;
+        for &(reads, seek) in rounds.iter().take(4) {
+            seeked.by_ref().take(usize::from(reads) * 4).for_each(drop);
+            position = position_of(seek);
+            seeked.try_seek(position).unwrap();
+        }
+        let got = with_channels(seeked);
 
         // What's left of the input once it has seeked there.
         let mut rest = spans_of(&layout);
@@ -696,10 +711,6 @@ quickcheck! {
         if let Some(first) = left.first_mut() {
             first.samples.drain(..rest.offset);
         }
-
-        let mut seeked = SampleRateConverter::new(source, target, config.clone());
-        seeked.try_seek(position).unwrap();
-        let got = with_channels(seeked);
         let expected = if left.is_empty() {
             Vec::new()
         } else {
@@ -719,5 +730,27 @@ fn with_channels(mut source: impl Source) -> Vec<(u16, Sample)> {
             return samples;
         };
         samples.push((channels, sample));
+    }
+}
+
+/// A seek to the end builds nothing to resample with, so a seek back
+/// must build a resampler again.
+#[test]
+fn seek_back_from_the_end_resamples_again() {
+    let layout = [(101, 24000, 1), (101, 12000, 2)];
+    let target = SampleRate::new(44100).unwrap();
+    for config in [
+        ResampleConfig::poly().build(),
+        ResampleConfig::sinc()
+            .sinc_len(NonZero::new(16).unwrap())
+            .build(),
+    ] {
+        let source = spans_of(&layout);
+        let total = source.total_duration().unwrap();
+        let mut resampler = SampleRateConverter::new(source, target, config);
+        resampler.try_seek(total).unwrap();
+        resampler.try_seek(total.mul_f64(0.9)).unwrap();
+        // 16 stereo frames at 12 kHz are left.
+        assert_close(resampler.count(), 118, "samples after seeking back");
     }
 }

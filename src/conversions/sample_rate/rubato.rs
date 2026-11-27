@@ -1,5 +1,7 @@
 //! Rubato resampler wrapper and implementations.
 
+use std::time::Duration;
+
 use rubato::{audioadapter_buffers::direct::InterleavedSlice, Resampler};
 
 use super::{InFrameCount, InSamples, OutFrameCount};
@@ -117,8 +119,10 @@ pub struct RubatoResample<I: Source, R: rubato::Resampler<Sample>> {
 
     /// How much of the span being read is left. Tracked because
     /// `Source::current_span_len` reports the span's total length,
-    /// not its remainder.
-    span_remaining: InSamples,
+    /// not its remainder. `None` after a seek past the start, which
+    /// may land partway through a span: until the format changes, it's
+    /// then checked before every sample.
+    span_remaining: Option<InSamples>,
 
     /// Output frames still to come from what rubato has been given.
     pub frames_being_resampled: OutFrameCount,
@@ -251,11 +255,14 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
             || self.input.sample_rate() != self.output.source_rate
         {
             0
-        } else if self.span_remaining == InSamples::ZERO {
-            // Read up to a span boundary: the next span starts here.
-            self.input.current_span_len().unwrap_or(0)
         } else {
-            self.span_remaining.raw()
+            match self.span_remaining {
+                // Read up to a span boundary: the next span starts here.
+                Some(InSamples::ZERO) => self.input.current_span_len().unwrap_or(0),
+                Some(left) => left.raw(),
+                // Somewhere in a span after a seek: none of it is certain.
+                None => 0,
+            }
         };
 
         let (lower, upper) = self.input.size_hint();
@@ -265,10 +272,13 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
         (resampled(lower.min(in_format) / channels), upper)
     }
 
-    pub fn reset(&mut self) {
+    /// Start over after the input seeked to `position`.
+    pub fn reset(&mut self, position: Duration) {
         self.resampler.reset();
         self.output.reset();
-        self.span_remaining = InSamples::ZERO;
+        // A seek to the start lands at the start of a span. Elsewhere,
+        // how much of the span is left isn't known.
+        self.span_remaining = (position == Duration::ZERO).then_some(InSamples::ZERO);
         (self.lead_in_copies, self.output_delay_remaining) =
             Self::start_state(&self.resampler, self.output.source_rate, self.target_rate);
         self.lead_in_read = false;
@@ -460,14 +470,22 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
     fn read_input(&mut self, wanted: InSamples) -> InSamples {
         let start = self.input_buffer.len();
         while self.input_buffer.len() < wanted {
-            if self.span_remaining == InSamples::ZERO && !self.start_of_span() {
+            let more = match self.span_remaining {
+                Some(InSamples::ZERO) => self.start_of_span(),
+                Some(_) => true,
+                None if self.input.current_span_len().is_none() => self.start_of_span(),
+                None => self.input_in_format(),
+            };
+            if !more {
                 break;
             }
             let Some(sample) = self.input.next() else {
                 break;
             };
             self.input_buffer.push(sample);
-            self.span_remaining -= InSamples(1);
+            if let Some(left) = &mut self.span_remaining {
+                *left -= InSamples(1);
+            }
         }
         self.input_buffer.len() - start
     }
@@ -477,22 +495,26 @@ impl<I: Source, R: rubato::Resampler<Sample>> RubatoResample<I, R> {
     fn start_of_span(&mut self) -> bool {
         let Some(span_len) = self.input.current_span_len() else {
             // Without spans the format never changes.
-            self.span_remaining = InSamples::MAX;
+            self.span_remaining = Some(InSamples::MAX);
             return true;
         };
-        if span_len == 0
-            || self.input.channels() != self.output.channels
-            || self.input.sample_rate() != self.output.source_rate
-        {
+        if !self.input_in_format() {
             return false;
         }
-        self.span_remaining = InSamples(span_len);
+        self.span_remaining = Some(InSamples(span_len));
         true
     }
 
+    /// Whether the input has samples left in the format being resampled.
+    fn input_in_format(&self) -> bool {
+        self.input.current_span_len() != Some(0)
+            && self.input.channels() == self.output.channels
+            && self.input.sample_rate() == self.output.source_rate
+    }
+
     /// A resampler is built at the start of a span, so all of it is left.
-    fn first_span(input: &I) -> InSamples {
-        input.current_span_len().map_or(InSamples::MAX, InSamples)
+    fn first_span(input: &I) -> Option<InSamples> {
+        Some(input.current_span_len().map_or(InSamples::MAX, InSamples))
     }
 
     fn resampler_empty(&self) -> bool {

@@ -789,3 +789,110 @@ fn a_single_frame_is_resampled() {
         assert_close(output.len(), 4 + 800, &format!("{name}: then a span"));
     }
 }
+
+/// A seek can land partway through a span, so the resampler can't count
+/// on the whole span being left: it must stop where the format changes.
+#[test]
+fn seek_into_a_span_stops_at_its_format_change() {
+    let (mono, stereo) = (ChannelCount::new(1).unwrap(), ChannelCount::new(2).unwrap());
+    let rate = SampleRate::new(24000).unwrap();
+    let source =
+        TestSource::new(vec![0.25; 113], rate, mono).chain([0.75, -0.75].repeat(64), rate, stereo);
+    let target = SampleRate::new(48000).unwrap();
+    let config = ResampleConfig::poly()
+        .degree(Poly::Linear)
+        .chunk_size(NonZero::new(128).unwrap())
+        .build();
+    let mut resampler = SampleRateConverter::new(source, target, config);
+    resampler.try_seek(Duration::from_millis(2)).unwrap();
+
+    let mut stereo_samples = Vec::new();
+    loop {
+        let channels = resampler.channels();
+        let Some(sample) = resampler.next() else {
+            break;
+        };
+        if channels == stereo {
+            stereo_samples.push(sample);
+        } else {
+            assert_eq!(sample, 0.25, "a mono sample read from the stereo span");
+        }
+    }
+    assert_close(stereo_samples.len(), 256, "stereo samples");
+    // The stream's last frames fade out, but each stays a stereo frame.
+    for (i, frame) in stereo_samples.chunks(2).enumerate() {
+        assert!(
+            frame[0] > 0.0 && frame[1] == -frame[0],
+            "stereo frame {i} is {frame:?}"
+        );
+    }
+}
+
+quickcheck! {
+    /// Wherever a seek lands, the samples that follow are what
+    /// resampling the rest of the input from there gives.
+    fn seek_resamples_the_rest_of_the_input(
+        spans: Vec<(u8, u8, u8)>,
+        seek: u16,
+        chunk: u8,
+        sinc: bool
+    ) -> TestResult {
+        const RATES: [u32; 4] = [12000, 24000, 44100, 48000];
+        if spans.is_empty() {
+            return TestResult::discard();
+        }
+        let layout: Vec<_> = spans
+            .iter()
+            .take(5)
+            .map(|&(frames, rate, channels)| {
+                let frames = usize::from(frames) * 2 + 1;
+                (frames, RATES[usize::from(rate) % 4], u16::from(channels) % 3 + 1)
+            })
+            .collect();
+        let chunk = NonZero::new(usize::from(chunk) % 200 + 8).unwrap();
+        let config = if sinc {
+            ResampleConfig::sinc()
+                .sinc_len(NonZero::new(16).unwrap())
+                .chunk_size(chunk)
+                .build()
+        } else {
+            ResampleConfig::poly().chunk_size(chunk).build()
+        };
+        let target = SampleRate::new(44100).unwrap();
+
+        let source = spans_of(&layout);
+        let total = source.total_duration().unwrap();
+        let position = total.mul_f64(f64::from(seek) / f64::from(u16::MAX));
+
+        // What's left of the input once it has seeked there.
+        let mut rest = spans_of(&layout);
+        rest.try_seek(position).unwrap();
+        let mut left = rest.spans.split_off(rest.span.min(rest.spans.len()));
+        if let Some(first) = left.first_mut() {
+            first.samples.drain(..rest.offset);
+        }
+
+        let mut seeked = SampleRateConverter::new(source, target, config.clone());
+        seeked.try_seek(position).unwrap();
+        let got = with_channels(seeked);
+        let expected = if left.is_empty() {
+            Vec::new()
+        } else {
+            let rest = TestSource { spans: left, span: 0, offset: 0 };
+            with_channels(SampleRateConverter::new(rest, target, config))
+        };
+        TestResult::from_bool(got == expected)
+    }
+}
+
+/// Each sample with the channel count reported before it.
+fn with_channels(mut source: impl Source) -> Vec<(u16, Sample)> {
+    let mut samples = Vec::new();
+    loop {
+        let channels = source.channels().get();
+        let Some(sample) = source.next() else {
+            return samples;
+        };
+        samples.push((channels, sample));
+    }
+}

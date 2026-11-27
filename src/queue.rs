@@ -44,8 +44,13 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
 
 // TODO: consider reimplementing this with `from_factory`
 
+enum Signal {
+    Channel(Sender<()>),
+    Callback(Box<dyn FnOnce() + Send>),
+}
+
 type Sound = Box<dyn Source + Send>;
-type SignalDone = Option<Sender<()>>;
+type SignalDone = Option<Signal>;
 
 /// The input of the queue.
 pub struct SourcesQueueInput {
@@ -83,8 +88,27 @@ impl SourcesQueueInput {
         self.next_sounds
             .lock()
             .unwrap()
-            .push_back((Box::new(source) as Box<_>, Some(tx)));
+            .push_back((Box::new(source) as Box<_>, Some(Signal::Channel(tx))));
         rx
+    }
+
+    /// Adds a new source to the end of the queue.
+    ///
+    /// The [FnOnce] callback will be called when the sound has finished playing.
+    ///
+    /// Polling past the source's end calls the callback inline, possibly on the audio thread while samples are still buffered. Therefore the callback should return promptly without blocking or panicking.
+    ///
+    /// Note: the callback will not be called if the queue is dropped or [SourcesQueueInput::clear] is called
+    #[inline]
+    pub fn append_with_callback<T, F>(&self, source: T, callback: F)
+    where
+        T: Source + Send + 'static,
+        F: FnOnce() + Send + 'static,
+    {
+        self.next_sounds.lock().unwrap().push_back((
+            Box::new(source) as Box<_>,
+            Some(Signal::Callback(Box::new(callback))),
+        ));
     }
 
     /// Sets whether the queue stays alive if there's no more sound to play.
@@ -115,7 +139,7 @@ pub struct SourcesQueueOutput {
     current: Box<dyn Source + Send>,
 
     // Signal this sender before picking from `next`.
-    signal_after_end: Option<Sender<()>>,
+    signal_after_end: SignalDone,
 
     // The next sounds.
     input: Arc<SourcesQueueInput>,
@@ -259,7 +283,12 @@ impl SourcesQueueOutput {
     // This method is separate so that it is not inlined.
     fn go_next(&mut self) -> Result<(), ()> {
         if let Some(signal_after_end) = self.signal_after_end.take() {
-            let _ = signal_after_end.send(());
+            match signal_after_end {
+                Signal::Channel(sender) => {
+                    let _ = sender.send(());
+                }
+                Signal::Callback(callback) => callback(),
+            }
         }
 
         let (next, signal_after_end) = {
@@ -277,8 +306,9 @@ impl SourcesQueueOutput {
 mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
-    use crate::source::{chain, SeekError, Source};
+    use crate::source::{self, chain, SeekError, Source};
     use crate::{queue, ChannelCount, Sample, SampleRate};
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     #[test]
@@ -483,5 +513,36 @@ mod tests {
                 "Sample rate should update to 44100 (keep_alive={keep_alive})"
             );
         }
+    }
+
+    #[test]
+    fn callback_is_called() {
+        let (tx, mut rx) = queue::queue(false);
+        let flag = Arc::new(Mutex::new(0));
+        let flag2 = flag.clone();
+
+        tx.append_with_callback(
+            SamplesBuffer::new(nz!(1), nz!(44100), vec![0.1, 0.2, 0.3]),
+            move || *flag2.lock().unwrap() += 1,
+        );
+        tx.append_with_callback(
+            SamplesBuffer::new(nz!(2), nz!(44100), vec![0.4, 0.5, 0.6]),
+            || (),
+        );
+
+        loop {
+            let _ = rx.next();
+            if rx.current.is_exhausted() {
+                break;
+            }
+        }
+
+        let _ = rx.next();
+
+        assert_eq!(*flag.lock().unwrap(), 1);
+
+        for _ in rx {}
+
+        assert_eq!(*flag.lock().unwrap(), 1);
     }
 }

@@ -374,33 +374,24 @@ where
 
     #[inline]
     fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
-        match self.resampler_mut() {
-            ResampleInner::Passthrough { source, .. } => source.try_seek(position)?,
-            ResampleInner::Poly(r) | ResampleInner::Sinc(r) => {
-                r.input.try_seek(position)?;
-                r.reset();
-            }
-            #[cfg(feature = "rubato-fft")]
-            ResampleInner::Fft(r) => {
-                r.input.try_seek(position)?;
-                r.reset();
-            }
+        self.inner_mut().try_seek(position)?;
+        self.pending_recreate = false;
+        // The seek may land in a span of another format.
+        if !self.resampler().built_for_input() {
+            self.recreate();
         }
 
-        self.pending_recreate = false;
         let input_span_len = self.resampler().input().current_span_len();
-
-        // Only the passthrough counts samples against the span length;
-        // `reset` already cleared the resamplers' own tracking.
-        if let ResampleInner::Passthrough { input_span_pos, .. } =
-            self.inner.as_mut().expect("always set")
-        {
-            reset_seek_span_tracking(
+        match self.inner.as_mut().expect("always set") {
+            ResampleInner::Passthrough { input_span_pos, .. } => reset_seek_span_tracking(
                 input_span_pos.raw_mut(),
                 &mut self.cached_input_span_len,
                 position,
                 input_span_len,
-            );
+            ),
+            ResampleInner::Poly(r) | ResampleInner::Sinc(r) => r.reset(position),
+            #[cfg(feature = "rubato-fft")]
+            ResampleInner::Fft(r) => r.reset(position),
         }
 
         Ok(())

@@ -493,6 +493,23 @@ mod tests {
         }
     }
 
+    #[test]
+    fn upmixed_frame_ends_before_a_rate_change() {
+        let out: Vec<_> =
+            UniformSourceIterator::new(mono_then_stereo(24000, 24000), nz!(2), nz!(48000))
+                .collect();
+        // Both spans resampled: the stereo one doubles to 400 frames.
+        // Its first frame blends in the mono span's last sample, and its
+        // last one the silence after the end.
+        assert_eq!(out.len(), 1200 + 800, "length");
+        for (i, frame) in out[..1200].chunks(2).enumerate() {
+            assert_eq!(frame[0], frame[1], "upmixed mono frame {i}");
+        }
+        for (i, frame) in out[1202..out.len() - 2].chunks(2).enumerate() {
+            assert_eq!(frame, [0.5, 0.75], "stereo frame {i}");
+        }
+    }
+
     /// A resampler rebuilt at a rate change, as `Player::set_speed` makes
     /// one, starts on the new span's first frame rather than dipping
     /// towards silence.
@@ -513,23 +530,6 @@ mod tests {
                 [0.8, -0.6]
             };
             assert_eq!(frame, expected, "frame {i}");
-        }
-    }
-
-    #[test]
-    fn upmixed_frame_ends_before_a_rate_change() {
-        let out: Vec<_> =
-            UniformSourceIterator::new(mono_then_stereo(24000, 24000), nz!(2), nz!(48000))
-                .collect();
-        // Both spans resampled: the stereo one doubles to 400 frames.
-        // Its first frame blends in the mono span's last sample, and its
-        // last one the silence after the end.
-        assert_eq!(out.len(), 1200 + 800, "length");
-        for (i, frame) in out[..1200].chunks(2).enumerate() {
-            assert_eq!(frame[0], frame[1], "upmixed mono frame {i}");
-        }
-        for (i, frame) in out[1202..out.len() - 2].chunks(2).enumerate() {
-            assert_eq!(frame, [0.5, 0.75], "stereo frame {i}");
         }
     }
 }

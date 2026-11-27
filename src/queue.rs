@@ -44,8 +44,13 @@ pub fn queue(keep_alive_if_empty: bool) -> (Arc<SourcesQueueInput>, SourcesQueue
 
 // TODO: consider reimplementing this with `from_factory`
 
+enum Signal {
+    Channel(Sender<()>),
+    Callback(Box<dyn FnOnce() + Send>),
+}
+
 type Sound = Box<dyn Source + Send>;
-type SignalDone = Option<(Sender<()>, Option<Box<dyn FnOnce() + Send>>)>;
+type SignalDone = Option<Signal>;
 
 /// The input of the queue.
 pub struct SourcesQueueInput {
@@ -83,7 +88,7 @@ impl SourcesQueueInput {
         self.next_sounds
             .lock()
             .unwrap()
-            .push_back((Box::new(source) as Box<_>, Some((tx, None))));
+            .push_back((Box::new(source) as Box<_>, Some(Signal::Channel(tx))));
         rx
     }
 
@@ -91,19 +96,17 @@ impl SourcesQueueInput {
     ///
     /// The `FnOnce` callback will be called when the sound has finished playing.
     ///
-    /// The callback must not block the thread.
+    /// Polling past the source's end calls the callback inline, possibly on the audio thread while samples are still buffered. Therefore the callback should return promptly without blocking or panicking.
     #[inline]
-    pub fn append_with_callback<T, F>(&self, source: T, callback: F) -> Receiver<()>
+    pub fn append_with_callback<T, F>(&self, source: T, callback: F)
     where
         T: Source + Send + 'static,
         F: FnOnce() + Send + 'static,
     {
-        let (tx, rx) = channel();
         self.next_sounds.lock().unwrap().push_back((
             Box::new(source) as Box<_>,
-            Some((tx, Some(Box::new(callback)))),
+            Some(Signal::Callback(Box::new(callback))),
         ));
-        rx
     }
 
     /// Sets whether the queue stays alive if there's no more sound to play.
@@ -277,11 +280,12 @@ impl SourcesQueueOutput {
     //
     // This method is separate so that it is not inlined.
     fn go_next(&mut self) -> Result<(), ()> {
-        if let Some((signal_after_end, custom_signal)) = self.signal_after_end.take() {
-            let _ = signal_after_end.send(());
-
-            if let Some(custom_signal) = custom_signal {
-                custom_signal()
+        if let Some(signal_after_end) = self.signal_after_end.take() {
+            match signal_after_end {
+                Signal::Channel(sender) => {
+                    let _ = sender.send(());
+                }
+                Signal::Callback(callback) => callback(),
             }
         }
 
@@ -512,12 +516,20 @@ mod tests {
     #[test]
     fn callback_is_called() {
         let (tx, mut rx) = queue::queue(false);
-        let flag = Arc::new(Mutex::new(false));
+        let flag = Arc::new(Mutex::new(0));
         let flag2 = flag.clone();
 
-        tx.append_with_callback(source::Empty, move || *flag2.lock().unwrap() = true);
-        let _ = rx.next();
+        tx.append_with_callback(
+            SamplesBuffer::new(nz!(1), nz!(44100), vec![0.1, 0.2, 0.3]),
+            move || *flag2.lock().unwrap() += 1,
+        );
+        tx.append_with_callback(
+            SamplesBuffer::new(nz!(2), nz!(44100), vec![0.4, 0.5, 0.6]),
+            || (),
+        );
+        let _ = rx.go_next();
+        let _ = rx.go_next();
 
-        assert!(*flag.lock().unwrap());
+        assert_eq!(*flag.lock().unwrap(), 1);
     }
 }

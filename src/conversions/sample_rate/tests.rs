@@ -102,6 +102,12 @@ impl Iterator for TestSource {
         }
         Some(s)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let left = self.spans.iter().skip(self.span).map(|s| s.samples.len());
+        let left = left.sum::<usize>() - self.offset;
+        (left, Some(left))
+    }
 }
 
 impl Source for TestSource {
@@ -337,4 +343,414 @@ fn test_span_boundary_same_format() {
              (second span likely not processed)",
         output.len()
     );
+}
+
+/// Split `input` into spans of `span_samples`, all with the same format.
+fn chunked_into_spans(
+    input: &[Sample],
+    span_samples: usize,
+    rate: SampleRate,
+    channels: ChannelCount,
+) -> TestSource {
+    let mut spans = input.chunks(span_samples);
+    let first = spans.next().expect("input is not empty").to_vec();
+    spans.fold(TestSource::new(first, rate, channels), |source, span| {
+        source.chain(span.to_vec(), rate, channels)
+    })
+}
+
+/// Same samples, same format, different span lengths must resample to
+/// the same output: a span boundary without a format change is not a
+/// discontinuity. Reproduces #907, where Vorbis-sized spans made every
+/// chunk look like end-of-stream and get zero-padded.
+#[test]
+fn output_is_independent_of_span_chunking() {
+    let channels = ChannelCount::new(2).unwrap();
+    let rate = SampleRate::new(44100).unwrap();
+    let target = SampleRate::new(48000).unwrap();
+    let input = create_test_input(InFrameCount(4410), channels);
+    let config = || ResampleConfig::poly().build();
+
+    let whole: Vec<Sample> = SampleRateConverter::new(
+        TestSource::new(input.clone(), rate, channels),
+        target,
+        config(),
+    )
+    .collect();
+
+    // 128 frames is a typical Vorbis short block.
+    let source = chunked_into_spans(&input, 128 * channels.get() as usize, rate, channels);
+    let chunked: Vec<Sample> = SampleRateConverter::new(source, target, config()).collect();
+
+    assert_eq!(whole.len(), chunked.len(), "output length changed");
+    let worst = whole
+        .iter()
+        .zip(&chunked)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0, Sample::max);
+    assert!(worst < 1e-4, "output differs by up to {worst}");
+}
+
+/// A span that changes the sample rate must be resampled at its own
+/// rate. It used to be resampled at the previous span's rate, so a
+/// span that halved the rate came out half as long as it should.
+#[test]
+fn span_boundary_may_change_sample_rate() {
+    let channels = ChannelCount::new(1).unwrap();
+    let target = SampleRate::new(48000).unwrap();
+    let (fast, slow) = (
+        SampleRate::new(44100).unwrap(),
+        SampleRate::new(22050).unwrap(),
+    );
+    let frames = InFrameCount(441);
+
+    let source = TestSource::new(create_test_input(frames, channels), fast, channels).chain(
+        create_test_input(frames, channels),
+        slow,
+        channels,
+    );
+    let output: Vec<Sample> =
+        SampleRateConverter::new(source, target, ResampleConfig::poly().build()).collect();
+
+    let expected = resampled_len(frames, fast, target) + resampled_len(frames, slow, target);
+    assert_close(output.len(), expected, "sample rate change");
+}
+
+/// The same for a span that changes the channel count.
+#[test]
+fn span_boundary_may_change_channel_count() {
+    let (stereo, mono) = (ChannelCount::new(2).unwrap(), ChannelCount::new(1).unwrap());
+    let rate = SampleRate::new(44100).unwrap();
+    let target = SampleRate::new(48000).unwrap();
+    let frames = InFrameCount(441);
+
+    let source = TestSource::new(create_test_input(frames, stereo), rate, stereo).chain(
+        create_test_input(frames, mono),
+        rate,
+        mono,
+    );
+    let output: Vec<Sample> =
+        SampleRateConverter::new(source, target, ResampleConfig::poly().build()).collect();
+
+    let expected = resampled_len(frames, rate, target) * 2 + resampled_len(frames, rate, target);
+    assert_close(output.len(), expected, "channel count change");
+}
+
+/// Samples one span of `frames` becomes at `target`, one channel.
+fn resampled_len(frames: InFrameCount, from: SampleRate, target: SampleRate) -> usize {
+    (frames.raw() as f64 * target.get() as f64 / from.get() as f64).round() as usize
+}
+
+/// Resampler delay and rounding move the total by a few samples, so
+/// compare with room for that rather than exactly.
+fn assert_close(got: usize, expected: usize, what: &str) {
+    let slack = 16;
+    assert!(
+        got.abs_diff(expected) <= slack,
+        "{what}: got {got} samples, expected {expected} ± {slack}",
+    );
+}
+
+/// Passthrough must keep yielding when the input reports no span length.
+#[test]
+fn passthrough_none_span_len_yields_samples() {
+    let rate = crate::DEFAULT_SAMPLE_RATE;
+    let mut out =
+        SampleRateConverter::new(SineWave::new(440.0), rate, ResampleConfig::poly().build());
+    let n = (&mut out).take(32).count();
+    assert_eq!(
+        n, 32,
+        "Passthrough with current_span_len() == None stopped early (got {n})"
+    );
+}
+
+/// Spans of `(frames, rate, channels)`, one after the other.
+fn spans_of(spans: &[(usize, u32, u16)]) -> TestSource {
+    let span = |&(frames, rate, channels): &(usize, u32, u16)| {
+        let channels = ChannelCount::new(channels).unwrap();
+        let input = create_test_input(InFrameCount(frames), channels);
+        (input, SampleRate::new(rate).unwrap(), channels)
+    };
+    let mut spans = spans.iter().map(span);
+    let (input, rate, channels) = spans.next().expect("at least one span");
+    spans.fold(TestSource::new(input, rate, channels), |source, span| {
+        source.chain(span.0, span.1, span.2)
+    })
+}
+
+/// A resampler reads ahead of the samples it yields, so what it reports
+/// must describe the next sample, not where its input has got to.
+#[test]
+fn channels_follow_the_samples_still_buffered() {
+    let target = SampleRate::new(48000).unwrap();
+    let mut resampler = SampleRateConverter::new(
+        spans_of(&[(100, 24000, 1), (100, 24000, 2)]),
+        target,
+        ResampleConfig::poly().build(),
+    );
+
+    let mut mono = 0;
+    while resampler.channels().get() == 1 {
+        resampler.next().expect("the stereo span is still to come");
+        mono += 1;
+    }
+    assert_close(mono, 200, "mono samples before channels() turned stereo");
+    let stereo = resampler.count();
+    assert_close(stereo, 400, "stereo samples after");
+}
+
+#[test]
+fn is_exhausted_only_once_nothing_is_left() {
+    let target = SampleRate::new(44100).unwrap();
+    // A sinc filter still holds samples after its input runs out.
+    let config = ResampleConfig::sinc()
+        .sinc_len(NonZero::new(16).unwrap())
+        .build();
+    let mut resampler = SampleRateConverter::new(
+        spans_of(&[(429, 22050, 2), (262, 12000, 2)]),
+        target,
+        config,
+    );
+
+    let mut emitted = 0;
+    loop {
+        let exhausted = resampler.is_exhausted();
+        let Some(_) = resampler.next() else {
+            break;
+        };
+        assert!(!exhausted, "is_exhausted() before sample {emitted}");
+        emitted += 1;
+    }
+    assert!(resampler.is_exhausted());
+}
+
+/// Later spans may be at another rate, so the current ratio can't bound
+/// them: past the span being read, only the lower bound may count on it.
+#[test]
+fn size_hint_holds_across_rate_changes() {
+    let target = SampleRate::new(48000).unwrap();
+    for spans in [
+        &[(64, 48000, 1), (128, 24000, 1)][..],
+        &[(64, 24000, 1), (256, 96000, 1)],
+        &[(128, 24000, 1), (128, 12000, 1)],
+        &[(128, 24000, 1), (256, 48000, 1)],
+        &[(441, 44100, 2), (441, 44100, 2)],
+    ] {
+        let mut resampler =
+            SampleRateConverter::new(spans_of(spans), target, ResampleConfig::poly().build());
+        let mut hints = vec![resampler.size_hint()];
+        while resampler.next().is_some() {
+            hints.push(resampler.size_hint());
+        }
+
+        let total = hints.len() - 1;
+        for (emitted, (lower, upper)) in hints.into_iter().enumerate() {
+            let left = total - emitted;
+            assert!(
+                lower <= left,
+                "{spans:?}: lower bound {lower} with {left} left"
+            );
+            assert!(
+                upper.is_none_or(|upper| upper >= left),
+                "{spans:?}: upper bound {upper:?} with {left} left"
+            );
+        }
+    }
+}
+
+/// A finished buffer in a `chain` isn't the end of the stream.
+#[test]
+fn chain_is_resampled_to_its_end() {
+    use crate::buffer::SamplesBuffer;
+    use crate::source::chain;
+
+    let (mono, rate) = (
+        ChannelCount::new(1).unwrap(),
+        SampleRate::new(24000).unwrap(),
+    );
+    let source = chain([
+        SamplesBuffer::new(mono, rate, vec![0.5; 600]),
+        SamplesBuffer::new(mono, rate, vec![0.5; 64]),
+    ]);
+    let target = SampleRate::new(48000).unwrap();
+    let output = SampleRateConverter::new(source, target, ResampleConfig::poly().build()).count();
+    assert_close(output, 1328, "chain of two buffers");
+}
+
+/// The last frames before a format change are interpolated like any
+/// others: not towards silence, nor with silence counted in after them.
+#[test]
+fn frames_before_a_format_change_follow_the_input() {
+    let mono = ChannelCount::new(1).unwrap();
+    let (rate, next_rate) = (
+        SampleRate::new(44100).unwrap(),
+        SampleRate::new(110250).unwrap(),
+    );
+    let frames = 20_000;
+    // Many chunks, so rounding each one's output would add up.
+    let ramp: Vec<Sample> = (0..frames)
+        .map(|i| i as Sample / frames as Sample)
+        .collect();
+    let source = TestSource::new(ramp, rate, mono).chain(vec![1.0; 4410], next_rate, mono);
+    let target = SampleRate::new(48000).unwrap();
+    let config = ResampleConfig::poly().degree(Poly::Linear).build();
+    let output: Vec<Sample> = SampleRateConverter::new(source, target, config).collect();
+
+    let before_change = resampled_len(InFrameCount(frames), rate, target);
+    let tail = &output[..before_change];
+    for (i, pair) in tail.windows(2).enumerate() {
+        assert!(
+            pair[1] >= pair[0],
+            "frame {} falls from {} to {}",
+            i + 1,
+            pair[0],
+            pair[1]
+        );
+    }
+    let step = 1.0 / frames as Sample;
+    let last = tail.last().copied().unwrap_or_default();
+    assert!(
+        last >= 1.0 - 3.0 * step,
+        "the last frame before the change is {last}, not the input's end"
+    );
+}
+
+/// A seek can land partway through a span, so the resampler can't count
+/// on the whole span being left: it must stop where the format changes.
+#[test]
+fn seek_into_a_span_stops_at_its_format_change() {
+    let (mono, stereo) = (ChannelCount::new(1).unwrap(), ChannelCount::new(2).unwrap());
+    let rate = SampleRate::new(24000).unwrap();
+    let source =
+        TestSource::new(vec![0.25; 113], rate, mono).chain([0.75, -0.75].repeat(64), rate, stereo);
+    let target = SampleRate::new(48000).unwrap();
+    let config = ResampleConfig::poly()
+        .degree(Poly::Linear)
+        .chunk_size(NonZero::new(128).unwrap())
+        .build();
+    let mut resampler = SampleRateConverter::new(source, target, config);
+    resampler.try_seek(Duration::from_millis(2)).unwrap();
+
+    let mut stereo_samples = Vec::new();
+    loop {
+        let channels = resampler.channels();
+        let Some(sample) = resampler.next() else {
+            break;
+        };
+        if channels == stereo {
+            stereo_samples.push(sample);
+        } else {
+            assert_eq!(sample, 0.25, "a mono sample read from the stereo span");
+        }
+    }
+    assert_close(stereo_samples.len(), 256, "stereo samples");
+    // The stream's last frames fade out, but each stays a stereo frame.
+    for (i, frame) in stereo_samples.chunks(2).enumerate() {
+        assert!(
+            frame[0] > 0.0 && frame[1] == -frame[0],
+            "stereo frame {i} is {frame:?}"
+        );
+    }
+}
+
+quickcheck! {
+    /// Wherever the last of some seeks lands, with reads before each,
+    /// the samples that follow are what resampling the rest of the
+    /// input from there gives.
+    fn seek_resamples_the_rest_of_the_input(
+        spans: Vec<(u8, u8, u8)>,
+        rounds: Vec<(u8, u16)>,
+        chunk: u8,
+        sinc: bool
+    ) -> TestResult {
+        const RATES: [u32; 4] = [12000, 24000, 44100, 48000];
+        if spans.is_empty() || rounds.is_empty() {
+            return TestResult::discard();
+        }
+        let layout: Vec<_> = spans
+            .iter()
+            .take(5)
+            .map(|&(frames, rate, channels)| {
+                let frames = usize::from(frames) * 2 + 1;
+                (frames, RATES[usize::from(rate) % 4], u16::from(channels) % 3 + 1)
+            })
+            .collect();
+        let chunk = NonZero::new(usize::from(chunk) % 200 + 8).unwrap();
+        let config = if sinc {
+            ResampleConfig::sinc()
+                .sinc_len(NonZero::new(16).unwrap())
+                .chunk_size(chunk)
+                .build()
+        } else {
+            ResampleConfig::poly().chunk_size(chunk).build()
+        };
+        let target = SampleRate::new(44100).unwrap();
+
+        let source = spans_of(&layout);
+        let total = source.total_duration().unwrap();
+        // The start and the end are where seeks most often go wrong.
+        let position_of = |seek: u16| match seek % 4 {
+            0 => Duration::ZERO,
+            1 => total,
+            _ => total.mul_f64(f64::from(seek) / f64::from(u16::MAX)),
+        };
+
+        let mut seeked = SampleRateConverter::new(source, target, config.clone());
+        let mut position = Duration::ZERO;
+        for &(reads, seek) in rounds.iter().take(4) {
+            seeked.by_ref().take(usize::from(reads) * 4).for_each(drop);
+            position = position_of(seek);
+            seeked.try_seek(position).unwrap();
+        }
+        let got = with_channels(seeked);
+
+        // What's left of the input once it has seeked there.
+        let mut rest = spans_of(&layout);
+        rest.try_seek(position).unwrap();
+        let mut left = rest.spans.split_off(rest.span.min(rest.spans.len()));
+        if let Some(first) = left.first_mut() {
+            first.samples.drain(..rest.offset);
+        }
+        let expected = if left.is_empty() {
+            Vec::new()
+        } else {
+            let rest = TestSource { spans: left, span: 0, offset: 0 };
+            with_channels(SampleRateConverter::new(rest, target, config))
+        };
+        TestResult::from_bool(got == expected)
+    }
+}
+
+/// Each sample with the channel count reported before it.
+fn with_channels(mut source: impl Source) -> Vec<(u16, Sample)> {
+    let mut samples = Vec::new();
+    loop {
+        let channels = source.channels().get();
+        let Some(sample) = source.next() else {
+            return samples;
+        };
+        samples.push((channels, sample));
+    }
+}
+
+/// A seek to the end builds nothing to resample with, so a seek back
+/// must build a resampler again.
+#[test]
+fn seek_back_from_the_end_resamples_again() {
+    let layout = [(101, 24000, 1), (101, 12000, 2)];
+    let target = SampleRate::new(44100).unwrap();
+    for config in [
+        ResampleConfig::poly().build(),
+        ResampleConfig::sinc()
+            .sinc_len(NonZero::new(16).unwrap())
+            .build(),
+    ] {
+        let source = spans_of(&layout);
+        let total = source.total_duration().unwrap();
+        let mut resampler = SampleRateConverter::new(source, target, config);
+        resampler.try_seek(total).unwrap();
+        resampler.try_seek(total.mul_f64(0.9)).unwrap();
+        // 16 stereo frames at 12 kHz are left.
+        assert_close(resampler.count(), 118, "samples after seeking back");
+    }
 }

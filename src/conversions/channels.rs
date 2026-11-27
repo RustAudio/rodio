@@ -51,6 +51,25 @@ where
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input
     }
+
+    /// Whether the next sample starts an output frame. Mid-frame, the
+    /// rest of the frame may still come from input already read.
+    #[inline]
+    pub(crate) fn at_frame_start(&self) -> bool {
+        self.next_output_sample_pos == 0
+    }
+
+    /// The channel count converted from.
+    #[inline]
+    pub(crate) fn channels_from(&self) -> ChannelCount {
+        self.from
+    }
+
+    /// How many samples `input_len` whole input frames convert to.
+    #[inline]
+    pub(crate) fn converted_len(&self, input_len: usize) -> usize {
+        input_len / self.from.get() as usize * self.to.get() as usize
+    }
 }
 
 impl<I> Iterator for ChannelCountConverter<I>

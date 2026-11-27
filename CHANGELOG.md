@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed sources to detect parameter updates after mid-span seeks.
 - Fixed `Stoppable` and `Skippable` not signaling exhaustion.
 - Fixed `SpatialAudio` left and write channel swapping
+- Fixed resampled output depending on how the input is split into spans.
+- Fixed `chain` reporting the end of the stream between two of its sources.
+- Fixed the resampler passing a sample through as it was after a seek into a span of another rate.
+- Fixed `UniformSourceIterator`'s lower size hint counting input past a format change.
 
 ## Version [0.22.2] (2026-03-05)
 

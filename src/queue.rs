@@ -89,21 +89,20 @@ impl SourcesQueueInput {
 
     /// Adds a new source to the end of the queue.
     ///
-    /// The `FnOnce` will be called when the sound has finished playing.
+    /// The `FnOnce` callback will be called when the sound has finished playing.
+    ///
+    /// The callback must not block the thread.
     #[inline]
-    pub fn append_with_signal_custom<T>(
-        &self,
-        source: T,
-        signal: Box<dyn FnOnce() + Send>,
-    ) -> Receiver<()>
+    pub fn append_with_callback<T, F>(&self, source: T, callback: F) -> Receiver<()>
     where
         T: Source + Send + 'static,
+        F: FnOnce() + Send + 'static,
     {
         let (tx, rx) = channel();
-        self.next_sounds
-            .lock()
-            .unwrap()
-            .push_back((Box::new(source) as Box<_>, Some((tx, Some(signal)))));
+        self.next_sounds.lock().unwrap().push_back((
+            Box::new(source) as Box<_>,
+            Some((tx, Some(Box::new(callback)))),
+        ));
         rx
     }
 
@@ -301,8 +300,9 @@ impl SourcesQueueOutput {
 mod tests {
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
-    use crate::source::{chain, SeekError, Source};
+    use crate::source::{self, chain, SeekError, Source};
     use crate::{queue, ChannelCount, Sample, SampleRate};
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     #[test]
@@ -507,5 +507,17 @@ mod tests {
                 "Sample rate should update to 44100 (keep_alive={keep_alive})"
             );
         }
+    }
+
+    #[test]
+    fn callback_is_called() {
+        let (tx, mut rx) = queue::queue(false);
+        let flag = Arc::new(Mutex::new(false));
+        let flag2 = flag.clone();
+
+        tx.append_with_callback(source::Empty, move || *flag2.lock().unwrap() = true);
+        let _ = rx.next();
+
+        assert!(*flag.lock().unwrap());
     }
 }

@@ -105,13 +105,14 @@ where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if let Some(cur) = &self.current_source {
-            (
+        match &self.current_source {
+            None => (0, Some(0)),
+            // An ended source is never asked again, whatever it now says.
+            Some(_) if self.current_ended => (0, None),
+            Some(cur) => (
                 cur.size_hint().0 + usize::from(self.pending.is_some()),
                 None,
-            )
-        } else {
-            (0, Some(0))
+            ),
         }
     }
 }
@@ -126,9 +127,16 @@ where
         // The transition between sources must be a span boundary. We propagate the current
         // source's span length directly. When the source is exhausted it already returns Some(0),
         // which correctly signals end-of-span. The None case (empty iterator) is likewise
-        // signalled as Some(0).
+        // signalled as Some(0), as is a source that has ended, whatever it now says.
+        //
+        // A sample a source still had after reporting its end is a span of its own: the source
+        // already reports `Some(0)`, which would read as the end of the whole chain.
+        if self.pending.is_some() {
+            return Some(1);
+        }
         match &self.current_source {
             None => Some(0),
+            Some(_) if self.current_ended => Some(0),
             Some(src) => src.current_span_len(),
         }
     }
@@ -294,6 +302,49 @@ mod tests {
             Box::new(SamplesBuffer::new(nz!(1), nz!(48000), vec![4.0])),
         ]);
         assert_eq!(c.collect::<Vec<_>>(), [1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn reports_a_pending_sample_as_a_span_of_its_own() {
+        // Cut after one sample, so `take_duration` pads the frame with a
+        // sample after reporting its end.
+        let cut = || {
+            SamplesBuffer::new(nz!(2), nz!(48000), vec![1.0, 2.0])
+                .take_duration(Duration::from_micros(15))
+        };
+        let sources = || -> [Box<dyn Source + Send>; 2] {
+            [
+                Box::new(cut()),
+                Box::new(SamplesBuffer::new(nz!(2), nz!(48000), vec![3.0, 4.0])),
+            ]
+        };
+        let direct: Vec<_> = chain(sources()).collect();
+        assert_eq!(direct, [1.0, 0.0, 3.0, 4.0]);
+
+        let mut c = chain(sources());
+        assert_eq!(c.next(), Some(1.0));
+        assert_eq!(
+            c.current_span_len(),
+            Some(1),
+            "the padding sample is pending"
+        );
+        assert!(!c.is_exhausted());
+        assert_eq!(chain(sources()).buffered().collect::<Vec<_>>(), direct);
+    }
+
+    #[test]
+    fn stays_ended_when_the_last_source_rewinds_itself() {
+        let done = Done::new(
+            SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0]),
+            |buffer: &mut SamplesBuffer| buffer.try_seek(Duration::ZERO).unwrap(),
+        );
+        let mut c = chain([done]);
+        assert_eq!(c.next(), Some(1.0));
+        assert_eq!(c.next(), None);
+        assert_eq!(c.size_hint(), (0, None));
+        assert_eq!(c.current_span_len(), Some(0));
+        assert!(c.is_exhausted());
+        assert_eq!(c.next(), None);
     }
 
     #[test]

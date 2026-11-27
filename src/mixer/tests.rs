@@ -138,3 +138,65 @@ fn added_taking_phase_into_account() {
     assert_eq!(rx.next(), Some(-10.0)); // not yet mixed (out of phase)
     assert_eq!(rx.next(), Some(15.0)); // mixing starts
 }
+
+/// Buffers played one after the other, as `(frames, rate, channels)`.
+fn spans(spans: &[(usize, u32, u16)]) -> impl Source + Send {
+    let buffers: Vec<_> = spans
+        .iter()
+        .map(|&(frames, rate, channels)| {
+            let samples = vec![0.25; frames * channels as usize];
+            SamplesBuffer::new(
+                channels.try_into().unwrap(),
+                rate.try_into().unwrap(),
+                samples,
+            )
+        })
+        .collect();
+    crate::source::chain(buffers)
+}
+
+/// A resampler reads ahead, so it has moved on to the next format while
+/// samples of the last one are still to come. Those must still play.
+#[test]
+fn format_change_keeps_resampled_samples() {
+    for (spans_in, mixer_channels, expected) in [
+        // Read up to the 48 kHz span with 24 kHz samples still buffered.
+        (
+            &[(128, 24000, 1), (64, 24000, 1), (96, 48000, 1)][..],
+            1,
+            480,
+        ),
+        // Same, when the next span also changes the channel count.
+        (&[(300, 24000, 1), (200, 44100, 2)], 2, 1200 + 2 * 218),
+        // Downmixing as well as resampling.
+        (&[(300, 24000, 2), (200, 24000, 1)], 1, 600 + 400),
+    ] {
+        let (tx, rx) = mixer::mixer(mixer_channels.try_into().unwrap(), nz!(48000));
+        tx.add(spans(spans_in));
+        let played = rx.count();
+        assert!(
+            played.abs_diff(expected) <= 16,
+            "{spans_in:?}: played {played} samples, expected {expected}"
+        );
+        assert_eq!(
+            played % mixer_channels as usize,
+            0,
+            "{spans_in:?}: played {played} samples, not whole frames"
+        );
+    }
+}
+
+/// Upmixed to stereo, the frame being played is finished in the format
+/// it started in, so the next span's channels stay in place.
+#[test]
+fn format_change_keeps_channels_in_place() {
+    let (tx, rx) = mixer::mixer(nz!(2), nz!(48000));
+    tx.add(crate::source::chain([
+        SamplesBuffer::new(nz!(1), nz!(24000), vec![0.25; 300]),
+        SamplesBuffer::new(nz!(2), nz!(48000), [0.5, 0.75].repeat(200)),
+    ]));
+    let played: Vec<_> = rx.collect();
+    assert_eq!(played.len(), 1600);
+    assert!(played[..1200].chunks(2).all(|frame| frame[0] == frame[1]));
+    assert!(played[1200..].chunks(2).all(|frame| frame == [0.5, 0.75]));
+}

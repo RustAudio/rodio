@@ -305,6 +305,21 @@ where
         }
     }
 
+    /// Whether what was built still fits the input: built for its
+    /// format, and not a passthrough of another rate than the target's,
+    /// which is only built for an input with nothing left, such as
+    /// after a seek to the end.
+    fn fits_input(&self) -> bool {
+        let resampler = self.resampler();
+        let passes_other_rate = match resampler {
+            ResampleInner::Passthrough { source, .. } => {
+                !source.is_exhausted() && source.sample_rate() != self.target_rate
+            }
+            _ => false,
+        };
+        resampler.built_for_input() && !passes_other_rate
+    }
+
     /// Returns the inner source.
     #[inline]
     pub fn into_inner(self) -> I {
@@ -377,7 +392,7 @@ where
         self.inner_mut().try_seek(position)?;
         self.pending_recreate = false;
         // The seek may land in a span of another format.
-        if !self.resampler().built_for_input() {
+        if !self.fits_input() {
             self.recreate();
         }
 
